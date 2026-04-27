@@ -4,12 +4,18 @@ import { useDispatch, useSelector } from "react-redux";
 
 import List from "./List";
 import MyMap from "./Map";
+import LocationConsent from "../LocationConsent";
 
 import * as propertyActions from "../../store/property";
+import { hasConsented, saveConsent } from "../../utils/locationConsent";
+import { useNotification } from "../../context/Notification";
+
+const TORONTO = { lat: 43.6532, lng: -79.3832 };
 
 const SearchArea = () => {
 	const dispatch = useDispatch();
 	const { areaParam } = useParams();
+	const { setToggleNotification, setNotificationMsg } = useNotification();
 
 	// state.properties is a flat { [id]: property } object — do NOT chain .properties
 	const properties = useSelector((state) => state.properties?.properties ?? []);
@@ -22,18 +28,52 @@ const SearchArea = () => {
 	const [transactionType, setTransactionType] = useState("sale"); // "sale" | "lease"
 
 	const getInitialCenter = (param) => {
-		if (!param) return { lat: 37.0903, lng: -95.7129 };
+		if (!param) return TORONTO;
 		const parts = param.split("&").map((p) => parseFloat(p.split("=")[1]));
 		const [neLat, neLng, swLat, swLng] = parts;
 		return { lat: (neLat + swLat) / 2, lng: (neLng + swLng) / 2 };
 	};
 
-	const [center] = useState(() => getInitialCenter(areaParam));
+	const [center, setCenter] = useState(() => getInitialCenter(areaParam));
+	const [syncCenter, setSyncCenter] = useState(false);
+	const [showConsent, setShowConsent] = useState(false);
 	const [propArr, setPropArr] = useState([]);
 	const [over, setOver] = useState({ id: 0 });
 	const [zoom, setZoom] = useState(10);
 	const [isMapSyncing, setIsMapSyncing] = useState(false);
 	const mapSyncTimer = useRef(null);
+
+	// Show consent banner once on mount if not yet accepted
+	useEffect(() => {
+		if (!hasConsented()) setShowConsent(true);
+	}, []);
+
+	const requestLocation = () => {
+		if (!navigator.geolocation) return;
+		navigator.geolocation.getCurrentPosition(
+			(pos) => {
+				setCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+				setSyncCenter(true);
+				// Reset syncCenter after pan so future map drags aren't overridden
+				setTimeout(() => setSyncCenter(false), 1500);
+			},
+			() => {
+				// Denied or unavailable — fall back to Toronto silently
+				setCenter(TORONTO);
+			},
+			{ timeout: 8000 }
+		);
+	};
+
+	const handleAccept = () => {
+		saveConsent();
+		setShowConsent(false);
+		requestLocation();
+	};
+
+	const handleDecline = () => {
+		setShowConsent(false);
+	};
 
 	useEffect(() => {
 		if (areaParam) {
@@ -116,7 +156,7 @@ const SearchArea = () => {
 					zoom={zoom}
 					onBoundsChange={handleMapBoundsChange}
 					enableAreaSearch={false}
-					syncCenter={false}
+					syncCenter={syncCenter}
 					transactionType={transactionType}
 					setTransactionType={setTransactionType}
 				/>
@@ -137,6 +177,9 @@ const SearchArea = () => {
 					isMapSyncing={isMapSyncing}
 				/>
 			</main>
+			{showConsent && (
+				<LocationConsent onAccept={handleAccept} onDecline={handleDecline} />
+			)}
 			<footer className="search-pg-footer">
 				<p>The information provided herein is deemed reliable but is not guaranteed accurate by PROPTX.</p>
 				<p>The information provided herein must only be used by consumers that have a bona fide interest in the purchase, sale, or lease of real estate and may not be used for any commercial purpose or any other purpose.</p>

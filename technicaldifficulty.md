@@ -75,8 +75,6 @@ Allow agent to asign the lead to another agent with the postal code as service a
 5. favico/logo
 
 #Marketing:
-1. Bring 10 realtors onboard 
+1. Bring 8 realtors onboard 
 
 
-
-![alt text](image-10.png)
