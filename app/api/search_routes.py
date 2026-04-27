@@ -11,7 +11,7 @@ _PROPERTY_OPTS = [
     selectinload(Property.images),
 ]
 
-MLS_LIMIT = 490   # max MLS results per search
+MLS_LIMIT = 100   # hard cap per Section 6.3b
 PROP_LIMIT = 10   # keep a handful of seeded properties alongside MLS data
 
 

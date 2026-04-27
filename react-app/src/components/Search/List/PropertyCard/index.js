@@ -35,14 +35,14 @@ const PropertyCard = ({ property, setOver }) => {
 					{property?.street}, {property?.city}, {property?.state}{" "}
 					{property?.zip}
 				</div>
-				<div className="card-office pt-1 text-[11px] tracking-wide text-[#8a8a84]">
+				<div className="card-office pt-1 text-[16px] font-medium leading-snug text-[#353531]">
 					Brokerage:{" "}
-					{(
+					{
 						property?.brokerage ||
 						property?.office ||
 						property?.listing_brokerage ||
 						"N/A"
-					).toUpperCase()}
+					}
 				</div>
 			</div>
 			{showModal && (

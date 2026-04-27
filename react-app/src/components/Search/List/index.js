@@ -85,12 +85,15 @@ const List = ({
 		setCurrentPage(1);
 	}, [propArr, pageSize]);
 
-	const totalResults = propArr.length;
-	const totalPages = Math.max(1, Math.ceil(totalResults / pageSize));
+	const RESULT_CAP = 100;
+	const cappedArr = propArr.slice(0, RESULT_CAP);
+	const totalResults = cappedArr.length;
+	const maxPages = Math.ceil(RESULT_CAP / pageSize);
+	const totalPages = Math.min(Math.max(1, Math.ceil(totalResults / pageSize)), maxPages);
 	const safePage = Math.min(currentPage, totalPages);
 	const startIndex = (safePage - 1) * pageSize;
 	const endIndex = startIndex + pageSize;
-	const pagedProperties = propArr.slice(startIndex, endIndex);
+	const pagedProperties = cappedArr.slice(startIndex, endIndex);
 
 	return (
 		<div className="search-wrap bg-[#f3f3f1] text-[#1f1f1f]">
@@ -149,7 +152,7 @@ const List = ({
 					</form>
 					<div className="search-bar mt-3 flex items-center justify-between border-t border-[#e5e5e0] pt-3">
 						<div className="results text-sm text-[#5c5c56]">
-							{isMapSyncing ? "Updating..." : `${totalResults} Results`}
+							{isMapSyncing ? "Updating..." : propArr.length >= RESULT_CAP ? "Top 100 Results" : `${totalResults} Results`}
 						</div>
 						<div className="flex items-center gap-2">
 							<button className="rounded-full border border-[#d9d9d3] bg-[#f6f6f3] px-3 py-1 text-xs text-[#555]">
@@ -175,8 +178,7 @@ const List = ({
 					</div>
 					<div className="search-pagination border-t border-[#e5e5e0] bg-[#f8f8f5] px-4 py-3">
 						<div className="search-pagination-info text-sm text-[#6d6d66]">
-							Showing {startIndex + 1}-
-							{Math.min(endIndex, totalResults)} of {totalResults}
+							Showing {startIndex + 1}–{Math.min(endIndex, totalResults)}
 						</div>
 						<div className="search-pagination-controls mt-2 flex flex-wrap items-center gap-2">
 							<label className="search-page-size flex items-center gap-2 text-xs text-[#6d6d66]">
@@ -205,7 +207,7 @@ const List = ({
 							<button
 								className="search-page-btn rounded-md border border-[#d8d8d2] bg-white px-3 py-1 text-sm text-[#444] transition hover:bg-[#f1f1ec] disabled:cursor-not-allowed disabled:opacity-40"
 								type="button"
-								disabled={safePage === totalPages}
+								disabled={safePage >= totalPages}
 								onClick={() =>
 									setCurrentPage((page) => Math.min(totalPages, page + 1))
 								}
