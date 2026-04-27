@@ -1,6 +1,6 @@
 .agents-ctrl {
 	background-color: #ffffff;
-	height: calc(100vh - 85px);
+	min-height: calc(100vh - 85px);
 	display: flex;
 	flex-direction: column;
 	padding: 28px;
@@ -194,4 +194,79 @@ table {
 
 .agents-table .more:hover {
 	border-bottom: 1px solid #0f172a;
+}
+
+@media screen and (max-width: 650px) {
+	.agents-ctrl {
+		padding: 16px;
+		gap: 16px;
+	}
+
+	.agents-title {
+		font-size: 28px;
+	}
+
+	.agents-search {
+		flex-direction: column;
+		gap: 12px;
+	}
+
+	/* Convert table to stacked cards */
+	.agents-table,
+	.agents-table tbody,
+	.agents-table tr,
+	.agents-table td {
+		display: block;
+		width: 100%;
+	}
+
+	.agents-table thead {
+		display: none;
+	}
+
+	.agents-table tr {
+		margin-bottom: 12px;
+		border-radius: 12px;
+		border: 1px solid var(--border-subtle);
+		box-shadow: var(--shadow-soft-sm);
+		overflow: hidden;
+	}
+
+	.agents-table td {
+		padding: 14px 16px;
+		border-bottom: 1px solid var(--border-subtle);
+	}
+
+	.agents-table td:last-child {
+		border-bottom: none;
+	}
+
+	.agents-col {
+		grid-template-columns: 72px 1fr;
+		gap: 14px;
+	}
+
+	.agents-photo {
+		width: 72px;
+		height: 72px;
+	}
+
+	.agents-detail .name {
+		font-size: 16px;
+	}
+
+	.agents-detail .phone {
+		font-size: 15px;
+	}
+
+	.agents-review-wrap .recent-review {
+		max-width: 100%;
+		text-align: left;
+	}
+
+	.agents-review-wrap {
+		text-align: left;
+		align-items: flex-start;
+		display: flex;
+	}
 }
