@@ -151,7 +151,7 @@ const Detail = ({ property }) => {
 				<Row label="Postal Code" value={property?.zip || "—"} />
 			</Section>
 
-			<Section title="Agent details">
+			<Section title="Brokerage details">
 				<Row label="Brokerage" value={property?.brokerage || property?.office || "—"} />
 			</Section>
 
