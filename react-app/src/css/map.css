@@ -1,0 +1,87 @@
+.map-ctnr {
+	height: calc(100vh - 57px);
+	width: 100%;
+}
+
+/* ── InfoWindow container ───────────────────────────────────────────── */
+.gm-style .gm-style-iw-c {
+	padding: 0 !important;
+	max-width: 320px !important;
+	min-width: 0 !important;
+	border-radius: 16px !important;
+	box-shadow:
+		0 8px 40px rgba(0, 0, 0, 0.09),
+		0 2px 10px rgba(0, 0, 0, 0.05) !important;
+	overflow: hidden !important;
+}
+
+/* Scrollable content pane — zero padding so our component controls spacing */
+.gm-style .gm-style-iw-d {
+	overflow: auto !important;
+	max-height: 430px !important;
+	padding: 0 !important;
+}
+
+/* Remove the arrow tail — clean floating card look */
+.gm-style .gm-style-iw-t::after {
+	display: none !important;
+}
+
+/* Hide Google's own close button; onCloseClick + map onClick handle dismissal */
+.gm-ui-hover-effect {
+	display: none !important;
+}
+
+/* Remove the chrome bar (holds hidden close button) that creates blank top space */
+.gm-style .gm-style-iw-chr {
+	display: none !important;
+}
+
+
+/* ── Cluster markers (rendered via OverlayView) ─────────────────────── */
+.cluster-marker {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: #2a6f97;
+	color: #ffffff;
+	font-weight: 700;
+	border-radius: 50%;
+	border: 2.5px solid #ffffff;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+	cursor: pointer;
+	user-select: none;
+	transition: background 0.15s, transform 0.1s;
+	line-height: 1;
+}
+
+.cluster-marker:hover {
+	background: #1d5478;
+	transform: scale(1.08);
+}
+
+/* Size tiers — match clusterSizeClass() in Map/index.js */
+.cluster-sm {
+	width: 36px;
+	height: 36px;
+	font-size: 13px;
+}
+
+.cluster-md {
+	width: 46px;
+	height: 46px;
+	font-size: 14px;
+}
+
+.cluster-lg {
+	width: 56px;
+	height: 56px;
+	font-size: 15px;
+}
+
+
+@media screen and (max-width: 650px) {
+	.map-ctnr {
+		height: 100%;
+	}
+}

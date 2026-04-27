@@ -1,0 +1,40 @@
+.error-list {
+	font-size: 14px;
+	color: var(--error);
+	padding: 10px;
+	border-radius: 5px;
+	display: flex;
+	flex-direction: column;
+	font-weight: lighter;
+}
+
+.error-ctr {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+	width: 100%;
+}
+
+.splash-error {
+	font-size: 12px;
+	font-weight: lighter;
+	color: var(--error);
+	position: absolute;
+	bottom: 5px;
+}
+
+.search-error {
+	font-size: 12px;
+	font-weight: lighter;
+	color: var(--error);
+	position: absolute;
+	bottom: 0px;
+}
+
+.chat-error {
+	position: absolute;
+	font-size: 10px;
+	color: var(--error);
+	bottom: 5px;
+}

@@ -1,0 +1,54 @@
+.card-ctrl {
+	min-height: 360px;
+	height: auto;
+	box-shadow: var(--shadow-soft-sm);
+	border-bottom: none;
+	cursor: pointer;
+}
+
+.card-top {
+	height: 150px;
+	background-position: center;
+	background-size: cover;
+	display: flex;
+	justify-content: space-between;
+}
+
+.card-events {
+	padding: 7px 20px;
+	background-color: rgba(0, 0, 0, 0.5);
+	height: fit-content;
+	color: white;
+	font-size: 15px;
+}
+
+.card-btm {
+	padding: 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-height: 190px;
+}
+
+.card-price {
+	font-size: 24px;
+}
+
+.card-desc {
+	font-size: 16px;
+	font-weight: lighter;
+	padding: 3px 0px;
+}
+
+.card-address {
+	font-size: 14px;
+	white-space: normal;
+}
+
+.card-office {
+	font-size: 12px;
+	font-weight: lighter;
+	color: gray;
+	white-space: normal;
+	overflow-wrap: anywhere;
+}

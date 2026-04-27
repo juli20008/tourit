@@ -1,0 +1,29 @@
+.footer-ctrl {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 28px;
+	flex-shrink: 0;
+	width: 100%;
+	padding: 48px 24px 56px;
+	background: #ffffff;
+	border-top: 1px solid var(--border-subtle);
+}
+
+.footer-logo-wrap {
+	display: flex;
+	align-items: center;
+	gap: 30px;
+	font-style: normal;
+	font-weight: 500;
+	color: #64748b;
+}
+
+.footer-logo {
+	width: 150px;
+}
+
+.footer-ctrl img:last-child {
+	max-width: 100%;
+	height: auto;
+}

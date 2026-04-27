@@ -1,0 +1,101 @@
+.btn {
+	background-color: var(--cta-primary);
+	padding: 12px 22px;
+	border-radius: 12px;
+	border: none;
+	color: white;
+	font-size: 15px;
+	font-weight: 600;
+	transition: all 300ms ease;
+	cursor: pointer;
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+	align-items: center;
+	box-shadow: var(--shadow-soft-sm);
+}
+
+.btn-bl {
+	background-color: black;
+}
+
+.btn-red {
+	background-color: var(--error);
+}
+
+.btn-w {
+	width: 100%;
+}
+
+.btn:hover {
+	background-color: #020617;
+	transform: translateY(-1px);
+	box-shadow: var(--shadow-soft-md);
+}
+
+.btn-font {
+	color: var(--text-primary);
+	font-weight: bold;
+	background-color: transparent;
+	border: none;
+	cursor: pointer;
+}
+
+.btn-font:hover {
+	color: #020617;
+}
+
+.btn-font-lt {
+	color: #111827;
+	font-weight: 500;
+	background-color: transparent;
+	border: none;
+	cursor: pointer;
+	font-size: 16px;
+}
+
+.btn-font-lt:hover {
+	color: #020617;
+}
+
+.btn-desc {
+	font-size: 14px;
+	font-weight: lighter;
+	color: var(--lightblue);
+}
+
+.btn-wrap-rt {
+	display: flex;
+	justify-content: flex-end;
+	gap: 20px;
+}
+
+.btn-wrap {
+	display: flex;
+	gap: 20px;
+}
+
+.btn-sm {
+	padding: 5px;
+	font-size: 12px;
+}
+
+.btn-gr {
+	display: flex;
+	flex-direction: row;
+	justify-content: center;
+	align-items: center;
+	gap: 10px;
+	padding: 5px;
+	font-size: 18px;
+	background-color: green;
+	border: transparent;
+	border-radius: 5px;
+	color: white;
+	cursor: pointer;
+}
+
+.btn-short {
+	width: fit-content;
+	padding: 5px 10px;
+}

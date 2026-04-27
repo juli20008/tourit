@@ -1,0 +1,141 @@
+.tour-ctrl {
+	background: white;
+	width: 380px;
+	height: 85vh;
+	border-radius: 10px;
+	display: flex;
+	flex-direction: column;
+}
+
+.tour-top {
+	height: 60px;
+	border-bottom: 1px solid gray;
+	display: flex;
+	grid-template-columns: 55px auto 55px;
+	align-items: center;
+	justify-content: center;
+	gap: 10px;
+	font-size: 22px;
+	font-weight: bold;
+}
+
+.tour-btm {
+	height: calc(85vh - 60px);
+	width: 100%;
+	overflow-x: hidden;
+	white-space: nowrap;
+	padding: 30px 15px;
+	display: flex;
+	flex-direction: column;
+	gap: 30px;
+}
+
+.tour-type {
+	padding: 10px;
+	width: 100%;
+	border: 2px solid var(--blue);
+	border-radius: 5px;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	font-weight: bold;
+	background-color: var(--lightblue);
+}
+
+.tour-prefered {
+	font-size: 18px;
+	font-weight: bold;
+}
+
+.tour-date-wrap {
+	display: flex;
+}
+
+.tour-date-wrap i {
+	font-size: 20px;
+	color: lightgray;
+}
+
+.tour-date-arrow {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+}
+
+.tour-img {
+	width: 100%;
+}
+
+/* Tour contact form */
+
+.tour-appt-time {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	font-size: 20px;
+	font-weight: bold;
+}
+
+.tour-tnc {
+	white-space: normal;
+	font-size: 10px;
+	font-weight: lighter;
+	color: gray;
+	line-height: 14px;
+	text-align: justify;
+}
+
+.fa-xmark {
+	cursor: pointer;
+}
+
+.tour-agent-msg {
+	display: flex;
+	align-items: center;
+	white-space: normal;
+	text-align: center;
+	font-size: 20px;
+	height: 60vh;
+}
+
+/* ── Inline sidebar variant ──────────────────────────────────────────── */
+.tour-sidebar {
+	background: white;
+	border-radius: 16px;
+	border: 1px solid #f1f5f9;
+	box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04);
+	overflow: hidden;
+	width: 100%;
+}
+
+.tour-sidebar-header {
+	padding: 16px 20px 14px;
+	font-size: 15px;
+	font-weight: 700;
+	color: #0f172a;
+	border-bottom: 1px solid #f1f5f9;
+}
+
+.tour-sidebar-body {
+	padding: 20px;
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	white-space: normal;
+}
+
+/* Reset tour-btm constraints when inside the sidebar */
+.tour-sidebar .tour-btm {
+	height: auto;
+	white-space: normal;
+	padding: 0;
+	gap: 16px;
+}
+
+/* Tighten the property thumbnail inside the sidebar */
+.tour-sidebar .tour-img {
+	border-radius: 8px;
+	max-height: 160px;
+	object-fit: cover;
+}

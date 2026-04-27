@@ -1,0 +1,40 @@
+services:
+  - type: web
+    name: yillow-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      # ── Required — set these in the Render dashboard (mark as secret) ──────
+      - key: SECRET_KEY
+        sync: false          # python -c "import secrets; print(secrets.token_hex(32))"
+      - key: DATABASE_URL
+        sync: false          # Supabase connection string: postgresql://user:pass@host/db
+      - key: REPLIERS_API_KEY
+        sync: false
+      # ── Google OAuth ───────────────────────────────────────────────────────
+      - key: GOOGLE_CLIENT_ID
+        sync: false          # from Google Cloud Console → OAuth 2.0 Client ID
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      # ── Optional storage ───────────────────────────────────────────────────
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      # ── CORS — update to your Vercel URL after first deploy ────────────────
+      - key: FRONTEND_URL
+        value: http://localhost:3000
+      # ── Runtime ────────────────────────────────────────────────────────────
+      - key: FLASK_ENV
+        value: production
+      - key: PORT
+        value: "10000"

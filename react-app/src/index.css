@@ -1,0 +1,139 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+@import url("./css/navbar.css");
+@import url("./css/input.css");
+@import url("./css/splash.css");
+@import url("./css/footer.css");
+@import url("./css/error.css");
+@import url("./css/searchList.css");
+@import url("./css/propertyCard.css");
+@import url("./css/modal.css");
+@import url("./css/property.css");
+@import url("./css/button.css");
+@import url("./css/tour.css");
+@import url("./css/loginSignup.css");
+@import url("./css/notification.css");
+@import url("./css/appointment.css");
+@import url("./css/stars.css");
+@import url("./css/review.css");
+@import url("./css/calendar.css");
+@import url("./css/agents.css");
+@import url("./css/agent.css");
+@import url("./css/about.css");
+@import url("./css/map.css");
+@import url("./css/not-found.css");
+@import url("./css/profile.css");
+@import url("./css/chat.css");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+	--bg-canvas: #ffffff;
+	--bg-surface: #f9fafb;
+	--bg-surface-elevated: #ffffff;
+	--text-primary: #0f172a;
+	--text-secondary: #64748b;
+	--border-subtle: #f1f5f9;
+	--cta-primary: #111111;
+	--error: #b42318;
+	--blue: #0f172a;
+	--blue2: #0f172a;
+	--lightblue: #f8fafc;
+	--lightgray: #f1f5f9;
+	--lightbg: #f8fafc;
+	--lightbg2: #eef2f7;
+	--shadow-soft-sm: 0 2px 10px rgb(0 0 0 / 0.03);
+	--shadow-soft-md: 0 8px 30px rgb(0 0 0 / 0.04);
+	--shadow-soft-lg: 0 16px 40px rgb(0 0 0 / 0.06);
+}
+
+* {
+	box-sizing: border-box;
+	font-family: "Inter", "Geist", system-ui, -apple-system, sans-serif;
+}
+
+a {
+	text-decoration: none;
+	color: unset;
+}
+
+ul,
+li {
+	list-style: none;
+}
+
+body {
+	margin: 0;
+	padding: 0;
+	overflow-x: hidden;
+	overflow-y: auto;
+	font-family: "Inter", "Geist", system-ui, -apple-system, sans-serif;
+	background: var(--bg-canvas);
+	color: var(--text-primary);
+}
+
+html.search-page-lock,
+body.search-page-lock {
+	height: 100%;
+	overflow: hidden;
+}
+
+#root {
+	min-height: 100%;
+}
+
+textarea:focus,
+input:focus {
+	outline: none;
+}
+
+button,
+input,
+select,
+textarea,
+a {
+	transition: all 300ms ease;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+	box-shadow: 0 0 0 4px rgb(15 23 42 / 0.08);
+	border-color: #cbd5e1;
+}
+
+.hidden {
+	display: none;
+	opacity: 0;
+	visibility: hidden;
+}
+
+.gap40 {
+	gap: 40px;
+}
+
+.gap15 {
+	display: flex;
+	flex-direction: column;
+	gap: 15px;
+}
+
+.dark-scrollbar {
+	scrollbar-width: thin;
+	scrollbar-color: #334155 #0f172a;
+}
+
+.dark-scrollbar::-webkit-scrollbar {
+	width: 10px;
+}
+
+.dark-scrollbar::-webkit-scrollbar-track {
+	background: #0f172a;
+}
+
+.dark-scrollbar::-webkit-scrollbar-thumb {
+	background: #334155;
+	border-radius: 999px;
+	border: 2px solid #0f172a;
+}

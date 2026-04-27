@@ -1,0 +1,73 @@
+.login-sign-modal {
+	background-color: white;
+	padding: 56px;
+	border-radius: 16px;
+	width: min(580px, 92vw);
+	display: flex;
+	flex-direction: column;
+	gap: 28px;
+	overflow-x: hidden;
+	white-space: nowrap;
+	max-height: 92vh;
+	border: 1px solid var(--border-subtle);
+	box-shadow: var(--shadow-soft-lg);
+}
+
+.login-sign-title {
+	font-size: 34px;
+	font-weight: 700;
+	width: 100%;
+	display: flex;
+	justify-content: center;
+	color: var(--text-primary);
+}
+
+.login-sign-toggle-wrap {
+	display: flex;
+	border-bottom: 1px solid var(--border-subtle);
+	width: 100%;
+}
+
+.login-btn {
+	padding: 16px 22px;
+	background-color: transparent;
+	border: none;
+	font-size: 16px;
+	font-weight: 600;
+	color: var(--text-secondary);
+	cursor: pointer;
+	transition: all 300ms ease;
+}
+
+.ref-active {
+	border-left: 5px solid transparent;
+	border-right: 5px solid transparent;
+	border-bottom: 3px solid var(--text-primary);
+	color: var(--text-primary);
+}
+
+.login-sign-form {
+	display: flex;
+	flex-direction: column;
+	gap: 22px;
+}
+
+.login-sign-tfu {
+	font-size: 14px;
+	display: flex;
+	justify-content: center;
+	font-weight: 500;
+	color: var(--text-secondary);
+}
+
+.login-sign-connect {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	font-weight: 600;
+	font-size: 16px;
+	padding: 26px 10px 8px;
+	border-top: 1px solid var(--border-subtle);
+	width: 100%;
+	color: #475569;
+}

@@ -1,0 +1,158 @@
+.search-label {
+	display: flex;
+	padding: 25px;
+	gap: 10px;
+	border: 1px solid lightgrey;
+	background-color: white;
+	border-radius: 5px;
+	max-width: 750px;
+	width: 80%;
+	align-items: center;
+	position: relative;
+}
+
+.search-input {
+	font-size: 18px;
+	border: none;
+	width: 100%;
+}
+
+.search-label i {
+	color: gray;
+	font-size: 24px;
+	cursor: pointer;
+}
+
+.search-label-sm {
+	display: flex;
+	padding: 10px;
+	gap: 10px;
+	border: 1px solid lightgrey;
+	background-color: white;
+	border-radius: 5px;
+
+	align-items: center;
+	position: relative;
+	flex: 2 1 auto;
+}
+
+/* Select input */
+.select-input {
+	width: 100%;
+	padding: 10px;
+	font-size: 18px;
+}
+
+/* regular input */
+
+.label {
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+	font-weight: bold;
+	width: 100%;
+}
+
+.label input,
+.label textarea {
+	padding: 14px 16px;
+	font-size: 16px;
+	font-weight: 500;
+	border: 1px solid var(--border-subtle);
+	border-radius: 12px;
+	background: #ffffff;
+	transition: all 300ms ease;
+}
+
+.label input::placeholder {
+	font-weight: lighter;
+}
+
+.label input:disabled {
+	background-color: var(--lightgray);
+}
+
+.input-error {
+	font-size: 12px;
+	font-weight: lighter;
+	color: var(--error);
+}
+
+.textarea {
+	width: 100%;
+	padding: 18px;
+	background-color: #ffffff;
+	border: 1px solid var(--border-subtle);
+	font-size: 16px;
+	font-weight: 500;
+	border-radius: 12px;
+	line-height: 24px;
+}
+
+/* Agent Porfile Inputs */
+.agent-input {
+	border: 1px solid var(--border-subtle);
+	background-color: #ffffff;
+	padding: 8px 12px;
+	border-radius: 12px;
+	font-size: 16px;
+	font-weight: 500;
+}
+
+.agent-label {
+	display: flex;
+	flex-direction: column;
+	font-size: 14px;
+	font-weight: lighter;
+	width: 100%;
+}
+
+.agent-profile-input {
+	border: 1px solid lightgray;
+}
+
+/* Channel search input */
+.chnl-search-label {
+	background-color: white;
+	padding: 10px;
+	border-radius: 5px;
+	border: 1px solid var(--blue);
+	display: grid;
+	grid-template-columns: auto 20px;
+	align-items: center;
+	color: gray;
+}
+
+.chnl-search-label input {
+	border: none;
+	outline: none;
+}
+
+.chnl-search-label input:focus::placeholder {
+	color: transparent;
+}
+
+/* Chat input */
+.chat-label {
+	padding: 10px;
+	width: 100%;
+	background-color: var(--lightblue);
+	border: 1px solid var(--blue);
+	border-radius: 30px;
+	display: grid;
+	grid-template-columns: auto 50px;
+}
+
+.chat-label input {
+	background-color: transparent;
+	border: none;
+	outline: none;
+}
+
+.chat-label button {
+	background-color: var(--blue2);
+	border: none;
+	border-radius: 20px;
+	color: white;
+	cursor: pointer;
+}

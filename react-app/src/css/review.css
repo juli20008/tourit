@@ -1,0 +1,176 @@
+.review-box {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	border-top: 1px solid var(--border-subtle);
+	padding: 26px 0;
+}
+
+.reveiew-char {
+	font-size: 14px;
+	font-weight: lighter;
+	color: var(--error);
+}
+
+.review-rating {
+	display: flex;
+	align-items: flex-end;
+	gap: 10px;
+}
+
+.review .edit-wrap i {
+	cursor: pointer;
+}
+
+.review .review-star {
+	height: 30px;
+	display: flex;
+	align-items: center;
+}
+
+/* Edit Review */
+.review .edit-textarea-wrap {
+	display: flex;
+	flex-direction: column;
+}
+
+.review .btn-wrap {
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+	align-items: flex-start;
+	gap: 30px;
+}
+
+.review .btn-group {
+	display: flex;
+	flex-direction: row;
+	gap: 30px;
+}
+
+/* Delete Review */
+.review-delete {
+	background-color: white;
+	padding: 52px;
+	border-radius: 16px;
+	width: min(640px, 94vw);
+	max-height: 90vh;
+	display: flex;
+	flex-direction: column;
+	gap: 24px;
+	overflow-x: hidden;
+	white-space: nowrap;
+	border: 1px solid var(--border-subtle);
+	box-shadow: var(--shadow-soft-lg);
+}
+
+.review-delete .title {
+	font-size: 24px;
+	font-weight: bold;
+}
+
+.review-delete .content {
+	font-size: 16px;
+	line-height: 24px;
+	font-weight: 500;
+	padding: 22px;
+	background-color: #f8fafc;
+	border-radius: 12px;
+	border: 1px solid var(--border-subtle);
+	white-space: normal;
+}
+
+.review-delete .btn-wrap {
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: 20px;
+}
+
+/* Review Modal */
+.review-ctrl {
+	padding: 52px;
+	background-color: white;
+	border-radius: 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 24px;
+	align-items: center;
+	width: min(560px, 92vw);
+	min-height: fit-content;
+	max-height: 90vh;
+	overflow-x: hidden;
+	white-space: nowrap;
+	border: 1px solid var(--border-subtle);
+	box-shadow: var(--shadow-soft-lg);
+}
+
+.review-ctrl .for {
+	font-size: 20px;
+	font-weight: bold;
+}
+
+.review-ctrl .photo {
+	width: 120px;
+	height: 120px;
+	border-radius: 100%;
+	background-color: #f8fafc;
+	background-position: center;
+	background-size: cover;
+}
+
+.review-ctrl .agent-name {
+	font-size: 26px;
+	font-weight: bold;
+}
+
+.review-ctrl .stars-wrap,
+.review-ctrl .content-wrap {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 5px;
+	width: 100%;
+}
+
+.review-ctrl .stars-how,
+.review-ctrl .content-how {
+	font-size: 14px;
+	font-weight: 500;
+	color: var(--text-secondary);
+}
+
+.content-wrap .textarea {
+	padding: 18px;
+	background-color: #ffffff;
+	border-radius: 12px;
+	border: 1px solid var(--border-subtle);
+}
+
+.review-ctrl .errors {
+	font-size: 12px;
+	font-weight: lighter;
+	color: var(--error);
+}
+.review-ctrl .btn-wrap {
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: 20px;
+}
+
+/* Agent review page */
+.agent-rvw-ctrl {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	padding: 56px 32px;
+	gap: 46px;
+	background: #fff;
+}
+
+.agent-rvw-stars-wrap {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 20px;
+	font-size: 24px;
+}
