@@ -1,4 +1,21 @@
 services:
+  - type: cron
+    name: mls-sync
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    schedule: "0 */12 * * *"   # every 12 hours
+    startCommand: >
+      flask repliers sync-listings
+    envVars:
+      - key: SECRET_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: REPLIERS_API_KEY
+        sync: false
+      - key: FLASK_ENV
+        value: production
+
   - type: web
     name: yillow-api
     runtime: docker
@@ -38,3 +55,5 @@ services:
         value: production
       - key: PORT
         value: "10000"
+      - key: SYNC_SECRET
+        sync: false          # random secret — set in Render dashboard
