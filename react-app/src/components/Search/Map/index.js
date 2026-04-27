@@ -208,6 +208,13 @@ const MyMap = withScriptjs(
 			}
 		}, [props.center, props.syncCenter]);
 
+		// Explicit flyTo: always pan + zoom when a new location is pushed
+		useEffect(() => {
+			if (!mapRef.current || !props.flyTo) return;
+			mapRef.current.panTo({ lat: props.flyTo.lat, lng: props.flyTo.lng });
+			mapRef.current.setZoom(14);
+		}, [props.flyTo]);
+
 		const priceLabel = (price) => {
 			if (price > 1000000) return `${(price / 1000000).toFixed(1)}M`;
 			return `${(price / 1000).toFixed(0)}K`;

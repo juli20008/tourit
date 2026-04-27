@@ -34,8 +34,8 @@ const SearchArea = () => {
 		return { lat: (neLat + swLat) / 2, lng: (neLng + swLng) / 2 };
 	};
 
-	const [center, setCenter] = useState(() => getInitialCenter(areaParam));
-	const [syncCenter, setSyncCenter] = useState(false);
+	const [center] = useState(() => getInitialCenter(areaParam));
+	const [flyTo, setFlyTo] = useState(null);
 	const [showConsent, setShowConsent] = useState(false);
 	const [propArr, setPropArr] = useState([]);
 	const [over, setOver] = useState({ id: 0 });
@@ -52,14 +52,12 @@ const SearchArea = () => {
 		if (!navigator.geolocation) return;
 		navigator.geolocation.getCurrentPosition(
 			(pos) => {
-				setCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-				setSyncCenter(true);
-				// Reset syncCenter after pan so future map drags aren't overridden
-				setTimeout(() => setSyncCenter(false), 1500);
+				// ts ensures the effect always fires even if coords are identical
+				setFlyTo({ lat: pos.coords.latitude, lng: pos.coords.longitude, ts: Date.now() });
 			},
 			() => {
-				// Denied or unavailable — fall back to Toronto silently
-				setCenter(TORONTO);
+				// Denied or unavailable — fall back to Toronto
+				setFlyTo({ ...TORONTO, ts: Date.now() });
 			},
 			{ timeout: 8000 }
 		);
@@ -156,7 +154,8 @@ const SearchArea = () => {
 					zoom={zoom}
 					onBoundsChange={handleMapBoundsChange}
 					enableAreaSearch={false}
-					syncCenter={syncCenter}
+					syncCenter={false}
+					flyTo={flyTo}
 					transactionType={transactionType}
 					setTransactionType={setTransactionType}
 				/>
