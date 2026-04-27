@@ -62,63 +62,21 @@
 PWA -> webapp
 
 
+Next Steps:
 
-Claude, carefully analyze the layout differences between image-5.png (Yollow - current) and image-4.png (REW - target). Yillow looks a bit cluttered compared to the clean, high-end feel of REW. Please apply the following CSS/Tailwind refinements to the PropertyPreviewList and the Popup container:
-
-1. 容器与阴影 (The Container)
-Shadow: Remove the hard border. Apply a much softer, larger-radius drop shadow (e.g., shadow-2xl with custom rgba(0,0,0,0.08)).
-
-Radius: Increase the border-radius to 16px for a modern, mobile-app feel.
-
-Header Style: In image-2, the 'X PROPERTIES IN THIS AREA' text is smaller, uppercase, with increased letter-spacing (tracking-wider) and a lighter grey color. Adjust our header to match this.
-
-2. 图片与比例 (Image & Aspect Ratio)
-Size: Our current thumbnails in image-1 are too small and squished. Increase the width/height ratio.
-
-Object-Fit: Ensure object-fit: cover and add a subtle 4px border-radius to the images themselves.
-
-Badge: Move the 'ACTIVE' badge to the bottom-left. Make it a pill-shaped overlay with a semi-transparent dark background, rather than a solid block.
-
-3. 文字排版与间距 (Typography & Spacing)
-Spacing: This is the most important part. Increase the gap or margin-bottom between listing items. Each item needs more 'breathing room'.
-
-Price: Make the price font-bold and slightly larger than the address.
-
-Hierarchy: The address and stats (3 bd, 2 ba) should be in a secondary color (medium grey) and a slightly smaller font size than the price.
-
-Vertical Alignment: Ensure the entire text block is perfectly center-aligned vertically with the thumbnail image.
-
-4. 交互细节 (Interaction)
-Hover State: Add a very subtle background change (e.g., hover:bg-gray-50) when hovering over a listing item.
-
-Heart Icon: Move the favorite icon to the middle-right of the text area, not floating in the corner. Use a very thin stroke for the heart.
-
-Please refine the Tailwind classes in PropertyPreviewList.js to achieve this 'Pixel Perfect' match."
-
-🔍 为什么 REW 看起来更专业？（MBA 视角下的 UI 心理学）
-Julie，作为数据专家，你可以这样理解 UI 的优化：
-
-数据降噪： 图 1 的信息密度太高，用户的眼睛不知道该落在哪。图 2 通过浅灰色弱化了非核心信息（地址、面积），强出了核心信息（价格、图片）。
-
-感知质量： 适当的留白（Padding）传达了一种“不急迫”的自信感。在奢侈品或高端地产网页中，留白就是金钱。
-
-
-
-几大块：
-
-1. Google Auth
+#Technical:
+1. Google Auth for realtors
 2. Lead Distribution Logic：
-Assign the lead to an agent with the postal code as service area and shows available for the time booked - if meet these two criteria, assign to the agent that rank highest in client review score.
+Assign the lead to an agent with the postal code as service area and shows available for the time booked - if meet these two criteria, assign to the agent that rank highest in client review score. If no realtor in the postal code, assign to a realtor that is most close to it.
 
 Allow agent to asign the lead to another agent with the postal code as service area and shows available for the time booked.
+3. Access to Real Data, 字段调整（details），better filters (connects to API first)
+4. Disclaimer - cookie - map jump to allow track your location
+5. favico/logo
 
-After the user request the showing, on user's end it should show request sent, awaiting agent to confirm, on the agent side, agent has the button to confirm the showing, or has an option to revert with another best available time.
-
-3. 字段调整（details），better filters （connects to API first)
-4. Disclaimer - cookie - map jump to your location
+#Marketing:
+1. Bring 10 realtors onboard 
 
 
-![alt text](image-7.png)
-![alt text](image-8.png)
 
-Marketing Strategy
+![alt text](image-10.png)

@@ -65,21 +65,41 @@ const DualSlider = ({ low, high, min, max, step = 1, setLow, setHigh }) => {
 	);
 };
 
-const RangeRow = ({ leftLabel, rightLabel, leftVal, rightVal, leftSuffix, rightSuffix }) => (
+const RangeRow = ({ leftLabel, rightLabel, leftVal, rightVal, leftSuffix, rightSuffix, onLeftChange, onRightChange }) => (
 	<div className="flex items-center gap-2 mb-3">
 		<div className="flex-1">
 			<div className="text-[11px] text-[#999] mb-1">{leftLabel}</div>
 			<div className="bg-white border border-[#ddddd6] rounded-lg px-3 py-2.5 text-sm text-[#1a1a1a] flex justify-between items-center">
-				<span>{leftVal}</span>
-				{leftSuffix && <span className="text-[#b0b0a8] text-xs">{leftSuffix}</span>}
+				{onLeftChange ? (
+					<input
+						type="number"
+						className="w-full outline-none bg-transparent text-sm text-[#1a1a1a] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+						value={leftVal}
+						onChange={e => onLeftChange(+e.target.value)}
+						placeholder="No Min"
+					/>
+				) : (
+					<span>{leftVal}</span>
+				)}
+				{leftSuffix && <span className="text-[#b0b0a8] text-xs ml-1 flex-shrink-0">{leftSuffix}</span>}
 			</div>
 		</div>
-		<span className="text-[#aaa] text-sm mt-5">-</span>
+		<span className="text-[#aaa] text-sm mt-5">–</span>
 		<div className="flex-1">
 			<div className="text-[11px] text-[#999] mb-1">{rightLabel}</div>
 			<div className="bg-white border border-[#ddddd6] rounded-lg px-3 py-2.5 text-sm text-[#1a1a1a] flex justify-between items-center">
-				<span>{rightVal}</span>
-				{rightSuffix && <span className="text-[#b0b0a8] text-xs">{rightSuffix}</span>}
+				{onRightChange ? (
+					<input
+						type="number"
+						className="w-full outline-none bg-transparent text-sm text-[#1a1a1a] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+						value={rightVal}
+						onChange={e => onRightChange(+e.target.value)}
+						placeholder="No Max"
+					/>
+				) : (
+					<span>{rightVal}</span>
+				)}
+				{rightSuffix && <span className="text-[#b0b0a8] text-xs ml-1 flex-shrink-0">{rightSuffix}</span>}
 			</div>
 		</div>
 	</div>
@@ -210,8 +230,9 @@ const FilterPanel = ({ min, setMin, max, setMax, type, setType, bed, setBed, bat
 					<section>
 						<SectionHead title="Price range" />
 						<RangeRow
-							leftLabel="Minimum"  leftVal={fmtPrice(priceMin, false)}
-							rightLabel="Maximum" rightVal={fmtPrice(priceMax, true)}
+							leftLabel="Minimum"  leftVal={priceMin}  onLeftChange={v => setPriceMin(Math.max(0, Math.min(v, priceMax - 10000)))}
+							rightLabel="Maximum" rightVal={priceMax} onRightChange={v => setPriceMax(Math.min(PRICE_MAX, Math.max(v, priceMin + 10000)))}
+							leftSuffix="$" rightSuffix="$"
 						/>
 						<DualSlider low={priceMin} high={priceMax}
 							min={0} max={PRICE_MAX} step={10_000}
@@ -260,8 +281,8 @@ const FilterPanel = ({ min, setMin, max, setMax, type, setType, bed, setBed, bat
 						{/* SQFT */}
 						<div className="mb-5">
 							<RangeRow
-								leftLabel="SQFT Min"  leftVal={fmtSqft(sqftMin, false)} leftSuffix="sqft"
-								rightLabel="SQFT Max" rightVal={fmtSqft(sqftMax, true)}  rightSuffix="sqft"
+								leftLabel="SQFT Min"  leftVal={sqftMin}  onLeftChange={v => setSqftMin(Math.max(0, Math.min(v, sqftMax - 100)))}  leftSuffix="sqft"
+								rightLabel="SQFT Max" rightVal={sqftMax} onRightChange={v => setSqftMax(Math.min(SQFT_MAX, Math.max(v, sqftMin + 100)))} rightSuffix="sqft"
 							/>
 							<DualSlider low={sqftMin} high={sqftMax}
 								min={0} max={SQFT_MAX} step={100}
@@ -271,8 +292,8 @@ const FilterPanel = ({ min, setMin, max, setMax, type, setType, bed, setBed, bat
 						{/* Year Built */}
 						<div className="mb-5">
 							<RangeRow
-								leftLabel="Year Built Min"  leftVal={fmtYear(yearMin, false)}
-								rightLabel="Year Built Max" rightVal={fmtYear(yearMax, true)}
+								leftLabel="Year Built Min"  leftVal={yearMin}  onLeftChange={v => setYearMin(Math.max(YEAR_MIN, Math.min(v, yearMax - 1)))}
+								rightLabel="Year Built Max" rightVal={yearMax} onRightChange={v => setYearMax(Math.min(YEAR_MAX, Math.max(v, yearMin + 1)))}
 							/>
 							<DualSlider low={yearMin} high={yearMax}
 								min={YEAR_MIN} max={YEAR_MAX} step={1}
@@ -282,8 +303,8 @@ const FilterPanel = ({ min, setMin, max, setMax, type, setType, bed, setBed, bat
 						{/* Strata Fee */}
 						<div>
 							<RangeRow
-								leftLabel="Strata Fee Min"  leftVal={fmtStrata(strataMin, false)} leftSuffix="mo"
-								rightLabel="Strata Fee Max" rightVal={fmtStrata(strataMax, true)}  rightSuffix="mo"
+								leftLabel="Strata Fee Min"  leftVal={strataMin}  onLeftChange={v => setStrataMin(Math.max(0, Math.min(v, strataMax - 50)))}  leftSuffix="$/mo"
+								rightLabel="Strata Fee Max" rightVal={strataMax} onRightChange={v => setStrataMax(Math.min(STRATA_MAX, Math.max(v, strataMin + 50)))} rightSuffix="$/mo"
 							/>
 							<DualSlider low={strataMin} high={strataMax}
 								min={0} max={STRATA_MAX} step={50}

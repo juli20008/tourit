@@ -36,7 +36,7 @@ const PropertyCard = ({ property, setOver }) => {
 					{property?.zip}
 				</div>
 				<hr className="border-[#e1e1db]" />
-				<div className="card-office text-[16px] font-normal leading-snug text-[#8a8a84]">
+				<div className="card-office text-[14px] font-normal leading-snug text-[#8a8a84]">
 					{
 						property?.brokerage ||
 						property?.office ||
