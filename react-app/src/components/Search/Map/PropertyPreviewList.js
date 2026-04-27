@@ -34,7 +34,7 @@ const PreviewItem = ({ property, onSelect }) => {
 					alt=""
 					onError={() => setImgSrc(FALLBACK_IMAGE)}
 				/>
-				<span className="absolute bottom-1 left-1.5 bg-black/55 text-white text-[13px] font-semibold uppercase tracking-wide px-1.5 py-[2px] rounded-full leading-tight">
+				<span className="absolute bottom-1 left-1.5 bg-black/55 text-white text-[9px] font-semibold uppercase tracking-wide px-1.5 py-[2px] rounded-full leading-tight">
 					{statusLabel(property.status)}
 				</span>
 			</div>

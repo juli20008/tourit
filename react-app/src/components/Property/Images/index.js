@@ -84,7 +84,7 @@ const Images = ({ property }) => {
 			{/* Thumbnail strip — click updates main photo, no lightbox */}
 			{thumbUrls.length > 0 && (
 				<div className="flex gap-2 px-1 pt-2 overflow-x-auto scrollbar-hide">
-					{thumbUrls.slice(0, 10).map((url, idx) => (
+					{thumbUrls.map((url, idx) => (
 						<ThumbTile
 							key={url + idx}
 							url={url}

@@ -30,7 +30,7 @@ const Login = ({ onClose, inline = false }) => {
 	};
 
 	return (
-		<div className={`flex flex-col items-center gap-5 px-6 py-6 w-full${inline ? "" : " max-w-sm mx-auto bg-white rounded-2xl shadow-xl"}`}>
+		<div className={`flex flex-col items-center gap-5 px-6 py-6 w-full${inline ? "" : " max-w-sm mx-auto bg-[#f5f5f0] rounded-2xl shadow-xl"}`}>
 			<div className="text-center">
 				<div className="text-2xl font-bold text-[#0f172a] tracking-tight">Welcome</div>
 				<div className="text-sm text-[#64748b] mt-1">Sign in to book showings.</div>

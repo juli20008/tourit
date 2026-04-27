@@ -54,15 +54,15 @@ const Agents = () => {
 				</div>
 				<div className="agents-search-wrap">
 					<label>
-						SERVICE AREAS <span>ZIP CODE ONLY</span>
+						SERVICE AREAS <span>POSTAL CODE</span>
 					</label>
 					<div>
 						<input
 							type="text"
-							placeholder="ZIP CODE"
-							maxLength="5"
+							placeholder="POSTAL CODE"
+							maxLength="7"
 							value={zip}
-							onChange={(e) => setZip(e.target.value, 10)}
+							onChange={(e) => setZip(e.target.value.toUpperCase())}
 						/>
 						<i className="fa-solid fa-magnifying-glass"></i>
 					</div>
