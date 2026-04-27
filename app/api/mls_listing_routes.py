@@ -1,7 +1,9 @@
 from flask import Blueprint, jsonify, request
 from ..models.mls_listing import MlsListing
+from ..rate_limit import rate_limit_check
 
 mls_listing_routes = Blueprint('mls_listings', __name__)
+mls_listing_routes.before_request(rate_limit_check)
 
 MAX_RESULTS = 100  # hard cap per Section 6.3b
 

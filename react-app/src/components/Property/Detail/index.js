@@ -43,7 +43,6 @@ const Section = ({ title, children }) => (
 
 const Detail = ({ property }) => {
 	const agents = useSelector((state) => state.agents);
-	const agent = agents[property?.listing_agent_id];
 
 	const pricePerSqft =
 		property?.sqft > 0
@@ -153,15 +152,6 @@ const Detail = ({ property }) => {
 			</Section>
 
 			<Section title="Agent details">
-				{agent ? (
-					<>
-						<Row label="Agent" value={agent.username} />
-						<Row label="Phone" value={agent.phone || "—"} />
-						<Row label="License #" value={agent.license_num || "—"} />
-					</>
-				) : (
-					<Row label="Agent" value={property?.agent_name || "—"} />
-				)}
 				<Row label="Brokerage" value={property?.brokerage || property?.office || "—"} />
 			</Section>
 

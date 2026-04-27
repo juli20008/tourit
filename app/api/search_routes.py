@@ -2,8 +2,10 @@ from sqlalchemy.orm import selectinload
 from flask import Blueprint, request
 from app.models import Property, State
 from app.models.mls_listing import MlsListing
+from app.rate_limit import rate_limit_check
 
 search_routes = Blueprint('search', __name__)
+search_routes.before_request(rate_limit_check)
 
 _PROPERTY_OPTS = [
     selectinload(Property.state),

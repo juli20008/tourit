@@ -102,40 +102,46 @@ const SearchArea = () => {
 	const googleMapURL = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&v=3.exp&libraries=geometry,drawing,places`;
 
 	return (
-		<main className="search-pg-ctrl bg-[#f3f3f1]">
-			<MyMap
-				isMarkerShown
-				googleMapURL={googleMapURL}
-				loadingElement={<div style={{ height: `100%` }} />}
-				containerElement={<div className="map-ctnr relative overflow-hidden border-r border-[#dcdcd7]" />}
-				mapElement={<div style={{ height: `100%` }} />}
-				markers={propArr}
-				center={center}
-				over={over}
-				zoom={zoom}
-				onBoundsChange={handleMapBoundsChange}
-				enableAreaSearch={false}
-				syncCenter={false}
-				transactionType={transactionType}
-				setTransactionType={setTransactionType}
-			/>
-			<List
-				min={min}
-				setMin={setMin}
-				max={max}
-				setMax={setMax}
-				type={type}
-				setType={setType}
-				bed={bed}
-				setBed={setBed}
-				bath={bath}
-				setBath={setBath}
-				propArr={propArr}
-				setOver={setOver}
-				showMapAreaButton={false}
-				isMapSyncing={isMapSyncing}
-			/>
-		</main>
+		<div className="search-pg-wrap">
+			<main className="search-pg-ctrl bg-[#f3f3f1]">
+				<MyMap
+					isMarkerShown
+					googleMapURL={googleMapURL}
+					loadingElement={<div style={{ height: `100%` }} />}
+					containerElement={<div className="map-ctnr relative overflow-hidden border-r border-[#dcdcd7]" />}
+					mapElement={<div style={{ height: `100%` }} />}
+					markers={propArr}
+					center={center}
+					over={over}
+					zoom={zoom}
+					onBoundsChange={handleMapBoundsChange}
+					enableAreaSearch={false}
+					syncCenter={false}
+					transactionType={transactionType}
+					setTransactionType={setTransactionType}
+				/>
+				<List
+					min={min}
+					setMin={setMin}
+					max={max}
+					setMax={setMax}
+					type={type}
+					setType={setType}
+					bed={bed}
+					setBed={setBed}
+					bath={bath}
+					setBath={setBath}
+					propArr={propArr}
+					setOver={setOver}
+					showMapAreaButton={false}
+					isMapSyncing={isMapSyncing}
+				/>
+			</main>
+			<footer className="search-pg-footer">
+				<p>The information provided herein is deemed reliable but is not guaranteed accurate by PROPTX.</p>
+				<p>The information provided herein must only be used by consumers that have a bona fide interest in the purchase, sale, or lease of real estate and may not be used for any commercial purpose or any other purpose.</p>
+			</footer>
+		</div>
 	);
 };
 
