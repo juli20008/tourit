@@ -9,7 +9,7 @@ const LogoBrand = () => (
 		<span className="text-[#cbd5e1] font-light text-base select-none">|</span>
 		<span
 			style={{ fontFamily: "'Inter', sans-serif", fontWeight: 400 }}
-			className="text-[22px] leading-none tracking-wide text-[#94a3b8]"
+			className="text-[16px] leading-none tracking-wide text-[#94a3b8]"
 		>
 			See it on the map. Book it in a snap.
 		</span>
