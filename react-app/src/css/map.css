@@ -6,7 +6,7 @@
 /* ── InfoWindow container ───────────────────────────────────────────── */
 .gm-style .gm-style-iw-c {
 	padding: 0 !important;
-	max-width: 320px !important;
+	max-width: 350px !important;
 	min-width: 0 !important;
 	border-radius: 16px !important;
 	box-shadow:
@@ -17,7 +17,8 @@
 
 /* Scrollable content pane — zero padding so our component controls spacing */
 .gm-style .gm-style-iw-d {
-	overflow: auto !important;
+	overflow-x: hidden !important;
+	overflow-y: auto !important;
 	max-height: 430px !important;
 	padding: 0 !important;
 }

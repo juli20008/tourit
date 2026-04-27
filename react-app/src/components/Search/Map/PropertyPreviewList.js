@@ -23,44 +23,52 @@ const PreviewItem = ({ property, onSelect }) => {
 
 	return (
 		<div
-			className="flex items-center gap-2.5 px-3 py-2.5 cursor-pointer transition-colors duration-150 hover:bg-surface"
+			className="flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors duration-150 hover:bg-surface"
 			onClick={() => onSelect && onSelect(property)}
 		>
 			{/* Thumbnail */}
-			<div className="relative flex-shrink-0 w-[72px] h-[58px] rounded overflow-hidden">
+			<div className="relative flex-shrink-0 w-[108px] h-[87px] rounded overflow-hidden">
 				<img
 					className="w-full h-full object-cover"
 					src={imgSrc}
 					alt=""
 					onError={() => setImgSrc(FALLBACK_IMAGE)}
 				/>
-				<span className="absolute bottom-1 left-1.5 bg-black/55 text-white text-[9px] font-semibold uppercase tracking-wide px-1.5 py-[2px] rounded-full leading-tight">
+				<span className="absolute bottom-1 left-1.5 bg-black/55 text-white text-[13px] font-semibold uppercase tracking-wide px-1.5 py-[2px] rounded-full leading-tight">
 					{statusLabel(property.status)}
 				</span>
 			</div>
 
 			{/* Text block */}
 			<div className="flex-1 min-w-0 flex flex-col justify-center gap-[3px]">
-				<div className="text-[14px] font-bold text-ink leading-tight">
+				<div className="text-[16px] font-bold text-ink leading-tight">
 					{price}
 				</div>
-				<div className="text-[11px] text-inkMuted truncate">
+				<div className="text-[13px] text-inkMuted truncate">
 					{property.street}, {property.city}
 				</div>
-				<div className="text-[11px] text-gray-400">
+				<div className="text-[13px] text-gray-400">
 					{property.bed}&nbsp;bd&nbsp;&middot;&nbsp;{property.bath}&nbsp;ba
 					{property.sqft
 						? ` · ${property.sqft.toLocaleString()} sqft`
 						: ""}
 				</div>
+				{(property.brokerage || property.office || property.listing_brokerage) && (
+					<>
+						<hr className="border-gray-200 my-0.5" />
+						<div className="text-[11px] text-gray-400 truncate">
+							{property.brokerage || property.office || property.listing_brokerage}
+						</div>
+					</>
+				)}
 			</div>
 		</div>
 	);
 };
 
 const PropertyPreviewList = ({ properties, onSelect }) => (
-	<div className="w-[268px] font-sans overflow-hidden">
-		<div className="max-h-[340px] overflow-y-auto divide-y divide-stroke">
+	<div className="w-[350px] font-sans overflow-hidden">
+		<div className="max-h-[510px] overflow-y-auto divide-y divide-stroke">
 			{properties.map((p) => (
 				<PreviewItem key={p.id} property={p} onSelect={onSelect} />
 			))}

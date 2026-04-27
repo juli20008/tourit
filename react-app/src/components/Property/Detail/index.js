@@ -18,34 +18,53 @@ const statusLabel = (s) => {
 	return s;
 };
 
-const Feature = ({ icon, label }) => (
-	<div className="flex items-center gap-3 py-3 border-b border-stroke last:border-0">
-		<span className="w-5 text-center text-[#2a6f97]">
-			<i className={icon}></i>
-		</span>
-		<span className="text-sm text-gray-700">{label}</span>
+const fmtPrice = (p) =>
+	"$" + (p ?? 0).toFixed(0).replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,");
+
+const daysOnMarket = (listingDate) => {
+	if (!listingDate) return null;
+	const diff = Math.floor((Date.now() - new Date(listingDate)) / 86400000);
+	return diff >= 0 ? diff : null;
+};
+
+const Row = ({ label, value }) => (
+	<div className="flex py-2.5 border-b border-[#f0f0ec] last:border-0">
+		<span className="w-44 flex-shrink-0 text-sm text-gray-500">{label}</span>
+		<span className="text-sm font-medium text-[#1a1a18]">{value ?? "—"}</span>
+	</div>
+);
+
+const Section = ({ title, children }) => (
+	<div className="mb-6">
+		<h3 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-2">{title}</h3>
+		<div>{children}</div>
 	</div>
 );
 
 const Detail = ({ property }) => {
 	const agents = useSelector((state) => state.agents);
-
-	const fmtPrice = (p) =>
-		"$" + (p ?? 0).toFixed(0).replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,");
+	const agent = agents[property?.listing_agent_id];
 
 	const pricePerSqft =
 		property?.sqft > 0
-			? (property.price / property.sqft).toFixed(0)
+			? "$" + (property.price / property.sqft).toFixed(0)
 			: null;
+
+	const dom = daysOnMarket(property?.listing_date);
 
 	return (
 		<div className="font-sans text-[#1a1a18]">
 
-			{/* Status badge */}
+			{/* Status */}
 			<div className="flex items-center gap-2 mb-3">
 				<span className={`inline-block w-2.5 h-2.5 rounded-full ${statusColor(property?.status)}`} />
 				<span className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
 					{statusLabel(property?.status)}
+					{property?.transaction_type && (
+						<span className="ml-2 text-gray-400 normal-case font-normal">
+							· For {property.transaction_type}
+						</span>
+					)}
 				</span>
 			</div>
 
@@ -59,68 +78,109 @@ const Detail = ({ property }) => {
 				<span><strong>{property?.bed}</strong> bd</span>
 				<span className="mx-2 text-stroke">|</span>
 				<span><strong>{property?.bath}</strong> ba</span>
-				<span className="mx-2 text-stroke">|</span>
-				<span><strong>{property?.sqft?.toLocaleString()}</strong> sqft</span>
+				{property?.sqft && (
+					<>
+						<span className="mx-2 text-stroke">|</span>
+						<span><strong>{property.sqft.toLocaleString()}</strong> sqft</span>
+					</>
+				)}
 			</div>
 
 			{/* Address */}
 			<div className="text-lg text-inkMuted mb-1">
-				{property?.street}, {property?.city}, {property?.state} {property?.zip}
+				{[property?.unit && `Unit ${property.unit}`, property?.street, property?.city, property?.state, property?.zip]
+					.filter(Boolean).join(", ")}
 			</div>
-
-			{/* Listed date */}
+			{property?.neighborhood && (
+				<div className="text-sm text-gray-400 mb-1">{property.neighborhood}</div>
+			)}
 			<div className="text-xs text-gray-400 mb-6">
 				Listed {property?.listing_date}
+				{dom !== null && <span className="ml-2">· {dom} days on market</span>}
 			</div>
 
 			<hr className="border-stroke mb-6" />
 
-			{/* Property features */}
-			<h3 className="text-base font-semibold text-ink mb-1">Property Details</h3>
-			<div className="divide-y divide-stroke">
-				<Feature icon="fa-regular fa-building" label={property?.type || "—"} />
-				<Feature icon="fa-regular fa-calendar-days" label={property?.built ? `Built in ${property.built}` : "Year built: —"} />
-				<Feature icon="fa-solid fa-square-parking" label={property?.garage ? `${property.garage} Car Garage` : "No Garage"} />
-				<Feature icon="fa-solid fa-snowflake" label="Central Air" />
-				{pricePerSqft && (
-					<Feature icon="fa-solid fa-ruler-combined" label={`$${pricePerSqft} / sqft`} />
-				)}
-			</div>
-
-			<hr className="border-stroke my-6" />
-
-			{/* Description */}
-			<h3 className="text-base font-semibold text-ink mb-3">Overview</h3>
-			<p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
-				{property?.description || "No description available."}
-			</p>
-
-			<hr className="border-stroke my-6" />
-
-			{/* Listing agent */}
-			{agents[property?.listing_agent_id] && (
+			{/* About */}
+			{property?.description && (
 				<>
-					<h3 className="text-base font-semibold text-ink mb-2">Listing Agent</h3>
-					<div className="text-sm text-gray-600 space-y-0.5 mb-6">
-						<div className="font-medium">
-							{agents[property?.listing_agent_id]?.username}
-						</div>
-						<div>
-							DRE# {agents[property?.listing_agent_id]?.license_num} &nbsp;·&nbsp;{" "}
-							{agents[property?.listing_agent_id]?.phone}
-						</div>
-						{property?.office && <div>{property.office}</div>}
-					</div>
+					<Section title="About this home">
+						<p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
+							{property.description}
+						</p>
+					</Section>
 					<hr className="border-stroke mb-6" />
 				</>
 			)}
 
-			{/* MLS disclaimer */}
+			{/* Home facts and features */}
+			<h2 className="text-base font-semibold text-ink mb-4">Home facts and features</h2>
+
+			<Section title="Price details">
+				<Row label="List Price" value={fmtPrice(property?.price)} />
+				{property?.original_price && property.original_price !== property.price && (
+					<Row label="Original Price" value={fmtPrice(property.original_price)} />
+				)}
+				{property?.sold_price && (
+					<Row label="Sold Price" value={fmtPrice(property.sold_price)} />
+				)}
+				{pricePerSqft && <Row label="Price per sqft" value={pricePerSqft} />}
+				<Row label="Est. Mortgage" value="—" />
+			</Section>
+
+			<Section title="Home details">
+				<Row label="Style" value={property?.style || property?.type || "—"} />
+				<Row label="Property Type" value={property?.property_type || property?.property_class || "—"} />
+				<Row label="Bedrooms" value={property?.bed || "—"} />
+				<Row label="Bathrooms" value={property?.bath || "—"} />
+				<Row label="Full Bathrooms" value="—" />
+				<Row label="Half Bathrooms" value="—" />
+				<Row label="Sqft" value={property?.sqft ? property.sqft.toLocaleString() : "—"} />
+				<Row label="Year Built" value={property?.built || "—"} />
+				<Row label="Storeys" value="—" />
+				<Row label="Basement" value="—" />
+				<Row label="Garage" value={property?.garage ? `${property.garage} Car Garage` : "—"} />
+				<Row label="Lot Size" value="—" />
+				<Row label="Lot Frontage" value="—" />
+				<Row label="Annual Tax" value="—" />
+			</Section>
+
+			<Section title="Location">
+				<Row label="Neighbourhood" value={property?.neighborhood || "—"} />
+				<Row label="City" value={property?.city || "—"} />
+				<Row label="Province / State" value={property?.state || "—"} />
+				<Row label="Postal Code" value={property?.zip || "—"} />
+			</Section>
+
+			<Section title="Agent details">
+				{agent ? (
+					<>
+						<Row label="Agent" value={agent.username} />
+						<Row label="Phone" value={agent.phone || "—"} />
+						<Row label="License #" value={agent.license_num || "—"} />
+					</>
+				) : (
+					<Row label="Agent" value={property?.agent_name || "—"} />
+				)}
+				<Row label="Brokerage" value={property?.brokerage || property?.office || "—"} />
+			</Section>
+
+			<Section title="Listing details">
+				<Row label="MLS #" value={property?.mls_number || property?.listing_id || "—"} />
+				<Row label="Listed" value={property?.listing_date || "—"} />
+				<Row label="Days on Market" value={dom !== null ? `${dom} days` : "—"} />
+				<Row label="Status" value={statusLabel(property?.status)} />
+				<Row label="Source" value="TRREB" />
+			</Section>
+
+			<hr className="border-stroke mb-4" />
+
+			{/* Disclaimer */}
 			<p className="text-[10px] text-gray-400 leading-relaxed mb-8">
-				The multiple listing data appearing on this website is owned and copyrighted
-				by the applicable MLS. All listing data, including square footage and lot
-				size, is believed to be accurate but is not warranted or guaranteed. The
-				viewer should independently verify listed data before making any decisions.
+				The information provided herein is deemed reliable but is not guaranteed accurate by PROPTX.
+				The information provided herein must only be used by consumers that have a bona fide interest
+				in the purchase, sale, or lease of real estate and may not be used for any commercial purpose
+				or any other purpose.
 			</p>
 		</div>
 	);
