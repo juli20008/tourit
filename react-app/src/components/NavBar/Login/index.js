@@ -1,32 +1,10 @@
-import { useDispatch } from "react-redux";
-import { useHistory, Link } from "react-router-dom";
-import { login } from "../../../store/session";
-import { useNotification } from "../../../context/Notification";
+import { Link } from "react-router-dom";
 
 const API_BASE = process.env.REACT_APP_API_URL || "";
 
 const Login = ({ onClose, inline = false }) => {
-	const dispatch = useDispatch();
-	const history = useHistory();
-	const { setToggleNotification, setNotificationMsg } = useNotification();
-
 	const handleGoogleLogin = () => {
 		window.location.href = `${API_BASE}/api/auth/google`;
-	};
-
-	const demoLogin = async (email, redirectTo) => {
-		const data = await dispatch(login(email, "password"));
-		if (!data) {
-			if (onClose) onClose();
-			history.push(redirectTo);
-		} else {
-			setNotificationMsg(data[0] || "Demo login failed");
-			setToggleNotification("");
-			setTimeout(() => {
-				setToggleNotification("notification-move");
-				setNotificationMsg("");
-			}, 2000);
-		}
 	};
 
 	return (
@@ -50,30 +28,6 @@ const Login = ({ onClose, inline = false }) => {
 				</svg>
 				Continue with Google
 			</button>
-
-			{/* Demo divider */}
-			<div className="w-full flex items-center gap-3">
-				<div className="flex-1 h-px bg-[#e5e7eb]" />
-				<span className="text-xs text-[#9ca3af]">demo only</span>
-				<div className="flex-1 h-px bg-[#e5e7eb]" />
-			</div>
-
-			<div className="w-full flex flex-col gap-2">
-				<button
-					type="button"
-					className="w-full rounded-md border border-[#d1d5db] bg-white px-4 py-2.5 text-sm text-[#374151] hover:bg-[#f9fafb] transition"
-					onClick={() => demoLogin("demo@aa.io", "/")}
-				>
-					User Demo Login
-				</button>
-				<button
-					type="button"
-					className="w-full rounded-md bg-[#0f172a] px-4 py-2.5 text-sm text-white hover:bg-[#1e293b] transition"
-					onClick={() => demoLogin("agent1@user.com", "/appointments")}
-				>
-					Agent Demo Login
-				</button>
-			</div>
 
 			{/* Agent magic-link login */}
 			<div className="w-full text-center pt-1">
