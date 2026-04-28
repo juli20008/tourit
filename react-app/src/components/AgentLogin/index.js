@@ -40,13 +40,6 @@ const AgentLogin = () => {
 
 	return (
 		<div className="min-h-screen bg-[#f3f3f1] flex flex-col">
-			{/* Minimal header */}
-			<header className="bg-black px-6 py-4">
-				<Link to="/" className="text-white text-xl font-bold tracking-tight">
-					Tourit.ca
-				</Link>
-			</header>
-
 			<main className="flex-1 flex items-center justify-center px-4 py-16">
 				<div className="w-full max-w-sm bg-white rounded-2xl shadow-md px-8 py-10">
 
