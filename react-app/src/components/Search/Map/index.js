@@ -210,10 +210,18 @@ const MyMap = withScriptjs(
 
 		// Expose flyTo to parent once on mount — parent calls fn(lat, lng) directly
 		// instead of relying on useEffect prop comparison through HOC layers.
+		// react-google-maps does not expose setZoom on the ref; fitBounds with a
+		// small box is the reliable way to both pan and zoom imperatively.
 		useEffect(() => {
 			props.onMapReady?.((lat, lng) => {
-				mapRef.current?.panTo({ lat, lng });
-				mapRef.current?.setZoom(14);
+				if (!mapRef.current) return;
+				const d = 0.005; // ~500 m radius → roughly zoom 14
+				mapRef.current.fitBounds(
+					new window.google.maps.LatLngBounds(
+						{ lat: lat - d, lng: lng - d },
+						{ lat: lat + d, lng: lng + d }
+					)
+				);
 			});
 		}, []); // eslint-disable-line react-hooks/exhaustive-deps
 
