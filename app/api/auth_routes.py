@@ -178,16 +178,17 @@ def agent_magic_link():
     if not email:
         return {'errors': ['Email is required']}, 400
 
-    # Look up silently — always return the same message to prevent email enumeration
     user = User.query.filter_by(email=email).first()
-    if user and user.agent:
-        from app.models.magic_link_token import MagicLinkToken
-        from app.utils.mailer import send_magic_link
-        token = MagicLinkToken.create_for_user(user.id)
-        magic_url = url_for('auth.magic_link_login', token=token, _external=True)
-        send_magic_link(user.email, magic_url)
+    if not user or not user.agent:
+        return {'errors': ['No agent account found with that email address.']}, 404
 
-    return {'message': 'If that email belongs to an agent account, a login link has been sent.'}
+    from app.models.magic_link_token import MagicLinkToken
+    from app.utils.mailer import send_magic_link
+    token = MagicLinkToken.create_for_user(user.id)
+    magic_url = url_for('auth.magic_link_login', token=token, _external=True)
+    send_magic_link(user.email, magic_url)
+
+    return {'message': 'Login link sent. Check your email.'}
 
 
 @auth_routes.route('/magic-link/<token>')
