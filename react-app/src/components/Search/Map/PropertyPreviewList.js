@@ -23,11 +23,11 @@ const PreviewItem = ({ property, onSelect }) => {
 
 	return (
 		<div
-			className="flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors duration-150 hover:bg-surface"
+			className="flex items-center gap-2.5 px-2 py-1.5 cursor-pointer transition-colors duration-150 hover:bg-surface"
 			onClick={() => onSelect && onSelect(property)}
 		>
 			{/* Thumbnail */}
-			<div className="relative flex-shrink-0 w-[108px] h-[87px] rounded overflow-hidden">
+			<div className="relative flex-shrink-0 w-[128px] h-[104px] rounded overflow-hidden">
 				<img
 					className="w-full h-full object-cover"
 					src={imgSrc}
@@ -47,7 +47,7 @@ const PreviewItem = ({ property, onSelect }) => {
 				<div className="text-[13px] text-inkMuted truncate">
 					{property.street}, {property.city}
 				</div>
-				<div className="text-[13px] text-gray-400">
+				<div className="text-[13px] text-[#5f6b7a]">
 					{property.bed}&nbsp;bd&nbsp;&middot;&nbsp;{property.bath}&nbsp;ba
 					{property.sqft
 						? ` · ${property.sqft.toLocaleString()} sqft`
@@ -56,7 +56,7 @@ const PreviewItem = ({ property, onSelect }) => {
 				{(property.brokerage || property.office || property.listing_brokerage) && (
 					<>
 						<hr className="border-gray-200 my-0.5" />
-						<div className="text-[11px] text-gray-400 truncate">
+						<div className="text-[11px] text-[#5f6b7a] truncate">
 							{property.brokerage || property.office || property.listing_brokerage}
 						</div>
 					</>

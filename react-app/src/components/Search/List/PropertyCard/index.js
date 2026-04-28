@@ -22,21 +22,21 @@ const PropertyCard = ({ property, setOver }) => {
 			onMouseOut={() => setOver({ id: 0 })}
 		>
 			<PropertyTop property={property} />
-			<div className="card-btm space-y-0.5 px-4 py-3">
+			<div className="card-btm space-y-0.5 px-3 py-2.5">
 				<div className="card-price text-[26px] font-semibold leading-tight tracking-tight text-[#1f1f1d]">
 					{"$" +
 						property?.price.toFixed().replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,")}
 				</div>
-				<div className="card-desc text-[14px] text-[#666660]">
+				<div className="card-desc text-[14px] text-[#55585f]">
 					{property?.bed} bd{property?.bed > 1 && <span>s</span>}{" "}
 					{property?.bath} ba {property?.sqft} sqft
 				</div>
-				<div className="card-address text-[16px] font-medium leading-snug text-[#8a8a84]">
+				<div className="card-address text-[16px] font-medium leading-snug text-[#676a71]">
 					{property?.street}, {property?.city}, {property?.state}{" "}
 					{property?.zip}
 				</div>
 				<hr className="border-[#e1e1db]" />
-				<div className="card-office text-[14px] font-normal leading-snug text-[#8a8a84]">
+				<div className="card-office text-[14px] font-normal leading-snug text-[#676a71]">
 					{
 						property?.brokerage ||
 						property?.office ||

@@ -251,7 +251,7 @@ const MyMap = withScriptjs(
 				);
 				if (found) setSelectedProperty(found);
 			}
-		}, []); // eslint-disable-line react-hooks/exhaustive-deps
+		}, [location.search, props.markers]);
 
 		return (
 			<>

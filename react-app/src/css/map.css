@@ -86,3 +86,9 @@
 		height: 100%;
 	}
 }
+
+@media screen and (max-width: 650px) {
+	.bottom-sheet-panel {
+		background-color: transparent !important;
+	}
+}

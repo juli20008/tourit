@@ -7,7 +7,13 @@ const Login = ({ onClose, inline = false, returnContext = null }) => {
 		if (returnContext?.property) {
 			sessionStorage.setItem(
 				"tourReturn",
-				JSON.stringify({ propertyId: String(returnContext.property.id) })
+				JSON.stringify({
+					path: returnContext.path || `${window.location.pathname}${window.location.search}`,
+					propertyId: String(returnContext.property.id),
+					date: returnContext.date || null,
+					hour: returnContext.hour || null,
+					stage: returnContext.stage || "contact",
+				})
 			);
 		}
 		window.location.href = `${API_BASE}/api/auth/google`;

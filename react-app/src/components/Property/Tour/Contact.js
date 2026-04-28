@@ -27,7 +27,18 @@ const Contact = ({ property, today, hour, setShowSelectDate, setShowTour }) => {
 	}, [user]);
 
 	if (!user) {
-		return <LoginCard inline returnContext={{ property, date: today, hour }} />;
+		return (
+			<LoginCard
+				inline
+				returnContext={{
+					property,
+					date: today,
+					hour,
+					stage: "contact",
+					path: `${window.location.pathname}${window.location.search}`,
+				}}
+			/>
+		);
 	}
 
 	return (

@@ -27,9 +27,10 @@ const SelectDate = ({
 					className="select-input"
 					value={today}
 					onChange={(e) => {
-						setToday(e.target.value);
-						setHourList(available[today]);
-						setHour(available[today][0]);
+						const nextDay = e.target.value;
+						setToday(nextDay);
+						setHourList(available[nextDay] || []);
+						setHour((available[nextDay] || [])[0] || "");
 					}}
 				>
 					{Object.keys(available).map((day) => (
@@ -55,7 +56,7 @@ const SelectDate = ({
 				</select>
 			</div>
 
-			<button className="btn btn-w" onClick={() => setShowSelectDate(false)}>
+			<button type="button" className="btn btn-w" onClick={() => setShowSelectDate(false)}>
 				<div className="btn-desc">
 					{appointment.toDateString()} at {appointment.toLocaleTimeString()}
 				</div>

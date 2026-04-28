@@ -33,8 +33,11 @@ const TourReturnHandler = () => {
 		const raw = sessionStorage.getItem("tourReturn");
 		if (!raw) return;
 		try {
-			const { propertyId } = JSON.parse(raw);
-			sessionStorage.removeItem("tourReturn");
+			const { path, propertyId } = JSON.parse(raw);
+			if (path) {
+				history.replace(path);
+				return;
+			}
 			history.replace(`${DEFAULT_AREA}?selected=${encodeURIComponent(propertyId)}`);
 		} catch {
 			sessionStorage.removeItem("tourReturn");

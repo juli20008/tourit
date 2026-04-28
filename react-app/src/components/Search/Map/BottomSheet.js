@@ -1,6 +1,5 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { resolveUrl, FALLBACK_IMAGE } from "../../../utils/imageResolver";
-import { useState } from "react";
 
 const statusLabel = (s) => {
 	if (!s) return "Active";
@@ -11,7 +10,8 @@ const statusLabel = (s) => {
 };
 
 const SheetCard = ({ property, onSelect }) => {
-	const rawSrc = resolveUrl(property.image_urls?.[0] || property.front_img) || FALLBACK_IMAGE;
+	const rawSrc =
+		resolveUrl(property.image_urls?.[0] || property.front_img) || FALLBACK_IMAGE;
 	const [imgSrc, setImgSrc] = useState(rawSrc);
 
 	const price = new Intl.NumberFormat("en-US", {
@@ -38,13 +38,18 @@ const SheetCard = ({ property, onSelect }) => {
 			</div>
 			<div className="px-2 py-1.5 flex flex-col gap-0.5">
 				<div className="text-[15px] font-bold text-[#0f172a]">{price}</div>
-				<div className="text-[11px] text-[#64748b] truncate">
+				<div className="text-[11px] text-[#536071] truncate">
 					{property.street}, {property.city}
 				</div>
-				<div className="text-[11px] text-[#94a3b8]">
+				<div className="text-[11px] text-[#5f6b7a]">
 					{property.bed} bd · {property.bath} ba
 					{property.sqft ? ` · ${Number(property.sqft).toLocaleString()} sqft` : ""}
 				</div>
+				{(property.brokerage || property.office || property.listing_brokerage) && (
+					<div className="text-[10px] text-[#5f6b7a] truncate">
+						{property.brokerage || property.office || property.listing_brokerage}
+					</div>
+				)}
 			</div>
 		</div>
 	);
@@ -63,7 +68,7 @@ const BottomSheet = ({ properties, onSelect, onClose }) => {
 	return (
 		<div className="bottom-sheet-backdrop fixed inset-0 z-40 flex items-end pointer-events-none">
 			<div
-				className="pointer-events-auto w-full bg-white rounded-t-2xl shadow-2xl pb-safe"
+				className="bottom-sheet-panel pointer-events-auto w-full bg-white rounded-t-2xl shadow-2xl pb-safe"
 				style={{ maxHeight: "55vh" }}
 			>
 				{/* Handle */}
