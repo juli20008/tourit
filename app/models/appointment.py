@@ -19,6 +19,25 @@ class Appointment(db.Model):
     mls_listing = db.relationship("MlsListing", foreign_keys=[mls_listing_id])
 
     def to_dict(self):
+        listing = None
+        if self.property:
+            imgs = self.property.images or []
+            listing = {
+                "street": self.property.street,
+                "city": self.property.city,
+                "state": self.property.state.state if self.property.state else "",
+                "zip": self.property.zip,
+                "image": imgs[0].img_url if imgs else self.property.front_img,
+            }
+        elif self.mls_listing:
+            listing = {
+                "street": self.mls_listing.street,
+                "city": self.mls_listing.city or "",
+                "state": self.mls_listing.state or "",
+                "zip": self.mls_listing.zip or "",
+                "image": self.mls_listing.front_img,
+            }
+
         return {
             "id": self.id,
             "user_id": self.user_id,
@@ -32,6 +51,7 @@ class Appointment(db.Model):
             "time": self.time,
             "message": self.message,
             "canceled": self.canceled,
+            "listing": listing,
         }
 
     def appt(self):

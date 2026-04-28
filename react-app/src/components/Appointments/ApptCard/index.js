@@ -11,8 +11,11 @@ const ApptCard = ({ appt, past }) => {
 	const agents = useSelector((state) => state.agents);
 
 	const property = properties[appt?.property_id];
+	const listing = property
+		? { street: property.street, city: property.city, state: property.state, zip: property.zip, image: property.image_urls?.[0] || property.front_img }
+		: appt?.listing;
 	const agent = agents[appt?.agent_id];
-	const image = property?.image_urls?.[0] || property?.front_img;
+	const image = listing?.image;
 
 	const [showModal, setShowModal] = useState(false);
 
@@ -24,7 +27,7 @@ const ApptCard = ({ appt, past }) => {
 
 	return (
 			<div className="appt-card" onClick={() => setShowModal(true)}>
-			{property && image && (
+			{listing && image && (
 				<div
 					className="appt-house"
 					style={{ backgroundImage: `url('${image}')` }}
@@ -37,9 +40,9 @@ const ApptCard = ({ appt, past }) => {
 				<div className="appt-address-wrap">
 					<div className="appt-address-title">Address</div>
 					<div className="appt-address">
-						<div>{property?.street},</div>
+						<div>{listing?.street},</div>
 						<div>
-							{property?.city}, {property?.state}, {property?.zip}
+							{listing?.city}, {listing?.state}, {listing?.zip}
 						</div>
 					</div>
 				</div>
