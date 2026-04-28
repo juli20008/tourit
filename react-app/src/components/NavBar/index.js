@@ -54,7 +54,7 @@ const NavBar = () => {
 
 	const onAgentLogin = async (e) => {
 		e.preventDefault();
-		const data = await dispatch(login("agent1@user.com", "password"));
+		const data = await dispatch(login("julie.li.realtor@gmail.com", "password"));
 		if (!data) {
 			setShowMenu(false);
 			history.push("/appointments");
