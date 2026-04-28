@@ -1,5 +1,5 @@
 import { useDispatch } from "react-redux";
-import { useHistory } from "react-router-dom";
+import { useHistory, Link } from "react-router-dom";
 import { login } from "../../../store/session";
 import { useNotification } from "../../../context/Notification";
 
@@ -73,6 +73,17 @@ const Login = ({ onClose, inline = false }) => {
 				>
 					Agent Demo Login
 				</button>
+			</div>
+
+			{/* Agent magic-link login */}
+			<div className="w-full text-center pt-1">
+				<Link
+					to="/agent-login"
+					onClick={onClose}
+					className="text-xs text-[#64748b] hover:text-[#0f172a] transition"
+				>
+					Agent Login &rarr;
+				</Link>
 			</div>
 		</div>
 	);

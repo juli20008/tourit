@@ -35,7 +35,7 @@ const SearchArea = () => {
 	};
 
 	const [center] = useState(() => getInitialCenter(areaParam));
-	const [flyTo, setFlyTo] = useState(null);
+	const mapFlyToRef = useRef(null); // set by Map via onMapReady
 	const [showConsent, setShowConsent] = useState(false);
 	const [propArr, setPropArr] = useState([]);
 	const [over, setOver] = useState({ id: 0 });
@@ -51,14 +51,8 @@ const SearchArea = () => {
 	const requestLocation = () => {
 		if (!navigator.geolocation) return;
 		navigator.geolocation.getCurrentPosition(
-			(pos) => {
-				// ts ensures the effect always fires even if coords are identical
-				setFlyTo({ lat: pos.coords.latitude, lng: pos.coords.longitude, ts: Date.now() });
-			},
-			() => {
-				// Denied or unavailable — fall back to Toronto
-				setFlyTo({ ...TORONTO, ts: Date.now() });
-			},
+			(pos) => mapFlyToRef.current?.(pos.coords.latitude, pos.coords.longitude),
+			() => mapFlyToRef.current?.(TORONTO.lat, TORONTO.lng),
 			{ timeout: 8000 }
 		);
 	};
@@ -153,9 +147,9 @@ const SearchArea = () => {
 					over={over}
 					zoom={zoom}
 					onBoundsChange={handleMapBoundsChange}
+					onMapReady={(fn) => { mapFlyToRef.current = fn; }}
 					enableAreaSearch={false}
 					syncCenter={false}
-					flyTo={flyTo}
 					transactionType={transactionType}
 					setTransactionType={setTransactionType}
 				/>

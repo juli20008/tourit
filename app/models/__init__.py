@@ -12,3 +12,4 @@ from .channel import Channel
 from .chat import Chat
 from .mls_agent import MlsAgent
 from .mls_listing import MlsListing
+from .magic_link_token import MagicLinkToken

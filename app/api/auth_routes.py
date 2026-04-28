@@ -169,6 +169,41 @@ def google_callback():
     return redirect(frontend_url)
 
 
+@auth_routes.route('/agent-magic-link', methods=['POST'])
+def agent_magic_link():
+    """Send a one-time login link to an agent's email address."""
+    data = request.get_json(silent=True) or {}
+    email = (data.get('email') or '').strip().lower()
+
+    if not email:
+        return {'errors': ['Email is required']}, 400
+
+    # Look up silently — always return the same message to prevent email enumeration
+    user = User.query.filter_by(email=email).first()
+    if user and user.agent:
+        from app.models.magic_link_token import MagicLinkToken
+        from app.utils.mailer import send_magic_link
+        token = MagicLinkToken.create_for_user(user.id)
+        magic_url = url_for('auth.magic_link_login', token=token, _external=True)
+        send_magic_link(user.email, magic_url)
+
+    return {'message': 'If that email belongs to an agent account, a login link has been sent.'}
+
+
+@auth_routes.route('/magic-link/<token>')
+def magic_link_login(token):
+    """Validate a magic-link token, log the agent in, and redirect to the dashboard."""
+    from app.models.magic_link_token import MagicLinkToken
+    frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
+
+    user = MagicLinkToken.consume(token)
+    if not user or not user.agent:
+        return redirect(f'{frontend_url}/agent-login?error=invalid')
+
+    login_user(user)
+    return redirect(f'{frontend_url}/appointments')
+
+
 @auth_routes.route('/unauthorized')
 def unauthorized():
     """

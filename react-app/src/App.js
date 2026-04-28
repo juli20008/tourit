@@ -18,6 +18,7 @@ import Chats from "./components/Chats";
 import { authenticate } from "./store/session";
 
 import About from "./components/About";
+import AgentLogin from "./components/AgentLogin";
 
 function App() {
 	const [loaded, setLoaded] = useState(false);
@@ -64,6 +65,9 @@ function App() {
 				</Route>
 				<Route path="/about" exact={true}>
 					<About />
+				</Route>
+				<Route path="/agent-login" exact={true}>
+					<AgentLogin />
 				</Route>
 				<ProtectedRoute path="/appointments" exact={true}>
 					<Appointments />

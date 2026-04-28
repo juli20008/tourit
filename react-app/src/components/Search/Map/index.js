@@ -208,12 +208,14 @@ const MyMap = withScriptjs(
 			}
 		}, [props.center, props.syncCenter]);
 
-		// Explicit flyTo: always pan + zoom when a new location is pushed
+		// Expose flyTo to parent once on mount — parent calls fn(lat, lng) directly
+		// instead of relying on useEffect prop comparison through HOC layers.
 		useEffect(() => {
-			if (!mapRef.current || !props.flyTo) return;
-			mapRef.current.panTo({ lat: props.flyTo.lat, lng: props.flyTo.lng });
-			mapRef.current.setZoom(14);
-		}, [props.flyTo]);
+			props.onMapReady?.((lat, lng) => {
+				mapRef.current?.panTo({ lat, lng });
+				mapRef.current?.setZoom(14);
+			});
+		}, []); // eslint-disable-line react-hooks/exhaustive-deps
 
 		const priceLabel = (price) => {
 			if (price > 1000000) return `${(price / 1000000).toFixed(1)}M`;
