@@ -138,7 +138,7 @@ const NavBar = () => {
 					</div>
 					{showLogin && (
 						<Modal onClose={onClose}>
-							<Login />
+							<Login onClose={onClose} />
 						</Modal>
 					)}
 				</nav>
