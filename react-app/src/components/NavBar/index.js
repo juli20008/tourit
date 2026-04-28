@@ -1,6 +1,8 @@
-import React, { useState } from "react";
-import { NavLink } from "react-router-dom";
-import { useSelector } from "react-redux";
+import React, { useState, useRef } from "react";
+import { NavLink, useHistory } from "react-router-dom";
+import { useSelector, useDispatch } from "react-redux";
+import { login } from "../../store/session";
+import { useNotification } from "../../context/Notification";
 
 import AgentBar from "./Agent";
 import UserBar from "./User";
@@ -10,9 +12,61 @@ import { Modal } from "../../context/Modal";
 import Login from "./Login";
 
 const NavBar = () => {
+	const dispatch = useDispatch();
+	const history = useHistory();
+	const { setToggleNotification, setNotificationMsg } = useNotification();
 	const user = useSelector((state) => state.session.user);
 	const [showLogin, setShowLogin] = useState(false);
+	const [showMenu, setShowMenu] = useState(false);
 	const [showMobileMenu, setShowMobileMenu] = useState(false);
+
+	const dropdownRef = useRef(null);
+
+	const openMenu = (e) => {
+		e.preventDefault();
+		setTimeout(() => setShowMenu(true), 1);
+		document.addEventListener("click", closeMenu);
+	};
+
+	const closeMenu = (e) => {
+		e.preventDefault();
+		if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+			setShowMenu(false);
+			document.removeEventListener("click", closeMenu);
+		}
+	};
+
+	const onLogin = async (e) => {
+		e.preventDefault();
+		const data = await dispatch(login("demo@aa.io", "password"));
+		if (!data) {
+			setShowMenu(false);
+			history.push("/");
+		} else {
+			setToggleNotification("");
+			setNotificationMsg(data[0] || "Demo login failed");
+			setTimeout(() => {
+				setToggleNotification("notification-move");
+				setNotificationMsg("");
+			}, 2000);
+		}
+	};
+
+	const onAgentLogin = async (e) => {
+		e.preventDefault();
+		const data = await dispatch(login("agent1@user.com", "password"));
+		if (!data) {
+			setShowMenu(false);
+			history.push("/appointments");
+		} else {
+			setToggleNotification("");
+			setNotificationMsg(data[0] || "Agent demo login failed");
+			setTimeout(() => {
+				setToggleNotification("notification-move");
+				setNotificationMsg("");
+			}, 2000);
+		}
+	};
 
 	const onClose = () => setShowLogin(false);
 
@@ -56,6 +110,19 @@ const NavBar = () => {
 						<button className="btn-font-lt" onClick={() => setShowLogin(true)}>
 							Login
 						</button>
+						<button type="button" className="btn-font-lt" onClick={openMenu}>
+							Demo Login
+						</button>
+						{showMenu && (
+							<div className="dropdown demo-login" ref={dropdownRef}>
+								<button type="button" className="btn btn-w" onClick={onLogin}>
+									User Demo Login
+								</button>
+								<button type="button" className="btn btn-bl" onClick={onAgentLogin}>
+									Agent Demo Login
+								</button>
+							</div>
+						)}
 					</div>
 					{showLogin && (
 						<Modal onClose={onClose}>
@@ -85,6 +152,14 @@ const NavBar = () => {
 							>
 								<i className="fa-regular fa-user mr-3 text-[#94a3b8]" />
 								Login
+							</button>
+							<button className="nav-mobile-item" onClick={(e) => { setShowMobileMenu(false); onLogin(e); }}>
+								<i className="fa-solid fa-bolt mr-3 text-[#94a3b8]" />
+								User Demo Login
+							</button>
+							<button className="nav-mobile-item" onClick={(e) => { setShowMobileMenu(false); onAgentLogin(e); }}>
+								<i className="fa-solid fa-briefcase mr-3 text-[#94a3b8]" />
+								Agent Demo Login
 							</button>
 						</div>
 					</>
