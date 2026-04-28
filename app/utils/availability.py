@@ -109,8 +109,44 @@ def available_agents_for_slot(date_str, time_str, property_obj=None, appointment
     return [agents_by_id[agent_id] for agent_id in available_ids if agent_id in agents_by_id]
 
 
+def agent_rating(agent):
+    """Average review score for an agent; 0.0 when no reviews exist."""
+    ratings = [r.rating for r in agent.agent_reviews]
+    return sum(ratings) / len(ratings) if ratings else 0.0
+
+
 def pick_agent_for_appointment(property_obj, date_str, time_str):
-    available_agents = available_agents_for_slot(date_str, time_str, property_obj=property_obj)
-    if not available_agents:
+    """
+    Tier 1 lead distribution — Phase 1 (Primary Match):
+
+    1. Service area: find agents whose designated zip covers the property's zip.
+    2. Availability: filter to those available for the requested slot.
+    3. Tie-break: assign the one with the highest Client Review Score.
+
+    Falls back to any available agent (sorted by rating) when no service-area
+    agent is available for the slot.
+    """
+    # Phase 1 – service-area agents who are available, best rating first
+    prop_zip = getattr(property_obj, 'zip', None) if property_obj else None
+    if prop_zip:
+        service_area_ids = {
+            area.agent_id
+            for area in AgentArea.query.filter(AgentArea.zip == prop_zip).all()
+        }
+        if service_area_ids:
+            candidates = User.query.filter(
+                User.id.in_(service_area_ids),
+                User.agent == True,
+            ).all()
+            phase1 = [
+                a for a in candidates
+                if agent_is_available(a.id, date_str, time_str)
+            ]
+            if phase1:
+                return max(phase1, key=agent_rating)
+
+    # Fallback – any available agent, still ranked by review score
+    available = available_agents_for_slot(date_str, time_str, property_obj=property_obj)
+    if not available:
         return None
-    return available_agents[0]
+    return max(available, key=agent_rating)
