@@ -145,8 +145,27 @@ def pick_agent_for_appointment(property_obj, date_str, time_str):
             if phase1:
                 return max(phase1, key=agent_rating)
 
-    # Fallback – any available agent, still ranked by review score
+    # Phase 2 – geographic proximity fallback
     available = available_agents_for_slot(date_str, time_str, property_obj=property_obj)
     if not available:
         return None
+
+    prop_lat = getattr(property_obj, 'lat', None) if property_obj else None
+    # Property uses column "long"; MlsListing uses "lng"
+    prop_lng = (
+        getattr(property_obj, 'lng', None) or getattr(property_obj, 'long', None)
+    ) if property_obj else None
+
+    if prop_lat is not None and prop_lng is not None:
+        from app.utils.geo import agent_centroid, haversine
+
+        def proximity_key(agent):
+            centroid = agent_centroid(agent)
+            if centroid is None:
+                return (float('inf'), -agent_rating(agent))
+            dist = haversine(float(prop_lat), float(prop_lng), centroid[0], centroid[1])
+            return (dist, -agent_rating(agent))
+
+        return min(available, key=proximity_key)
+
     return max(available, key=agent_rating)

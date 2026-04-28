@@ -102,9 +102,27 @@ def is_future_datetime(date_str, time_str):
 def add_appointment():
 
     if request.method == "GET":
+        if current_user.agent:
+            appt_filter = Appointment.agent_id == current_user.id
+        else:
+            appt_filter = Appointment.user_id == current_user.id
 
-        appointments = [appt.to_dict() for appt in current_user.appointments]
-        properties = _serialize_appointment_properties(current_user.appointments)
+        appts = (
+            Appointment.query
+            .filter(appt_filter)
+            .options(
+                selectinload(Appointment.property)
+                    .selectinload(Property.images),
+                selectinload(Appointment.property)
+                    .selectinload(Property.state),
+                selectinload(Appointment.mls_listing),
+                selectinload(Appointment.user),
+            )
+            .all()
+        )
+
+        appointments = [appt.to_dict() for appt in appts]
+        properties = _serialize_appointment_properties(appts)
 
         if current_user.agent:
             return {
@@ -112,7 +130,7 @@ def add_appointment():
                 "properties": properties,
             }
         else:
-            agent_ids = [appt.agent_id for appt in current_user.appointments]
+            agent_ids = [appt.agent_id for appt in appts]
             agents = User.query.filter(User.id.in_(agent_ids)).all()
 
             return {
@@ -202,7 +220,21 @@ def add_appointment():
         db.session.add(new_appointment)
         db.session.commit()
 
-        return {"appointment": new_appointment.to_dict()}
+        # Re-fetch with all nested relationships so to_dict() listing field is
+        # fully populated (session expires objects after commit).
+        loaded = (
+            Appointment.query
+            .options(
+                selectinload(Appointment.property)
+                    .selectinload(Property.images),
+                selectinload(Appointment.property)
+                    .selectinload(Property.state),
+                selectinload(Appointment.mls_listing),
+                selectinload(Appointment.user),
+            )
+            .get(new_appointment.id)
+        )
+        return {"appointment": loaded.to_dict()}
 
 @appointment_routes.route("/<int:appointment_id>", methods=["GET", "PUT", "DELETE"])
 @login_required
