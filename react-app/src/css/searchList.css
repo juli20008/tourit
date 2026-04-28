@@ -48,8 +48,7 @@
 
 .search-bar {
 	display: flex;
-	padding: 10px;
-	gap: 10px;
+	gap: 8px;
 	align-items: center;
 	justify-content: space-between;
 	flex-wrap: wrap;
@@ -171,7 +170,7 @@
 	align-items: center;
 	gap: 5px;
 	border: 1px solid var(--blue);
-	padding: 5px;
+	padding: 3px 5px;
 	border-radius: 5px;
 	font-size: 14px;
 }

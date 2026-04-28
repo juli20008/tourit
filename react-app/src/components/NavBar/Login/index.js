@@ -2,8 +2,14 @@ import { Link } from "react-router-dom";
 
 const API_BASE = process.env.REACT_APP_API_URL || "";
 
-const Login = ({ onClose, inline = false }) => {
+const Login = ({ onClose, inline = false, returnContext = null }) => {
 	const handleGoogleLogin = () => {
+		if (returnContext?.property) {
+			sessionStorage.setItem(
+				"tourReturn",
+				JSON.stringify({ propertyId: String(returnContext.property.id) })
+			);
+		}
 		window.location.href = `${API_BASE}/api/auth/google`;
 	};
 

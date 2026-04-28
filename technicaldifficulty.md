@@ -65,16 +65,36 @@ PWA -> webapp
 Next Steps:
 
 #Technical:
-1. Google Auth for realtors
-2. Lead Distribution Logic：
-Assign the lead to an agent with the postal code as service area and shows available for the time booked - if meet these two criteria, assign to the agent that rank highest in client review score. If no realtor in the postal code, assign to a realtor that is most close to it.
+1. Lead Distribution Logic：
+Phase 1: Primary Matching (The "Ideal" Match)
+The system shall prioritize agents who meet all of the following criteria:
 
-Allow agent to asign the lead to another agent with the postal code as service area and shows available for the time booked.
-3. Access to Real Data, 字段调整（details），better filters (connects to API first)
-4. Disclaimer - cookie - map jump to allow track your location
-5. favico/logo
+Service Area: The lead’s postal code is within the agent’s designated service area.
+
+Availability: The agent is marked as "Available" for the specific time slot booked.
+
+Tie-Breaking Rule: If multiple agents meet both criteria, the lead is automatically assigned to the agent with the highest Client Review Score.
+
+Phase 2: Fallback Matching (The "Geographic" Match)
+If no agent is found in Phase 1 (i.e., no one services that postal code or is available), the system shall:
+
+Identify all agents available for the time booked.
+
+Assign the lead to the available agent whose primary office or service centroid is geographically closest to the lead's postal code.
+
+Phase 3: Re-assignment Protocol
+To ensure flexibility, an assigned agent may "Forward" or "Re-assign" the lead. The system will restrict re-assignment options to agents who:
+
+Are geographically close to the lead's postal code.
+
+Show confirmed availability for the booked time.
+2. Access to Real Data, 字段调整（details），better filters (connects to API first)
+3. Disclaimer - cookie - map jump to allow track your location - right now do not jump to location
+4. Chat logic
+
 
 #Marketing:
 1. Bring 8 realtors onboard 
+2. One button to create a listing on FBMP/KIJIJI/Xiaohongshu
 
 

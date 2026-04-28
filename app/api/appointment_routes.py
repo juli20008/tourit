@@ -14,6 +14,72 @@ from app.utils.availability import (
 
 appointment_routes = Blueprint("appointments", __name__)
 
+
+def _resolve_property_reference(property_id):
+    """
+    Resolve a property reference from either a seeded Property id or an MLS
+    listing id encoded as `mls_<id>`.
+    """
+    if property_id is None:
+        return None, None, None
+
+    pid_str = str(property_id)
+    if pid_str.startswith("mls_"):
+        try:
+            mls_listing_id = int(pid_str[4:])
+        except ValueError:
+            return None, None, None
+
+        property_obj = MlsListing.query.get(mls_listing_id)
+        if not property_obj:
+            return None, None, None
+        return property_obj, None, mls_listing_id
+
+    try:
+        pid = int(pid_str)
+    except (ValueError, TypeError):
+        return None, None, None
+
+    property_obj = Property.query.get(pid)
+    if not property_obj:
+        return None, None, None
+    return property_obj, pid, None
+
+
+def _serialize_appointment_properties(appointments):
+    property_ids = []
+    mls_listing_ids = []
+    for appt in appointments:
+        if appt.property_id is not None:
+            property_ids.append(appt.property_id)
+        if appt.mls_listing_id is not None:
+            mls_listing_ids.append(appt.mls_listing_id)
+
+    properties = []
+    if property_ids:
+        properties.extend(
+            Property.query.options(
+                selectinload(Property.state),
+                selectinload(Property.listing_agent),
+                selectinload(Property.images),
+            )
+            .filter(Property.id.in_(property_ids))
+            .all()
+        )
+
+    if mls_listing_ids:
+        properties.extend(
+            MlsListing.query.filter(MlsListing.id.in_(mls_listing_ids)).all()
+        )
+
+    serialized = []
+    for property_obj in properties:
+        if hasattr(property_obj, "to_frontend_dict"):
+            serialized.append(property_obj.to_frontend_dict())
+        else:
+            serialized.append(property_obj.to_dict(include_appointments=False))
+    return serialized
+
 def validation_errors_to_error_messages(validation_errors):
     """
     Simple function that turns the WTForms validation errors into a simple list
@@ -38,21 +104,12 @@ def add_appointment():
     if request.method == "GET":
 
         appointments = [appt.to_dict() for appt in current_user.appointments]
-        property_ids = [appt.property_id for appt in current_user.appointments]
-        properties = (
-            Property.query.options(
-                selectinload(Property.state),
-                selectinload(Property.listing_agent),
-                selectinload(Property.images),
-            )
-            .filter(Property.id.in_(property_ids))
-            .all()
-        )
+        properties = _serialize_appointment_properties(current_user.appointments)
 
         if current_user.agent:
             return {
                 "appointments": appointments,
-                "properties": [property.to_dict(include_appointments=False) for property in properties],
+                "properties": properties,
             }
         else:
             agent_ids = [appt.agent_id for appt in current_user.appointments]
@@ -61,7 +118,7 @@ def add_appointment():
             return {
                 "appointments": appointments,
                 "agents": [agent.to_dict() for agent in agents],
-                "properties": [property.to_dict(include_appointments=False) for property in properties],
+                "properties": properties,
                 }
 
     if request.method == "POST":
@@ -88,27 +145,11 @@ def add_appointment():
             return {"errors": ["property_id, date, and time are required"]}, 400
 
         # Resolve property_obj and determine which FK column to use
-        mls_listing_id = None
-        pid = None
-        pid_str = str(property_id)
-
-        if pid_str.startswith("mls_"):
-            raw_id = pid_str[4:]
-            try:
-                mls_listing_id = int(raw_id)
-            except ValueError:
-                return {"errors": ["Invalid listing ID"]}, 400
-            property_obj = MlsListing.query.get(mls_listing_id)
-            if not property_obj:
+        property_obj, pid, mls_listing_id = _resolve_property_reference(property_id)
+        if not property_obj:
+            if str(property_id).startswith("mls_"):
                 return {"errors": ["Listing not found"]}, 404
-        else:
-            try:
-                pid = int(pid_str)
-            except (ValueError, TypeError):
-                return {"errors": ["Invalid property ID"]}, 400
-            property_obj = Property.query.get(pid)
-            if not property_obj:
-                return {"errors": ["Property not found"]}, 404
+            return {"errors": ["Property not found"]}, 404
 
         if not is_future_datetime(date, time):
             return {"errors": ["Date cannot be prior to current date"]}
@@ -122,11 +163,16 @@ def add_appointment():
         if user_appt:
             return {"errors": ["You already have another appointment at this timeslot"]}
 
-        exists = Appointment.query.filter(
+        exists_query = Appointment.query.filter(
             Appointment.date == date,
             Appointment.time == time,
-            Appointment.mls_listing_id == mls_listing_id if mls_listing_id else Appointment.property_id == pid,
-        ).first()
+        )
+        if mls_listing_id is not None:
+            exists_query = exists_query.filter(Appointment.mls_listing_id == mls_listing_id)
+        else:
+            exists_query = exists_query.filter(Appointment.property_id == pid)
+
+        exists = exists_query.first()
 
         if exists:
             return {"errors": ["Timeslot not available"]}
@@ -161,7 +207,6 @@ def add_appointment():
 @appointment_routes.route("/<int:appointment_id>", methods=["GET", "PUT", "DELETE"])
 @login_required
 def edit_appointment(appointment_id):
-
     if request.method == "GET":
         appt = Appointment.query \
             .filter(Appointment.id == appointment_id) \
@@ -169,8 +214,7 @@ def edit_appointment(appointment_id):
             .first()
         if appt:
             return {"appointment": appt.to_dict()}
-        else:
-            return {"errors": ["Unauthorized"]}
+        return {"errors": ["Unauthorized"]}
 
     if request.method == "PUT":
         payload = request.get_json(silent=True) or {}
@@ -190,17 +234,7 @@ def edit_appointment(appointment_id):
             time = form.data["time"]
             message = form.data["message"]
 
-            # check if property exits
-            property = Property.query.get(property_id)
-
-            if not property:
-                return {"errors": ["Property does not exists"]}
-
-            if not is_future_datetime(date, time):
-                return {"errors": ["Date cannot be prior to current date"]}
-
-
-            # Make sure the appointment id belongs to user
+        # Make sure the appointment id belongs to user
         update_appt = Appointment.query \
             .filter(Appointment.id == appointment_id) \
             .filter(or_(Appointment.user_id == current_user.id, Appointment.agent_id == current_user.id)) \
@@ -209,21 +243,26 @@ def edit_appointment(appointment_id):
         if not update_appt:
             return {"errors": ["Appointment does not exist"]}
 
-        assigned_agent_id = update_appt.agent_id
+        resolved_property, pid, mls_listing_id = _resolve_property_reference(property_id)
+        if property_id is not None and not resolved_property:
+            if str(property_id).startswith("mls_"):
+                return {"errors": ["Listing does not exist"]}
+            return {"errors": ["Property does not exists"]}
 
+        if not is_future_datetime(date, time):
+            return {"errors": ["Date cannot be prior to current date"]}
+
+        assigned_agent_id = update_appt.agent_id
         if assigned_agent_id and not agent_is_available(assigned_agent_id, date, time, appointment_id=appointment_id):
             return {"errors": ["Assigned agent is not available for that timeslot"]}
 
-
         if current_user.agent:
-            # Check agent appointment to see if overlaps
             agent_appt = Appointment.query.filter(
                 Appointment.agent_id == current_user.id,
                 Appointment.date == date,
                 Appointment.time == time,
-                Appointment.id != appointment_id)\
-                .first()
-
+                Appointment.id != appointment_id,
+            ).first()
             if agent_appt:
                 return {"errors": ["You already have another appointment at this timeslot"]}
 
@@ -231,20 +270,17 @@ def edit_appointment(appointment_id):
                 Appointment.user_id == update_appt.user_id,
                 Appointment.date == date,
                 Appointment.time == time,
-                Appointment.id != appointment_id)\
-                .first()
-
+                Appointment.id != appointment_id,
+            ).first()
             if client_appt:
                 return {"errors": ["Client has another appointment at this timeslot"]}
-
         else:
             user_appt = Appointment.query.filter(
                 Appointment.user_id == current_user.id,
                 Appointment.date == date,
                 Appointment.time == time,
-                Appointment.id != appointment_id)\
-                .first()
-
+                Appointment.id != appointment_id,
+            ).first()
             if user_appt:
                 return {"errors": ["You already have another appointment at this timeslot"]}
 
@@ -252,32 +288,33 @@ def edit_appointment(appointment_id):
                 Appointment.agent_id == update_appt.agent_id,
                 Appointment.date == date,
                 Appointment.time == time,
-                Appointment.id != appointment_id)\
-                .first()
-
+                Appointment.id != appointment_id,
+            ).first()
             if agent_appt:
                 return {"errors": ["Agent has another appointment at this timeslot"]}
 
-            # query for to see if it is not avaliable
-        exists = Appointment.query.filter(
+        exists_query = Appointment.query.filter(
             Appointment.id != appointment_id,
-            Appointment.property_id == property_id,
             Appointment.date == date,
-            Appointment.time == time)\
-            .first()
+            Appointment.time == time,
+        )
+        if mls_listing_id is not None:
+            exists_query = exists_query.filter(Appointment.mls_listing_id == mls_listing_id)
+        else:
+            exists_query = exists_query.filter(Appointment.property_id == pid)
 
+        exists = exists_query.first()
         if exists:
             return {"errors": ["Timeslot not avaliable"]}
 
-
+        update_appt.property_id = pid
+        update_appt.mls_listing_id = mls_listing_id
         update_appt.date = date
         update_appt.time = time
         update_appt.message = message
 
         db.session.commit()
-        return {
-            "appointment": update_appt.to_dict()
-        }
+        return {"appointment": update_appt.to_dict()}
 
     if request.method == "DELETE":
         appt = Appointment.query.filter(Appointment.id == appointment_id).filter(or_(Appointment.user_id == current_user.id, Appointment.agent_id == current_user.id)).first()
@@ -295,12 +332,12 @@ def edit_appointment(appointment_id):
 def get_available_agents():
     date = request.args.get("date")
     time = request.args.get("time")
-    property_id = request.args.get("property_id", type=int)
+    property_id = request.args.get("property_id")
 
     if not date or not time:
         return {"errors": ["date and time are required"]}, 400
 
-    property_obj = Property.query.get(property_id) if property_id else None
+    property_obj, _, _ = _resolve_property_reference(property_id)
     agents = available_agents_for_slot(date, time, property_obj=property_obj)
 
     return {"agents": [agent.to_dict() for agent in agents]}

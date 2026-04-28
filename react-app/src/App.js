@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { BrowserRouter, Redirect, Route, Switch } from "react-router-dom";
-import { useDispatch } from "react-redux";
+import { BrowserRouter, Redirect, Route, Switch, useHistory } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
 import LoginForm from "./components/auth/LoginForm";
 import SignUpForm from "./components/auth/SignUpForm";
 import NavBar from "./components/NavBar";
@@ -20,11 +20,33 @@ import { authenticate } from "./store/session";
 import About from "./components/About";
 import AgentLogin from "./components/AgentLogin";
 
+const DEFAULT_AREA = "/area/neLat=44.20&neLng=-78.90&swLat=43.30&swLng=-80.80&zoom=10";
+
+// Runs once after Google OAuth callback: if sessionStorage has a saved listing,
+// navigate to it so the user can resume booking.
+const TourReturnHandler = () => {
+	const history = useHistory();
+	const user = useSelector((state) => state.session.user);
+
+	useEffect(() => {
+		if (!user) return;
+		const raw = sessionStorage.getItem("tourReturn");
+		if (!raw) return;
+		try {
+			const { propertyId } = JSON.parse(raw);
+			sessionStorage.removeItem("tourReturn");
+			history.replace(`${DEFAULT_AREA}?selected=${encodeURIComponent(propertyId)}`);
+		} catch {
+			sessionStorage.removeItem("tourReturn");
+		}
+	}, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+	return null;
+};
+
 function App() {
 	const [loaded, setLoaded] = useState(false);
 	const dispatch = useDispatch();
-	const defaultArea =
-		"/area/neLat=44.20&neLng=-78.90&swLat=43.30&swLng=-80.80&zoom=10"; // Toronto GTA
 
 	useEffect(() => {
 		(async () => {
@@ -39,11 +61,12 @@ function App() {
 
 	return (
 		<BrowserRouter>
+			<TourReturnHandler />
 			<NavBar />
 			<Notification />
 			<Switch>
 				<Route path="/" exact={true}>
-					<Redirect to={defaultArea} />
+					<Redirect to={DEFAULT_AREA} />
 				</Route>
 				<Route path="/search/:searchParam" exact={true}>
 					<Search />

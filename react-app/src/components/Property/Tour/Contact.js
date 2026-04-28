@@ -27,7 +27,7 @@ const Contact = ({ property, today, hour, setShowSelectDate, setShowTour }) => {
 	}, [user]);
 
 	if (!user) {
-		return <LoginCard inline />;
+		return <LoginCard inline returnContext={{ property, date: today, hour }} />;
 	}
 
 	return (

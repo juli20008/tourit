@@ -29,15 +29,28 @@ def property_feed():
         "properties": [property.to_dict(include_appointments=False) for property in properties],
     }
 
-@property_routes.route("/<int:property_id>")
+@property_routes.route("/<string:property_id>")
 def get_property(property_id):
+    if str(property_id).startswith("mls_"):
+        try:
+            mls_id = int(str(property_id)[4:])
+        except ValueError:
+            return {"errors": ["Something went wrong. Please try again"]}
 
-    property = Property.query.get(property_id)
+        listing = MlsListing.query.get(mls_id)
+        if listing:
+            return {"property": listing.to_frontend_dict()}
+        return {"errors": ["Something went wrong. Please try again"]}
 
+    try:
+        pid = int(property_id)
+    except (TypeError, ValueError):
+        return {"errors": ["Something went wrong. Please try again"]}
+
+    property = Property.query.get(pid)
     if property:
         return {"property": property.to_dict()}
-    else:
-        return {"errors": ["Something went wrong. Please try again"]}
+    return {"errors": ["Something went wrong. Please try again"]}
 
 @property_routes.route("/<int:property_id>/images")
 def property_imgs(property_id):

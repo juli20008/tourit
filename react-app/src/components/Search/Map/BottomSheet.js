@@ -22,21 +22,21 @@ const SheetCard = ({ property, onSelect }) => {
 
 	return (
 		<div
-			className="flex-shrink-0 w-[220px] cursor-pointer rounded-xl overflow-hidden bg-white shadow-md border border-[#f1f5f9]"
+			className="flex-shrink-0 w-[180px] cursor-pointer rounded-lg overflow-hidden bg-white shadow-md border border-[#f1f5f9]"
 			onClick={() => onSelect && onSelect(property)}
 		>
-			<div className="relative h-[130px] bg-[#dadad5]">
+			<div className="relative h-[105px] bg-[#dadad5]">
 				<img
 					className="w-full h-full object-cover"
 					src={imgSrc}
 					alt=""
 					onError={() => setImgSrc(FALLBACK_IMAGE)}
 				/>
-				<span className="absolute bottom-2 left-2 bg-black/55 text-white text-[9px] font-semibold uppercase tracking-wide px-2 py-[2px] rounded-full">
+				<span className="absolute bottom-1.5 left-1.5 bg-black/55 text-white text-[9px] font-semibold uppercase tracking-wide px-1.5 py-[2px] rounded-full">
 					{statusLabel(property.status)}
 				</span>
 			</div>
-			<div className="p-3 flex flex-col gap-1">
+			<div className="px-2 py-1.5 flex flex-col gap-0.5">
 				<div className="text-[15px] font-bold text-[#0f172a]">{price}</div>
 				<div className="text-[11px] text-[#64748b] truncate">
 					{property.street}, {property.city}
@@ -67,17 +67,12 @@ const BottomSheet = ({ properties, onSelect, onClose }) => {
 				style={{ maxHeight: "55vh" }}
 			>
 				{/* Handle */}
-				<div className="flex justify-center pt-3 pb-2">
+				<div className="flex justify-center pt-1.5 pb-1">
 					<div className="w-10 h-1 rounded-full bg-[#e2e8f0]" />
 				</div>
 
-				{/* Count label */}
-				<div className="px-4 pb-2 text-[12px] font-semibold text-[#64748b] uppercase tracking-wide">
-					{properties.length === 1 ? "1 listing" : `${properties.length} listings`}
-				</div>
-
 				{/* Horizontal scroll of cards */}
-				<div className="flex gap-3 overflow-x-auto px-4 pb-5 scrollbar-hide">
+				<div className="flex gap-2 overflow-x-auto px-2 pb-2 scrollbar-hide">
 					{properties.map((p) => (
 						<SheetCard key={p.id} property={p} onSelect={onSelect} />
 					))}

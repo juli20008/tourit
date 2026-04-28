@@ -98,12 +98,12 @@ const List = ({
 	return (
 		<div className="search-wrap bg-[#f3f3f1] text-[#1f1f1f]">
 			{!compactMode && (
-				<div className="search-bar-wrap sticky top-0 z-20 border-b border-[#e5e5e0] bg-[#f3f3f1] px-4 py-3">
+				<div className="search-bar-wrap sticky top-0 z-20 border-b border-[#e5e5e0] bg-[#f3f3f1] px-3 py-1">
 					<form className="search-bar flex items-center gap-2" onSubmit={handleSubmit}>
 						<label className="search-label-sm relative min-w-[220px] flex-1">
 							<input
 								type="text"
-								className="search-input w-full rounded-md border border-[#d6d6d0] bg-white px-11 py-2.5 text-sm text-[#303030] transition focus:border-[#2a6f97]"
+								className="search-input w-full rounded-md border border-[#d6d6d0] bg-white px-11 py-1 text-sm text-[#303030] transition focus:border-[#2a6f97]"
 								placeholder="City, Neighbourhood, ..."
 								value={search}
 								onChange={(e) => setSearch(e.target.value)}
@@ -134,7 +134,7 @@ const List = ({
 							</div>
 						</label>
 						<button
-							className="rounded-md border border-[#d6d6d0] bg-white px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-[#2d2d2d] transition hover:bg-[#f7f7f3]"
+							className="self-stretch flex items-center rounded-md border border-[#d6d6d0] bg-white px-4 text-xs font-semibold uppercase tracking-wide text-[#2d2d2d] transition hover:bg-[#f7f7f3]"
 							type="button"
 							onClick={() => setShowFilters(true)}
 						>
@@ -142,7 +142,7 @@ const List = ({
 						</button>
 						{!areaParam && showMapAreaButton && url && (
 							<button
-								className="btn rounded-md border border-[#d6d6d0] bg-white px-3 py-2 text-xs text-[#40403b] transition hover:bg-[#f7f7f3]"
+								className="btn rounded-md border border-[#d6d6d0] bg-white px-3 py-1 text-xs text-[#40403b] transition hover:bg-[#f7f7f3]"
 								type="button"
 								onClick={searchByArea}
 							>
@@ -150,7 +150,7 @@ const List = ({
 							</button>
 						)}
 					</form>
-					<div className="search-bar mt-3 flex items-center justify-between border-t border-[#e5e5e0] pt-3">
+					<div className="search-bar mt-1 flex items-center justify-between border-t border-[#e5e5e0] pt-1">
 						<div className="results text-sm text-[#5c5c56]">
 							{isMapSyncing ? "Updating..." : propArr.length >= RESULT_CAP ? "Top 100 Results" : `${totalResults} Results`}
 						</div>

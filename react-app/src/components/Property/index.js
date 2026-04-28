@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
 import { X } from "lucide-react";
 
@@ -11,6 +11,7 @@ import * as agentActions from "../../store/agent";
 
 const Property = ({ property, onClose }) => {
 	const dispatch = useDispatch();
+	const [showMobileTour, setShowMobileTour] = useState(false);
 
 	useEffect(() => {
 		dispatch(propertyImgActions.getAllImages(property.id));
@@ -20,36 +21,75 @@ const Property = ({ property, onClose }) => {
 	}, [property, dispatch]);
 
 	return (
-		<div className="relative bg-white w-[92vw] max-w-[1200px] max-h-[92vh] overflow-y-auto rounded-2xl">
+		<div className="relative bg-white w-[92vw] max-w-[1200px] max-h-[92vh] rounded-2xl flex flex-col">
 
-			{/* Close button */}
+			{/* Close button — outside the scroll area so it stays visible */}
 			<button
 				type="button"
-				className="absolute top-3 right-3 z-20 flex items-center justify-center w-8 h-8 rounded-full bg-white/90 shadow text-gray-500 hover:text-gray-900 transition-colors"
+				className="absolute top-3 right-3 z-30 flex items-center justify-center w-8 h-8 rounded-full bg-white/90 shadow text-gray-500 hover:text-gray-900 transition-colors"
 				onClick={onClose}
 			>
 				<X size={16} strokeWidth={2} />
 			</button>
 
-			{/* ── Gallery (full width top) ── */}
-			<Images property={property} />
+			{/* Scrollable content */}
+			<div className="overflow-y-auto flex-1 min-h-0 rounded-2xl">
+				{/* ── Gallery (full width top) ── */}
+				<Images property={property} />
 
-			{/* ── Body: responsive layout ── */}
-			<div className="flex flex-col md:flex-row md:gap-8 md:px-8 md:py-7 md:items-start">
+				{/* ── Body: responsive layout ── */}
+				<div className="flex flex-col md:flex-row md:gap-8 md:px-8 md:py-7 md:items-start">
 
-				{/* Tour — sticky full-width on mobile, right sidebar on desktop */}
-				<div className="order-first md:order-last w-full md:w-[300px] md:flex-shrink-0
-				                sticky top-0 z-10 bg-white
-				                px-4 pt-4 pb-3 md:p-0 md:top-6
-				                border-b border-[#e8e8e2] md:border-none shadow-sm md:shadow-none">
-					<Tour property={property} setShowTour={onClose} inline />
+					{/* Tour sidebar — desktop only, right column */}
+					<div className="max-md:hidden order-last w-full md:w-[300px] md:flex-shrink-0 md:sticky md:top-6">
+						<Tour property={property} setShowTour={onClose} inline />
+					</div>
+
+					{/* Detail — full width on mobile, left column on desktop */}
+					<div className="flex-1 min-w-0 px-4 py-5 md:p-0">
+						<Detail property={property} />
+					</div>
 				</div>
 
-				{/* Detail — scrolls below Tour on mobile, left column on desktop */}
-				<div className="flex-1 min-w-0 px-4 py-5 md:p-0">
-					<Detail property={property} />
-				</div>
+				{/* Spacer so content isn't hidden behind the floating button on mobile */}
+				<div className="h-20 md:hidden" />
 			</div>
+
+			{/* Mobile: floating Tour button */}
+			{!showMobileTour && (
+				<div className="md:hidden absolute bottom-0 left-0 right-0 px-4 pb-4 pt-10 bg-gradient-to-t from-white via-white/90 to-transparent pointer-events-none rounded-b-2xl">
+					<button
+						type="button"
+						className="pointer-events-auto w-full rounded-xl bg-[#0f172a] py-3.5 text-sm font-semibold text-white shadow-lg active:opacity-80 transition-opacity"
+						onClick={() => setShowMobileTour(true)}
+					>
+						Tour with a Buyer&apos;s Agent
+					</button>
+				</div>
+			)}
+
+			{/* Mobile: slide-up Tour panel */}
+			{showMobileTour && (
+				<div className="md:hidden absolute inset-x-0 bottom-0 bg-white rounded-t-2xl shadow-2xl z-20 max-h-[88%] flex flex-col">
+					<div className="flex items-center justify-center relative pt-3 pb-1 flex-shrink-0">
+						<div className="w-10 h-1 rounded-full bg-[#e2e8f0]" />
+						<button
+							type="button"
+							className="absolute right-3 top-2 flex items-center justify-center w-8 h-8 rounded-full bg-[#f1f1ee] text-gray-500"
+							onClick={() => setShowMobileTour(false)}
+						>
+							<X size={14} />
+						</button>
+					</div>
+					<div className="overflow-y-auto flex-1 min-h-0">
+						<Tour
+							property={property}
+							setShowTour={() => setShowMobileTour(false)}
+							inline
+						/>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 };

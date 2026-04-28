@@ -45,7 +45,7 @@ class Appointment(db.Model):
             "email": self.user.email,
             "user_photo": self.user.photo,
             "agent_id": self.agent_id,
-            "property_id": self.property_id,
+            "property_id": f"mls_{self.mls_listing_id}" if self.mls_listing_id is not None else self.property_id,
             "mls_listing_id": self.mls_listing_id,
             "date": self.date,
             "time": self.time,
