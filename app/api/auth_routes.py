@@ -186,7 +186,10 @@ def agent_magic_link():
     from app.utils.mailer import send_magic_link
     token = MagicLinkToken.create_for_user(user.id)
     magic_url = url_for('auth.magic_link_login', token=token, _external=True)
-    send_magic_link(user.email, magic_url)
+    try:
+        send_magic_link(user.email, magic_url)
+    except RuntimeError as e:
+        return {'errors': [str(e)]}, 500
 
     return {'message': 'Login link sent. Check your email.'}
 

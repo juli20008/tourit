@@ -9,16 +9,17 @@ def send_magic_link(to_email, magic_url):
     port = int(os.environ.get('MAIL_PORT', 587))
     username = os.environ.get('MAIL_USERNAME', '')
     password = os.environ.get('MAIL_PASSWORD', '')
-    from_addr = os.environ.get('MAIL_FROM', username) or 'noreply@tourit.ca'
+    # Gmail requires FROM to match the authenticated account; only use MAIL_FROM
+    # for non-Gmail providers where a custom sender is allowed.
+    from_addr = os.environ.get('MAIL_FROM', username) or username
 
     if not host or not username or not password:
-        # Dev: print to console instead of sending
         print(f'[DEV] Magic link for {to_email}: {magic_url}')
         return True
 
     msg = MIMEMultipart('alternative')
     msg['Subject'] = 'Your Tourit Agent Login Link'
-    msg['From'] = f'Tourit <{from_addr}>'
+    msg['From'] = from_addr
     msg['To'] = to_email
 
     text_body = (
@@ -54,7 +55,14 @@ def send_magic_link(to_email, magic_url):
             smtp.starttls()
             smtp.login(username, password)
             smtp.sendmail(from_addr, to_email, msg.as_string())
+        print(f'[MAIL] Sent magic link to {to_email}')
         return True
+    except smtplib.SMTPAuthenticationError as e:
+        print(f'[MAIL ERROR] Authentication failed: {e}')
+        raise RuntimeError('Email authentication failed. Check MAIL_USERNAME and MAIL_PASSWORD.')
+    except smtplib.SMTPException as e:
+        print(f'[MAIL ERROR] SMTP error: {e}')
+        raise RuntimeError(f'Failed to send email: {e}')
     except Exception as e:
-        print(f'[ERROR] Failed to send magic link email: {e}')
-        return False
+        print(f'[MAIL ERROR] Unexpected error: {e}')
+        raise RuntimeError(f'Failed to send email: {e}')
