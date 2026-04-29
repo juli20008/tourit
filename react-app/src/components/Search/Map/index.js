@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState, useMemo } from "react";
 import { useParams, useHistory, useLocation } from "react-router-dom";
+import { Loader } from "@googlemaps/js-api-loader";
 import {
 	withScriptjs,
 	withGoogleMap,
@@ -34,7 +35,7 @@ const clusterIcon = (count) => {
 	};
 };
 
-const MyMap = withScriptjs(
+const MyMapLegacy = withScriptjs(
 	withGoogleMap((props) => {
 		const history = useHistory();
 		const location = useLocation();
@@ -448,5 +449,71 @@ const MyMap = withScriptjs(
 		);
 	})
 );
+
+const isProductionHost = () =>
+	typeof window !== "undefined" &&
+	(window.location.hostname === "tourit.ca" ||
+		window.location.hostname === "www.tourit.ca");
+
+const stripAsyncQuery = (url = "") => url.replace("&loading=async", "");
+
+const ProductionMapLoader = (props) => {
+	const [ready, setReady] = useState(() => {
+		if (typeof window === "undefined") return false;
+		return (
+			typeof window.google === "object" &&
+			typeof window.google.maps === "object" &&
+			typeof window.google.maps.Map === "function"
+		);
+	});
+	const [failed, setFailed] = useState(false);
+
+	useEffect(() => {
+		if (!isProductionHost() || ready || failed) return;
+
+		const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
+		if (!apiKey) {
+			setFailed(true);
+			return;
+		}
+
+		const loader = new Loader({
+			apiKey,
+			version: "weekly",
+			libraries: ["geometry", "drawing", "places"],
+		});
+
+		loader
+			.load()
+			.then(() => {
+				if (
+					typeof window.google === "object" &&
+					typeof window.google.maps === "object" &&
+					typeof window.google.maps.Map === "function"
+				) {
+					setReady(true);
+				} else {
+					setFailed(true);
+				}
+			})
+			.catch((err) => {
+				console.error("[GoogleMapsLoader]", err);
+				setFailed(true);
+			});
+	}, [ready, failed]);
+
+	if (!ready) {
+		return props.loadingElement || <div style={{ height: "100%" }} />;
+	}
+
+	return <MyMapLegacy {...props} googleMapURL={stripAsyncQuery(props.googleMapURL)} />;
+};
+
+const MyMap = (props) => {
+	if (isProductionHost()) {
+		return <ProductionMapLoader {...props} />;
+	}
+	return <MyMapLegacy {...props} />;
+};
 
 export default MyMap;
