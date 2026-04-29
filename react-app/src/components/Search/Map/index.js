@@ -13,6 +13,7 @@ import { Modal } from "../../../context/Modal";
 import Property from "../../Property";
 import PropertyPreviewList from "./PropertyPreviewList";
 import BottomSheet from "./BottomSheet";
+import { hydrateMlsListing } from "../../../utils/mlsListingHydrator";
 
 // Builds a circle+count SVG icon for cluster Markers.
 // Must be called after the Google Maps script has loaded (window.google is available).
@@ -43,6 +44,7 @@ const MyMap = withScriptjs(
 		const [isOpen, setIsOpen] = useState({ openInfoWindowMarkerId: 0 });
 		const [isOver, setIsOver] = useState({ id: 0 });
 		const [showModal, setShowModal] = useState(false);
+		const [markerModalProperty, setMarkerModalProperty] = useState(null);
 		const [clusters, setClusters] = useState([]);
 		const [mapBounds, setMapBounds] = useState(null);
 		const [mapZoom, setMapZoom] = useState(props.zoom || 4);
@@ -230,10 +232,11 @@ const MyMap = withScriptjs(
 			return `${(price / 1000).toFixed(0)}K`;
 		};
 
-		const handlePropertySelect = (property) => {
+		const handlePropertySelect = async (property) => {
+			const detailed = await hydrateMlsListing(property);
 			setPreviewCluster(null);
-			setSelectedProperty(property);
-			history.replace({ search: `?selected=${property.id}` });
+			setSelectedProperty(detailed);
+			history.replace({ search: `?selected=${detailed.id}` });
 		};
 
 		const closeSelectedProperty = () => {
@@ -249,7 +252,11 @@ const MyMap = withScriptjs(
 				const found = props.markers.find(
 					(m) => String(m.id) === selectedId
 				);
-				if (found) setSelectedProperty(found);
+				if (found) {
+					hydrateMlsListing(found).then((detailed) => {
+						setSelectedProperty(detailed);
+					});
+				}
 			}
 		}, [location.search, props.markers]);
 
@@ -353,7 +360,11 @@ const MyMap = withScriptjs(
 									if (isMobile) {
 										setBottomSheet([marker]);
 									} else {
-										setShowModal({ show: marker.id });
+										hydrateMlsListing(marker).then((detailed) => {
+											setSelectedProperty(null);
+											setMarkerModalProperty(detailed);
+											setShowModal({ show: detailed.id });
+										});
 									}
 								}}
 								onMouseOver={() => !isMobile && setIsOpen({ openInfoWindowMarkerId: marker.id })}
@@ -375,8 +386,11 @@ const MyMap = withScriptjs(
 								{showModal.show === marker.id && (
 									<Modal onClose={() => setShowModal({ show: 0 })}>
 										<Property
-											property={marker}
-											onClose={() => setShowModal({ show: 0 })}
+											property={markerModalProperty || marker}
+											onClose={() => {
+												setShowModal({ show: 0 });
+												setMarkerModalProperty(null);
+											}}
 										/>
 									</Modal>
 								)}

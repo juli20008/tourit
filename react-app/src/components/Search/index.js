@@ -58,7 +58,8 @@ const Search = () => {
 				return !tt.includes("lease");
 			});
 		setPropArr(arr);
-	}, [min, max, type, bed, bath, transactionType, properties]);
+		}, [min, max, type, bed, bath, transactionType, properties]);
+	const sidebarArr = propArr.slice(0, 100);
 
 	useEffect(() => {
 		return () => {
@@ -107,7 +108,7 @@ const Search = () => {
 				setBed={setBed}
 				bath={bath}
 				setBath={setBath}
-				propArr={propArr}
+				propArr={sidebarArr}
 				setOver={setOver}
 				compactMode={false}
 				showMapAreaButton={false}

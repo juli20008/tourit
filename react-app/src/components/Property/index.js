@@ -14,7 +14,9 @@ const Property = ({ property, onClose }) => {
 	const [showMobileTour, setShowMobileTour] = useState(false);
 
 	useEffect(() => {
-		dispatch(propertyImgActions.getAllImages(property.id));
+		if (!property?.is_mls && property?.id != null) {
+			dispatch(propertyImgActions.getAllImages(property.id));
+		}
 		if (property.listing_agent_id != null) {
 			dispatch(agentActions.getThisAgent(property.listing_agent_id));
 		}

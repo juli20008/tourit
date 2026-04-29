@@ -88,13 +88,12 @@ To ensure flexibility, an assigned agent may "Forward" or "Re-assign" the lead. 
 Are geographically close to the lead's postal code.
 
 Show confirmed availability for the booked time.
-2. Access to Real Data, 字段调整（details），better filters (connects to API first)
+2. 字段调整（details），better filters (connects to API first)，图片灌进去
 3. Disclaimer - cookie - map jump to allow track your location - right now do not jump to location
 4. Chat logic
 
 
 #Marketing:
-1. Bring 8 realtors onboard 
-2. One button to create a listing on FBMP/KIJIJI/Xiaohongshu
+1. Bring 8 realtors onboard - 2. One button to create a listing on FBMP/KIJIJI/Xiaohongshu
 
 

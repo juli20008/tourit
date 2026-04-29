@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom";
 
 const PRICE_MAX  = 5_000_000;
@@ -38,29 +38,94 @@ const fmtStrata = (v, isMax) => {
 // ── sub-components ────────────────────────────────────────────────────────────
 
 const DualSlider = ({ low, high, min, max, step = 1, setLow, setHigh }) => {
-	const lp = ((low  - min) / (max - min)) * 100;
-	const hp = ((high - min) / (max - min)) * 100;
+	const trackRef = useRef(null);
+	const [dragging, setDragging] = useState(null);
+
+	const clamp = (value) => Math.min(max, Math.max(min, value));
+	const snap = (value) => Math.round(value / step) * step;
+	const valueToPct = (value) => ((value - min) / (max - min)) * 100;
+	const pctToValue = (pct) => snap(clamp(min + ((max - min) * pct) / 100));
+
+	const moveHandle = (clientX, handle) => {
+		if (!trackRef.current) return;
+		const rect = trackRef.current.getBoundingClientRect();
+		const pct = Math.min(100, Math.max(0, ((clientX - rect.left) / rect.width) * 100));
+		const next = pctToValue(pct);
+
+		if (handle === "low") {
+			setLow(Math.min(next, high - step));
+			return;
+		}
+
+		setHigh(Math.max(next, low + step));
+	};
+
+	const startDrag = (handle) => (e) => {
+		e.preventDefault();
+		e.stopPropagation();
+		setDragging(handle);
+		moveHandle(e.clientX, handle);
+	};
+
+	useEffect(() => {
+		if (!dragging) return;
+
+		const onMove = (e) => moveHandle(e.clientX, dragging);
+		const onUp = () => setDragging(null);
+
+		window.addEventListener("pointermove", onMove);
+		window.addEventListener("pointerup", onUp);
+		window.addEventListener("pointercancel", onUp);
+
+		return () => {
+			window.removeEventListener("pointermove", onMove);
+			window.removeEventListener("pointerup", onUp);
+			window.removeEventListener("pointercancel", onUp);
+		};
+	}, [dragging, low, high, min, max, step]);
+
+	const handleTrackPointerDown = (e) => {
+		if (e.target !== trackRef.current) return;
+
+		const rect = trackRef.current.getBoundingClientRect();
+		const pct = Math.min(100, Math.max(0, ((e.clientX - rect.left) / rect.width) * 100));
+		const next = pctToValue(pct);
+		const lowDist = Math.abs(next - low);
+		const highDist = Math.abs(next - high);
+		const handle = lowDist <= highDist ? "low" : "high";
+
+		setDragging(handle);
+		moveHandle(e.clientX, handle);
+	};
+
+	const lp = valueToPct(low);
+	const hp = valueToPct(high);
+
 	return (
-		<div className="relative h-7 mx-1">
+		<div
+			ref={trackRef}
+			className="relative h-7 mx-1 select-none touch-none"
+			onPointerDown={handleTrackPointerDown}
+		>
 			<div className="absolute top-1/2 -translate-y-1/2 inset-x-0 h-[3px] rounded-full bg-[#d8d8d0]" />
 			<div
 				className="absolute top-1/2 -translate-y-1/2 h-[3px] rounded-full bg-[#1a1a1a]"
 				style={{ left: `${lp}%`, right: `${100 - hp}%` }}
 			/>
-			<input type="range" min={min} max={max} step={step} value={low}
-				onChange={e => setLow(Math.min(+e.target.value, high - step))}
-				className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-				style={{ zIndex: lp > 90 ? 5 : 3 }}
+			<div
+				role="slider"
+				aria-label="Lower range"
+				className="absolute top-1/2 w-5 h-5 rounded-full bg-white border border-[#1a1a1a] shadow-sm cursor-grab active:cursor-grabbing"
+				style={{ left: `${lp}%`, transform: "translate(-50%, -50%)", zIndex: dragging === "low" ? 6 : 4 }}
+				onPointerDown={startDrag("low")}
 			/>
-			<input type="range" min={min} max={max} step={step} value={high}
-				onChange={e => setHigh(Math.max(+e.target.value, low + step))}
-				className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-				style={{ zIndex: 4 }}
+			<div
+				role="slider"
+				aria-label="Upper range"
+				className="absolute top-1/2 w-5 h-5 rounded-full bg-white border border-[#1a1a1a] shadow-sm cursor-grab active:cursor-grabbing"
+				style={{ left: `${hp}%`, transform: "translate(-50%, -50%)", zIndex: dragging === "high" ? 6 : 5 }}
+				onPointerDown={startDrag("high")}
 			/>
-			<div className="absolute top-1/2 w-5 h-5 rounded-full bg-white border border-[#1a1a1a] shadow-sm pointer-events-none"
-				style={{ left: `${lp}%`, transform: "translate(-50%, -50%)" }} />
-			<div className="absolute top-1/2 w-5 h-5 rounded-full bg-white border border-[#1a1a1a] shadow-sm pointer-events-none"
-				style={{ left: `${hp}%`, transform: "translate(-50%, -50%)" }} />
 		</div>
 	);
 };

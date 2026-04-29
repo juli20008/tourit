@@ -1,19 +1,11 @@
-/**
- * Maps a raw CREA DDF RETS field hash to the shape of the Supabase
- * `mls_listings` table (mirrors app/models/mls_listing.py).
- *
- * Field names below are the standard RETS system names returned by
- * CREA DDF.  If your metadata differs, run GetMetadata first and
- * compare: client.metadata.getTable('Property', 'ResidentialProperty')
- */
-
 export interface DdfRaw {
-  [key: string]: string | undefined;
+  [key: string]: any;
 }
 
-/** Row shape expected by the mls_listings Supabase table. */
 export interface SupabaseListing {
-  mls_number: string;
+  id?: number | null;
+  external_id: string | null;
+  mls_number: string | null;
   status: string | null;
   standard_status: string | null;
   property_class: string | null;
@@ -37,8 +29,10 @@ export interface SupabaseListing {
   lng: number | null;
   bed: number | null;
   bath: number | null;
+  bath_half: number | null;
   sqft: string | null;
-  year_built: string | null;
+  building_area_units: string | null;
+  year_built: number | null;
   style: string | null;
   property_type: string | null;
   description: string | null;
@@ -46,90 +40,186 @@ export interface SupabaseListing {
   agent_name: string | null;
   agent_email: string | null;
   brokerage: string | null;
+  cooling: string | null;
+  heating: string | null;
+  heating_fuel: string | null;
+  parking_total: number | null;
+  garage_yn: boolean | null;
+  photos_count: number | null;
+  photos_timestamp: string | null;
+  board_id: string | null;
+  realtor_link: string | null;
+  updated_at: Date | null;
 }
 
-// CREA DDF single-letter codes → human-readable labels
-const STATUS_MAP: Record<string, string> = {
-  A:      'Active',
-  Active: 'Active',
-  U:      'Sold',
-  Sc:     'Sold Conditional',
-  Cs:     'Conditional Sale',
-  Lc:     'Leased Conditional',
-  Pc:     'Price Changed',
-  Exp:    'Expired',
-  Ter:    'Terminated',
-  Sus:    'Suspended',
-  Del:    'Deleted',
-};
-
-function parseIntField(val: string | undefined): number | null {
-  if (!val) return null;
-  const n = parseInt(val.replace(/[^0-9]/g, ''), 10);
-  return isNaN(n) ? null : n;
+function firstDefined(...values: any[]): any {
+  for (const value of values) {
+    if (value !== undefined && value !== null && value !== '') {
+      return value;
+    }
+  }
+  return null;
 }
 
-function parseFloatField(val: string | undefined): number | null {
-  if (!val) return null;
-  const n = parseFloat(val);
-  return isNaN(n) ? null : n;
+function toNumber(value: any): number | null {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  const parsed = Number(String(value).replace(/[^0-9.-]/g, ''));
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
-function parseIsoDate(val: string | undefined): string | null {
-  if (!val) return null;
-  const d = new Date(val);
-  return isNaN(d.getTime()) ? null : d.toISOString();
+function safeInteger(value: any): number {
+  const parsed = Number.parseFloat(String(value ?? ''));
+  return Math.floor(parsed || 0);
 }
 
-/**
- * Convert one raw DDF record into a Supabase-ready row.
- * Pass `images` as an array of public photo URLs (obtained separately
- * via GetObject) — defaults to [] when omitted.
- */
-export function adaptListing(raw: DdfRaw, images: string[] = []): SupabaseListing {
-  const status = raw['Status'] ?? null;
+function toInteger(value: any): number | null {
+  if (value === null || value === undefined || value === '') return 0;
+  return safeInteger(value);
+}
 
+function parseIntSafe(value: any, fallback = 0): number {
+  if (value === null || value === undefined || value === '') return fallback;
+  return safeInteger(value);
+}
+
+function toDate(value: any): Date | null {
+  if (!value) return null;
+  const date = new Date(String(value));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function toDotNetTicks(value: any): string | null {
+  if (!value) return null;
+
+  const date = new Date(String(value));
+  if (Number.isNaN(date.getTime())) return null;
+
+  const dotNetEpochTicks = 621355968000000000;
+  const ticks = dotNetEpochTicks + date.getTime() * 10000;
+  return String(ticks);
+}
+
+function cleanCity(value: any): string | null {
+  if (!value) return null;
+  return String(value).replace(/\s*\([^)]*\)\s*$/, '').trim() || null;
+}
+
+function parseSqft(value: any): string | null {
+  if (!value) return null;
+  const text = String(value).trim();
+  if (!text) return null;
+
+  const rangeMatch = text.match(/^(\d[\d,]*)\s*-\s*(\d[\d,]*)$/);
+  if (rangeMatch) {
+    return rangeMatch[1].replace(/,/g, '');
+  }
+
+  const firstNumber = text.match(/\d[\d,]*/);
+  return firstNumber ? firstNumber[0].replace(/,/g, '') : text;
+}
+
+function parseBoolean(value: any): boolean | null {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value === 'boolean') return value;
+
+  const normalized = String(value).trim().toLowerCase();
+  if (['y', 'yes', 'true', '1'].includes(normalized)) return true;
+  if (['n', 'no', 'false', '0'].includes(normalized)) return false;
+  return null;
+}
+
+function standardStatusFromReplyCode(item: DdfRaw): { status: string | null; standard_status: string | null } {
+  const replyCode = String(firstDefined(item.replyCode, item.ReplyCode) ?? '');
+  if (replyCode === '0') {
+    return { status: 'A', standard_status: 'Active' };
+  }
+
+  const status = firstDefined(item.Status, item.status);
+  const standardStatus = firstDefined(item.StandardStatus, item.standard_status);
   return {
-    mls_number:       raw['MLS_NUM'] ?? '',
-    status,
-    standard_status:  status ? (STATUS_MAP[status] ?? status) : null,
-    property_class:   raw['PropertyClass'] ?? raw['Class'] ?? null,
-    transaction_type: raw['TransactionType'] ?? null,
-
-    list_price:     parseIntField(raw['ListPrice']),
-    sold_price:     parseIntField(raw['SoldPrice']),
-    original_price: parseIntField(raw['OLstPrice']),
-    list_date:      parseIsoDate(raw['ListDate']),
-    sold_date:      parseIsoDate(raw['SoldDate']),
-    last_status:    raw['LastStatus'] ?? null,
-
-    // CREA DDF exposes both split fields and a combined Addr.
-    // Prefer the split fields; fall back to a regex on Addr for the number.
-    street_number: raw['StreetNumber'] ?? raw['Addr']?.match(/^\d+/)?.[0] ?? null,
-    street_name:   raw['StreetName']   ?? null,
-    street_suffix: raw['StreetAbbreviation'] ?? null,
-    unit_number:   raw['Apt_Num']  ?? raw['Unit_Num']  ?? null,
-
-    city:         raw['Municipality'] ?? raw['City']    ?? null,
-    state:        raw['Prov_State']   ?? null,
-    zip:          raw['PostalCode']   ?? null,
-    country:      raw['Country']      ?? 'CA',
-    neighborhood: raw['Community']    ?? raw['Area']    ?? null,
-
-    lat: parseFloatField(raw['Latitude']),
-    lng: parseFloatField(raw['Longitude']),
-
-    bed:        raw['Beds']     ? parseIntField(raw['Beds'])     : null,
-    bath:       raw['Bath_tot'] ? parseIntField(raw['Bath_tot']) : null,
-    sqft:       raw['TotFlArea'] ?? raw['ApproxSqFt'] ?? null,
-    year_built: raw['YrBuilt']  ?? null,
-    style:      raw['TypeDwel'] ?? raw['Style'] ?? null,
-    property_type: raw['PropertyClass'] ?? raw['TypeDwel'] ?? null,
-    description:   raw['MLSComments'] ?? raw['Remarks_for_Clients'] ?? null,
-
-    images,
-    agent_name:  raw['LA_Name_format'] ?? raw['ListAgentName'] ?? null,
-    agent_email: raw['LA_email']       ?? null,
-    brokerage:   raw['ListBrokerage']  ?? null,
+    status: status !== null ? String(status) : null,
+    standard_status: standardStatus !== null ? String(standardStatus) : null,
   };
 }
+
+export function mapDDFToSupabase(item: any): any {
+  console.log('Mapping item:', item?.ListingKey);
+
+  const raw = item ?? {};
+  const { status, standard_status } = standardStatusFromReplyCode(raw);
+
+  const lease = toNumber(raw.Lease);
+  const listPrice = toNumber(raw.ListPrice);
+  const price = lease !== null && lease > 0 ? lease : listPrice;
+
+  const city = cleanCity(raw.City);
+  const listingKey = toInteger(raw.ListingKey ?? raw.ListingID ?? raw.id);
+  const listingId = firstDefined(raw.ListingId, raw.ListingID, raw.MLS_NUM, raw.MlsNumber, raw.ListingKey);
+  const photosCount = parseIntSafe(firstDefined(raw.PhotosCount, raw.PhotoCount, raw.ImageCount));
+  const photosTimestamp = firstDefined(raw.PhotosChangeTimestamp, raw.photosChangeTimestamp);
+
+  return {
+    id: listingKey,
+    external_id: firstDefined(raw.ListingId, raw.ListingIdFormat, raw.ListingID, raw.MLS_NUM, raw.MlsNumber) !== null
+      ? String(firstDefined(raw.ListingId, raw.ListingIdFormat, raw.ListingID, raw.MLS_NUM, raw.MlsNumber))
+      : null,
+    mls_number: listingId !== null ? String(listingId) : null,
+    status,
+    standard_status,
+    property_class: firstDefined(raw.PropertyClass, raw.Class, raw.PropertyType),
+    transaction_type: firstDefined(raw.TransactionType, raw.Transaction, raw.ListingType),
+    list_price: price,
+    sold_price: toNumber(raw.SoldPrice),
+    original_price: toNumber(firstDefined(raw.OriginalPrice, raw.OriginalListPrice, raw.OLstPrice)),
+    list_date: firstDefined(raw.ListDate, raw.ListingDate) ? String(firstDefined(raw.ListDate, raw.ListingDate)) : null,
+    sold_date: firstDefined(raw.SoldDate, raw.CloseDate) ? String(firstDefined(raw.SoldDate, raw.CloseDate)) : null,
+    last_status: firstDefined(raw.LastStatus, raw.StatusDescription),
+    street_number: firstDefined(raw.StreetNumber, raw.Address?.StreetNumber, raw.Addr?.match(/^\d+/)?.[0]),
+    street_name: firstDefined(raw.StreetName, raw.Address?.StreetName),
+    street_suffix: firstDefined(raw.StreetSuffix, raw.StreetAbbreviation, raw.Suffix),
+    unit_number: firstDefined(raw.UnitNumber, raw.UnitNum, raw.Apt_Num, raw.Unit_Num),
+    city,
+    state: firstDefined(raw.StateOrProvince, raw.Prov_State, raw.State),
+    zip: firstDefined(raw.PostalCode, raw.Zip),
+    country: firstDefined(raw.Country),
+    neighborhood: firstDefined(raw.Neighborhood, raw.Community, raw.Area),
+    lat: toNumber(firstDefined(raw.Address?.Latitude, raw.Latitude, raw.Lat, raw.lat)),
+    lng: toNumber(firstDefined(raw.Address?.Longitude, raw.Longitude, raw.Lng, raw.lng)),
+    bed: toInteger(firstDefined(raw.BedroomsTotal, raw.Bedrooms, raw.Beds)),
+    bath: toInteger(firstDefined(raw.BathroomsTotal, raw.Bath_tot, raw.BathsTotal)),
+    bath_half: parseIntSafe(firstDefined(raw.BathroomsHalf, raw.BathroomsPartial, raw.HalfBaths)),
+    sqft: parseSqft(firstDefined(raw.BuildingAreaTotal, raw.Sqft, raw.TotFlArea, raw.ApproxSqFt)),
+    building_area_units: firstDefined(raw.BuildingAreaUnits, raw.AreaUnits) ?? 'sqft',
+    year_built: toInteger(firstDefined(raw.YearBuilt, raw.YrBuilt, raw.ConstructionYear)),
+    style: firstDefined(raw.Style, raw.TypeDwel),
+    property_type: firstDefined(raw.PropertyType, raw.PropertyClass, raw.TypeDwel),
+    description: firstDefined(raw.PublicRemarks, raw.Description, raw.MLSComments, raw.Remarks_for_Clients),
+    images: [],
+    agent_name: firstDefined(raw.ListAgentFullName, raw.LA_Name_format, raw.ListAgentName),
+    agent_email: firstDefined(raw.ListAgentEmail, raw.LA_email),
+    brokerage: firstDefined(raw.ListOfficeName, raw.ListBrokerage, raw.BrokerageName),
+    cooling: firstDefined(raw.Cooling, raw.CoolingType, raw.AC),
+    heating: firstDefined(raw.Heating, raw.HeatingType),
+    heating_fuel: firstDefined(raw.HeatingFuel, raw.HeatingFuelType),
+    parking_total: parseIntSafe(firstDefined(raw.ParkingTotal, raw.ParkingSpaces, raw.Parking)),
+    garage_yn: String(firstDefined(raw.GarageYN, raw.Garage, raw.HasGarage) ?? '') === 'True',
+    photos_count: photosCount,
+    photos_timestamp: toDotNetTicks(photosTimestamp),
+    board_id: firstDefined(raw.ListAOR, raw.ListAor, raw.BoardId, raw.board_id) !== null
+      ? String(firstDefined(raw.ListAOR, raw.ListAor, raw.BoardId, raw.board_id))
+      : null,
+    realtor_link: firstDefined(raw.MoreInformationLink, raw.MoreInfoLink, raw.Link) ? String(firstDefined(raw.MoreInformationLink, raw.MoreInfoLink, raw.Link)) : null,
+    updated_at: toDate(firstDefined(raw.ModificationTimestamp, raw.LastUpdated, raw.UpdatedAt)),
+  };
+}
+
+export function adaptListing(raw: DdfRaw, images: string[] = []): SupabaseListing {
+  const listing = mapDDFToSupabase(raw);
+  return {
+    ...listing,
+    images: images.length ? images : listing.images,
+  };
+}
+
+export const mapToDb = mapDDFToSupabase;

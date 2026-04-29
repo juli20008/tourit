@@ -1,12 +1,18 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Modal } from "../../../../context/Modal";
 import Property from "../../../Property";
+import { hydrateMlsListing } from "../../../../utils/mlsListingHydrator";
 
 import PropertyTop from "./PropertyTop";
 
 const PropertyCard = ({ property, setOver }) => {
 	const [showModal, setShowModal] = useState(false);
+	const [activeProperty, setActiveProperty] = useState(property);
+
+	useEffect(() => {
+		setActiveProperty(property);
+	}, [property]);
 
 	const onClose = () => {
 		setTimeout(() => {
@@ -14,10 +20,16 @@ const PropertyCard = ({ property, setOver }) => {
 		}, 1);
 	};
 
+	const handleOpen = async () => {
+		const detailed = await hydrateMlsListing(property);
+		setActiveProperty(detailed);
+		setShowModal(true);
+	};
+
 	return (
 		<div
 			className="card-ctrl group overflow-hidden rounded-lg border border-[#e1e1db] bg-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md"
-			onClick={() => setShowModal(true)}
+			onClick={handleOpen}
 			onMouseOver={() => setOver({ id: property.id })}
 			onMouseOut={() => setOver({ id: 0 })}
 		>
@@ -47,7 +59,7 @@ const PropertyCard = ({ property, setOver }) => {
 			</div>
 			{showModal && (
 				<Modal onClose={onClose}>
-					<Property property={property} onClose={onClose} />
+					<Property property={activeProperty} onClose={onClose} />
 				</Modal>
 			)}
 		</div>

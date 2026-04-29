@@ -73,18 +73,7 @@ class MlsListing(db.Model):
         except (ValueError, TypeError):
             return None
 
-    def to_frontend_dict(self):
-        """
-        Shape that matches Property.to_dict() so the existing React
-        components render MLS listings without modification.
-
-        Key decisions:
-        - id prefixed 'mls_<id>' avoids collision with seeded property IDs.
-        - type uses style (e.g. 'Single Family Residence', 'Townhouse',
-          'Condominium') so the UI dropdown filter works via .includes().
-        - image_urls carries direct URLs; images:[] signals no PropertyImg IDs.
-        - listing_agent_id is null — Property/index.js guards this.
-        """
+    def _base_frontend_dict(self):
         imgs = self.images or []
         sqft_int = self._sqft_int()
         return {
@@ -114,6 +103,7 @@ class MlsListing(db.Model):
             'neighborhood': self.neighborhood or '',
             'listing_id': self.mls_number,
             'listing_date': self.list_date.date().isoformat() if self.list_date else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'description': self.description,
             'listing_agent_id': None,
             'office': self.brokerage or '',
@@ -121,11 +111,32 @@ class MlsListing(db.Model):
             'agent_name': self.agent_name,
             'agent_email': self.agent_email or '',
             'front_img': imgs[0] if imgs else None,
-            'images': [],
+            'images': imgs,
             'image_urls': imgs,
             'lat': float(self.lat) if self.lat is not None else None,
             'lng': float(self.lng) if self.lng is not None else None,
         }
+
+    def to_frontend_dict(self):
+        """
+        Shape that matches Property.to_dict() so the existing React
+        components render MLS listings without modification.
+
+        Key decisions:
+        - id prefixed 'mls_<id>' avoids collision with seeded property IDs.
+        - type uses style (e.g. 'Single Family Residence', 'Townhouse',
+          'Condominium') so the UI dropdown filter works via .includes().
+        - image_urls carries direct URLs; images:[] signals no PropertyImg IDs.
+        - listing_agent_id is null — Property/index.js guards this.
+        """
+        return self._base_frontend_dict()
+
+    def to_frontend_light_dict(self):
+        data = self._base_frontend_dict()
+        data.pop('description', None)
+        data.pop('images', None)
+        data.pop('image_urls', None)
+        return data
 
     def to_dict(self):
         return {
@@ -137,6 +148,7 @@ class MlsListing(db.Model):
             'price': self.list_price,
             'sold_price': self.sold_price,
             'list_date': self.list_date.isoformat() if self.list_date else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'street': self.street,
             'unit': self.unit_number,
             'city': self.city,
@@ -155,6 +167,7 @@ class MlsListing(db.Model):
             'description': self.description,
             'front_img': self.front_img,
             'images': self.images or [],
+            'image_urls': self.images or [],
             'agent_name': self.agent_name,
             'brokerage': self.brokerage,
         }

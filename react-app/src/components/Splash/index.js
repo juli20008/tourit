@@ -66,15 +66,15 @@ const Splash = () => {
 	}, []);
 
 	useEffect(() => {
-		apiFetch("/api/search/areas", {
+		apiFetch("/api/listings?view=map", {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
 			},
-			body: JSON.stringify(gtaAreaPayload),
+			body: JSON.stringify({ ...gtaAreaPayload, limit: 1000 }),
 		})
 			.then((res) => res.json())
-			.then((res) => setNewlyListed(res.properties || []))
+			.then((res) => setNewlyListed(res.listings || []))
 			.catch((err) => console.log(err));
 	}, []);
 
@@ -96,6 +96,7 @@ const Splash = () => {
 			setMapCenter(gtaCenter);
 		}
 	}, [newlyListed]);
+	const sidebarArr = newlyListed.slice(0, 100);
 
 	const googleMapURL = useMemo(() => {
 		const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
@@ -201,7 +202,7 @@ const Splash = () => {
 							setBed={() => {}}
 							bath={0}
 							setBath={() => {}}
-							propArr={newlyListed}
+							propArr={sidebarArr}
 							setOver={setOver}
 							url={defaultGtaArea}
 							showMapAreaButton={false}

@@ -35,14 +35,14 @@ export const searchProperties = (term) => async (dispatch) => {
 
 export const areaProperties = (payload) => async (dispatch) => {
 	try {
-		const response = await apiFetch("/api/search/areas", {
+		const response = await apiFetch("/api/listings?view=map", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify(payload),
+			body: JSON.stringify({ ...payload, limit: 1000 }),
 		});
 		if (response.ok) {
 			const data = await response.json();
-			const arr = Array.isArray(data.properties) ? data.properties : [];
+			const arr = Array.isArray(data.listings) ? data.listings : [];
 			console.log("[areaProperties] received", arr.length, "listings");
 			dispatch(getProperties(arr));
 			return data;
@@ -53,6 +53,20 @@ export const areaProperties = (payload) => async (dispatch) => {
 	} catch (err) {
 		console.error("[areaProperties] fetch error:", err.message);
 		return { errors: [err.message] };
+	}
+};
+
+export const getMlsListing = async (mlsNumber) => {
+	try {
+		const response = await apiFetch(`/api/listings/${encodeURIComponent(mlsNumber)}`);
+		if (!response.ok) {
+			return null;
+		}
+		const data = await response.json();
+		return data.listing || null;
+	} catch (err) {
+		console.error("[getMlsListing] fetch error:", err.message);
+		return null;
 	}
 };
 
