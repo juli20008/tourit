@@ -100,7 +100,7 @@ const Splash = () => {
 
 	const googleMapURL = useMemo(() => {
 		const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
-		return `https://maps.googleapis.com/maps/api/js?key=${apiKey}&v=3.exp&libraries=geometry,drawing,places`;
+		return `https://maps.googleapis.com/maps/api/js?key=${apiKey}&v=3.exp&libraries=geometry,drawing,places&loading=async`;
 	}, []);
 
 	return (

@@ -132,7 +132,7 @@ const SearchArea = () => {
 	}, [dispatch]);
 
 	const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
-	const googleMapURL = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&v=3.exp&libraries=geometry,drawing,places`;
+	const googleMapURL = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&v=3.exp&libraries=geometry,drawing,places&loading=async`;
 
 	return (
 		<div className="search-pg-wrap">

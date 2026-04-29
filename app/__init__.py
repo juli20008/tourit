@@ -25,7 +25,10 @@ from .commands import repliers_commands
 
 from .config import Config
 
-app = Flask(__name__, static_folder='/var/www/static', static_url_path='/')
+base_dir = os.path.dirname(os.path.abspath(__file__))
+static_dir = os.path.abspath(os.path.join(base_dir, '..', 'static'))
+app = Flask(__name__, static_folder=static_dir, static_url_path='/')
+app.url_map.strict_slashes = False
 
 # Setup login manager
 login = LoginManager(app)
@@ -88,6 +91,8 @@ CORS(app, resources={r"/api/*": {"origins": _allowed_origins}}, supports_credent
 @app.before_request
 def https_redirect():
     if os.environ.get('FLASK_ENV') == 'production':
+        if request.method == 'OPTIONS':
+            return None
         if request.headers.get('X-Forwarded-Proto') == 'http':
             url = request.url.replace('http://', 'https://', 1)
             code = 301

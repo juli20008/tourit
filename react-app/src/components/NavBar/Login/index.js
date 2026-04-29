@@ -1,6 +1,9 @@
 import { Link } from "react-router-dom";
 
-const API_BASE = process.env.REACT_APP_API_URL || "";
+const rawApiBase = process.env.REACT_APP_API_URL || "";
+const API_BASE = rawApiBase
+	? rawApiBase.replace(/^http:\/\//i, "https://").replace(/\/$/, "")
+	: (typeof window !== "undefined" && window.location.hostname === "localhost" ? "" : "https://api.tourit.ca");
 
 const Login = ({ onClose, inline = false, returnContext = null }) => {
 	const handleGoogleLogin = () => {

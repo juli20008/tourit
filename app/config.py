@@ -8,6 +8,7 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ECHO = False
+    STRICT_SLASHES = False
 
     # Cross-origin session cookie (Vercel frontend → Render backend).
     # SameSite=None requires Secure=True; only enable in production.
