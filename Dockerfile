@@ -38,31 +38,22 @@ COPY migrations/ ./migrations/
 COPY wsgi.py ./
 
 # Embed the pre-built React SPA into Flask's static folder
-COPY --from=frontend /build/build ./app/static
+COPY --from=frontend /build/build /var/www/static
 
 # Run as a non-root user (security best practice)
 RUN useradd --system --create-home appuser \
     && chown -R appuser:appuser /var/www
 USER appuser
 
-# Render health-check (the root route serves index.html)
+# Render health-check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD python -c \
         "import urllib.request, os; \
-         urllib.request.urlopen('http://localhost:' + os.environ.get('PORT','10000') + '/')" \
+         urllib.request.urlopen('http://localhost:' + os.environ.get('PORT','10000') + '/health')" \
         || exit 1
 
 EXPOSE ${PORT}
 
 # Run migrations then start the server
 # eventlet worker required by Flask-SocketIO; -w 1 is mandatory with eventlet
-CMD flask db upgrade && gunicorn \
-        --worker-class eventlet \
-        --workers 1 \
-        --bind "0.0.0.0:${PORT}" \
-        --timeout 120 \
-        --keep-alive 5 \
-        --log-level info \
-        --access-logfile - \
-        --error-logfile - \
-        wsgi:app
+CMD sh -c "flask db upgrade && gunicorn --worker-class eventlet --workers 1 --bind 0.0.0.0:${PORT:-10000} --timeout 120 --keep-alive 5 --log-level info --access-logfile - --error-logfile - wsgi:app"

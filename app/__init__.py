@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, request, session, redirect, jsonify, send_from_directory
+from flask import Flask, request, redirect, jsonify, send_from_directory
 from flask_cors import CORS
 from flask_migrate import Migrate
 from flask_wtf.csrf import CSRFProtect, generate_csrf
@@ -25,8 +25,7 @@ from .commands import repliers_commands
 
 from .config import Config
 
-_frontend_build = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'react-app', 'build'))
-app = Flask(__name__, static_folder=_frontend_build)
+app = Flask(__name__, static_folder='/var/www/static', static_url_path='/')
 
 # Setup login manager
 login = LoginManager(app)
@@ -107,13 +106,19 @@ def inject_csrf_token(response):
     return response
 
 
+@app.route('/health')
+def health_check():
+    return jsonify({'status': 'ok'})
+
+
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
-def react_root(path):
-    if path == 'favicon.ico':
-        return app.send_static_file('favicon.ico')
+def serve(path):
     if path.startswith('api/'):
         return jsonify({'error': 'Not found'}), 404
+    file_path = os.path.join(app.static_folder, path) if path else ''
+    if path and os.path.exists(file_path):
+        return send_from_directory(app.static_folder, path)
     try:
         return send_from_directory(app.static_folder, 'index.html')
     except Exception:
