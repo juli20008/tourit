@@ -35,10 +35,25 @@ export const searchProperties = (term) => async (dispatch) => {
 
 export const areaProperties = (payload) => async (dispatch) => {
 	try {
+		const latMin =
+			payload?.lat_min ?? payload?.swLat ?? payload?.south ?? payload?.minLat;
+		const latMax =
+			payload?.lat_max ?? payload?.neLat ?? payload?.north ?? payload?.maxLat;
+		const lngMin =
+			payload?.lng_min ?? payload?.swLng ?? payload?.west ?? payload?.minLng;
+		const lngMax =
+			payload?.lng_max ?? payload?.neLng ?? payload?.east ?? payload?.maxLng;
 		const response = await apiFetch("/api/listings?view=map", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ ...payload, limit: 1000 }),
+			body: JSON.stringify({
+				...payload,
+				lat_min: latMin,
+				lat_max: latMax,
+				lng_min: lngMin,
+				lng_max: lngMax,
+				limit: 1000,
+			}),
 		});
 		if (response.ok) {
 			const data = await response.json();

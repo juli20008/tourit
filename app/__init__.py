@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, request, session, redirect, jsonify
+from flask import Flask, render_template, request, session, redirect, jsonify, send_from_directory
 from flask_cors import CORS
 from flask_migrate import Migrate
 from flask_wtf.csrf import CSRFProtect, generate_csrf
@@ -25,7 +25,8 @@ from .commands import repliers_commands
 
 from .config import Config
 
-app = Flask(__name__)
+_frontend_build = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'react-app', 'build'))
+app = Flask(__name__, static_folder=_frontend_build)
 
 # Setup login manager
 login = LoginManager(app)
@@ -114,7 +115,7 @@ def react_root(path):
     if path.startswith('api/'):
         return jsonify({'error': 'Not found'}), 404
     try:
-        return app.send_static_file('index.html')
+        return send_from_directory(app.static_folder, 'index.html')
     except Exception:
         return jsonify({'error': 'Frontend not built'}), 404
 

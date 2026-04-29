@@ -94,6 +94,6 @@ Show confirmed availability for the booked time.
 
 
 #Marketing:
-1. Bring 8 realtors onboard - 2. One button to create a listing on FBMP/KIJIJI/Xiaohongshu
+1. Bring 8 realtors onboard - 2. One button to create a listing on FBMP/Kijiji/Xiaohongshu
 
 
