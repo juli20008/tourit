@@ -40,6 +40,17 @@ const MyMap = withScriptjs(
 		const location = useLocation();
 		const { areaParam } = useParams();
 		const mapRef = useRef(null);
+		const isProductionHost =
+			typeof window !== "undefined" &&
+			(window.location.hostname === "tourit.ca" ||
+				window.location.hostname === "www.tourit.ca");
+		const [googleReady, setGoogleReady] = useState(() =>
+			!isProductionHost ||
+			(typeof window !== "undefined" &&
+				typeof window.google === "object" &&
+				typeof window.google.maps === "object" &&
+				typeof window.google.maps.Map === "function")
+		);
 
 		const [isOpen, setIsOpen] = useState({ openInfoWindowMarkerId: 0 });
 		const [isOver, setIsOver] = useState({ id: 0 });
@@ -53,6 +64,20 @@ const MyMap = withScriptjs(
 		// Mobile bottom sheet: array of properties (1 for pin, N for cluster)
 		const [bottomSheet, setBottomSheet] = useState(null);
 		const [isMobile, setIsMobile] = useState(() => window.innerWidth < 650);
+
+		useEffect(() => {
+			if (!isProductionHost || googleReady) return;
+			const timer = window.setInterval(() => {
+				const ready =
+					typeof window.google === "object" &&
+					typeof window.google.maps === "object" &&
+					typeof window.google.maps.Map === "function";
+				if (ready) {
+					setGoogleReady(true);
+				}
+			}, 250);
+			return () => window.clearInterval(timer);
+		}, [googleReady, isProductionHost]);
 
 		useEffect(() => {
 			const handler = () => setIsMobile(window.innerWidth < 650);
@@ -91,6 +116,10 @@ const MyMap = withScriptjs(
 			index.load(features);
 			return index;
 		}, [props.markers]);
+
+		if (isProductionHost && !googleReady) {
+			return props.loadingElement || <div style={{ height: "100%" }} />;
+		}
 
 		// Recompute visible clusters whenever bounds, zoom, or marker set changes.
 		useEffect(() => {
