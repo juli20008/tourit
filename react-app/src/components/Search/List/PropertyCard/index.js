@@ -18,7 +18,10 @@ const PropertyCard = ({ property, setOver }) => {
 		setShowModal(false);
 	};
 
-	const handleOpen = async () => {
+	const handleOpen = async (e) => {
+		// Portal elements (modal backdrop, close button) are outside this card's
+		// DOM subtree, so contains() returns false — bail to avoid zombie re-open.
+		if (e && !e.currentTarget.contains(e.target)) return;
 		const detailed = await hydrateMlsListing(property);
 		setActiveProperty(detailed);
 		setShowModal(true);

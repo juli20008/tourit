@@ -272,8 +272,10 @@ function toDotNetTicks(value: any): string | null {
   const date = new Date(String(value));
   if (Number.isNaN(date.getTime())) return null;
 
-  const dotNetEpochTicks = 621355968000000000;
-  const ticks = dotNetEpochTicks + date.getTime() * 10000;
+  // BigInt arithmetic prevents float precision loss on 18-digit .NET tick values.
+  // date.getTime() is ms since Unix epoch (~1.8e12 for 2026) — safely within
+  // Number.MAX_SAFE_INTEGER, so BigInt(date.getTime()) is exact.
+  const ticks = 621355968000000000n + BigInt(date.getTime()) * 10000n;
   return String(ticks);
 }
 

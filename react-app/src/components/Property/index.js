@@ -29,7 +29,7 @@ const Property = ({ property, onClose }) => {
 			<button
 				type="button"
 				className="absolute top-3 right-3 z-30 flex items-center justify-center w-8 h-8 rounded-full bg-white/90 shadow text-gray-500 hover:text-gray-900 transition-colors"
-				onClick={onClose}
+				onClick={(e) => { e.stopPropagation(); onClose(); }}
 			>
 				<X size={16} strokeWidth={2} />
 			</button>

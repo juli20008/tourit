@@ -91,8 +91,8 @@ class MlsListing(db.Model):
     images = db.Column(JSONB, default=list)
 
     # Realtor.ca CDN metadata — used to build image URLs on the fly
-    external_id = db.Column(db.String(50), nullable=True, index=True)
-    photos_timestamp = db.Column(db.String(30), nullable=True)  # .NET ticks string
+    external_id = db.Column(db.String(100), nullable=True, index=True)
+    photos_timestamp = db.Column(db.Text, nullable=True)  # .NET ticks — TEXT avoids VARCHAR length constraints
     photos_count = db.Column(db.Integer, nullable=True)
 
     # Agent / brokerage

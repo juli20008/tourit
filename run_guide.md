@@ -50,3 +50,6 @@ npm start
 - The backend uses Flask.
 - The frontend uses CRA / `react-scripts`.
 - If the frontend does not stay open in a background window, run it from a visible terminal with `npm start`.
+
+
+update db mls_listings: npx ts-node lib/services/ddfSync.ts
