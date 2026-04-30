@@ -2,6 +2,32 @@ from .db import db
 from datetime import datetime
 from sqlalchemy.dialects.postgresql import JSONB
 
+_CDN_BASE = "https://cdn.realtor.ca/listings"
+
+
+def _build_cdn_image_url(external_id, photos_timestamp, index=1):
+    """Build a Realtor.ca CDN image URL.
+
+    Pattern: https://cdn.realtor.ca/listings/TS{ticks}/reb82/highres/4/{eid}_{n}.jpg
+    photos_timestamp is stored as a .NET-ticks integer string (e.g. '639124508855930000').
+    Scientific notation is normalised before use.
+    """
+    if not external_id or not photos_timestamp:
+        return None
+    ts = str(photos_timestamp).strip()
+    if 'e' in ts.lower():
+        try:
+            ts = str(int(float(ts)))
+        except (ValueError, OverflowError):
+            return None
+    # Strip any trailing decimal (e.g. "639124508855930000.0")
+    if '.' in ts:
+        ts = ts.split('.')[0]
+    if not ts.lstrip('-').isdigit():
+        return None
+    eid = str(external_id).lower()
+    return f"{_CDN_BASE}/TS{ts}/reb82/highres/4/{eid}_{index}.jpg"
+
 
 class MlsListing(db.Model):
     __tablename__ = 'mls_listings'
@@ -44,8 +70,13 @@ class MlsListing(db.Model):
     property_type = db.Column(db.String(50))
     description = db.Column(db.Text)
 
-    # Images stored as JSON array
+    # Images stored as JSON array (raw/stored)
     images = db.Column(JSONB, default=list)
+
+    # Realtor.ca CDN metadata — used to build image URLs on the fly
+    external_id = db.Column(db.String(50), nullable=True, index=True)
+    photos_timestamp = db.Column(db.String(30), nullable=True)  # .NET ticks string
+    photos_count = db.Column(db.Integer, nullable=True)
 
     # Agent / brokerage
     agent_name = db.Column(db.String(100))
@@ -62,8 +93,39 @@ class MlsListing(db.Model):
         return ' '.join(parts)
 
     @property
+    def cdn_image_urls(self):
+        """Generate Realtor.ca CDN URLs for all photos using external_id + photos_timestamp.
+
+        Produces: https://cdn.realtor.ca/listings/TS{ticks}/reb82/highres/4/{eid}_{n}.jpg
+        """
+        if not self.external_id or not self.photos_timestamp:
+            return []
+        count = max(self.photos_count or 1, 1)
+        urls = []
+        for i in range(1, count + 1):
+            url = _build_cdn_image_url(self.external_id, self.photos_timestamp, i)
+            if url:
+                urls.append(url)
+        return urls
+
+    @property
+    def effective_images(self):
+        """Return the best available image list.
+
+        Priority:
+        1. Stored images if they contain real (non-sample) URLs.
+        2. Dynamically generated Realtor.ca CDN URLs.
+        3. Empty list (fallback; UI should show placeholder).
+        """
+        stored = self.images or []
+        real = [img for img in stored if img and not str(img).startswith('sample/')]
+        if real:
+            return real
+        return self.cdn_image_urls
+
+    @property
     def front_img(self):
-        imgs = self.images or []
+        imgs = self.effective_images
         return imgs[0] if imgs else None
 
     def _sqft_int(self):
@@ -74,7 +136,7 @@ class MlsListing(db.Model):
             return None
 
     def _base_frontend_dict(self):
-        imgs = self.images or []
+        imgs = self.effective_images
         sqft_int = self._sqft_int()
         return {
             'id': f'mls_{self.id}',
@@ -126,7 +188,8 @@ class MlsListing(db.Model):
         - id prefixed 'mls_<id>' avoids collision with seeded property IDs.
         - type uses style (e.g. 'Single Family Residence', 'Townhouse',
           'Condominium') so the UI dropdown filter works via .includes().
-        - image_urls carries direct URLs; images:[] signals no PropertyImg IDs.
+        - image_urls carries CDN URLs when images[] is empty; [] signals no
+          stored PropertyImg IDs.
         - listing_agent_id is null — Property/index.js guards this.
         """
         return self._base_frontend_dict()
@@ -139,6 +202,7 @@ class MlsListing(db.Model):
         return data
 
     def to_dict(self):
+        imgs = self.effective_images
         return {
             'id': self.id,
             'mls_number': self.mls_number,
@@ -166,8 +230,8 @@ class MlsListing(db.Model):
             'property_type': self.property_type,
             'description': self.description,
             'front_img': self.front_img,
-            'images': self.images or [],
-            'image_urls': self.images or [],
+            'images': imgs,
+            'image_urls': imgs,
             'agent_name': self.agent_name,
             'brokerage': self.brokerage,
         }
