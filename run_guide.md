@@ -54,4 +54,16 @@ npm start
 
 update db mls_listings: npx ts-node lib/services/ddfSync.ts
 
+
   ⎿  OneDrive\MiaSoft\tourit\migrations\versions\20260430_000003_fix_photos_timestamp_type.py
+
+
+# 假设你的虚拟环境文件夹叫 .venv 或 venv
+.\.venv\Scripts\Activate.ps1
+
+#直接run python
+python -m flask repliers resync-cdn-fields
+
+
+
+  DDF_CDN_SINCE=2000-01-01T00:00:00Z npx ts-node lib/scripts/resyncCdnFields.ts

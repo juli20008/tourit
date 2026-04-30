@@ -98,6 +98,7 @@ export async function upsertListings(listings: SupabaseListing[]): Promise<void>
     'lat','lng',
     'bed','bath','sqft','year_built','style','property_type','description',
     'images','agent_name','agent_email','brokerage',
+    'external_id','photos_timestamp','photos_count',
     'updated_at',
   ] as const;
 

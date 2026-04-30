@@ -6,7 +6,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from ..models.db import db
 from ..models.mls_listing import MlsListing
-from ..adapters.repliers_adapter import to_standard, _as_ticks_str, _truncate
+from ..adapters.repliers_adapter import to_standard
 from ..schemas.property_schema import StandardPropertySchema
 
 REPLIERS_BASE_URL = 'https://csr-api.repliers.io'
@@ -72,10 +72,6 @@ def _to_db_dict(schema: StandardPropertySchema) -> dict:
         'property_type': schema.property_type,
         'description': schema.description,
         'images': schema.images,
-        # CDN fields — stored as TEXT to preserve 18-digit .NET tick precision
-        'external_id': schema.external_id,
-        'photos_timestamp': schema.photos_timestamp,
-        'photos_count': schema.photos_count,
         'agent_name': schema.agent.name if schema.agent else None,
         'agent_email': schema.agent.email if schema.agent else None,
         'brokerage': schema.agent.brokerage if schema.agent else None,
@@ -98,69 +94,6 @@ def _upsert_batch(batch: list[dict]) -> int:
     db.session.execute(stmt)
     db.session.commit()
     return len(batch)
-
-
-def resync_cdn_fields(max_pages=None, verbose=True):
-    """Re-fetch every DDF listing from Repliers and write ONLY the CDN columns.
-
-    Use this to recover from corrupted photos_timestamp values without
-    doing a full re-sync of all 80+ columns.  Safe to re-run.
-    """
-    first_page = _fetch_page(1, results_per_page=BATCH_SIZE)
-    num_pages = first_page.get('numPages', 1)
-    total_count = first_page.get('count', 0)
-    if max_pages:
-        num_pages = min(num_pages, max_pages)
-
-    if verbose:
-        print(f'[repliers:cdn] {total_count:,} listings, '
-              f'{num_pages:,} pages — updating CDN fields only')
-
-    total_updated = 0
-
-    def _process_cdn(page, data):
-        raw_listings = data.get('listings') or []
-        rows = []
-        for r in raw_listings:
-            mls = r.get('mlsNumber')
-            if not mls:
-                continue
-            rows.append({
-                'mls_number': mls,
-                'external_id': _truncate(str(r.get('externalId') or ''), 100) or None,
-                'photos_timestamp': _as_ticks_str(r.get('photosTimestamp')),
-                'photos_count': r.get('numPhotos') or r.get('photosCount'),
-            })
-        if not rows:
-            return 0
-        stmt = pg_insert(MlsListing).values(rows)
-        stmt = stmt.on_conflict_do_update(
-            index_elements=['mls_number'],
-            set_={
-                'external_id': stmt.excluded.external_id,
-                'photos_timestamp': stmt.excluded.photos_timestamp,
-                'photos_count': stmt.excluded.photos_count,
-            }
-        )
-        db.session.execute(stmt)
-        db.session.commit()
-        return len(rows)
-
-    total_updated += _process_cdn(1, first_page)
-
-    for page in range(2, num_pages + 1):
-        if verbose:
-            print(f'[repliers:cdn] page {page}/{num_pages}...', end=' ', flush=True)
-        time.sleep(REQUEST_DELAY)
-        data = _fetch_page(page)
-        n = _process_cdn(page, data)
-        total_updated += n
-        if verbose:
-            print(f'{n} updated  (total: {total_updated})')
-
-    if verbose:
-        print(f'[repliers:cdn] Done — {total_updated:,} CDN rows refreshed.')
-    return total_updated
 
 
 def sync_listings(max_pages=None, start_page=1, verbose=True):

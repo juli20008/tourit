@@ -64,10 +64,5 @@ class StandardPropertySchema:
     # ── Media ────────────────────────────────────────────────────────────
     images: List[str] = field(default_factory=list)
 
-    # ── Realtor.ca CDN metadata ───────────────────────────────────────────
-    external_id: Optional[str] = None      # e.g. 'n13019614'
-    photos_timestamp: Optional[str] = None  # .NET ticks stored as string (never float)
-    photos_count: Optional[int] = None
-
     # ── Agent / Brokerage (embedded in listing record) ───────────────────
     agent: Optional[StandardAgentSchema] = None

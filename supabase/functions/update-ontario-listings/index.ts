@@ -92,11 +92,10 @@ function toDbRow(r: RepliersListing): Record<string, unknown> {
 
   return {
     mls_number: r.mlsNumber,
-    // mlsNumber doubles as external_id for Repliers listings
-    // (photos_timestamp is not available from this source)
-    external_id: r.mlsNumber,
-    photos_timestamp: null,
-    photos_count: null,
+    // external_id / photos_timestamp / photos_count are set exclusively by the
+    // DDF sync (ddfSync.ts).  Repliers does not provide these fields and must
+    // not overwrite them — omitting them here means the ON CONFLICT DO UPDATE
+    // will leave the existing DDF values untouched.
     status: r.status ?? null,
     standard_status: r.standardStatus ?? null,
     property_class: truncate(r.class, 50),
