@@ -35,8 +35,7 @@ const clusterIcon = (count) => {
 	};
 };
 
-const MyMapLegacy = withScriptjs(
-	withGoogleMap((props) => {
+const MapCore = withGoogleMap((props) => {
 		const history = useHistory();
 		const location = useLocation();
 		const { areaParam } = useParams();
@@ -157,22 +156,25 @@ const MyMapLegacy = withScriptjs(
 			if (areaParam) history.push(url);
 		};
 
-				const areaFitBounds = (neLat, neLng, swLat, swLng) => {
-			const bounds = new window.google.maps.LatLngBounds();
-			bounds.extend(new window.google.maps.LatLng(parseFloat(neLat), parseFloat(neLng)));
-			bounds.extend(new window.google.maps.LatLng(parseFloat(swLat), parseFloat(swLng)));
-			mapRef.current.fitBounds(bounds);
+			const areaFitBounds = (neLat, neLng, swLat, swLng) => {
+			if (!mapRef.current) return;
+			const n = parseFloat(neLat), s = parseFloat(swLat);
+			const e = parseFloat(neLng), w = parseFloat(swLng);
+			if ([n, s, e, w].some(isNaN)) return;
+			mapRef.current.fitBounds({ north: n, south: s, east: e, west: w });
 		};
 
-				const fitBounds = () => {
-			const bounds = new window.google.maps.LatLngBounds();
-			props.markers.forEach((m) =>
-				bounds.extend(new window.google.maps.LatLng(
-					parseFloat(m.lat),
-					parseFloat(m.lng)
-				))
-			);
-			mapRef.current.fitBounds(bounds);
+			const fitBounds = () => {
+			if (!mapRef.current || !props.markers?.length) return;
+			const lats = props.markers.map(m => parseFloat(m.lat)).filter(v => !isNaN(v));
+			const lngs = props.markers.map(m => parseFloat(m.lng)).filter(v => !isNaN(v));
+			if (!lats.length || !lngs.length) return;
+			mapRef.current.fitBounds({
+				north: Math.max(...lats),
+				south: Math.min(...lats),
+				east: Math.max(...lngs),
+				west: Math.min(...lngs),
+			});
 		};
 
 		const handleClusterClick = (clusterId, lat, lng, count) => {
@@ -180,12 +182,14 @@ const MyMapLegacy = withScriptjs(
 				setPreviewCluster(null);
 				setBottomSheet(null);
 				const leaves = supercluster.getLeaves(clusterId, Infinity);
-				const bounds = new window.google.maps.LatLngBounds();
-				leaves.forEach((leaf) => {
-					const [lLng, lLat] = leaf.geometry.coordinates;
-					bounds.extend(new window.google.maps.LatLng(lLat, lLng));
+				const clats = leaves.map(l => l.geometry.coordinates[1]);
+				const clngs = leaves.map(l => l.geometry.coordinates[0]);
+				mapRef.current.fitBounds({
+					north: Math.max(...clats),
+					south: Math.min(...clats),
+					east: Math.max(...clngs),
+					west: Math.min(...clngs),
 				});
-				mapRef.current.fitBounds(bounds);
 				return;
 			}
 			const leaves = supercluster
@@ -218,7 +222,7 @@ const MyMapLegacy = withScriptjs(
 
 		// Fit to all markers on first load / when marker set changes.
 		useEffect(() => {
-			if (!areaParam && props.markers && props.fitBounds !== false) {
+			if (!areaParam && props.markers?.length && props.fitBounds !== false && mapRef.current) {
 				fitBounds();
 			}
 		}, [props.markers, areaParam, props.fitBounds]);
@@ -256,12 +260,12 @@ const MyMapLegacy = withScriptjs(
 			props.onMapReady?.((lat, lng) => {
 				if (!mapRef.current) return;
 				const d = 0.005; // ~500 m radius → roughly zoom 14
-				mapRef.current.fitBounds(
-					new window.google.maps.LatLngBounds(
-						{ lat: lat - d, lng: lng - d },
-						{ lat: lat + d, lng: lng + d }
-					)
-				);
+				mapRef.current.fitBounds({
+					north: lat + d,
+					south: lat - d,
+					east: lng + d,
+					west: lng - d,
+				});
 			});
 		}, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -455,15 +459,14 @@ const MyMapLegacy = withScriptjs(
 				)}
 			</>
 		);
-	})
-);
+});
+
+const MyMapLegacy = withScriptjs(MapCore);
 
 const isProductionHost = () =>
 	typeof window !== "undefined" &&
 	(window.location.hostname === "tourit.ca" ||
 		window.location.hostname === "www.tourit.ca");
-
-const stripAsyncQuery = (url = "") => url.replace("&loading=async", "");
 
 const ProductionMapLoader = (props) => {
 	const [ready, setReady] = useState(() => {
@@ -514,7 +517,7 @@ const ProductionMapLoader = (props) => {
 		return props.loadingElement || <div style={{ height: "100%" }} />;
 	}
 
-	return <MyMapLegacy {...props} googleMapURL={stripAsyncQuery(props.googleMapURL)} />;
+	return <MapCore {...props} />;
 };
 
 const MyMap = (props) => {
