@@ -15,9 +15,7 @@ const PropertyCard = ({ property, setOver }) => {
 	}, [property]);
 
 	const onClose = () => {
-		setTimeout(() => {
-			setShowModal(false);
-		}, 1);
+		setShowModal(false);
 	};
 
 	const handleOpen = async () => {

@@ -25,8 +25,13 @@ export function Modal({ onClose, children }) {
 
 	return ReactDOM.createPortal(
 		<div className="modal">
-			<div className="modal-background" onClick={onClose} />
-			<div className="modal-content">{children}</div>
+			{/* stopPropagation on both divs prevents clicks inside the portal
+			    from bubbling through the React tree to a parent card's onClick,
+			    which would immediately re-open the modal (zombie bug). */}
+			<div className="modal-background" onClick={(e) => { e.stopPropagation(); onClose(); }} />
+			<div className="modal-content" onClick={(e) => e.stopPropagation()}>
+				{children}
+			</div>
 		</div>,
 		modalNode
 	);

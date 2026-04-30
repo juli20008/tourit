@@ -286,8 +286,11 @@ const MapCore = withGoogleMap((props) => {
 			history.replace({ search: "" });
 		};
 
-		// Restore modal from URL on mount (e.g. after page refresh with ?selected=123)
+		// Restore modal from URL on mount (e.g. after page refresh with ?selected=123).
+		// The cancelled flag prevents a stale async call (started before the user
+		// clicked close) from calling setSelectedProperty after the modal is gone.
 		useEffect(() => {
+			let cancelled = false;
 			const params = new URLSearchParams(location.search);
 			const selectedId = params.get("selected");
 			if (selectedId && props.markers?.length) {
@@ -296,10 +299,11 @@ const MapCore = withGoogleMap((props) => {
 				);
 				if (found) {
 					hydrateMlsListing(found).then((detailed) => {
-						setSelectedProperty(detailed);
+						if (!cancelled) setSelectedProperty(detailed);
 					});
 				}
 			}
+			return () => { cancelled = true; };
 		}, [location.search, props.markers]);
 
 		return (
