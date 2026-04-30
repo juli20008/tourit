@@ -16,18 +16,52 @@ import PropertyPreviewList from "./PropertyPreviewList";
 import BottomSheet from "./BottomSheet";
 import { hydrateMlsListing } from "../../../utils/mlsListingHydrator";
 
-// Calculate dynamic anchor based on marker position relative to map center
+// Compute pixelOffset so the InfoWindow card stays within the visible map area.
 const getInfoWindowOptions = (markerLat, markerLng, mapRef) => {
   if (!mapRef?.current) return {};
-  const center = mapRef.current.getCenter();
-  if (!center) return {};
-  const latDiff = markerLat - center.lat();
-  const lngDiff = markerLng - center.lng();
-  // If marker is in top half of map, anchor to bottom; else anchor to top
-  if (latDiff > 0) {
-    return { pixelOffset: new window.google.maps.Size(0, -20) };
+  const map = mapRef.current;
+  const bounds = map.getBounds();
+  if (!bounds) return {};
+
+  const ne = bounds.getNorthEast();
+  const sw = bounds.getSouthWest();
+  const latSpan = ne.lat() - sw.lat();
+  const lngSpan = ne.lng() - sw.lng();
+  if (!latSpan || !lngSpan) return {};
+
+  // Map container size in pixels
+  let mapW = 800, mapH = 500;
+  try {
+    const div = map.getDiv?.();
+    if (div) { mapW = div.offsetWidth || mapW; mapH = div.offsetHeight || mapH; }
+  } catch (_) {}
+
+  // Marker pixel position from the top-left corner of the map
+  const px = ((markerLng - sw.lng()) / lngSpan) * mapW;
+  const py = ((ne.lat() - markerLat) / latSpan) * mapH;
+
+  // Approximate card dimensions including Google's arrow/chrome (~30 px)
+  const CARD_W = 370;
+  const CARD_H = 240;
+  const MARGIN = 12;
+
+  // Horizontal: card body is centered on the tip — clamp within map bounds
+  let offsetX = 0;
+  if (px + CARD_W / 2 > mapW - MARGIN) {
+    offsetX = mapW - MARGIN - px - CARD_W / 2;  // shift left (negative)
+  } else if (px - CARD_W / 2 < MARGIN) {
+    offsetX = MARGIN - px + CARD_W / 2;          // shift right (positive)
   }
-  return {};
+
+  // Vertical: default card opens above the marker; if near top edge, flip below
+  let offsetY = 0;
+  if (py < CARD_H + MARGIN) {
+    // Moving tip this far down puts the card body just below the marker
+    offsetY = CARD_H + 30;
+  }
+
+  if (offsetX === 0 && offsetY === 0) return {};
+  return { pixelOffset: new window.google.maps.Size(Math.round(offsetX), Math.round(offsetY)) };
 };
 const clusterIcon = (count) => {
 	const size = count < 10 ? 36 : count < 100 ? 44 : 54;
