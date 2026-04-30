@@ -1,29 +1,46 @@
 from .db import db
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
 from sqlalchemy.dialects.postgresql import JSONB
 
 _CDN_BASE = "https://cdn.realtor.ca/listings"
+
+
+def _normalize_ticks(photos_timestamp) -> str | None:
+    """Convert photos_timestamp to a precise integer string.
+
+    The value is stored as a VARCHAR (e.g. '639124508855930000') but may
+    arrive as scientific notation (e.g. '6.3912e+17') if a numeric DB type
+    was used elsewhere.  Decimal avoids the precision loss that float causes
+    for 18-digit .NET tick values.
+    """
+    if not photos_timestamp:
+        return None
+    s = str(photos_timestamp).strip()
+    # Fast path — already a clean integer string
+    if s.lstrip('-').isdigit():
+        return s
+    # Strip trailing decimal with no fractional part (e.g. "639...000.0")
+    if '.' in s and 'e' not in s.lower():
+        s = s.split('.')[0]
+        if s.lstrip('-').isdigit():
+            return s
+    # Scientific notation or mixed — use Decimal for lossless conversion
+    try:
+        return str(int(Decimal(s)))
+    except (InvalidOperation, ValueError, OverflowError):
+        return None
 
 
 def _build_cdn_image_url(external_id, photos_timestamp, index=1):
     """Build a Realtor.ca CDN image URL.
 
     Pattern: https://cdn.realtor.ca/listings/TS{ticks}/reb82/highres/4/{eid}_{n}.jpg
-    photos_timestamp is stored as a .NET-ticks integer string (e.g. '639124508855930000').
-    Scientific notation is normalised before use.
     """
     if not external_id or not photos_timestamp:
         return None
-    ts = str(photos_timestamp).strip()
-    if 'e' in ts.lower():
-        try:
-            ts = str(int(float(ts)))
-        except (ValueError, OverflowError):
-            return None
-    # Strip any trailing decimal (e.g. "639124508855930000.0")
-    if '.' in ts:
-        ts = ts.split('.')[0]
-    if not ts.lstrip('-').isdigit():
+    ts = _normalize_ticks(photos_timestamp)
+    if not ts:
         return None
     eid = str(external_id).lower()
     return f"{_CDN_BASE}/TS{ts}/reb82/highres/4/{eid}_{index}.jpg"
@@ -128,6 +145,15 @@ class MlsListing(db.Model):
         imgs = self.effective_images
         return imgs[0] if imgs else None
 
+    @property
+    def image_url(self):
+        """First image URL for this listing (CDN-generated or stored).
+
+        Returns the _1.jpg CDN URL when external_id + photos_timestamp are
+        available, falling back to the first stored image, then None.
+        """
+        return self.front_img
+
     def _sqft_int(self):
         """Return sqft as int for price/sqft calc; None if unparseable."""
         try:
@@ -173,6 +199,7 @@ class MlsListing(db.Model):
             'agent_name': self.agent_name,
             'agent_email': self.agent_email or '',
             'front_img': imgs[0] if imgs else None,
+            'image_url': imgs[0] if imgs else None,
             'images': imgs,
             'image_urls': imgs,
             'lat': float(self.lat) if self.lat is not None else None,

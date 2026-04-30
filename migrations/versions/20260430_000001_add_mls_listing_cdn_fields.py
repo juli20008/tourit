@@ -4,9 +4,11 @@ Revision ID: 20260430_000001
 Revises: e729c233372c
 Create Date: 2026-04-30 00:00:01.000000
 
+Uses IF NOT EXISTS so this migration is safe to run against a database
+that already has these columns (e.g. when columns were added directly
+via Supabase before the migration was written).
 """
 from alembic import op
-import sqlalchemy as sa
 
 
 revision = '20260430_000001'
@@ -16,14 +18,20 @@ depends_on = None
 
 
 def upgrade():
-    op.add_column('mls_listings', sa.Column('external_id', sa.String(length=50), nullable=True))
-    op.add_column('mls_listings', sa.Column('photos_timestamp', sa.String(length=30), nullable=True))
-    op.add_column('mls_listings', sa.Column('photos_count', sa.Integer(), nullable=True))
-    op.create_index('idx_mls_listings_external_id', 'mls_listings', ['external_id'])
+    op.execute("""
+        ALTER TABLE mls_listings
+            ADD COLUMN IF NOT EXISTS external_id    VARCHAR(50),
+            ADD COLUMN IF NOT EXISTS photos_timestamp VARCHAR(30),
+            ADD COLUMN IF NOT EXISTS photos_count   INTEGER
+    """)
+    op.execute("""
+        CREATE INDEX IF NOT EXISTS idx_mls_listings_external_id
+        ON mls_listings (external_id)
+    """)
 
 
 def downgrade():
-    op.drop_index('idx_mls_listings_external_id', table_name='mls_listings')
-    op.drop_column('mls_listings', 'photos_count')
-    op.drop_column('mls_listings', 'photos_timestamp')
-    op.drop_column('mls_listings', 'external_id')
+    op.execute("DROP INDEX IF EXISTS idx_mls_listings_external_id")
+    op.execute("ALTER TABLE mls_listings DROP COLUMN IF EXISTS photos_count")
+    op.execute("ALTER TABLE mls_listings DROP COLUMN IF EXISTS photos_timestamp")
+    op.execute("ALTER TABLE mls_listings DROP COLUMN IF EXISTS external_id")
