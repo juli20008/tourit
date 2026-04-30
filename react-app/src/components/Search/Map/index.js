@@ -157,17 +157,20 @@ const MyMapLegacy = withScriptjs(
 			if (areaParam) history.push(url);
 		};
 
-		const areaFitBounds = (neLat, neLng, swLat, swLng) => {
+				const areaFitBounds = (neLat, neLng, swLat, swLng) => {
 			const bounds = new window.google.maps.LatLngBounds();
-			bounds.extend(new window.google.maps.LatLng(neLat, neLng));
-			bounds.extend(new window.google.maps.LatLng(swLat, swLng));
+			bounds.extend(new window.google.maps.LatLng(parseFloat(neLat), parseFloat(neLng)));
+			bounds.extend(new window.google.maps.LatLng(parseFloat(swLat), parseFloat(swLng)));
 			mapRef.current.fitBounds(bounds);
 		};
 
-		const fitBounds = () => {
+				const fitBounds = () => {
 			const bounds = new window.google.maps.LatLngBounds();
 			props.markers.forEach((m) =>
-				bounds.extend(new window.google.maps.LatLng(m.lat, m.lng))
+				bounds.extend(new window.google.maps.LatLng(
+					parseFloat(m.lat),
+					parseFloat(m.lng)
+				))
 			);
 			mapRef.current.fitBounds(bounds);
 		};
@@ -220,12 +223,17 @@ const MyMapLegacy = withScriptjs(
 			}
 		}, [props.markers, areaParam, props.fitBounds]);
 
-		// Restore a saved area viewport.
+				// Restore a saved area viewport.
+		// IMPORTANT: areaParam has format "neLat=43.7&neLng=-79.3&swLat=43.6&swLng=-79.4&zoom=12"
+		// Use parseFloat() to convert each value from string to number.
+		// Destructure only the first 4 values (neLat, neLng, swLat, swLng);
+		// the 5th value (zoom) is intentionally discarded here since fitBounds doesn't need it.
 		useEffect(() => {
 			if (areaParam) {
-				const [neLat, neLng, swLat, swLng] = areaParam
+				const parts = areaParam
 					.split("&")
-					.map((each) => each.split("=")[1]);
+					.map((each) => parseFloat(each.split("=")[1]));
+				const [neLat, neLng, swLat, swLng] = parts;
 				areaFitBounds(neLat, neLng, swLat, swLng);
 			}
 		}, []);

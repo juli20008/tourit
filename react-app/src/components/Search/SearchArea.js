@@ -67,14 +67,20 @@ const SearchArea = () => {
 		setShowConsent(false);
 	};
 
-	useEffect(() => {
+		useEffect(() => {
 		if (areaParam) {
-			const [neLat, neLng, swLat, swLng, zoomStr] = areaParam
+			const parts = areaParam
 				.split("&")
-				.map((each) => each.split("=")[1]);
-			const payload = { neLat, neLng, swLat, swLng };
+				.map((each) => parseFloat(each.split("=")[1]));
+			const [neLat, neLng, swLat, swLng, zoomVal] = parts;
+			const payload = {
+				neLat: parseFloat(neLat),
+				neLng: parseFloat(neLng),
+				swLat: parseFloat(swLat),
+				swLng: parseFloat(swLng),
+			};
 			dispatch(propertyActions.areaProperties(payload));
-			setZoom(parseInt(zoomStr, 10));
+			setZoom(Math.round(zoomVal));
 		}
 	}, [dispatch, areaParam]);
 
