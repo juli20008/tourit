@@ -67,8 +67,8 @@ const PreviewItem = ({ property, onSelect }) => {
 };
 
 const PropertyPreviewList = ({ properties, onSelect }) => (
-	<div className="w-[350px] font-sans overflow-hidden">
-		<div className="max-h-[510px] overflow-y-auto divide-y divide-stroke">
+	<div className="w-[350px] h-[200px] font-sans overflow-hidden">
+		<div className="max-h-full overflow-y-auto divide-y divide-stroke">
 			{properties.map((p) => (
 				<PreviewItem key={p.id} property={p} onSelect={onSelect} />
 			))}

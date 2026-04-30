@@ -16,8 +16,19 @@ import PropertyPreviewList from "./PropertyPreviewList";
 import BottomSheet from "./BottomSheet";
 import { hydrateMlsListing } from "../../../utils/mlsListingHydrator";
 
-// Builds a circle+count SVG icon for cluster Markers.
-// Must be called after the Google Maps script has loaded (window.google is available).
+// Calculate dynamic anchor based on marker position relative to map center
+const getInfoWindowOptions = (markerLat, markerLng, mapRef) => {
+  if (!mapRef?.current) return {};
+  const center = mapRef.current.getCenter();
+  if (!center) return {};
+  const latDiff = markerLat - center.lat();
+  const lngDiff = markerLng - center.lng();
+  // If marker is in top half of map, anchor to bottom; else anchor to top
+  if (latDiff > 0) {
+    return { pixelOffset: new window.google.maps.Size(0, -20) };
+  }
+  return {};
+};
 const clusterIcon = (count) => {
 	const size = count < 10 ? 36 : count < 100 ? 44 : 54;
 	const fontSize = count < 100 ? 14 : 15;
@@ -221,11 +232,12 @@ const MapCore = withGoogleMap((props) => {
 		};
 
 		// Fit to all markers on first load / when marker set changes.
+		// Skip while a popup is open to prevent the map from jumping.
 		useEffect(() => {
-			if (!areaParam && props.markers?.length && props.fitBounds !== false && mapRef.current) {
+			if (!areaParam && props.markers?.length && props.fitBounds !== false && mapRef.current && !previewCluster && !bottomSheet) {
 				fitBounds();
 			}
-		}, [props.markers, areaParam, props.fitBounds]);
+		}, [props.markers, areaParam, props.fitBounds, previewCluster, bottomSheet]);
 
 				// Restore a saved area viewport.
 		// IMPORTANT: areaParam has format "neLat=43.7&neLng=-79.3&swLat=43.6&swLng=-79.4&zoom=12"
@@ -377,6 +389,7 @@ const MapCore = withGoogleMap((props) => {
 									{isPreviewOpen && (
 										<InfoWindow
 											onCloseClick={() => setPreviewCluster(null)}
+											options={{ disableAutoPan: true, ...getInfoWindowOptions(lat, lng, mapRef) }}
 										>
 											<PropertyPreviewList
 												properties={previewCluster.leaves}
@@ -418,11 +431,12 @@ const MapCore = withGoogleMap((props) => {
 								zIndex={props.over.id === marker.id ? 9999 : 0}
 							>
 								{showInfo && (
-									<InfoWindow
-										onCloseClick={() =>
-											setIsOpen({ openInfoWindowMarkerId: 0 })
-										}
-									>
+										<InfoWindow
+											onCloseClick={() =>
+												setIsOpen({ openInfoWindowMarkerId: 0 })
+											}
+											options={{ disableAutoPan: true, ...getInfoWindowOptions(lat, lng, mapRef) }}
+										>
 										<PropertyPreviewList
 											properties={[marker]}
 											onSelect={handlePropertySelect}
