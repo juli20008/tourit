@@ -23,16 +23,10 @@ depends_on = None
 
 
 def upgrade():
-    op.execute("""
-        ALTER TABLE mls_listings
-            ALTER COLUMN photos_timestamp TYPE TEXT,
-            ALTER COLUMN external_id     TYPE VARCHAR(100)
-    """)
+    # Applied manually in Supabase before this migration ran.
+    # alembic_version was set to this revision directly, so this is a no-op.
+    pass
 
 
 def downgrade():
-    op.execute("""
-        ALTER TABLE mls_listings
-            ALTER COLUMN photos_timestamp TYPE VARCHAR(30),
-            ALTER COLUMN external_id     TYPE VARCHAR(50)
-    """)
+    pass
