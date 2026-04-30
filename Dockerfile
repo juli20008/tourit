@@ -56,4 +56,4 @@ EXPOSE ${PORT}
 
 # Run migrations then start the server
 # eventlet worker required by Flask-SocketIO; -w 1 is mandatory with eventlet
-CMD sh -c "flask db upgrade && gunicorn --worker-class eventlet --workers 1 --bind 0.0.0.0:${PORT:-10000} --timeout 120 --keep-alive 5 --log-level info --access-logfile - --error-logfile - wsgi:app"
+CMD flask db upgrade 2>&1 && exec gunicorn --worker-class eventlet --workers 1 --bind 0.0.0.0:${PORT:-10000} --timeout 120 --keep-alive 5 --log-level debug --capture-output --access-logfile - --error-logfile - wsgi:app 2>&1

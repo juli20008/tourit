@@ -67,3 +67,6 @@ python -m flask repliers resync-cdn-fields
 
 
   DDF_CDN_SINCE=2000-01-01T00:00:00Z npx ts-node lib/scripts/resyncCdnFields.ts
+
+
+python -m flask db upgrade
