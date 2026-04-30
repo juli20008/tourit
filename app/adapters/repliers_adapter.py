@@ -5,8 +5,11 @@ This is the only file that knows about Repliers-specific field names.
 To switch to TREB/CREA direct feeds, add a new adapter alongside this
 one and update the sync service to call it instead.
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from ..schemas.property_schema import StandardPropertySchema, StandardAgentSchema
+
+# .NET epoch (0001-01-01 00:00:00 UTC) expressed as Unix microseconds
+_DOTNET_EPOCH_TICKS = 621355968000000000
 
 
 def _parse_date(val: str) -> datetime | None:
@@ -21,6 +24,43 @@ def _parse_date(val: str) -> datetime | None:
 def _truncate(val, length: int) -> str | None:
     s = (val or '')[:length]
     return s or None
+
+
+def _as_ticks_str(val) -> str | None:
+    """Convert a photosTimestamp value to a .NET-ticks string with no float conversion.
+
+    Repliers may return:
+    - An integer (JSON number) → Python parses this as a full-precision int; just stringify it.
+    - An ISO-8601 date string  → convert to ticks using integer arithmetic only.
+
+    Never cast through float(): an 18-digit tick value exceeds float64 precision (~15 sig figs)
+    and the last 2-3 digits would be zeroed out, producing wrong CDN URLs.
+    """
+    if val is None or val == '':
+        return None
+    # If it's already an int (Python json.loads preserves arbitrary precision),
+    # stringify directly — no float involved.
+    if isinstance(val, int):
+        return str(val)
+    s = str(val).strip()
+    if not s:
+        return None
+    # Pure digit string → already a tick value stored as text
+    if s.lstrip('-').isdigit():
+        return s
+    # ISO date string → convert to ticks using only integer arithmetic
+    try:
+        dt = datetime.fromisoformat(s.replace('Z', '+00:00'))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        unix_epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
+        delta = dt - unix_epoch
+        # delta.days / .seconds / .microseconds are all Python ints — no float
+        us = delta.days * 86_400_000_000 + delta.seconds * 1_000_000 + delta.microseconds
+        ticks = _DOTNET_EPOCH_TICKS + us * 10
+        return str(ticks)
+    except Exception:
+        return None
 
 
 def to_standard(raw: dict) -> StandardPropertySchema:
@@ -78,5 +118,9 @@ def to_standard(raw: dict) -> StandardPropertySchema:
         property_type=_truncate(det.get('propertyType'), 50),
         description=det.get('description'),
         images=raw.get('images') or [],
+        # CDN metadata — treat photosTimestamp as string immediately to preserve 18-digit precision
+        external_id=_truncate(str(raw.get('externalId') or ''), 100) or None,
+        photos_timestamp=_as_ticks_str(raw.get('photosTimestamp')),
+        photos_count=raw.get('numPhotos') or raw.get('photosCount'),
         agent=agent,
     )
