@@ -15,7 +15,7 @@ def _normalize_ticks(photos_timestamp) -> str | None:
     for 18-digit .NET tick values.
     """
     if not photos_timestamp:
-        return Nonenitai
+        return None
     s = str(photos_timestamp).strip()
     # Fast path — already a clean integer string
     if s.lstrip('-').isdigit():
