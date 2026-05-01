@@ -3,7 +3,7 @@ from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from sqlalchemy.dialects.postgresql import JSONB
 
-_CDN_BASE = "https://cdn.realtor.ca/listings"
+_CDN_BASE = "https://ddfcdn.realtor.ca/listings"
 
 
 def _normalize_ticks(photos_timestamp) -> str | None:
