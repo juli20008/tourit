@@ -1,0 +1,31 @@
+name: Hourly DDF Sync
+
+on:
+  schedule:
+    - cron: "5 * * * *"   # 5 minutes past every hour
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run hourly sync
+        env:
+          DDF_LOGIN_URL:             ${{ secrets.DDF_LOGIN_URL }}
+          DDF_USERNAME:              ${{ secrets.DDF_USERNAME }}
+          DDF_PASSWORD:              ${{ secrets.DDF_PASSWORD }}
+          SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: ./node_modules/.bin/ts-node lib/services/hourlySync.ts
