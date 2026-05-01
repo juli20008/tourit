@@ -61,6 +61,14 @@ function firstDefined(...values: any[]): any {
   return null;
 }
 
+function firstEmail(...values: any[]): string | null {
+  for (const value of values) {
+    const s = String(value ?? '').trim();
+    if (s && s !== 'False' && s !== 'True' && s.includes('@')) return s;
+  }
+  return null;
+}
+
 function toNumber(value: any): number | null {
   if (value === null || value === undefined || value === '') return null;
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
@@ -199,7 +207,7 @@ export function mapDDFToSupabase(item: any): any {
     description: firstDefined(raw.PublicRemarks, raw.Description, raw.MLSComments, raw.Remarks_for_Clients),
     images: [],
     agent_name: firstDefined(raw.ListAgentFullName, raw.LA_Name_format, raw.ListAgentName),
-    agent_email: firstDefined(raw.ListAgentEmail, raw.LA_email),
+    agent_email: firstEmail(raw.ListAgentEmail, raw.LA_email),
     brokerage: firstDefined(raw.ListOfficeName, raw.ListBrokerage, raw.BrokerageName),
     cooling: firstDefined(raw.Cooling, raw.CoolingType, raw.AC),
     heating: firstDefined(raw.Heating, raw.HeatingType),

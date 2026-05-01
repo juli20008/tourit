@@ -236,8 +236,9 @@ async function processPageListings(
 ): Promise<{ successCount: number; failCount: number }> {
   console.log(`DEBUG: Starting mapping for Page ${pageNumber}`);
 
-  // Build mapped rows and track DDF photo timestamp per mls_number
-  const ddfTimestampByMls = new Map<string, string | null>();
+  // Build mapped rows; track DDF photo timestamp and original ListingKey per mls_number
+  const ddfTimestampByMls  = new Map<string, string | null>();
+  const listingKeyByMls    = new Map<string, string | number>(); // numeric DDF key for GetObject
   const batchData = pageItems.map((item) => {
     const itemModification = getRecordModificationTimestamp(item);
     if (itemModification && itemModification > latestModificationRef.value) {
@@ -250,6 +251,9 @@ async function processPageListings(
 
     if (row.mls_number) {
       ddfTimestampByMls.set(String(row.mls_number), row.photos_timestamp ?? null);
+      // ListingKey is the numeric DDF key; keep it before toDbRow strips non-column fields
+      const ddfListingKey = item.ListingKey ?? item.ListingID ?? item.id;
+      if (ddfListingKey) listingKeyByMls.set(String(row.mls_number), ddfListingKey);
     }
     return row;
   });
@@ -318,7 +322,8 @@ async function processPageListings(
       if (!needsUpdate) continue;
 
       try {
-        const listingKey = row.id ?? mls;
+        // Use the numeric DDF ListingKey for GetObject — MLS numbers cause 20402
+        const listingKey = listingKeyByMls.get(mls) ?? row.id ?? mls;
         const urls = await photoSession.fetchPhotoUrls(listingKey);
         if (urls.length > 0) {
           await patchListingImages(mls, urls);
