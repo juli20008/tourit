@@ -95,6 +95,9 @@ class MlsListing(db.Model):
     photos_timestamp = db.Column(db.Text, nullable=True)  # .NET ticks — TEXT avoids VARCHAR length constraints
     photos_count = db.Column(db.Integer, nullable=True)
 
+    association_fee = db.Column(db.Numeric(10, 2), nullable=True)
+    association_fee_frequency = db.Column(db.String(30), nullable=True)
+
     # Agent / brokerage
     agent_name = db.Column(db.String(100))
     agent_email = db.Column(db.String(255))
@@ -204,6 +207,8 @@ class MlsListing(db.Model):
             'image_urls': imgs,
             'lat': float(self.lat) if self.lat is not None else None,
             'lng': float(self.lng) if self.lng is not None else None,
+            'association_fee': float(self.association_fee) if self.association_fee is not None else None,
+            'association_fee_frequency': self.association_fee_frequency or None,
         }
 
     def to_frontend_dict(self):

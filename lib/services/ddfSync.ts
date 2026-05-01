@@ -57,6 +57,8 @@ const SUPABASE_COLUMNS = new Set([
   'board_id',
   'realtor_link',
   'updated_at',
+  'association_fee',
+  'association_fee_frequency',
 ]);
 
 type SupabaseClientLike = {

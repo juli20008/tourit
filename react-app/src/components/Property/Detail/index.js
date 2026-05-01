@@ -51,6 +51,15 @@ const Detail = ({ property }) => {
 
 	const dom = daysOnMarket(property?.listing_date);
 
+	const isCondo = /condo/i.test(property?.property_class || property?.property_type || '');
+	const isForSale = (property?.transaction_type || '').toLowerCase() !== 'for lease';
+	const showStrataFee = isCondo && isForSale && property?.association_fee > 0;
+
+	const fmtFee = (fee, freq) => {
+		const s = "$" + Number(fee).toFixed(0).replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,");
+		return freq ? `${s} / ${freq}` : s;
+	};
+
 	return (
 		<div className="font-sans text-[#1a1a18]">
 
@@ -124,6 +133,9 @@ const Detail = ({ property }) => {
 					<Row label="Sold Price" value={fmtPrice(property.sold_price)} />
 				)}
 				{pricePerSqft && <Row label="Price per sqft" value={pricePerSqft} />}
+				{showStrataFee && (
+					<Row label="Strata / Maint. Fee" value={fmtFee(property.association_fee, property.association_fee_frequency)} />
+				)}
 				<Row label="Est. Mortgage" value="—" />
 			</Section>
 

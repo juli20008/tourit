@@ -221,6 +221,8 @@ export function mapDDFToSupabase(item: any): any {
       : null,
     realtor_link: firstDefined(raw.MoreInformationLink, raw.MoreInfoLink, raw.Link) ? String(firstDefined(raw.MoreInformationLink, raw.MoreInfoLink, raw.Link)) : null,
     updated_at: toDate(firstDefined(raw.ModificationTimestamp, raw.LastUpdated, raw.UpdatedAt)),
+    association_fee: toNumber(raw.AssociationFee),
+    association_fee_frequency: firstDefined(raw.AssociationFeeFrequency) ? String(firstDefined(raw.AssociationFeeFrequency)) : null,
   };
 }
 
