@@ -16,8 +16,6 @@ import { DdfPhotoSession } from './ddfPhotoFetcher';
 dotenv.config({ path: '.env' });
 dotenv.config({ path: '.env.local' });
 
-const zipcodes = require('zipcodes');
-
 // ─── Supabase helpers ─────────────────────────────────────────────────────────
 
 const SUPABASE_URL = process.env.SUPABASE_URL!;
@@ -57,19 +55,6 @@ async function patchImages(mlsNumber: string, urls: string[]): Promise<void> {
   if (!res.ok) throw new Error(`PATCH images ${res.status}: ${await res.text()}`);
 }
 
-// ─── Coord fallback (same as full sync) ──────────────────────────────────────
-
-function applyCoordFallback(row: Record<string, any>): Record<string, any> {
-  if (row.lat && row.lng) return row;
-  const postal = String(row.zip ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3);
-  if (!postal) return row;
-  const rec = zipcodes.lookup(postal);
-  if (rec && Number.isFinite(Number(rec.latitude))) {
-    return { ...row, lat: Number(rec.latitude), lng: Number(rec.longitude) };
-  }
-  return row;
-}
-
 // ─── Column allowlist ─────────────────────────────────────────────────────────
 
 const COLUMNS = new Set([
@@ -85,8 +70,7 @@ const COLUMNS = new Set([
 
 function toDbRow(raw: Record<string, any>): Record<string, any> {
   const mapped  = mapDDFToSupabase(raw);
-  const coords  = applyCoordFallback(mapped);
-  const filtered = Object.fromEntries(Object.entries(coords).filter(([k]) => COLUMNS.has(k)));
+  const filtered = Object.fromEntries(Object.entries(mapped).filter(([k]) => COLUMNS.has(k)));
   // ensure id is set
   if (!filtered.id && filtered.mls_number) filtered.id = filtered.mls_number;
   return filtered;

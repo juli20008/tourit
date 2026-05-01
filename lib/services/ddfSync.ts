@@ -7,7 +7,6 @@ dotenv.config({ path: '.env' });
 dotenv.config({ path: '.env.local' });
 console.log('Using URL:', process.env.SUPABASE_URL);
 
-const zipcodes = require('zipcodes');
 
 type DdfRaw = Record<string, any>;
 
@@ -246,8 +245,7 @@ async function processPageListings(
     }
 
     const mapped = mapDDFToSupabase(item);
-    const withCoords = applyPostalCentroidFallback(mapped);
-    const row = prepareRowForInsert(truncateStringFields(toDbRow(withCoords)));
+    const row = prepareRowForInsert(truncateStringFields(toDbRow(mapped)));
 
     if (row.mls_number) {
       ddfTimestampByMls.set(String(row.mls_number), row.photos_timestamp ?? null);
@@ -373,63 +371,6 @@ function getRecordModificationTimestamp(item: DdfRaw): string | null {
   return normalizeTimestamp(item.ModificationTimestamp ?? item.LastUpdated ?? item.updated_at);
 }
 
-function hasValidCoordinates(row: SupabaseRow): boolean {
-  return Number(row.lat) !== 0 && Number(row.lng) !== 0 && row.lat !== null && row.lng !== null && row.lat !== undefined && row.lng !== undefined;
-}
-
-type Coords = { lat: number; lng: number };
-
-const postalCentroidCache = new Map<string, Coords | null>();
-
-function normalizePostalCode(value: any): string | null {
-  if (value === null || value === undefined) return null;
-  const normalized = String(value).toUpperCase().replace(/[^A-Z0-9]/g, '');
-  return normalized || null;
-}
-
-function lookupPostalCentroid(postalCode: any): Coords | null {
-  const normalized = normalizePostalCode(postalCode);
-  if (!normalized) return null;
-
-  const cacheKey = normalized.length >= 3 ? normalized.slice(0, 3) : normalized;
-  if (postalCentroidCache.has(cacheKey)) {
-    return postalCentroidCache.get(cacheKey) ?? null;
-  }
-
-  const candidates = Array.from(
-    new Set([normalized, cacheKey].filter((candidate): candidate is string => Boolean(candidate)))
-  );
-
-  for (const candidate of candidates) {
-    const record = zipcodes.lookup(candidate);
-    if (record && Number.isFinite(Number(record.latitude)) && Number.isFinite(Number(record.longitude))) {
-      const coords = { lat: Number(record.latitude), lng: Number(record.longitude) };
-      postalCentroidCache.set(cacheKey, coords);
-      return coords;
-    }
-  }
-
-  postalCentroidCache.set(cacheKey, null);
-  return null;
-}
-
-function applyPostalCentroidFallback(row: SupabaseRow): SupabaseRow {
-  if (hasValidCoordinates(row)) {
-    return row;
-  }
-
-  const coords = lookupPostalCentroid(row.zip);
-  if (!coords) {
-    return row;
-  }
-
-  console.log(`Postal centroid used for ${getListingKey(row)} from ${row.zip}`);
-  return {
-    ...row,
-    lat: coords.lat,
-    lng: coords.lng,
-  };
-}
 
 async function fetchDdfListings(): Promise<DdfRaw[]> {
   const loginUrl = process.env.DDF_LOGIN_URL;
