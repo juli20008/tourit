@@ -79,7 +79,9 @@ npx ts-node lib/scripts/ddfResearch.ts
      npx ts-node lib/scripts/ddfMediaSearch.ts
        npx ts-node lib/scripts/ddfGetPhotos.ts
 
-         npx ts-node lib/scripts/ddfRawGetObject.ts
+         npx ts-node lib/scripts/dwGetObject.ts
          npx ts-node lib/scripts/ddfRawGetObject.ts
 npx ts-node lib/scripts/testTorontoPhotos.ts
         npx ts-node lib/services/ddfSync.ts
+
+        npx ts-node test-ddf.ts
