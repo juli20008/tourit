@@ -70,19 +70,28 @@ function buildDigest(
   return hdr;
 }
 
-function parseMediaUrls(bodyStr: string): string[] {
+function parseMediaUrls(bodyStr: string, debug = false): string[] {
+  if (debug) console.log('[photo] Raw body (first 1000):\n', bodyStr.slice(0, 1000));
+
   const delimMatch = bodyStr.match(/DELIMITER value="(\d+)"/);
   const delim = delimMatch ? String.fromCharCode(parseInt(delimMatch[1], 10)) : '\t';
 
   const colMatch = bodyStr.match(/<COLUMNS>([\s\S]*?)<\/COLUMNS>/);
   const dataAll  = [...bodyStr.matchAll(/<DATA>([\s\S]*?)<\/DATA>/g)];
-  if (!colMatch || dataAll.length === 0) return [];
+
+  if (!colMatch) { console.warn('[photo] No <COLUMNS> tag found'); return []; }
+  if (dataAll.length === 0) { console.warn('[photo] No <DATA> rows found'); return []; }
 
   const cols = colMatch[1].split(delim).map(c => c.trim()).filter(Boolean);
+  console.log('[photo] GetObject columns:', cols.join(' | '));
+
   // Accept any column whose name contains url, location, media, or object
   const urlIdx = cols.findIndex(c => /mediaurl|location|url|objectdata/i.test(c));
   if (urlIdx === -1) {
-    console.warn('[photo] No URL column in GetObject response. Columns:', cols.join(', '));
+    console.warn('[photo] No URL column found. All columns:', cols.join(', '));
+    // Log first DATA row so we can see what values look like
+    const firstVals = dataAll[0][1].split(delim).map(v => v.trim());
+    cols.forEach((c, i) => console.log(`  [${i}] ${c}: ${firstVals[i] ?? ''}`));
     return [];
   }
 
@@ -90,6 +99,7 @@ function parseMediaUrls(bodyStr: string): string[] {
   for (const dm of dataAll) {
     const vals = dm[1].split(delim).map(v => v.trim());
     const u = vals[urlIdx] ?? '';
+    if (debug) console.log(`[photo]   ${cols[urlIdx]}=${u}`);
     if (u.startsWith('http')) urls.push(u);
   }
   return urls;
@@ -180,6 +190,8 @@ export class DdfPhotoSession {
       throw new Error(`RETS error ${code}: ${text} for listing ${listingKey}`);
     }
 
-    return parseMediaUrls(bodyStr);
+    // debug=true for the first call so we can see the full column layout once
+    const debug = this.nc === 2;
+    return parseMediaUrls(bodyStr, debug);
   }
 }
