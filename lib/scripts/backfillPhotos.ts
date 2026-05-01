@@ -32,7 +32,7 @@ const FROM_DATE = getArg('from') ?? '2026-01-01T00:00:00Z';
 const MAX_LISTINGS = parseInt(getArg('max') ?? '2000', 10);
 const PAGE_SIZE = 100;
 const MAX_PAGES = 200;
-const DELAY_MS = 200;
+const DELAY_MS = 100;
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 
