@@ -81,3 +81,5 @@ npx ts-node lib/scripts/ddfResearch.ts
 
          npx ts-node lib/scripts/ddfRawGetObject.ts
          npx ts-node lib/scripts/ddfRawGetObject.ts
+npx ts-node lib/scripts/testTorontoPhotos.ts
+        npx ts-node lib/services/ddfSync.ts
