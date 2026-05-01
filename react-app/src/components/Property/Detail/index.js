@@ -210,7 +210,9 @@ const Detail = ({ property }) => {
 					<Row label="MLS #" value={property.mls_number || property.listing_id} />
 				)}
 				{dom !== null && <Row label="Days on Market" value={`${dom} days`} />}
-				{property?.status && <Row label="Status" value={statusLabel(property.status)} />}
+				{(property?.standard_status || property?.status) && (
+					<Row label="Status" value={property.standard_status || property.status} />
+				)}
 				<Row label="Source" value={property?.is_mls ? "CREA" : "—"} />
 			</Section>
 
