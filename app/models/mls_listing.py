@@ -189,7 +189,7 @@ class MlsListing(db.Model):
             'type': self.style or self.property_type or self.transaction_type or '',
             'style': self.style or '',
             'property_type': self.property_type or '',
-            'transaction_type': self.transaction_type or '',
+            'transaction_type': self.transaction_type or 'For Sale',
             'property_class': self.property_class or '',
             'price': self.list_price or 0,
             'sold_price': self.sold_price,
