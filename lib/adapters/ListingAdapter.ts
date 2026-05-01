@@ -223,6 +223,11 @@ export function mapDDFToSupabase(item: any): any {
     updated_at: toDate(firstDefined(raw.ModificationTimestamp, raw.LastUpdated, raw.UpdatedAt)),
     association_fee: toNumber(raw.AssociationFee),
     association_fee_frequency: firstDefined(raw.AssociationFeeFrequency) ? String(firstDefined(raw.AssociationFeeFrequency)) : null,
+    lot_frontage: firstDefined(raw.FrontageLength) ? String(raw.FrontageLength).trim() : null,
+    lot_size_area: toNumber(raw.LotSizeArea) || null,
+    construction_materials: firstDefined(raw.ConstructionMaterials) ? String(raw.ConstructionMaterials).trim() : null,
+    levels: firstDefined(raw.Levels) ? String(raw.Levels).trim() : null,
+    ownership_type: firstDefined(raw.OwnershipType) ? String(raw.OwnershipType).trim() : null,
   };
 }
 

@@ -97,6 +97,11 @@ class MlsListing(db.Model):
 
     association_fee = db.Column(db.Numeric(10, 2), nullable=True)
     association_fee_frequency = db.Column(db.String(30), nullable=True)
+    lot_frontage = db.Column(db.String(50), nullable=True)
+    lot_size_area = db.Column(db.Numeric(12, 2), nullable=True)
+    construction_materials = db.Column(db.Text, nullable=True)
+    levels = db.Column(db.String(20), nullable=True)
+    ownership_type = db.Column(db.String(50), nullable=True)
 
     # Agent / brokerage
     agent_name = db.Column(db.String(100))
@@ -209,6 +214,11 @@ class MlsListing(db.Model):
             'lng': float(self.lng) if self.lng is not None else None,
             'association_fee': float(self.association_fee) if self.association_fee is not None else None,
             'association_fee_frequency': self.association_fee_frequency or None,
+            'lot_frontage': self.lot_frontage or None,
+            'lot_size_area': float(self.lot_size_area) if self.lot_size_area is not None else None,
+            'construction_materials': self.construction_materials or None,
+            'levels': self.levels or None,
+            'ownership_type': self.ownership_type or None,
         }
 
     def to_frontend_dict(self):

@@ -67,6 +67,7 @@ const COLUMNS = new Set([
   'heating','parking_total','garage_yn','photos_count','photos_timestamp',
   'board_id','realtor_link','updated_at',
   'association_fee','association_fee_frequency',
+  'lot_frontage','lot_size_area','construction_materials','levels','ownership_type',
 ]);
 
 function toDbRow(raw: Record<string, any>): Record<string, any> {

@@ -59,6 +59,11 @@ const SUPABASE_COLUMNS = new Set([
   'updated_at',
   'association_fee',
   'association_fee_frequency',
+  'lot_frontage',
+  'lot_size_area',
+  'construction_materials',
+  'levels',
+  'ownership_type',
 ]);
 
 type SupabaseClientLike = {
