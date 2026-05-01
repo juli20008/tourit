@@ -82,16 +82,14 @@ function parseMediaUrls(bodyStr: string, debug = false): string[] {
   if (!colMatch) { console.warn('[photo] No <COLUMNS> tag found'); return []; }
   if (dataAll.length === 0) { console.warn('[photo] No <DATA> rows found'); return []; }
 
-  const cols = colMatch[1].split(delim).map(c => c.trim()).filter(Boolean);
-  console.log('[photo] GetObject columns:', cols.join(' | '));
+  // Use raw (unfiltered) split so column indices match DATA row indices exactly.
+  // RETS COMPACT lines start and end with the delimiter, so index 0 is always empty.
+  const rawCols = colMatch[1].split(delim).map(c => c.trim());
+  console.log('[photo] GetObject columns:', rawCols.filter(Boolean).join(' | '));
 
-  // Accept any column whose name contains url, location, media, or object
-  const urlIdx = cols.findIndex(c => /mediaurl|location|url|objectdata/i.test(c));
+  const urlIdx = rawCols.findIndex(c => /mediaurl|location|url|objectdata/i.test(c));
   if (urlIdx === -1) {
-    console.warn('[photo] No URL column found. All columns:', cols.join(', '));
-    // Log first DATA row so we can see what values look like
-    const firstVals = dataAll[0][1].split(delim).map(v => v.trim());
-    cols.forEach((c, i) => console.log(`  [${i}] ${c}: ${firstVals[i] ?? ''}`));
+    console.warn('[photo] No URL column found. Raw cols:', rawCols.join(', '));
     return [];
   }
 
@@ -99,9 +97,8 @@ function parseMediaUrls(bodyStr: string, debug = false): string[] {
   for (const dm of dataAll) {
     const vals = dm[1].split(delim).map(v => v.trim());
     const u = vals[urlIdx] ?? '';
-    console.log(`[photo]   ${cols[urlIdx]}="${u}" (len=${u.length})`);
     if (u.startsWith('http')) urls.push(u);
-    else if (u.startsWith('//')) urls.push('https:' + u); // protocol-relative
+    else if (u.startsWith('//')) urls.push('https:' + u);
   }
   return urls;
 }
