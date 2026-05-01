@@ -152,53 +152,45 @@ const Detail = ({ property }) => {
 
 			<Section title="Home details">
 				{/* ── Common ── */}
-				<Row label="Bedrooms"       value={property?.bed || "—"} />
-				<Row label="Full Bathrooms" value={property?.bath || "—"} />
-				{(isCondo || isTownhouse) && (
-					<Row label="Partial Bathrooms" value={property?.bath_half > 0 ? property.bath_half : "—"} />
+				{property?.bed          && <Row label="Bedrooms"        value={property.bed} />}
+				{property?.bath         && <Row label="Full Bathrooms"  value={property.bath} />}
+				{(isCondo || isTownhouse) && property?.bath_half > 0 && (
+					<Row label="Partial Bathrooms" value={property.bath_half} />
 				)}
-				<Row label="Parking Spaces" value={property?.parking_total || "—"} />
-				<Row label="Property Type"  value={property?.style || property?.property_type || property?.property_class || "—"} />
-				{property?.sqft && <Row label="Sqft" value={Number(property.sqft).toLocaleString()} />}
-				{property?.built && <Row label="Year Built" value={property.built} />}
-				{property?.levels && <Row label="Storeys" value={property.levels} />}
+				{property?.parking_total && <Row label="Parking Spaces" value={property.parking_total} />}
+				{(property?.style || property?.property_type || property?.property_class) && (
+					<Row label="Property Type" value={property.style || property.property_type || property.property_class} />
+				)}
+				{property?.sqft         && <Row label="Sqft"       value={Number(property.sqft).toLocaleString()} />}
+				{property?.built        && <Row label="Year Built"  value={property.built} />}
+				{property?.levels       && <Row label="Storeys"     value={property.levels} />}
 
 				{/* ── House-specific ── */}
 				{isHouse && <>
-					<Row label="Lot Size"       value={property?.lot_size_area > 0 ? `${Number(property.lot_size_area).toLocaleString()} ft²` : "—"} />
-					<Row label="Lot Frontage"   value={property?.lot_frontage || "—"} />
-					<Row label="Exterior Finish" value={property?.construction_materials || "—"} />
-					<Row label="Heating Type"   value={property?.heating || "—"} />
-					<Row label="Cooling"        value={property?.cooling || "—"} />
-					<Row label="Basement"       value="—" />
-					<Row label="Community"      value={property?.neighborhood || "—"} />
+					{property?.lot_size_area > 0  && <Row label="Lot Size"        value={`${Number(property.lot_size_area).toLocaleString()} ft²`} />}
+					{property?.lot_frontage        && <Row label="Lot Frontage"    value={property.lot_frontage} />}
+					{property?.construction_materials && <Row label="Exterior Finish" value={property.construction_materials} />}
+					{property?.heating             && <Row label="Heating Type"    value={property.heating} />}
+					{property?.cooling             && <Row label="Cooling"         value={property.cooling} />}
+					{property?.neighborhood        && <Row label="Community"       value={property.neighborhood} />}
 				</>}
 
 				{/* ── Condo-specific ── */}
 				{isCondo && <>
-					<Row label="Parking Details"  value="—" />
-					<Row label="Title"            value={ownershipLabel(property?.ownership_type) || "—"} />
-					<Row label="Exterior Finish"  value={property?.construction_materials || "—"} />
-					<Row label="Heating Type"     value={property?.heating || "—"} />
-					<Row label="Cooling"          value={property?.cooling || "—"} />
-					<Row label="Pool"             value="—" />
-					<Row label="Features"         value="—" />
-					<Row label="Amenities"        value="—" />
-					<Row label="Appliances"       value="—" />
-					<Row label="Community"        value={property?.neighborhood || "—"} />
+					{ownershipLabel(property?.ownership_type) && <Row label="Title"           value={ownershipLabel(property.ownership_type)} />}
+					{property?.construction_materials          && <Row label="Exterior Finish" value={property.construction_materials} />}
+					{property?.heating                         && <Row label="Heating Type"    value={property.heating} />}
+					{property?.cooling                         && <Row label="Cooling"         value={property.cooling} />}
+					{property?.neighborhood                    && <Row label="Community"       value={property.neighborhood} />}
 				</>}
 
 				{/* ── Townhouse-specific ── */}
 				{isTownhouse && !isCondo && <>
-					<Row label="Parking Details"  value="—" />
-					<Row label="Title"            value={ownershipLabel(property?.ownership_type) || "—"} />
-					<Row label="Exterior Finish"  value={property?.construction_materials || "—"} />
-					<Row label="Heating Type"     value={property?.heating || "—"} />
-					<Row label="Cooling"          value={property?.cooling || "—"} />
-					<Row label="Basement"         value="—" />
-					<Row label="Features"         value="—" />
-					<Row label="Appliances"       value="—" />
-					<Row label="Community"        value={property?.neighborhood || "—"} />
+					{ownershipLabel(property?.ownership_type) && <Row label="Title"           value={ownershipLabel(property.ownership_type)} />}
+					{property?.construction_materials          && <Row label="Exterior Finish" value={property.construction_materials} />}
+					{property?.heating                         && <Row label="Heating Type"    value={property.heating} />}
+					{property?.cooling                         && <Row label="Cooling"         value={property.cooling} />}
+					{property?.neighborhood                    && <Row label="Community"       value={property.neighborhood} />}
 				</>}
 			</Section>
 
