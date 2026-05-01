@@ -1,6 +1,7 @@
 from .db import db
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
+from sqlalchemy import func, or_
 from sqlalchemy.dialects.postgresql import JSONB
 
 _CDN_BASE = "https://ddfcdn.realtor.ca/listings"
@@ -105,6 +106,14 @@ class MlsListing(db.Model):
 
     # Agent / brokerage
     agent_name = db.Column(db.String(100))
+
+    @classmethod
+    def has_photos_filter(cls):
+        """Filter: listing has at least one photo (stored or CDN-generatable)."""
+        return or_(
+            (cls.images.isnot(None)) & (func.jsonb_array_length(cls.images) > 0),
+            (cls.external_id.isnot(None)) & (cls.photos_timestamp.isnot(None)),
+        )
     agent_email = db.Column(db.String(255))
     brokerage = db.Column(db.String(200))
 

@@ -167,7 +167,7 @@ def list_listings():
     t_type = request.args.get("type", "").strip()
 
     try:
-        q = MlsListing.query
+        q = MlsListing.query.filter(MlsListing.has_photos_filter())
         if city:
             q = q.filter(MlsListing.city.ilike(f"%{city}%"))
         if status:
@@ -257,6 +257,7 @@ def list_listings_by_bounds():
                 MlsListing.lat.between(lat_min, lat_max),
                 MlsListing.lng.between(lng_min, lng_max),
                 MlsListing.list_price.isnot(None),
+                MlsListing.has_photos_filter(),
             )
             .order_by(MlsListing.updated_at.desc().nullslast(), MlsListing.list_price.desc().nullslast())
             .limit(limit)
@@ -294,6 +295,7 @@ def nearby_listings():
             .filter(
                 MlsListing.lat.between(lat_min, lat_max),
                 MlsListing.lng.between(lng_min, lng_max),
+                MlsListing.has_photos_filter(),
             )
             .order_by(MlsListing.list_price)
             .limit(limit)
