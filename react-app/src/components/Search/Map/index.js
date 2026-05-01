@@ -223,7 +223,7 @@ const MapCore = withGoogleMap((props) => {
 		};
 
 		const handleClusterClick = (clusterId, lat, lng, count) => {
-			if (count > 10) {
+			if (count > 25) {
 				setPreviewCluster(null);
 				setBottomSheet(null);
 				const leaves = supercluster.getLeaves(clusterId, Infinity);
