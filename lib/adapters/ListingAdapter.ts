@@ -178,7 +178,7 @@ export function mapDDFToSupabase(item: any): any {
     status,
     standard_status,
     property_class: firstDefined(raw.PropertyClass, raw.Class, raw.PropertyType),
-    transaction_type: firstDefined(raw.TransactionType, raw.Transaction, raw.ListingType),
+    transaction_type: (lease !== null && lease > 0) ? 'For Lease' : (firstDefined(raw.TransactionType, raw.Transaction, raw.ListingType) ?? 'For Sale'),
     list_price: price,
     sold_price: toNumber(raw.SoldPrice),
     original_price: toNumber(firstDefined(raw.OriginalPrice, raw.OriginalListPrice, raw.OLstPrice)),
