@@ -206,11 +206,12 @@ const Detail = ({ property }) => {
 			</Section>
 
 			<Section title="Listing details">
-				<Row label="MLS #" value={property?.mls_number || property?.listing_id || "—"} />
-				<Row label="Listed" value={property?.listing_date || "—"} />
-				<Row label="Days on Market" value={dom !== null ? `${dom} days` : "—"} />
-				<Row label="Status" value={statusLabel(property?.status)} />
-				<Row label="Source" value="TRREB" />
+				{(property?.mls_number || property?.listing_id) && (
+					<Row label="MLS #" value={property.mls_number || property.listing_id} />
+				)}
+				{dom !== null && <Row label="Days on Market" value={`${dom} days`} />}
+				{property?.status && <Row label="Status" value={statusLabel(property.status)} />}
+				<Row label="Source" value={property?.is_mls ? "CREA" : "—"} />
 			</Section>
 
 			<hr className="border-stroke mb-4" />
