@@ -36,7 +36,7 @@ const Row = ({ label, value }) => (
 
 const Section = ({ title, children }) => (
 	<div className="mb-6">
-		<h3 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-2">{title}</h3>
+		<h3 className="text-sm font-semibold uppercase tracking-widest text-gray-800 mb-2">{title}</h3>
 		<div>{children}</div>
 	</div>
 );
