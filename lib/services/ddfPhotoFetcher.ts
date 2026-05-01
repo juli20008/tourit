@@ -99,8 +99,9 @@ function parseMediaUrls(bodyStr: string, debug = false): string[] {
   for (const dm of dataAll) {
     const vals = dm[1].split(delim).map(v => v.trim());
     const u = vals[urlIdx] ?? '';
-    if (debug) console.log(`[photo]   ${cols[urlIdx]}=${u}`);
+    console.log(`[photo]   ${cols[urlIdx]}="${u}" (len=${u.length})`);
     if (u.startsWith('http')) urls.push(u);
+    else if (u.startsWith('//')) urls.push('https:' + u); // protocol-relative
   }
   return urls;
 }
