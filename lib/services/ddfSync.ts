@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import { getAutoLogoutClient } from 'rets-client';
 import { mapDDFToSupabase } from '../adapters/ListingAdapter';
+import { DdfPhotoSession } from './ddfPhotoFetcher';
 
 dotenv.config({ path: '.env' });
 dotenv.config({ path: '.env.local' });
@@ -160,6 +161,48 @@ function toDbRow(row: SupabaseRow): SupabaseRow {
   );
 }
 
+// Returns a map of mls_number → { photos_timestamp, hasImages } from the DB.
+async function fetchExistingPhotoState(
+  mlsNumbers: string[]
+): Promise<Map<string, { photos_timestamp: string | null; hasImages: boolean }>> {
+  const url  = process.env.SUPABASE_URL!;
+  const key  = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const list = mlsNumbers.map(n => `"${n}"`).join(',');
+  const endpoint = `${url}/rest/v1/mls_listings?select=mls_number,photos_timestamp,images&mls_number=in.(${list})`;
+
+  const res = await fetch(endpoint, {
+    headers: { apikey: key, Authorization: `Bearer ${key}`, Accept: 'application/json' },
+  });
+  const map = new Map<string, { photos_timestamp: string | null; hasImages: boolean }>();
+  if (!res.ok) return map;
+  const rows: any[] = await res.json();
+  for (const r of rows) {
+    const imgs = r.images;
+    map.set(r.mls_number, {
+      photos_timestamp: r.photos_timestamp ?? null,
+      hasImages: Array.isArray(imgs) ? imgs.length > 0 : Boolean(imgs),
+    });
+  }
+  return map;
+}
+
+// Patches only the images column for one listing.
+async function patchListingImages(mlsNumber: string, urls: string[]): Promise<void> {
+  const url  = process.env.SUPABASE_URL!;
+  const key  = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const res  = await fetch(`${url}/rest/v1/mls_listings?mls_number=eq.${encodeURIComponent(mlsNumber)}`, {
+    method: 'PATCH',
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+      'Content-Type': 'application/json',
+      Prefer: 'return=minimal',
+    },
+    body: JSON.stringify({ images: urls }),
+  });
+  if (!res.ok) throw new Error(`PATCH images ${res.status}: ${await res.text()}`);
+}
+
 function truncateStringFields(row: SupabaseRow): SupabaseRow {
   const truncate = (value: any, max = 250) =>
     typeof value === 'string' ? value.substring(0, max) : value;
@@ -188,10 +231,13 @@ async function processPageListings(
   supabase: SupabaseClientLike,
   pageItems: DdfRaw[],
   pageNumber: number,
-  latestModificationRef: { value: string }
+  latestModificationRef: { value: string },
+  photoSession: DdfPhotoSession | null
 ): Promise<{ successCount: number; failCount: number }> {
   console.log(`DEBUG: Starting mapping for Page ${pageNumber}`);
 
+  // Build mapped rows and track DDF photo timestamp per mls_number
+  const ddfTimestampByMls = new Map<string, string | null>();
   const batchData = pageItems.map((item) => {
     const itemModification = getRecordModificationTimestamp(item);
     if (itemModification && itemModification > latestModificationRef.value) {
@@ -200,14 +246,22 @@ async function processPageListings(
 
     const mapped = mapDDFToSupabase(item);
     const withCoords = applyPostalCentroidFallback(mapped);
-    return prepareRowForInsert(truncateStringFields(toDbRow(withCoords)));
+    const row = prepareRowForInsert(truncateStringFields(toDbRow(withCoords)));
+
+    if (row.mls_number) {
+      ddfTimestampByMls.set(String(row.mls_number), row.photos_timestamp ?? null);
+    }
+    return row;
   });
 
   console.log(`Prepared ${batchData.length} record(s) for Supabase on page ${pageNumber}.`);
-  console.log(`Batch check: Total ${batchData.length} records. Records with mls_number: ${batchData.filter(r => r.mls_number).length}`);
   if (batchData.length > 0) {
     console.log('SAMPLE RECORD TO BE SAVED:', JSON.stringify(batchData[0], null, 2));
   }
+
+  // Read existing photo state BEFORE upsert so we can compare timestamps
+  const mlsNumbers = batchData.map(r => r.mls_number).filter(Boolean) as string[];
+  const existingState = photoSession ? await fetchExistingPhotoState(mlsNumbers) : new Map();
 
   let successCount = 0;
   let failCount = 0;
@@ -235,7 +289,6 @@ async function processPageListings(
           console.log('DEBUG ERROR for ' + getListingKey(item) + ': ', error);
           continue;
         }
-
         successCount += 1;
       } catch (itemError: unknown) {
         failCount += 1;
@@ -247,6 +300,38 @@ async function processPageListings(
   }
 
   console.log(`Page ${pageNumber}: Saved ${successCount} records, ${failCount} skipped.`);
+
+  // ── Photo update: fetch URLs for listings whose timestamp changed ─────────
+  if (photoSession) {
+    for (const row of batchData) {
+      const mls = row.mls_number;
+      if (!mls) continue;
+
+      const ddfTs  = ddfTimestampByMls.get(mls) ?? null;
+      const dbState = existingState.get(mls);
+
+      const needsUpdate =
+        !dbState ||                             // new listing
+        !dbState.hasImages ||                   // no photos yet
+        dbState.photos_timestamp !== ddfTs;     // timestamp changed
+
+      if (!needsUpdate) continue;
+
+      try {
+        const listingKey = row.id ?? mls;
+        const urls = await photoSession.fetchPhotoUrls(listingKey);
+        if (urls.length > 0) {
+          await patchListingImages(mls, urls);
+          console.log(`[photo] ${mls}: ${urls.length} photo(s) saved`);
+        } else {
+          console.log(`[photo] ${mls}: GetObject returned 0 URLs`);
+        }
+      } catch (e: any) {
+        console.warn(`[photo] ${mls}: ${e.message}`);
+      }
+    }
+  }
+
   return { successCount, failCount };
 }
 
@@ -367,6 +452,16 @@ async function fetchDdfListings(): Promise<DdfRaw[]> {
       const supabase = createSupabaseClient();
       const latestModificationRef = { value: ddfLastUpdated };
 
+      // Create one photo session for the whole sync — login once, reuse nonce
+      let photoSession: DdfPhotoSession | null = null;
+      try {
+        photoSession = new DdfPhotoSession(loginUrl, username, password);
+        await photoSession.login();
+      } catch (e: any) {
+        console.warn(`[photo] Could not establish photo session: ${e.message} — photos will be skipped`);
+        photoSession = null;
+      }
+
       let offset = DDF_SEARCH_START_OFFSET;
       let page = 1;
       let totalRecords: number | null = null;
@@ -387,7 +482,7 @@ async function fetchDdfListings(): Promise<DdfRaw[]> {
               offset,
               count: 1,
               format: DDF_SEARCH_FORMAT,
-              standardNames: 0,
+              standardNames: 1,
             } as any
           );
 
@@ -417,7 +512,7 @@ async function fetchDdfListings(): Promise<DdfRaw[]> {
             });
             console.log('REB_PATTERN_MATCHES:', rebMatches);
           }
-          await processPageListings(supabase, pageResults, page, latestModificationRef);
+          await processPageListings(supabase, pageResults, page, latestModificationRef, photoSession);
           listings.push(...pageResults);
           console.log(`Processing Page ${page} (Offset: ${offset}) complete. Returned ${recordsReturned} record(s).`);
 
