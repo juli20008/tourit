@@ -19,31 +19,40 @@ def _resolve_property_reference(property_id):
     """
     Resolve a property reference from either a seeded Property id or an MLS
     listing id encoded as `mls_<id>`.
+
+    Returns (property_obj, property_pk, mls_listing_id, mls_number_str).
+    mls_listing_id is set only when the MLS row has a numeric integer PK.
+    mls_number_str is set when the MLS row has a string PK (e.g. TREB: "C12975708").
     """
     if property_id is None:
-        return None, None, None
+        return None, None, None, None
 
     pid_str = str(property_id)
     if pid_str.startswith("mls_"):
+        raw = pid_str[4:]
+        # Try integer PK first (legacy numeric listings)
         try:
-            mls_listing_id = int(pid_str[4:])
+            int_id = int(raw)
+            property_obj = db.session.get(MlsListing, int_id)
+            if property_obj:
+                return property_obj, None, int_id, None
         except ValueError:
-            return None, None, None
-
-        property_obj = db.session.get(MlsListing, mls_listing_id)
+            pass
+        # Fall back to string mls_number lookup (TREB and other non-numeric IDs)
+        property_obj = MlsListing.query.filter_by(mls_number=raw).first()
         if not property_obj:
-            return None, None, None
-        return property_obj, None, mls_listing_id
+            return None, None, None, None
+        return property_obj, None, None, raw
 
     try:
         pid = int(pid_str)
     except (ValueError, TypeError):
-        return None, None, None
+        return None, None, None, None
 
     property_obj = db.session.get(Property, pid)
     if not property_obj:
-        return None, None, None
-    return property_obj, pid, None
+        return None, None, None, None
+    return property_obj, pid, None, None
 
 
 def _serialize_appointment_properties(appointments):
@@ -163,7 +172,7 @@ def add_appointment():
             return {"errors": ["property_id, date, and time are required"]}, 400
 
         # Resolve property_obj and determine which FK column to use
-        property_obj, pid, mls_listing_id = _resolve_property_reference(property_id)
+        property_obj, pid, mls_listing_id, mls_number_str = _resolve_property_reference(property_id)
         if not property_obj:
             if str(property_id).startswith("mls_"):
                 return {"errors": ["Listing not found"]}, 404
@@ -187,6 +196,8 @@ def add_appointment():
         )
         if mls_listing_id is not None:
             exists_query = exists_query.filter(Appointment.mls_listing_id == mls_listing_id)
+        elif mls_number_str:
+            exists_query = exists_query.filter(Appointment.mls_number == mls_number_str)
         else:
             exists_query = exists_query.filter(Appointment.property_id == pid)
 
@@ -217,6 +228,7 @@ def add_appointment():
             message=message,
             property_id=pid,
             mls_listing_id=mls_listing_id,
+            mls_number=mls_number_str,
             agent_id=selected_agent.id,
         )
 
@@ -278,7 +290,7 @@ def edit_appointment(appointment_id):
         if not update_appt:
             return {"errors": ["Appointment does not exist"]}
 
-        resolved_property, pid, mls_listing_id = _resolve_property_reference(property_id)
+        resolved_property, pid, mls_listing_id, mls_number_str = _resolve_property_reference(property_id)
         if property_id is not None and not resolved_property:
             if str(property_id).startswith("mls_"):
                 return {"errors": ["Listing does not exist"]}
@@ -372,7 +384,7 @@ def get_available_agents():
     if not date or not time:
         return {"errors": ["date and time are required"]}, 400
 
-    property_obj, _, _ = _resolve_property_reference(property_id)
+    property_obj, _, _, _ = _resolve_property_reference(property_id)
     agents = available_agents_for_slot(date, time, property_obj=property_obj)
 
     return {"agents": [agent.to_dict() for agent in agents]}

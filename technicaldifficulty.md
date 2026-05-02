@@ -69,13 +69,15 @@ Next Steps:
 2. One button to create a listing on FBMP/Kijiji/Xiaohongshu
 
 Absolutely need to be fixed:
+7. Search function
+3. Filters
+5. Request a showing
+4. For Sale/For Lease
+
+
 1. 字段
 2. Geo精确性
-3. Filters
-4. For Sale/For Lease
-5. Request a showing
 6. Chat function
-7. Search function
 8. Sort - 广告？
 
 Nice to have:

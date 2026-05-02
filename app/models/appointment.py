@@ -8,6 +8,7 @@ class Appointment(db.Model):
     agent_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     property_id = db.Column(db.Integer, db.ForeignKey("properties.id"), nullable=True)
     mls_listing_id = db.Column(db.Integer, db.ForeignKey("mls_listings.id"), nullable=True)
+    mls_number = db.Column(db.String(50), nullable=True)  # for listings whose id is non-integer
     date = db.Column(db.String(50), nullable=False)
     time = db.Column(db.String(50), nullable=False)
     message = db.Column(db.String(255))
@@ -37,6 +38,17 @@ class Appointment(db.Model):
                 "zip": self.mls_listing.zip or "",
                 "image": self.mls_listing.front_img,
             }
+        elif self.mls_number:
+            from app.models.mls_listing import MlsListing
+            ml = MlsListing.query.filter_by(mls_number=self.mls_number).first()
+            if ml:
+                listing = {
+                    "street": ml.street,
+                    "city": ml.city or "",
+                    "state": ml.state or "",
+                    "zip": ml.zip or "",
+                    "image": ml.front_img,
+                }
 
         return {
             "id": self.id,
@@ -45,8 +57,11 @@ class Appointment(db.Model):
             "email": self.user.email,
             "user_photo": self.user.photo,
             "agent_id": self.agent_id,
-            "property_id": f"mls_{self.mls_listing_id}" if self.mls_listing_id is not None else self.property_id,
+            "property_id": (f"mls_{self.mls_listing_id}" if self.mls_listing_id is not None
+                            else f"mls_{self.mls_number}" if self.mls_number
+                            else self.property_id),
             "mls_listing_id": self.mls_listing_id,
+            "mls_number": self.mls_number,
             "date": self.date,
             "time": self.time,
             "message": self.message,
