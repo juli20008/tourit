@@ -124,7 +124,7 @@ const Detail = ({ property }) => {
 			{property?.description && (
 				<>
 					<Section title="About this home">
-						<p className="text-lg text-gray-600 leading-relaxed whitespace-pre-line">
+						<p className="text-base text-gray-600 leading-relaxed whitespace-pre-line">
 							{property.description}
 						</p>
 					</Section>
