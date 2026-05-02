@@ -46,8 +46,8 @@ const Property = ({ property, onClose }) => {
 						</div>
 					</div>
 
-					{/* Right: Tour — sticky so it stays at top while left column scrolls */}
-					<div className="flex-shrink-0 w-[350px] sticky top-0 self-start border-l border-gray-100 p-5">
+										{/* Right: Tour — sticky so it stays at top while left column scrolls */}
+					<div className="hidden md:block flex-shrink-0 w-[350px] sticky top-0 self-start border-l border-gray-100 p-5">
 						<Tour property={property} setShowTour={onClose} inline />
 					</div>
 
