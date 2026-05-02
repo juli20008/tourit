@@ -132,6 +132,8 @@ class MlsListing(db.Model):
     agent_email = db.Column(db.String(255))
     brokerage = db.Column(db.String(200))
 
+    last_seen_at = db.Column(db.DateTime, nullable=True)
+
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow,
                            onupdate=datetime.utcnow)
