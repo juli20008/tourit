@@ -23,7 +23,7 @@ const Property = ({ property, onClose }) => {
 	}, [property, dispatch]);
 
 	return (
-		<div className="relative bg-white w-[92vw] max-w-[1200px] max-h-[92vh] rounded-2xl flex flex-col">
+		<div className="relative bg-white w-[96vw] max-w-[1300px] max-h-[92vh] rounded-2xl flex flex-col">
 
 			{/* Close button — outside the scroll area so it stays visible */}
 			<button
@@ -34,27 +34,22 @@ const Property = ({ property, onClose }) => {
 				<X size={16} strokeWidth={2} />
 			</button>
 
-			{/* Scrollable content */}
-			<div className="overflow-y-auto flex-1 min-h-0 rounded-2xl">
-				{/* ── Gallery (full width top) ── */}
-				<Images property={property} />
+			{/* Content: two columns */}
+			<div className="flex flex-1 min-h-0 rounded-2xl overflow-hidden">
 
-				{/* ── Body: responsive layout ── */}
-				<div className="flex flex-col md:flex-row md:gap-8 md:px-8 md:py-7 md:items-start">
-
-					{/* Tour sidebar — desktop only, right column */}
-					<div className="max-md:hidden order-last w-full md:w-[300px] md:flex-shrink-0 md:sticky md:top-6">
-						<Tour property={property} setShowTour={onClose} inline />
-					</div>
-
-					{/* Detail — full width on mobile, left column on desktop */}
-					<div className="flex-1 min-w-0 px-4 py-5 md:p-0">
+				{/* Left: gallery + detail, independently scrollable */}
+				<div className="flex-1 min-w-0 overflow-y-auto">
+					<Images property={property} />
+					<div className="px-6 py-6">
 						<Detail property={property} />
 					</div>
 				</div>
 
-				{/* Spacer so content isn't hidden behind the floating button on mobile */}
-				<div className="h-20 md:hidden" />
+				{/* Right: Tour — always visible, scrolls if content overflows */}
+				<div className="flex-shrink-0 w-[300px] overflow-y-auto border-l border-gray-100 p-5">
+					<Tour property={property} setShowTour={onClose} inline />
+				</div>
+
 			</div>
 
 			{/* Mobile: floating Tour button */}
