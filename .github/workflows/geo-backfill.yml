@@ -7,6 +7,10 @@ on:
         description: "Query DDF for listings updated since (ISO date)"
         required: false
         default: "2000-01-01T00:00:00Z"
+      province:
+        description: "Filter by province (e.g. Ontario) — leave blank for all"
+        required: false
+        default: "Ontario"
 
 jobs:
   backfill:
@@ -34,5 +38,6 @@ jobs:
           SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          ./node_modules/.bin/ts-node lib/scripts/geoBackfill.ts \
-            --from=${{ github.event.inputs.from_date }}
+          FLAGS="--from=${{ github.event.inputs.from_date }}"
+          if [ -n "${{ github.event.inputs.province }}" ]; then FLAGS="$FLAGS --province=${{ github.event.inputs.province }}"; fi
+          ./node_modules/.bin/ts-node lib/scripts/geoBackfill.ts $FLAGS

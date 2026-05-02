@@ -6,7 +6,7 @@
  *
  * Run:
  *   npx ts-node lib/scripts/geoBackfill.ts
- *   npx ts-node lib/scripts/geoBackfill.ts --from=2024-01-01T00:00:00Z --max-pages=500
+ *   npx ts-node lib/scripts/geoBackfill.ts --from=2000-01-01T00:00:00Z --province=Ontario
  */
 
 import dotenv from 'dotenv';
@@ -24,6 +24,7 @@ function getArg(name: string): string | null {
 }
 
 const FROM_DATE  = getArg('from') ?? '2000-01-01T00:00:00Z';
+const PROVINCE   = getArg('province'); // e.g. 'Ontario' — omit for all provinces
 const PAGE_SIZE  = 100;
 const PAGE_DELAY = 500; // ms between pages — no per-listing delay needed
 
@@ -71,7 +72,7 @@ async function main() {
     throw new Error('Missing required env vars');
   }
 
-  console.log(`[geo] FROM: ${FROM_DATE}  (no page cap — runs until DDF exhausted)`);
+  console.log(`[geo] FROM: ${FROM_DATE}  PROVINCE: ${PROVINCE ?? 'all'}`);
 
   let totalSeen  = 0;
   let totalPatch = 0;
@@ -86,9 +87,12 @@ async function main() {
 
         let items: any[];
         try {
+          const query = PROVINCE
+            ? `(LastUpdated=${FROM_DATE}),(StateOrProvince=${PROVINCE})`
+            : `(LastUpdated=${FROM_DATE})`;
           const result = await rets.search.query(
             'Property', 'Property',
-            `(LastUpdated=${FROM_DATE})`,
+            query,
             { limit: PAGE_SIZE, offset, count: 1, format: 'COMPACT', standardNames: 1 } as any
           );
           items = result.results ?? [];
