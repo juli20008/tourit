@@ -147,7 +147,6 @@ const Detail = ({ property }) => {
 				{showStrataFee && (
 					<Row label="Strata / Maint. Fee" value={fmtFee(property.association_fee, property.association_fee_frequency)} />
 				)}
-				<Row label="Est. Mortgage" value="—" />
 			</Section>
 
 			<Section title="Home details">
