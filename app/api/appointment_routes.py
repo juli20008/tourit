@@ -30,7 +30,7 @@ def _resolve_property_reference(property_id):
         except ValueError:
             return None, None, None
 
-        property_obj = MlsListing.query.get(mls_listing_id)
+        property_obj = db.session.get(MlsListing, mls_listing_id)
         if not property_obj:
             return None, None, None
         return property_obj, None, mls_listing_id
@@ -40,7 +40,7 @@ def _resolve_property_reference(property_id):
     except (ValueError, TypeError):
         return None, None, None
 
-    property_obj = Property.query.get(pid)
+    property_obj = db.session.get(Property, pid)
     if not property_obj:
         return None, None, None
     return property_obj, pid, None
@@ -196,7 +196,7 @@ def add_appointment():
             return {"errors": ["Timeslot not available"]}
 
         if selected_agent_id:
-            selected_agent = User.query.get(selected_agent_id)
+            selected_agent = db.session.get(User, selected_agent_id)
             if not selected_agent or not selected_agent.agent:
                 return {"errors": ["Selected agent does not exist"]}
             if not agent_is_available(selected_agent.id, date, time):
