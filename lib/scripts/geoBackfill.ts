@@ -6,7 +6,7 @@
  *
  * Run:
  *   npx ts-node lib/scripts/geoBackfill.ts
- *   npx ts-node lib/scripts/geoBackfill.ts --from=2000-01-01T00:00:00Z --province=Ontario
+ *   npx ts-node lib/scripts/geoBackfill.ts --from=2000-01-01T00:00:00Z
  */
 
 import dotenv from 'dotenv';
@@ -23,10 +23,9 @@ function getArg(name: string): string | null {
   return a ? a.split('=').slice(1).join('=') : null;
 }
 
-const FROM_DATE  = getArg('from') ?? '2000-01-01T00:00:00Z';
-const PROVINCE   = getArg('province'); // e.g. 'Ontario' — omit for all provinces
+const FROM_DATE = getArg('from') ?? '2000-01-01T00:00:00Z';
 const PAGE_SIZE  = 100;
-const PAGE_DELAY = 500; // ms between pages — no per-listing delay needed
+const PAGE_DELAY = 500;
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 
@@ -37,11 +36,9 @@ function toNumber(v: any): number | null {
 }
 
 async function batchPatchGeo(rows: Array<{ mls_number: string; lat: number | null; lng: number | null }>) {
-  // Filter to rows that actually have real DDF coordinates
   const valid = rows.filter(r => r.lat !== null && r.lng !== null && r.lat !== 0 && r.lng !== 0);
   if (!valid.length) return 0;
 
-  // PATCH each row individually — PostgREST doesn't support bulk PATCH by different PKs
   let ok = 0;
   for (const r of valid) {
     const res = await fetch(
@@ -72,7 +69,7 @@ async function main() {
     throw new Error('Missing required env vars');
   }
 
-  console.log(`[geo] FROM: ${FROM_DATE}  PROVINCE: ${PROVINCE ?? 'all'}`);
+  console.log(`[geo] FROM: ${FROM_DATE}`);
 
   let totalSeen  = 0;
   let totalPatch = 0;
@@ -87,12 +84,9 @@ async function main() {
 
         let items: any[];
         try {
-          const query = PROVINCE
-            ? `(LastUpdated=${FROM_DATE}),(StateOrProvince=${PROVINCE})`
-            : `(LastUpdated=${FROM_DATE})`;
           const result = await rets.search.query(
             'Property', 'Property',
-            query,
+            `(LastUpdated=${FROM_DATE})`,
             { limit: PAGE_SIZE, offset, count: 1, format: 'COMPACT', standardNames: 1 } as any
           );
           items = result.results ?? [];
