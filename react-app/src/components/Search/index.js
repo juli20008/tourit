@@ -17,7 +17,7 @@ const Search = () => {
 	const [type, setType] = useState("");
 	const [bed, setBed] = useState(0);
 	const [bath, setBath] = useState(0);
-	const [transactionType, setTransactionType] = useState("sale");
+	const [transactionType, setTransactionType] = useState("For Sale");
 	const [center] = useState({ lat: 43.7417, lng: -79.3733 }); // Toronto GTA
 	const [propArr, setPropArr] = useState([]);
 	const [over, setOver] = useState({ id: 0 });
@@ -54,9 +54,8 @@ const Search = () => {
 				return prop?.bath >= bath || prop?.bath + 0.5 >= bath;
 			})
 			.filter((prop) => {
-				const tt = (prop?.transaction_type || prop?.status || "").toLowerCase();
-				if (transactionType === "lease") return tt.includes("lease");
-				return !tt.includes("lease");
+				const tt = (prop?.transaction_type || "").toLowerCase();
+				return tt.includes(transactionType.toLowerCase().replace("for ", ""));
 			});
 		setPropArr(arr);
 		}, [min, max, type, bed, bath, transactionType, properties]);
