@@ -118,18 +118,10 @@ class MlsListing(db.Model):
     @classmethod
     def is_active_filter(cls):
         """Filter: listing is not explicitly deactivated/sold/expired."""
-        from sqlalchemy import and_, text
         inactive_statuses = ['Inactive', 'Sold', 'Expired', 'Cancelled', 'Withdrawn']
-        stale_cutoff = text("now() - interval '30 days'")
-        return and_(
-            or_(
-                cls.standard_status.is_(None),
-                cls.standard_status.notin_(inactive_statuses),
-            ),
-            or_(
-                cls.last_seen_at.is_(None),
-                cls.last_seen_at >= stale_cutoff,
-            ),
+        return or_(
+            cls.standard_status.is_(None),
+            cls.standard_status.notin_(inactive_statuses),
         )
 
     @classmethod
