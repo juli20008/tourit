@@ -37,7 +37,7 @@ const Images = ({ property }) => {
 	return (
 		<div className="w-full">
 			{/* Hero — 16:9 aspect ratio, full width */}
-			<div className="relative w-full aspect-video overflow-hidden bg-[#dadad5]">
+			<div className="relative w-full overflow-hidden bg-[#dadad5]" style={{ maxWidth: 1024, height: 683 }}>
 				<img
 					className="w-full h-full object-cover"
 					src={heroSrc}
