@@ -144,8 +144,8 @@ async function main() {
           );
           if (!mls || !needsPhotos.has(mls)) continue;
 
-          // GetObject requires the numeric DDF ListingKey — MLS numbers cause RETS 20402
-          const ddfKey = item.ListingKey ?? item.ListingID ?? item.id;
+          // Prefer numeric ListingKey; fall back to MLS number for TREB listings that omit it
+          const ddfKey = item.ListingKey ?? item.ListingID ?? item.id ?? mls;
           if (!ddfKey) {
             console.warn(`  ${mls}: no ListingKey available, skipping`);
             needsPhotos.delete(mls);

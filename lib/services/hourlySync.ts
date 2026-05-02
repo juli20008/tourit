@@ -128,8 +128,8 @@ async function main() {
 
   for (let i = 0; i < rawListings.length; i++) {
     const raw = rawListings[i];
-    const listingKey = raw.ListingKey ?? raw.ListingID;
     const mlsNumber  = String(dbRows[i].mls_number ?? '');
+    const listingKey = raw.ListingKey ?? raw.ListingID ?? mlsNumber;
     if (!listingKey || !mlsNumber) continue;
 
     try {
