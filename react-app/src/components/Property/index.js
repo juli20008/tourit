@@ -34,22 +34,24 @@ const Property = ({ property, onClose }) => {
 				<X size={16} strokeWidth={2} />
 			</button>
 
-			{/* Content: two columns */}
-			<div className="flex flex-1 min-h-0 rounded-2xl overflow-hidden">
+			{/* Single scroll container — scrollbar on far right */}
+			<div className="overflow-y-auto flex-1 min-h-0 rounded-2xl">
+				<div className="flex items-start">
 
-				{/* Left: gallery + detail, independently scrollable */}
-				<div className="flex-1 min-w-0 overflow-y-auto">
-					<Images property={property} />
-					<div className="px-6 py-6">
-						<Detail property={property} />
+					{/* Left: gallery + detail */}
+					<div className="flex-1 min-w-0">
+						<Images property={property} />
+						<div className="px-6 py-6">
+							<Detail property={property} />
+						</div>
 					</div>
-				</div>
 
-				{/* Right: Tour — always visible, scrolls if content overflows */}
-				<div className="flex-shrink-0 w-[300px] overflow-y-auto border-l border-gray-100 p-5">
-					<Tour property={property} setShowTour={onClose} inline />
-				</div>
+					{/* Right: Tour — sticky so it stays at top while left column scrolls */}
+					<div className="flex-shrink-0 w-[300px] sticky top-0 self-start border-l border-gray-100 p-5">
+						<Tour property={property} setShowTour={onClose} inline />
+					</div>
 
+				</div>
 			</div>
 
 			{/* Mobile: floating Tour button */}
