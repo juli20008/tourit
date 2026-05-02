@@ -6,7 +6,7 @@ on:
       from_date:
         description: "Query DDF for listings updated since (ISO date)"
         required: false
-        default: "2024-01-01T00:00:00Z"
+        default: "2000-01-01T00:00:00Z"
       max_pages:
         description: "Max DDF pages to process (100 listings each)"
         required: false

@@ -23,7 +23,7 @@ function getArg(name: string): string | null {
   return a ? a.split('=').slice(1).join('=') : null;
 }
 
-const FROM_DATE  = getArg('from') ?? '2024-01-01T00:00:00Z';
+const FROM_DATE  = getArg('from') ?? '2000-01-01T00:00:00Z';
 const MAX_PAGES  = parseInt(getArg('max-pages') ?? '500', 10);
 const PAGE_SIZE  = 100;
 const PAGE_DELAY = 500; // ms between pages — no per-listing delay needed
