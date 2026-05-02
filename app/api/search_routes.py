@@ -55,14 +55,21 @@ def search_by_term(term):
 
 
 def _mls_by_term(parsed: str) -> list:
-    """Search mls_listings by street, city, or zip and return frontend dicts."""
-    from sqlalchemy import or_
+    """Search mls_listings by city, neighbourhood, street, or postal code."""
+    from sqlalchemy import or_, func
+    full_street = func.concat(
+        func.coalesce(MlsListing.street_number, ''), ' ',
+        func.coalesce(MlsListing.street_name, ''), ' ',
+        func.coalesce(MlsListing.street_suffix, ''),
+    )
     rows = (
         MlsListing.query
         .filter(
             or_(
                 MlsListing.city.ilike(f"%{parsed}%"),
+                MlsListing.neighborhood.ilike(f"%{parsed}%"),
                 MlsListing.street_name.ilike(f"%{parsed}%"),
+                full_street.ilike(f"%{parsed}%"),
                 MlsListing.zip.ilike(f"%{parsed}%"),
             ),
             MlsListing.list_price.isnot(None),
@@ -83,15 +90,23 @@ def search_terms():
         + [p.zip for p in props]
     )
 
-    # Pull distinct MLS cities for autocomplete
     mls_cities = [
         r[0] for r in
         MlsListing.query.with_entities(MlsListing.city)
-        .filter(MlsListing.city.isnot(None))
+        .filter(MlsListing.city.isnot(None), MlsListing.city != '')
+        .distinct()
+        .limit(300)
+        .all()
+    ]
+
+    mls_neighborhoods = [
+        r[0] for r in
+        MlsListing.query.with_entities(MlsListing.neighborhood)
+        .filter(MlsListing.neighborhood.isnot(None), MlsListing.neighborhood != '')
         .distinct()
         .limit(500)
         .all()
     ]
 
-    terms = sorted(set(prop_terms + mls_cities), key=str.casefold)
+    terms = sorted(set(prop_terms + mls_cities + mls_neighborhoods), key=str.casefold)
     return {"terms": terms}
