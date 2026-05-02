@@ -250,6 +250,8 @@ def list_listings_by_bounds():
     if USE_LOCAL_PROPERTIES:
         return _fetch_local_bounds(lat_min, lat_max, lng_min, lng_max, limit, lightweight=lightweight or limit > MAX_RESULTS)
 
+    t_type = (payload.get("transaction_type") or "").strip()
+
     try:
         q = (
             MlsListing.query
@@ -262,6 +264,8 @@ def list_listings_by_bounds():
             .order_by(MlsListing.updated_at.desc().nullslast(), MlsListing.list_price.desc().nullslast())
             .limit(limit)
         )
+        if t_type:
+            q = q.filter(MlsListing.transaction_type.ilike(f"%{t_type}%"))
         listings = q.all()
         if not listings:
             return _fetch_local_bounds(lat_min, lat_max, lng_min, lng_max, limit, lightweight=lightweight or limit > MAX_RESULTS)

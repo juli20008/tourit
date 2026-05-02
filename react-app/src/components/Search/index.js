@@ -23,6 +23,7 @@ const Search = () => {
 	const [over, setOver] = useState({ id: 0 });
 	const [isMapSyncing, setIsMapSyncing] = useState(false);
 	const mapSyncTimer = useRef(null);
+	const lastBoundsRef = useRef(null);
 
 	useEffect(() => {
 		dispatch(propertyActions.searchProperties(searchParam));
@@ -69,13 +70,19 @@ const Search = () => {
 
 	const handleMapBoundsChange = useCallback((bounds) => {
 		if (!bounds) return;
+		lastBoundsRef.current = bounds;
 		if (mapSyncTimer.current) clearTimeout(mapSyncTimer.current);
 		mapSyncTimer.current = setTimeout(async () => {
 			setIsMapSyncing(true);
-			await dispatch(propertyActions.areaProperties(bounds));
+			await dispatch(propertyActions.areaProperties({ ...bounds, transaction_type: transactionType }));
 			setIsMapSyncing(false);
 		}, 500);
-	}, [dispatch]);
+	}, [dispatch, transactionType]);
+
+	useEffect(() => {
+		if (!lastBoundsRef.current) return;
+		dispatch(propertyActions.areaProperties({ ...lastBoundsRef.current, transaction_type: transactionType }));
+	}, [dispatch, transactionType]);
 
 	const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
 	const googleMapURL = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&v=3.exp&libraries=geometry,drawing,places&loading=async`;

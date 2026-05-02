@@ -121,14 +121,13 @@ class MlsListing(db.Model):
             cls.standard_status.notin_(inactive_statuses),
         )
 
-    _ALLOWED_PROPERTY_TYPES = ('Residential', 'Single Family')
-
     @classmethod
     def property_type_filter(cls):
-        """Only show Residential and Single Family listings; pass through nulls."""
+        """Only show Residential / Single Family listings; pass through nulls."""
         return or_(
             cls.property_type.is_(None),
-            cls.property_type.in_(cls._ALLOWED_PROPERTY_TYPES),
+            cls.property_type.ilike('%Residential%'),
+            cls.property_type.ilike('%Single Family%'),
         )
 
     @classmethod
