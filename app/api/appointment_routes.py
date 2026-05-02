@@ -205,6 +205,9 @@ def add_appointment():
             selected_agent = pick_agent_for_appointment(property_obj, date, time)
 
         if not selected_agent:
+            from app.utils.availability import _fallback_agent
+            selected_agent = _fallback_agent()
+        if not selected_agent:
             return {"errors": ["No agents are available for that timeslot"]}
 
         new_appointment = Appointment(

@@ -1,8 +1,16 @@
+import os
 from datetime import datetime
 
 from sqlalchemy.exc import OperationalError
 
 from app.models import Appointment, AgentAvailability, AgentArea, Property, User
+
+FALLBACK_AGENT_EMAIL = os.environ.get("FALLBACK_AGENT_EMAIL", "mialitoronto@gmail.com")
+
+
+def _fallback_agent():
+    """Return the designated fallback agent regardless of availability schedule."""
+    return User.query.filter_by(email=FALLBACK_AGENT_EMAIL, agent=True).first()
 
 DEFAULT_START_MINUTES = 9 * 60
 DEFAULT_END_MINUTES = 17 * 60
@@ -148,7 +156,7 @@ def pick_agent_for_appointment(property_obj, date_str, time_str):
     # Phase 2 – geographic proximity fallback
     available = available_agents_for_slot(date_str, time_str, property_obj=property_obj)
     if not available:
-        return None
+        return _fallback_agent()
 
     prop_lat = getattr(property_obj, 'lat', None) if property_obj else None
     # Property uses column "long"; MlsListing uses "lng"
@@ -168,4 +176,4 @@ def pick_agent_for_appointment(property_obj, date_str, time_str):
 
         return min(available, key=proximity_key)
 
-    return max(available, key=agent_rating)
+    return max(available, key=agent_rating) or _fallback_agent()
