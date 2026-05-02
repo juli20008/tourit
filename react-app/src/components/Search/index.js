@@ -23,7 +23,9 @@ const Search = () => {
 	const [over, setOver] = useState({ id: 0 });
 	const [isMapSyncing, setIsMapSyncing] = useState(false);
 
-	const [currentBounds, setCurrentBounds] = useState(null);
+	// Use refs so bounds/transactionType changes don't cause re-render loops
+	const boundsRef = useRef(null);
+	const transactionTypeRef = useRef("For Sale");
 	const fetchTimer = useRef(null);
 
 	useEffect(() => {
@@ -39,18 +41,7 @@ const Search = () => {
 		};
 	}, []);
 
-	// Re-fetch whenever bounds or transactionType changes
-	useEffect(() => {
-		if (!currentBounds) return;
-		if (fetchTimer.current) clearTimeout(fetchTimer.current);
-		fetchTimer.current = setTimeout(async () => {
-			setIsMapSyncing(true);
-			await dispatch(propertyActions.areaProperties({ ...currentBounds, transaction_type: transactionType }));
-			setIsMapSyncing(false);
-		}, 300);
-		return () => clearTimeout(fetchTimer.current);
-	}, [dispatch, currentBounds, transactionType]);
-
+	// Client-side filter on already-fetched data
 	useEffect(() => {
 		const arr = (Array.isArray(properties) ? properties : [])
 			.filter((prop) => prop?.price > min)
@@ -76,9 +67,31 @@ const Search = () => {
 
 	const sidebarArr = propArr.slice(0, 100);
 
+	const fetchFromMap = (bounds, tType) => {
+		if (!bounds) return;
+		if (fetchTimer.current) clearTimeout(fetchTimer.current);
+		fetchTimer.current = setTimeout(async () => {
+			setIsMapSyncing(true);
+			await dispatch(propertyActions.areaProperties({
+				...bounds,
+				transaction_type: tType,
+			}));
+			setIsMapSyncing(false);
+		}, 300);
+	};
+
+	// Called by Map when bounds change (pan/zoom/load)
 	const handleMapBoundsChange = (bounds) => {
 		if (!bounds) return;
-		setCurrentBounds(bounds);
+		boundsRef.current = bounds;
+		fetchFromMap(bounds, transactionTypeRef.current);
+	};
+
+	// Called by dropdown — updates both state (for client filter + UI) and ref (for API)
+	const handleTransactionTypeChange = (newType) => {
+		setTransactionType(newType);
+		transactionTypeRef.current = newType;
+		fetchFromMap(boundsRef.current, newType);
 	};
 
 	const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
@@ -99,7 +112,7 @@ const Search = () => {
 				enableAreaSearch={false}
 				syncCenter={false}
 				transactionType={transactionType}
-				setTransactionType={setTransactionType}
+				setTransactionType={handleTransactionTypeChange}
 			/>
 			<List
 				min={min}

@@ -51,7 +51,6 @@ export const areaProperties = (payload) => async (dispatch) => {
 			lng_max: lngMax,
 			limit: 1000,
 		};
-		console.log("[areaProperties] sending transaction_type:", body.transaction_type);
 		const response = await apiFetch("/api/listings?view=map", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
