@@ -23,7 +23,7 @@ const Property = ({ property, onClose }) => {
 	}, [property, dispatch]);
 
 	return (
-		<div className="relative bg-white w-[92vw] max-w-[683px] max-h-[92vh] rounded-2xl flex flex-col">
+		<div className="relative bg-white w-[92vw] max-w-[1200px] max-h-[92vh] rounded-2xl flex flex-col">
 
 			{/* Close button — outside the scroll area so it stays visible */}
 			<button
