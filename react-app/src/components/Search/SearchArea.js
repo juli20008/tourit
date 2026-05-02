@@ -25,7 +25,9 @@ const SearchArea = () => {
 	const [type, setType] = useState("");
 	const [bed, setBed] = useState(0);
 	const [bath, setBath] = useState(0);
-	const [transactionType, setTransactionType] = useState("sale"); // "sale" | "lease"
+	const [transactionType, setTransactionType] = useState("For Sale");
+	const transactionTypeRef = useRef("For Sale");
+	const boundsRef = useRef(null);
 
 	const getInitialCenter = (param) => {
 		if (!param) return TORONTO;
@@ -109,8 +111,8 @@ const SearchArea = () => {
 				return prop?.bath >= bath || prop?.bath + 0.5 >= bath;
 			})
 			.filter((prop) => {
-				const tt = (prop?.transaction_type || prop?.status || "").toLowerCase();
-				if (transactionType === "lease") return tt.includes("lease");
+				const tt = (prop?.transaction_type || "").toLowerCase();
+				if (transactionType === "For Lease") return tt.includes("lease");
 				return !tt.includes("lease");
 			});
 		setPropArr(arr);
@@ -123,19 +125,30 @@ const SearchArea = () => {
 		};
 	}, []);
 
-	// useCallback keeps the reference stable so MyMap doesn't re-register its
-	// onIdle listener on every render — that re-registration was the infinite loop.
-	// setIsMapSyncing(true) is inside the timeout, not before it, to avoid a
-	// synchronous state update that would trigger an extra render before fetch.
-	const handleMapBoundsChange = useCallback((bounds) => {
+	const fetchFromMap = useCallback((bounds, tType) => {
 		if (!bounds) return;
 		if (mapSyncTimer.current) clearTimeout(mapSyncTimer.current);
 		mapSyncTimer.current = setTimeout(async () => {
 			setIsMapSyncing(true);
-			await dispatch(propertyActions.areaProperties(bounds));
+			await dispatch(propertyActions.areaProperties({
+				...bounds,
+				transaction_type: tType,
+			}));
 			setIsMapSyncing(false);
 		}, 500);
 	}, [dispatch]);
+
+	const handleMapBoundsChange = useCallback((bounds) => {
+		if (!bounds) return;
+		boundsRef.current = bounds;
+		fetchFromMap(bounds, transactionTypeRef.current);
+	}, [fetchFromMap]);
+
+	const handleTransactionTypeChange = (newType) => {
+		setTransactionType(newType);
+		transactionTypeRef.current = newType;
+		fetchFromMap(boundsRef.current, newType);
+	};
 
 	const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
 	const googleMapURL = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&v=3.exp&libraries=geometry,drawing,places&loading=async`;
@@ -158,7 +171,7 @@ const SearchArea = () => {
 					enableAreaSearch={false}
 					syncCenter={false}
 					transactionType={transactionType}
-					setTransactionType={setTransactionType}
+					setTransactionType={handleTransactionTypeChange}
 				/>
 				<List
 					min={min}
