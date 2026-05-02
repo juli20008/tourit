@@ -132,9 +132,9 @@ class MlsListing(db.Model):
 
     @classmethod
     def visible_filter(cls):
-        """Combined filter for map/list: has photos, is active, and is residential type."""
+        """Combined filter for map/list: has photos and is still active."""
         from sqlalchemy import and_
-        return and_(cls.has_photos_filter(), cls.is_active_filter(), cls.property_type_filter())
+        return and_(cls.has_photos_filter(), cls.is_active_filter())
     agent_email = db.Column(db.String(255))
     brokerage = db.Column(db.String(200))
 

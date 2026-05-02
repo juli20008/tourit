@@ -164,7 +164,7 @@ def list_listings():
     min_price = request.args.get("min_price", type=int)
     max_price = request.args.get("max_price", type=int)
     min_bed = request.args.get("min_bed", type=int)
-    t_type = request.args.get("type", "").strip()
+    t_type = request.args.get("type", "").strip().lower()
 
     try:
         q = MlsListing.query.filter(MlsListing.visible_filter())
@@ -180,6 +180,8 @@ def list_listings():
             q = q.filter(MlsListing.bed >= min_bed)
         if t_type:
             q = q.filter(MlsListing.transaction_type.ilike(f"%{t_type}%"))
+        if t_type != 'lease':
+            q = q.filter(MlsListing.property_type_filter())
 
         q = q.order_by(MlsListing.updated_at.desc().nullslast(), MlsListing.list_price.desc().nullslast())
         offset = (page - 1) * per_page
@@ -250,22 +252,20 @@ def list_listings_by_bounds():
     if USE_LOCAL_PROPERTIES:
         return _fetch_local_bounds(lat_min, lat_max, lng_min, lng_max, limit, lightweight=lightweight or limit > MAX_RESULTS)
 
-    t_type = (payload.get("transaction_type") or "").strip()
+    t_type = (payload.get("transaction_type") or "").strip().lower()
 
     try:
-        q = (
-            MlsListing.query
-            .filter(
-                MlsListing.lat.between(lat_min, lat_max),
-                MlsListing.lng.between(lng_min, lng_max),
-                MlsListing.list_price.isnot(None),
-                MlsListing.visible_filter(),
-            )
-            .order_by(MlsListing.updated_at.desc().nullslast(), MlsListing.list_price.desc().nullslast())
-            .limit(limit)
+        q = MlsListing.query.filter(
+            MlsListing.lat.between(lat_min, lat_max),
+            MlsListing.lng.between(lng_min, lng_max),
+            MlsListing.list_price.isnot(None),
+            MlsListing.visible_filter(),
         )
         if t_type:
             q = q.filter(MlsListing.transaction_type.ilike(f"%{t_type}%"))
+        if t_type != 'lease':
+            q = q.filter(MlsListing.property_type_filter())
+        q = q.order_by(MlsListing.updated_at.desc().nullslast(), MlsListing.list_price.desc().nullslast()).limit(limit)
         listings = q.all()
         if not listings:
             return _fetch_local_bounds(lat_min, lat_max, lng_min, lng_max, limit, lightweight=lightweight or limit > MAX_RESULTS)
