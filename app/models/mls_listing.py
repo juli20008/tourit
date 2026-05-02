@@ -123,11 +123,12 @@ class MlsListing(db.Model):
 
     @classmethod
     def property_type_filter(cls):
-        """Only show Residential / Single Family listings; pass through nulls."""
+        """Only show Residential / Single Family / Condo listings; pass through nulls."""
         return or_(
             cls.property_type.is_(None),
             cls.property_type.ilike('%Residential%'),
             cls.property_type.ilike('%Single Family%'),
+            cls.property_type.ilike('%Condo%'),
         )
 
     @classmethod

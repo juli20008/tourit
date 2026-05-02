@@ -180,8 +180,7 @@ def list_listings():
             q = q.filter(MlsListing.bed >= min_bed)
         if t_type:
             q = q.filter(MlsListing.transaction_type.ilike(f"%{t_type}%"))
-        if t_type != 'lease':
-            q = q.filter(MlsListing.property_type_filter())
+        q = q.filter(MlsListing.property_type_filter())
 
         q = q.order_by(MlsListing.updated_at.desc().nullslast(), MlsListing.list_price.desc().nullslast())
         offset = (page - 1) * per_page
@@ -263,8 +262,7 @@ def list_listings_by_bounds():
         )
         if t_type:
             q = q.filter(MlsListing.transaction_type.ilike(f"%{t_type}%"))
-        if t_type != 'lease':
-            q = q.filter(MlsListing.property_type_filter())
+        q = q.filter(MlsListing.property_type_filter())
         q = q.order_by(MlsListing.updated_at.desc().nullslast(), MlsListing.list_price.desc().nullslast()).limit(limit)
         listings = q.all()
         if not listings:
