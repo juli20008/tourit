@@ -7,10 +7,6 @@ on:
         description: "Query DDF for listings updated since (ISO date)"
         required: false
         default: "2000-01-01T00:00:00Z"
-      max_pages:
-        description: "Max DDF pages to process (100 listings each)"
-        required: false
-        default: "500"
 
 jobs:
   backfill:
@@ -39,5 +35,4 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           ./node_modules/.bin/ts-node lib/scripts/geoBackfill.ts \
-            --from=${{ github.event.inputs.from_date }} \
-            --max-pages=${{ github.event.inputs.max_pages }}
+            --from=${{ github.event.inputs.from_date }}

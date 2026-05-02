@@ -24,7 +24,6 @@ function getArg(name: string): string | null {
 }
 
 const FROM_DATE  = getArg('from') ?? '2000-01-01T00:00:00Z';
-const MAX_PAGES  = parseInt(getArg('max-pages') ?? '500', 10);
 const PAGE_SIZE  = 100;
 const PAGE_DELAY = 500; // ms between pages — no per-listing delay needed
 
@@ -72,8 +71,7 @@ async function main() {
     throw new Error('Missing required env vars');
   }
 
-  console.log(`[geo] FROM: ${FROM_DATE}  MAX_PAGES: ${MAX_PAGES}`);
-  console.log(`[geo] Max listings: ${MAX_PAGES * PAGE_SIZE}`);
+  console.log(`[geo] FROM: ${FROM_DATE}  (no page cap — runs until DDF exhausted)`);
 
   let totalSeen  = 0;
   let totalPatch = 0;
@@ -83,7 +81,7 @@ async function main() {
     async (rets: any) => {
       let offset = 1;
 
-      for (let page = 1; page <= MAX_PAGES; page++) {
+      for (let page = 1; ; page++) {
         console.log(`[geo] Page ${page} (offset=${offset}, patched so far: ${totalPatch})…`);
 
         let items: any[];
