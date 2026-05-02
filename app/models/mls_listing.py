@@ -114,8 +114,33 @@ class MlsListing(db.Model):
             (cls.images.isnot(None)) & (func.jsonb_array_length(cls.images) > 0),
             (cls.external_id.isnot(None)) & (cls.photos_timestamp.isnot(None)),
         )
+
+    @classmethod
+    def is_active_filter(cls):
+        """Filter: listing is not explicitly deactivated/sold/expired."""
+        from sqlalchemy import and_, text
+        inactive_statuses = ['Inactive', 'Sold', 'Expired', 'Cancelled', 'Withdrawn']
+        stale_cutoff = text("now() - interval '30 days'")
+        return and_(
+            or_(
+                cls.standard_status.is_(None),
+                cls.standard_status.notin_(inactive_statuses),
+            ),
+            or_(
+                cls.last_seen_at.is_(None),
+                cls.last_seen_at >= stale_cutoff,
+            ),
+        )
+
+    @classmethod
+    def visible_filter(cls):
+        """Combined filter for map/list: has photos AND is still active."""
+        from sqlalchemy import and_
+        return and_(cls.has_photos_filter(), cls.is_active_filter())
     agent_email = db.Column(db.String(255))
     brokerage = db.Column(db.String(200))
+
+    last_seen_at = db.Column(db.DateTime, nullable=True)
 
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow,

@@ -228,6 +228,7 @@ export function mapDDFToSupabase(item: any): any {
     construction_materials: firstDefined(raw.ConstructionMaterials) ? String(raw.ConstructionMaterials).trim() : null,
     levels: firstDefined(raw.Levels) ? String(raw.Levels).trim() : null,
     ownership_type: firstDefined(raw.OwnershipType) ? String(raw.OwnershipType).trim() : null,
+    last_seen_at: new Date().toISOString(),
   };
 }
 

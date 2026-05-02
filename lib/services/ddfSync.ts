@@ -64,6 +64,7 @@ const SUPABASE_COLUMNS = new Set([
   'construction_materials',
   'levels',
   'ownership_type',
+  'last_seen_at',
 ]);
 
 type SupabaseClientLike = {

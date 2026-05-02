@@ -31,7 +31,7 @@ def search_by_area():
             MlsListing.lat.between(sw_lat, ne_lat),
             MlsListing.lng.between(sw_lng, ne_lng),
             MlsListing.list_price.isnot(None),
-            MlsListing.has_photos_filter(),
+            MlsListing.visible_filter(),
         )
         .limit(MLS_LIMIT)
         .all()
@@ -66,7 +66,7 @@ def _mls_by_term(parsed: str) -> list:
                 MlsListing.zip.ilike(f"%{parsed}%"),
             ),
             MlsListing.list_price.isnot(None),
-            MlsListing.has_photos_filter(),
+            MlsListing.visible_filter(),
         )
         .limit(MLS_LIMIT)
         .all()
