@@ -23,7 +23,7 @@ const Property = ({ property, onClose }) => {
 	}, [property, dispatch]);
 
 	return (
-		<div className="relative bg-white w-[96vw] max-w-[1300px] max-h-[92vh] rounded-2xl flex flex-col">
+		<div className="relative bg-white w-[96vw] max-w-[1350px] max-h-[92vh] rounded-2xl flex flex-col">
 
 			{/* Close button — outside the scroll area so it stays visible */}
 			<button
@@ -47,7 +47,7 @@ const Property = ({ property, onClose }) => {
 					</div>
 
 					{/* Right: Tour — sticky so it stays at top while left column scrolls */}
-					<div className="flex-shrink-0 w-[300px] sticky top-0 self-start border-l border-gray-100 p-5">
+					<div className="flex-shrink-0 w-[350px] sticky top-0 self-start border-l border-gray-100 p-5">
 						<Tour property={property} setShowTour={onClose} inline />
 					</div>
 
