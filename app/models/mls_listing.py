@@ -109,11 +109,8 @@ class MlsListing(db.Model):
 
     @classmethod
     def has_photos_filter(cls):
-        """Filter: listing has at least one photo (stored or CDN-generatable)."""
-        return or_(
-            (cls.images.isnot(None)) & (func.jsonb_array_length(cls.images) > 0),
-            (cls.external_id.isnot(None)) & (cls.photos_timestamp.isnot(None)),
-        )
+        """Filter: listing has at least one stored photo URL."""
+        return (cls.images.isnot(None)) & (func.jsonb_array_length(cls.images) > 0)
 
     @classmethod
     def is_active_filter(cls):
