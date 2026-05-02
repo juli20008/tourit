@@ -22,7 +22,7 @@ const DDF_PASSWORD   = process.env.DDF_PASSWORD!;
 const SUPABASE_URL   = process.env.SUPABASE_URL!;
 const SUPABASE_KEY   = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-const LISTING_KEY    = '24159896';
+const LISTING_KEY    = process.argv.find(a => a.startsWith('--mls='))?.split('=')[1] ?? '24159896';
 const PHOTO_TYPE     = 'LargePhoto';
 const BUCKET         = 'ddf-photos';
 

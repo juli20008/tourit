@@ -25,8 +25,10 @@ async function main() {
     { loginUrl, username, password, version: 'RETS/1.7.2', userAgent: 'Tourit-Diag/1.0' },
     async (rets: any) => {
       // Fetch just 1 listing with standard names so field names are human-readable
+      const mlsArg = process.argv.find(a => a.startsWith('--mls='))?.split('=')[1];
+      const query  = mlsArg ? `(ListingId=${mlsArg})` : '(LastUpdated=2020-01-01T00:00:00Z)';
       const result = await rets.search.query('Property', 'Property',
-        '(LastUpdated=2020-01-01T00:00:00Z)',
+        query,
         { limit: 1, offset: 1, count: 0, format: 'COMPACT', standardNames: 1 }
       );
 

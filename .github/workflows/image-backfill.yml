@@ -1,6 +1,8 @@
 name: Image Backfill
 
 on:
+  schedule:
+    - cron: "0 9 * * *"   # 5am EST / 9am UTC — after ddf-sync (7am) and geocode (8am)
   workflow_dispatch:
     inputs:
       max_listings:
@@ -39,5 +41,5 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           ./node_modules/.bin/ts-node lib/scripts/imageBackfill.ts \
-            --max=${{ github.event.inputs.max_listings }} \
-            --delay-ms=${{ github.event.inputs.delay_ms }}
+            --max=${{ github.event.inputs.max_listings || '500' }} \
+            --delay-ms=${{ github.event.inputs.delay_ms || '2000' }}

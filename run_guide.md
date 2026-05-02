@@ -85,3 +85,20 @@ npx ts-node lib/scripts/testTorontoPhotos.ts
         npx ts-node lib/services/ddfSync.ts
 
         npx ts-node test-ddf.ts
+
+
+          npx ts-node lib/scripts/ddfDumpFields.ts --mls=C12975708
+
+  输出里找 ListingKey: 12345678，然后用那个数字跑 ddfRawGetObject：
+
+  npx ts-node lib/scripts/ddfRawGetObject.ts --mls=12345678
+
+    ┌────────────┬────────────────────────────┐
+  │ 时间 (EST) │          workflow          │
+  ├────────────┼────────────────────────────┤
+  │ 3:00       │ ddf-sync（全量同步）       │
+  ├────────────┼────────────────────────────┤
+  │ 4:00       │ geocode-listings（补坐标） │
+  ├────────────┼────────────────────────────┤
+  │ 5:00       │ image-backfill（补照片）   │
+  └────────────┴────────────────────────────┘
