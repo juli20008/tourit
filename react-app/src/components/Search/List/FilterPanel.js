@@ -202,10 +202,6 @@ const PROP_TYPES = [
 	{ label: "House",        value: "Single Family",    icon: "fa-house" },
 	{ label: "Townhouse",    value: "Townhouse",        icon: "fa-city" },
 	{ label: "Multi-family", value: "Multi Family",     icon: "fa-people-roof" },
-	{ label: "Mobile",       value: "Manufactured Home",icon: "fa-caravan" },
-	{ label: "Rec",          value: "Recreation",       icon: "fa-campground" },
-	{ label: "Land",         value: "Land",             icon: "fa-seedling" },
-	{ label: "Other",        value: "Other",            icon: "fa-circle-question" },
 ];
 
 const BED_OPTIONS = [
@@ -354,17 +350,6 @@ const FilterPanel = ({ min, setMin, max, setMax, type, setType, bed, setBed, bat
 								setLow={setSqftMin} setHigh={setSqftMax} />
 						</div>
 
-						{/* Year Built */}
-						<div className="mb-5">
-							<RangeRow
-								leftLabel="Year Built Min"  leftVal={yearMin}  onLeftChange={v => setYearMin(Math.max(YEAR_MIN, Math.min(v, yearMax - 1)))}
-								rightLabel="Year Built Max" rightVal={yearMax} onRightChange={v => setYearMax(Math.min(YEAR_MAX, Math.max(v, yearMin + 1)))}
-							/>
-							<DualSlider low={yearMin} high={yearMax}
-								min={YEAR_MIN} max={YEAR_MAX} step={1}
-								setLow={setYearMin} setHigh={setYearMax} />
-						</div>
-
 						{/* Strata Fee */}
 						<div>
 							<RangeRow
@@ -375,14 +360,6 @@ const FilterPanel = ({ min, setMin, max, setMax, type, setType, bed, setBed, bat
 								min={0} max={STRATA_MAX} step={50}
 								setLow={setStrataMin} setHigh={setStrataMax} />
 						</div>
-					</section>
-
-					<Divider />
-
-					{/* Days on site */}
-					<section>
-						<SectionHead title="Days on site" />
-						<BtnStrip options={DAYS_OPTIONS} value={daysOnSite} onChange={setDaysOnSite} />
 					</section>
 
 					<Divider />

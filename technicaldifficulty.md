@@ -71,10 +71,12 @@ Next Steps:
 Absolutely need to be fixed:
 7. Search function
 3. Filters
-5. Request a showing
 4. For Sale/For Lease
 5. Realtor login
+6. Request a showing
 
+
+![alt text](image.png)
 
 1. 字段
 2. Geo精确性
