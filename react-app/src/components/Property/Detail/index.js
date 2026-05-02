@@ -81,7 +81,7 @@ const Detail = ({ property }) => {
 					{statusLabel(property?.status)}
 					{property?.transaction_type && (
 						<span className="ml-2 text-gray-400 normal-case font-normal">
-							· For {property.transaction_type}
+							· {property.transaction_type}
 						</span>
 					)}
 				</span>
