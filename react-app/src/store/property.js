@@ -43,17 +43,19 @@ export const areaProperties = (payload) => async (dispatch) => {
 			payload?.lng_min ?? payload?.swLng ?? payload?.west ?? payload?.minLng;
 		const lngMax =
 			payload?.lng_max ?? payload?.neLng ?? payload?.east ?? payload?.maxLng;
+		const body = {
+			...payload,
+			lat_min: latMin,
+			lat_max: latMax,
+			lng_min: lngMin,
+			lng_max: lngMax,
+			limit: 1000,
+		};
+		console.log("[areaProperties] sending transaction_type:", body.transaction_type);
 		const response = await apiFetch("/api/listings?view=map", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({
-				...payload,
-				lat_min: latMin,
-				lat_max: latMax,
-				lng_min: lngMin,
-				lng_max: lngMax,
-				limit: 1000,
-			}),
+			body: JSON.stringify(body),
 		});
 		if (response.ok) {
 			const data = await response.json();
