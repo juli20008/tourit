@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useParams } from "react-router-dom";
 
@@ -18,12 +18,13 @@ const Search = () => {
 	const [bed, setBed] = useState(0);
 	const [bath, setBath] = useState(0);
 	const [transactionType, setTransactionType] = useState("For Sale");
-	const [center] = useState({ lat: 43.7417, lng: -79.3733 }); // Toronto GTA
+	const [center] = useState({ lat: 43.7417, lng: -79.3733 });
 	const [propArr, setPropArr] = useState([]);
 	const [over, setOver] = useState({ id: 0 });
 	const [isMapSyncing, setIsMapSyncing] = useState(false);
-	const mapSyncTimer = useRef(null);
-	const lastBoundsRef = useRef(null);
+
+	const [currentBounds, setCurrentBounds] = useState(null);
+	const fetchTimer = useRef(null);
 
 	useEffect(() => {
 		dispatch(propertyActions.searchProperties(searchParam));
@@ -37,6 +38,18 @@ const Search = () => {
 			document.body.classList.remove("search-page-lock");
 		};
 	}, []);
+
+	// Re-fetch whenever bounds or transactionType changes
+	useEffect(() => {
+		if (!currentBounds) return;
+		if (fetchTimer.current) clearTimeout(fetchTimer.current);
+		fetchTimer.current = setTimeout(async () => {
+			setIsMapSyncing(true);
+			await dispatch(propertyActions.areaProperties({ ...currentBounds, transaction_type: transactionType }));
+			setIsMapSyncing(false);
+		}, 300);
+		return () => clearTimeout(fetchTimer.current);
+	}, [dispatch, currentBounds, transactionType]);
 
 	useEffect(() => {
 		const arr = (Array.isArray(properties) ? properties : [])
@@ -55,33 +68,18 @@ const Search = () => {
 			})
 			.filter((prop) => {
 				const tt = (prop?.transaction_type || "").toLowerCase();
-				return tt.includes(transactionType.toLowerCase().replace("for ", ""));
+				if (transactionType === "For Lease") return tt.includes("lease");
+				return !tt.includes("lease");
 			});
 		setPropArr(arr);
-		}, [min, max, type, bed, bath, transactionType, properties]);
+	}, [min, max, type, bed, bath, transactionType, properties]);
+
 	const sidebarArr = propArr.slice(0, 100);
 
-	useEffect(() => {
-		return () => {
-			if (mapSyncTimer.current) clearTimeout(mapSyncTimer.current);
-		};
-	}, []);
-
-	const handleMapBoundsChange = useCallback((bounds) => {
+	const handleMapBoundsChange = (bounds) => {
 		if (!bounds) return;
-		lastBoundsRef.current = bounds;
-		if (mapSyncTimer.current) clearTimeout(mapSyncTimer.current);
-		mapSyncTimer.current = setTimeout(async () => {
-			setIsMapSyncing(true);
-			await dispatch(propertyActions.areaProperties({ ...bounds, transaction_type: transactionType }));
-			setIsMapSyncing(false);
-		}, 500);
-	}, [dispatch, transactionType]);
-
-	useEffect(() => {
-		if (!lastBoundsRef.current) return;
-		dispatch(propertyActions.areaProperties({ ...lastBoundsRef.current, transaction_type: transactionType }));
-	}, [dispatch, transactionType]);
+		setCurrentBounds(bounds);
+	};
 
 	const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
 	const googleMapURL = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&v=3.exp&libraries=geometry,drawing,places&loading=async`;
