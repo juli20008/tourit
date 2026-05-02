@@ -110,6 +110,17 @@ function toDotNetTicks(value: any): string | null {
   return String(ticks);
 }
 
+const PROPERTY_TYPE_CODES: Record<string, string> = {
+  '300': 'Residential',
+  '307': 'Residential',
+};
+
+function normalizePropertyType(value: any): string | null {
+  if (value == null) return null;
+  const s = String(value).trim();
+  return PROPERTY_TYPE_CODES[s] ?? (s || null);
+}
+
 function cleanCity(value: any): string | null {
   if (!value) return null;
   return String(value).replace(/\s*\([^)]*\)\s*$/, '').trim() || null;
@@ -203,7 +214,7 @@ export function mapDDFToSupabase(item: any): any {
     building_area_units: firstDefined(raw.BuildingAreaUnits, raw.AreaUnits) ?? 'sqft',
     year_built: toInteger(firstDefined(raw.YearBuilt, raw.YrBuilt, raw.ConstructionYear)),
     style: firstDefined(raw.Style, raw.TypeDwel),
-    property_type: firstDefined(raw.PropertyType, raw.PropertyClass, raw.TypeDwel),
+    property_type: normalizePropertyType(firstDefined(raw.PropertyType, raw.PropertyClass, raw.TypeDwel)),
     description: firstDefined(raw.PublicRemarks, raw.Description, raw.MLSComments, raw.Remarks_for_Clients),
     images: [],
     agent_name: firstDefined(raw.ListAgentFullName, raw.LA_Name_format, raw.ListAgentName),

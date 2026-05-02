@@ -121,11 +121,21 @@ class MlsListing(db.Model):
             cls.standard_status.notin_(inactive_statuses),
         )
 
+    _ALLOWED_PROPERTY_TYPES = ('Residential', 'Single Family')
+
+    @classmethod
+    def property_type_filter(cls):
+        """Only show Residential and Single Family listings; pass through nulls."""
+        return or_(
+            cls.property_type.is_(None),
+            cls.property_type.in_(cls._ALLOWED_PROPERTY_TYPES),
+        )
+
     @classmethod
     def visible_filter(cls):
-        """Combined filter for map/list: has photos AND is still active."""
+        """Combined filter for map/list: has photos, is active, and is residential type."""
         from sqlalchemy import and_
-        return and_(cls.has_photos_filter(), cls.is_active_filter())
+        return and_(cls.has_photos_filter(), cls.is_active_filter(), cls.property_type_filter())
     agent_email = db.Column(db.String(255))
     brokerage = db.Column(db.String(200))
 

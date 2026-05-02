@@ -4,6 +4,7 @@ from flask_cors import CORS
 from flask_migrate import Migrate
 from flask_wtf.csrf import CSRFProtect, generate_csrf
 from flask_login import LoginManager
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .socket import socketio
 from .models import db, User
@@ -29,6 +30,7 @@ base_dir = os.path.dirname(os.path.abspath(__file__))
 static_dir = os.path.abspath(os.path.join(base_dir, '..', 'static'))
 app = Flask(__name__, static_folder=static_dir, static_url_path='/')
 app.url_map.strict_slashes = False
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # Setup login manager
 login = LoginManager(app)
