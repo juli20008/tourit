@@ -36,25 +36,23 @@ const Property = ({ property, onClose }) => {
 
 			{/* Scrollable content */}
 			<div className="overflow-y-auto flex-1 min-h-0 rounded-2xl">
-				{/* ── Gallery (full width top) ── */}
-				<Images property={property} />
+				<div className="flex items-start">
 
-				{/* ── Body: responsive layout ── */}
-				<div className="flex flex-col md:flex-row md:gap-8 md:px-8 md:py-7 md:items-start">
+					{/* Left: gallery + detail */}
+					<div className="flex-1 min-w-0">
+						<Images property={property} />
+						<div className="px-4 py-5 md:px-8 md:py-7">
+							<Detail property={property} />
+						</div>
+						<div className="h-20 md:hidden" />
+					</div>
 
-					{/* Tour sidebar — desktop only, right column */}
-					<div className="max-md:hidden order-last w-full md:w-[300px] md:flex-shrink-0 md:sticky md:top-6">
+					{/* Right: Tour — sticky on desktop, hidden on mobile */}
+					<div className="max-md:hidden flex-shrink-0 w-[300px] sticky top-0 p-4">
 						<Tour property={property} setShowTour={onClose} inline />
 					</div>
 
-					{/* Detail — full width on mobile, left column on desktop */}
-					<div className="flex-1 min-w-0 px-4 py-5 md:p-0">
-						<Detail property={property} />
-					</div>
 				</div>
-
-				{/* Spacer so content isn't hidden behind the floating button on mobile */}
-				<div className="h-20 md:hidden" />
 			</div>
 
 			{/* Mobile: floating Tour button */}
