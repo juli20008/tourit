@@ -5,7 +5,7 @@ from sqlalchemy.exc import OperationalError
 
 from app.models import Appointment, AgentAvailability, AgentArea, Property, User
 
-FALLBACK_AGENT_EMAIL = os.environ.get("FALLBACK_AGENT_EMAIL", "mialitoronto@gmail.com")
+FALLBACK_AGENT_EMAIL = os.environ.get("FALLBACK_AGENT_EMAIL", "julie.li.realtor@gmail.com")
 
 
 def _fallback_agent():
