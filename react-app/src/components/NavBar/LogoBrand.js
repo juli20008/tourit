@@ -7,11 +7,11 @@ const LogoBrand = () => (
 			Tourit.ca
 		</span>
 		<span className="text-[#cbd5e1] font-light text-sm md:text-base select-none">|</span>
-		<span
+				<span
 			style={{ fontFamily: "'Inter', sans-serif", fontWeight: 400 }}
 			className="text-[13px] md:text-[16px] leading-none tracking-wide text-white/80"
 		>
-			See it on the map. Book it in a snap.
+			The easiest home tour booking.
 		</span>
 	</div>
 );
