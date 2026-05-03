@@ -161,7 +161,6 @@ const Detail = ({ property }) => {
 					<Row label="Property Type" value={property.style || property.property_type || property.property_class} />
 				)}
 				{property?.sqft         && <Row label="Sqft"       value={Number(property.sqft).toLocaleString()} />}
-				{property?.built        && <Row label="Year Built"  value={property.built} />}
 				{property?.levels       && <Row label="Storeys"     value={property.levels} />}
 
 				{/* ── House-specific ── */}

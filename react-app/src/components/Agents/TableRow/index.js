@@ -23,8 +23,7 @@ const TableRow = ({ agent }) => {
 					<Link to={`/agents/${agent.id}`} className="reviews">
 						{agent?.reviewIds?.length} total reviews
 					</Link>
-					<div className="office">{agent?.office}</div>
-					<div className="office">Agent License #: {agent?.license_num}</div>
+										<div className="office">{agent?.office}</div>
 				</div>
 			</td>
 			<td className="area">
