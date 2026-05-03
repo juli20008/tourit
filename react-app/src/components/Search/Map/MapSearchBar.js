@@ -67,20 +67,30 @@ const MapSearchBar = ({ onPlaceSelect }) => {
 	};
 
 	const handleKeyDown = (e) => {
-		if (!predictions.length) return;
-		if (e.key === "ArrowDown") { e.preventDefault(); setActiveIdx(i => Math.min(i + 1, predictions.length - 1)); }
-		else if (e.key === "ArrowUp") { e.preventDefault(); setActiveIdx(i => Math.max(i - 1, -1)); }
-		else if (e.key === "Enter") {
+		if (e.key === "ArrowDown") {
+			if (!predictions.length) return;
 			e.preventDefault();
-			const idx = activeIdx >= 0 ? activeIdx : 0;
-			if (predictions[idx]) selectPrediction(predictions[idx]);
+			setActiveIdx(i => Math.min(i + 1, predictions.length - 1));
+		} else if (e.key === "ArrowUp") {
+			if (!predictions.length) return;
+			e.preventDefault();
+			setActiveIdx(i => Math.max(i - 1, -1));
 		} else if (e.key === "Escape") {
 			setPredictions([]);
+			setActiveIdx(-1);
 		}
+	};
+
+	const handleSubmit = (e) => {
+		e.preventDefault();
+		if (!predictions.length) return;
+		const idx = activeIdx >= 0 ? activeIdx : 0;
+		if (predictions[idx]) selectPrediction(predictions[idx]);
 	};
 
 	return (
 		<div style={{ position: "relative", width: "100%" }}>
+			<form onSubmit={handleSubmit} autoComplete="off">
 			<div style={{
 				display: "flex", alignItems: "center", gap: 8,
 				background: "white", borderRadius: 10,
@@ -102,6 +112,7 @@ const MapSearchBar = ({ onPlaceSelect }) => {
 					}}
 				/>
 			</div>
+			</form>
 			{predictions.length > 0 && (
 				<div style={{
 					position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0,
