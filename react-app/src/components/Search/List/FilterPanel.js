@@ -202,8 +202,10 @@ const FilterPanel = ({
 	const [localStrataMax, setLocalStrataMax] = useState(!strataMax || strataMax >= 99999 ? STRATA_MAX : strataMax);
 	const [localTitle,     setLocalTitle]     = useState(titleStatus ?? "");
 
-	// Reset price range when transactionType changes
+	// Reset price range only when transactionType actually changes (not on mount)
+	const mountedRef = useRef(false);
 	useEffect(() => {
+		if (!mountedRef.current) { mountedRef.current = true; return; }
 		setMin(0);
 		setMax(99999999999);
 	}, [isRent]); // eslint-disable-line react-hooks/exhaustive-deps
