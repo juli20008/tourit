@@ -152,7 +152,6 @@ const PROP_TYPES = [
 	{ label: "Condo",        value: "condo",        icon: "fa-building" },
 	{ label: "House",        value: "house",         icon: "fa-house" },
 	{ label: "Townhouse",    value: "townhouse",     icon: "fa-city" },
-	{ label: "Multi-family", value: "multi",         icon: "fa-people-roof" },
 ];
 
 const BED_OPTIONS = [
