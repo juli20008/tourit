@@ -110,19 +110,6 @@ const NavBar = () => {
 						<button className="btn-font-lt" onClick={() => setShowLogin(true)}>
 							Login
 						</button>
-						<button type="button" className="btn-font-lt" onClick={openMenu}>
-							Demo Login
-						</button>
-						{showMenu && (
-							<div className="dropdown demo-login" ref={dropdownRef}>
-								<button type="button" className="btn btn-w" onClick={onLogin}>
-									User Demo Login
-								</button>
-								<button type="button" className="btn btn-bl" onClick={onAgentLogin}>
-									Agent Demo Login
-								</button>
-							</div>
-						)}
 					</div>
 					{showLogin && (
 						<Modal onClose={onClose}>
