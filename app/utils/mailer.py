@@ -1,26 +1,15 @@
 import os
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
+import requests
 
 
 def send_magic_link(to_email, magic_url):
-    host = os.environ.get('MAIL_SERVER', '')
-    port = int(os.environ.get('MAIL_PORT', 587))
-    username = os.environ.get('MAIL_USERNAME', '')
-    password = os.environ.get('MAIL_PASSWORD', '')
-    # Gmail requires FROM to match the authenticated account; only use MAIL_FROM
-    # for non-Gmail providers where a custom sender is allowed.
-    from_addr = os.environ.get('MAIL_FROM', username) or username
+    api_key = os.environ.get('RESEND_API_KEY', '').strip()
 
-    if not host or not username or not password:
+    if not api_key:
         print(f'[DEV] Magic link for {to_email}: {magic_url}')
         return True
 
-    msg = MIMEMultipart('alternative')
-    msg['Subject'] = 'Your Tourit Agent Login Link'
-    msg['From'] = from_addr
-    msg['To'] = to_email
+    from_addr = os.environ.get('MAIL_FROM', 'Tourit <onboarding@resend.dev>').strip()
 
     text_body = (
         f'Log in to your Tourit agent account:\n\n{magic_url}\n\n'
@@ -46,23 +35,27 @@ def send_magic_link(to_email, magic_url):
 </body>
 </html>"""
 
-    msg.attach(MIMEText(text_body, 'plain'))
-    msg.attach(MIMEText(html_body, 'html'))
-
     try:
-        with smtplib.SMTP(host, port) as smtp:
-            smtp.ehlo()
-            smtp.starttls()
-            smtp.login(username, password)
-            smtp.sendmail(from_addr, to_email, msg.as_string())
-        print(f'[MAIL] Sent magic link to {to_email}')
-        return True
-    except smtplib.SMTPAuthenticationError as e:
-        print(f'[MAIL ERROR] Authentication failed: {e}')
-        raise RuntimeError('Email authentication failed. Check MAIL_USERNAME and MAIL_PASSWORD.')
-    except smtplib.SMTPException as e:
-        print(f'[MAIL ERROR] SMTP error: {e}')
-        raise RuntimeError(f'Failed to send email: {e}')
-    except Exception as e:
-        print(f'[MAIL ERROR] Unexpected error: {e}')
+        resp = requests.post(
+            'https://api.resend.com/emails',
+            headers={
+                'Authorization': f'Bearer {api_key}',
+                'Content-Type': 'application/json',
+            },
+            json={
+                'from': from_addr,
+                'to': [to_email],
+                'subject': 'Your Tourit Agent Login Link',
+                'html': html_body,
+                'text': text_body,
+            },
+            timeout=10,
+        )
+        if resp.status_code in (200, 201):
+            print(f'[MAIL] Sent magic link to {to_email}')
+            return True
+        print(f'[MAIL ERROR] Resend returned {resp.status_code}: {resp.text}')
+        raise RuntimeError(f'Failed to send email: {resp.text}')
+    except requests.RequestException as e:
+        print(f'[MAIL ERROR] {e}')
         raise RuntimeError(f'Failed to send email: {e}')
