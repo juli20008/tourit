@@ -11,6 +11,7 @@ import { hasConsented, saveConsent } from "../../utils/locationConsent";
 import { useNotification } from "../../context/Notification";
 
 const TORONTO = { lat: 43.6532, lng: -79.3832 };
+const GTA_BOUNDS_OBJ = { south: 43.2, west: -80.5, north: 44.3, east: -78.5 };
 
 const SearchArea = () => {
 	const dispatch = useDispatch();
@@ -27,6 +28,7 @@ const SearchArea = () => {
 	const [transactionType, setTransactionType] = useState("For Sale");
 	const transactionTypeRef = useRef("For Sale");
 	const boundsRef = useRef(null);
+	const [showFilters, setShowFilters] = useState(false);
 
 	const getInitialCenter = (param) => {
 		if (!param) return TORONTO;
@@ -38,6 +40,10 @@ const SearchArea = () => {
 	const [center] = useState(() => getInitialCenter(areaParam));
 	const mapFlyToRef = useRef(null);
 	const searchInputRef = useRef(null);
+	const autocompleteServiceRef = useRef(null);
+	const placesServiceRef = useRef(null);
+	const sessionTokenRef = useRef(null);
+	const gtaBoundsRef = useRef(null);
 	const [mapIsReady, setMapIsReady] = useState(false);
 	const [showConsent, setShowConsent] = useState(false);
 	const [propArr, setPropArr] = useState([]);
@@ -131,14 +137,20 @@ const SearchArea = () => {
 		fetchFromMap(boundsRef.current, newType);
 	};
 
-	// Wire Google Places Autocomplete to the search input once the map (and Google API) is ready
+	// Init Places services once map/Google API is ready
 	useEffect(() => {
 		if (!mapIsReady || !searchInputRef.current || !window.google?.maps?.places) return;
 
 		const gtaBounds = new window.google.maps.LatLngBounds(
-			{ lat: 43.2, lng: -80.5 },
-			{ lat: 44.3, lng: -78.5 }
+			{ lat: GTA_BOUNDS_OBJ.south, lng: GTA_BOUNDS_OBJ.west },
+			{ lat: GTA_BOUNDS_OBJ.north, lng: GTA_BOUNDS_OBJ.east }
 		);
+		gtaBoundsRef.current = gtaBounds;
+
+		autocompleteServiceRef.current = new window.google.maps.places.AutocompleteService();
+		const div = document.createElement("div");
+		placesServiceRef.current = new window.google.maps.places.PlacesService(div);
+		sessionTokenRef.current = new window.google.maps.places.AutocompleteSessionToken();
 
 		const autocomplete = new window.google.maps.places.Autocomplete(searchInputRef.current, {
 			componentRestrictions: { country: "ca" },
@@ -150,54 +162,142 @@ const SearchArea = () => {
 		autocomplete.addListener("place_changed", () => {
 			const place = autocomplete.getPlace();
 			if (!place?.geometry?.location) return;
-			const lat = place.geometry.location.lat();
-			const lng = place.geometry.location.lng();
-			let bounds = null;
-			if (place.geometry.viewport) {
-				const vp = place.geometry.viewport;
-				bounds = {
-					north: vp.getNorthEast().lat(),
-					east:  vp.getNorthEast().lng(),
-					south: vp.getSouthWest().lat(),
-					west:  vp.getSouthWest().lng(),
-				};
-			}
-			mapFlyToRef.current?.(lat, lng, bounds);
+			flyToPlace(place);
 		});
 
 		return () => window.google.maps.event.clearInstanceListeners(autocomplete);
-	}, [mapIsReady]);
+	}, [mapIsReady]); // eslint-disable-line react-hooks/exhaustive-deps
+
+	const flyToPlace = (place) => {
+		const lat = place.geometry.location.lat();
+		const lng = place.geometry.location.lng();
+		let bounds = null;
+		if (place.geometry.viewport) {
+			const vp = place.geometry.viewport;
+			bounds = {
+				north: vp.getNorthEast().lat(), east: vp.getNorthEast().lng(),
+				south: vp.getSouthWest().lat(), west: vp.getSouthWest().lng(),
+			};
+		}
+		mapFlyToRef.current?.(lat, lng, bounds);
+	};
+
+	// Search button: get first prediction and fly there
+	const handleSearchClick = () => {
+		const query = searchInputRef.current?.value?.trim();
+		if (!query || !autocompleteServiceRef.current) return;
+		autocompleteServiceRef.current.getPlacePredictions({
+			input: query,
+			componentRestrictions: { country: "ca" },
+			bounds: gtaBoundsRef.current,
+			sessionToken: sessionTokenRef.current,
+		}, (results, status) => {
+			if (status !== window.google.maps.places.PlacesServiceStatus.OK || !results?.length) return;
+			placesServiceRef.current.getDetails({
+				placeId: results[0].place_id,
+				fields: ["geometry", "types"],
+				sessionToken: sessionTokenRef.current,
+			}, (place, detailStatus) => {
+				sessionTokenRef.current = new window.google.maps.places.AutocompleteSessionToken();
+				if (detailStatus !== window.google.maps.places.PlacesServiceStatus.OK || !place?.geometry) return;
+				flyToPlace(place);
+			});
+		});
+	};
 
 	const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
 	const googleMapURL = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&v=3.exp&libraries=geometry,drawing,places&loading=async`;
 
+	const btnBase = {
+		padding: "0 16px", fontSize: 13, fontWeight: 600,
+		border: "none", cursor: "pointer", height: "100%",
+	};
+
 	return (
 		<div className="search-pg-wrap">
 			<main className="search-pg-ctrl bg-[#f3f3f1]">
-				{/* Map column: search bar on top, map fills the rest */}
+				{/* Map column */}
 				<div style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
+					{/* Search bar row */}
 					<div style={{
+						display: "flex", alignItems: "center", gap: 8,
 						padding: "8px 10px", background: "white",
 						borderBottom: "1px solid #e5e5e0", flexShrink: 0,
 						position: "relative", zIndex: 20,
 					}}>
-						<div style={{ position: "relative" }}>
-							<i className="fa-solid fa-magnifying-glass" style={{
-								position: "absolute", left: 11, top: "50%",
-								transform: "translateY(-50%)", color: "#94a3b8", fontSize: 13, zIndex: 1,
-							}} />
+						{/* Buy / Rent toggle */}
+						<div style={{
+							display: "flex", borderRadius: 8, overflow: "hidden",
+							border: "1px solid #d6d6d0", flexShrink: 0, height: 36,
+						}}>
+							<button
+								type="button"
+								onClick={() => handleTransactionTypeChange("For Sale")}
+								style={{
+									...btnBase,
+									background: transactionType === "For Sale" ? "#0f172a" : "white",
+									color: transactionType === "For Sale" ? "white" : "#374151",
+								}}
+							>Buy</button>
+							<button
+								type="button"
+								onClick={() => handleTransactionTypeChange("For Lease")}
+								style={{
+									...btnBase,
+									background: transactionType === "For Lease" ? "#0f172a" : "white",
+									color: transactionType === "For Lease" ? "white" : "#374151",
+									borderLeft: "1px solid #d6d6d0",
+								}}
+							>Rent</button>
+						</div>
+
+						{/* Search input + magnifying glass button */}
+						<div style={{
+							flex: 1, display: "flex", alignItems: "center",
+							border: "1px solid #d6d6d0", borderRadius: 8,
+							background: "white", overflow: "hidden", height: 36,
+						}}>
 							<input
 								ref={searchInputRef}
 								type="text"
 								placeholder="City, neighbourhood, or address…"
 								style={{
-									width: "100%", border: "1px solid #d6d6d0", borderRadius: 8,
-									padding: "8px 12px 8px 32px", fontSize: 13, outline: "none",
-									color: "#0f172a", background: "white",
+									flex: 1, border: "none", outline: "none",
+									padding: "0 12px", fontSize: 13, color: "#0f172a",
+									background: "transparent", height: "100%",
 								}}
 							/>
+							<button
+								type="button"
+								onClick={handleSearchClick}
+								style={{
+									padding: "0 12px", background: "none", border: "none",
+									borderLeft: "1px solid #e5e5e0", cursor: "pointer",
+									color: "#6b7280", height: "100%", display: "flex",
+									alignItems: "center",
+								}}
+							>
+								<i className="fa-solid fa-magnifying-glass" style={{ fontSize: 13 }} />
+							</button>
 						</div>
+
+						{/* Filter button */}
+						<button
+							type="button"
+							onClick={() => setShowFilters(true)}
+							style={{
+								...btnBase, height: 36,
+								background: "white", color: "#2d2d2d",
+								border: "1px solid #d6d6d0", borderRadius: 8,
+								display: "flex", alignItems: "center", gap: 6, flexShrink: 0,
+							}}
+						>
+							<i className="fa-solid fa-sliders" style={{ fontSize: 12 }} />
+							Filter
+						</button>
 					</div>
+
+					{/* Map */}
 					<div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
 						<MyMap
 							isMarkerShown
@@ -213,8 +313,6 @@ const SearchArea = () => {
 							onMapReady={(fn) => { mapFlyToRef.current = fn; setMapIsReady(true); }}
 							enableAreaSearch={false}
 							syncCenter={false}
-							transactionType={transactionType}
-							setTransactionType={handleTransactionTypeChange}
 						/>
 					</div>
 				</div>
@@ -230,6 +328,8 @@ const SearchArea = () => {
 					showMapAreaButton={false}
 					isMapSyncing={isMapSyncing}
 					hideSearch={true}
+					showFilters={showFilters}
+					setShowFilters={setShowFilters}
 				/>
 			</main>
 			{showConsent && (

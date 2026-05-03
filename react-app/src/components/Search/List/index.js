@@ -25,6 +25,8 @@ const List = ({
 	compactMode = false,
 	isMapSyncing = false,
 	hideSearch = false,
+	showFilters: showFiltersProp = null,
+	setShowFilters: setShowFiltersProp = null,
 }) => {
 	const history = useHistory();
 	const searchParam = useParams().searchParam;
@@ -36,7 +38,9 @@ const List = ({
 	const [error, setError] = useState("");
 	const [pageSize, setPageSize] = useState(100);
 	const [currentPage, setCurrentPage] = useState(1);
-	const [showFilters, setShowFilters] = useState(false);
+	const [showFiltersInternal, setShowFiltersInternal] = useState(false);
+	const showFilters = showFiltersProp !== null ? showFiltersProp : showFiltersInternal;
+	const setShowFilters = setShowFiltersProp !== null ? setShowFiltersProp : setShowFiltersInternal;
 
 	const searchDivRef = useRef();
 	const searchDDRef = useRef();
