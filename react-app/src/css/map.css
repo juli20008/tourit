@@ -3,6 +3,17 @@
 	width: 100%;
 }
 
+/* Google Places autocomplete dropdown must sit above everything */
+.pac-container {
+	z-index: 9999 !important;
+	border-radius: 8px;
+	box-shadow: 0 4px 16px rgba(0,0,0,.15);
+	border: 1px solid #e5e5e0;
+	margin-top: 2px;
+	font-family: inherit;
+	font-size: 13px;
+}
+
 /* ── InfoWindow container ───────────────────────────────────────────── */
 .gm-style .gm-style-iw-c {
 	padding: 0 !important;

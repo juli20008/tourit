@@ -24,6 +24,7 @@ const List = ({
 	showMapAreaButton = true,
 	compactMode = false,
 	isMapSyncing = false,
+	hideSearch = false,
 }) => {
 	const history = useHistory();
 	const searchParam = useParams().searchParam;
@@ -97,7 +98,7 @@ const List = ({
 
 	return (
 		<div className="search-wrap bg-[#f3f3f1] text-[#1f1f1f]">
-			{!compactMode && (
+			{!compactMode && !hideSearch && (
 				<div className="search-bar-wrap sticky top-0 z-20 border-b border-[#e5e5e0] bg-[#f3f3f1] px-3 py-1">
 					<form className="search-bar flex items-center gap-2" onSubmit={handleSubmit}>
 						<label className="search-label-sm relative min-w-[220px] flex-1">

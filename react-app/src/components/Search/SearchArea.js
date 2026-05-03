@@ -17,7 +17,6 @@ const SearchArea = () => {
 	const { areaParam } = useParams();
 	const { setToggleNotification, setNotificationMsg } = useNotification();
 
-	// state.properties is a flat { [id]: property } object — do NOT chain .properties
 	const properties = useSelector((state) => state.properties?.properties ?? []);
 
 	const [min, setMin] = useState(0);
@@ -37,7 +36,9 @@ const SearchArea = () => {
 	};
 
 	const [center] = useState(() => getInitialCenter(areaParam));
-	const mapFlyToRef = useRef(null); // set by Map via onMapReady
+	const mapFlyToRef = useRef(null);
+	const searchInputRef = useRef(null);
+	const [mapIsReady, setMapIsReady] = useState(false);
 	const [showConsent, setShowConsent] = useState(false);
 	const [propArr, setPropArr] = useState([]);
 	const [over, setOver] = useState({ id: 0 });
@@ -45,7 +46,6 @@ const SearchArea = () => {
 	const [isMapSyncing, setIsMapSyncing] = useState(false);
 	const mapSyncTimer = useRef(null);
 
-	// Show consent banner once on mount if not yet accepted
 	useEffect(() => {
 		if (!hasConsented()) setShowConsent(true);
 	}, []);
@@ -59,29 +59,14 @@ const SearchArea = () => {
 		);
 	};
 
-	const handleAccept = () => {
-		saveConsent();
-		setShowConsent(false);
-		requestLocation();
-	};
+	const handleAccept = () => { saveConsent(); setShowConsent(false); requestLocation(); };
+	const handleDecline = () => setShowConsent(false);
 
-	const handleDecline = () => {
-		setShowConsent(false);
-	};
-
-		useEffect(() => {
+	useEffect(() => {
 		if (areaParam) {
-			const parts = areaParam
-				.split("&")
-				.map((each) => parseFloat(each.split("=")[1]));
+			const parts = areaParam.split("&").map((each) => parseFloat(each.split("=")[1]));
 			const [neLat, neLng, swLat, swLng, zoomVal] = parts;
-			const payload = {
-				neLat: parseFloat(neLat),
-				neLng: parseFloat(neLng),
-				swLat: parseFloat(swLat),
-				swLng: parseFloat(swLng),
-			};
-			dispatch(propertyActions.areaProperties(payload));
+			dispatch(propertyActions.areaProperties({ neLat, neLng, swLat, swLng }));
 			setZoom(Math.round(zoomVal));
 		}
 	}, [dispatch, areaParam]);
@@ -116,13 +101,12 @@ const SearchArea = () => {
 				return !tt.includes("lease");
 			});
 		setPropArr(arr);
-		}, [min, max, type, bed, bath, transactionType, properties]);
+	}, [min, max, type, bed, bath, transactionType, properties]);
+
 	const sidebarArr = propArr.slice(0, 100);
 
 	useEffect(() => {
-		return () => {
-			if (mapSyncTimer.current) clearTimeout(mapSyncTimer.current);
-		};
+		return () => { if (mapSyncTimer.current) clearTimeout(mapSyncTimer.current); };
 	}, []);
 
 	const fetchFromMap = useCallback((bounds, tType) => {
@@ -130,10 +114,7 @@ const SearchArea = () => {
 		if (mapSyncTimer.current) clearTimeout(mapSyncTimer.current);
 		mapSyncTimer.current = setTimeout(async () => {
 			setIsMapSyncing(true);
-			await dispatch(propertyActions.areaProperties({
-				...bounds,
-				transaction_type: tType,
-			}));
+			await dispatch(propertyActions.areaProperties({ ...bounds, transaction_type: tType }));
 			setIsMapSyncing(false);
 		}, 500);
 	}, [dispatch]);
@@ -150,45 +131,105 @@ const SearchArea = () => {
 		fetchFromMap(boundsRef.current, newType);
 	};
 
+	// Wire Google Places Autocomplete to the search input once the map (and Google API) is ready
+	useEffect(() => {
+		if (!mapIsReady || !searchInputRef.current || !window.google?.maps?.places) return;
+
+		const gtaBounds = new window.google.maps.LatLngBounds(
+			{ lat: 43.2, lng: -80.5 },
+			{ lat: 44.3, lng: -78.5 }
+		);
+
+		const autocomplete = new window.google.maps.places.Autocomplete(searchInputRef.current, {
+			componentRestrictions: { country: "ca" },
+			bounds: gtaBounds,
+			strictBounds: false,
+			fields: ["geometry", "types"],
+		});
+
+		autocomplete.addListener("place_changed", () => {
+			const place = autocomplete.getPlace();
+			if (!place?.geometry?.location) return;
+			const lat = place.geometry.location.lat();
+			const lng = place.geometry.location.lng();
+			let bounds = null;
+			if (place.geometry.viewport) {
+				const vp = place.geometry.viewport;
+				bounds = {
+					north: vp.getNorthEast().lat(),
+					east:  vp.getNorthEast().lng(),
+					south: vp.getSouthWest().lat(),
+					west:  vp.getSouthWest().lng(),
+				};
+			}
+			mapFlyToRef.current?.(lat, lng, bounds);
+		});
+
+		return () => window.google.maps.event.clearInstanceListeners(autocomplete);
+	}, [mapIsReady]);
+
 	const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
 	const googleMapURL = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&v=3.exp&libraries=geometry,drawing,places&loading=async`;
 
 	return (
 		<div className="search-pg-wrap">
 			<main className="search-pg-ctrl bg-[#f3f3f1]">
-				<MyMap
-					isMarkerShown
-					googleMapURL={googleMapURL}
-					loadingElement={<div style={{ height: `100%` }} />}
-					containerElement={<div className="map-ctnr relative overflow-hidden border-r border-[#dcdcd7]" />}
-					mapElement={<div style={{ height: `100%` }} />}
-					markers={propArr}
-					center={center}
-					over={over}
-					zoom={zoom}
-					onBoundsChange={handleMapBoundsChange}
-					onMapReady={(fn) => { mapFlyToRef.current = fn; }}
-					showSearch={true}
-					enableAreaSearch={false}
-					syncCenter={false}
-					transactionType={transactionType}
-					setTransactionType={handleTransactionTypeChange}
-				/>
+				{/* Map column: search bar on top, map fills the rest */}
+				<div style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
+					<div style={{
+						padding: "8px 10px", background: "white",
+						borderBottom: "1px solid #e5e5e0", flexShrink: 0,
+						position: "relative", zIndex: 20,
+					}}>
+						<div style={{ position: "relative" }}>
+							<i className="fa-solid fa-magnifying-glass" style={{
+								position: "absolute", left: 11, top: "50%",
+								transform: "translateY(-50%)", color: "#94a3b8", fontSize: 13, zIndex: 1,
+							}} />
+							<input
+								ref={searchInputRef}
+								type="text"
+								placeholder="City, neighbourhood, or address…"
+								style={{
+									width: "100%", border: "1px solid #d6d6d0", borderRadius: 8,
+									padding: "8px 12px 8px 32px", fontSize: 13, outline: "none",
+									color: "#0f172a", background: "white",
+								}}
+							/>
+						</div>
+					</div>
+					<div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
+						<MyMap
+							isMarkerShown
+							googleMapURL={googleMapURL}
+							loadingElement={<div style={{ height: "100%" }} />}
+							containerElement={<div className="map-ctnr relative overflow-hidden border-r border-[#dcdcd7]" />}
+							mapElement={<div style={{ height: "100%" }} />}
+							markers={propArr}
+							center={center}
+							over={over}
+							zoom={zoom}
+							onBoundsChange={handleMapBoundsChange}
+							onMapReady={(fn) => { mapFlyToRef.current = fn; setMapIsReady(true); }}
+							enableAreaSearch={false}
+							syncCenter={false}
+							transactionType={transactionType}
+							setTransactionType={handleTransactionTypeChange}
+						/>
+					</div>
+				</div>
+
 				<List
-					min={min}
-					setMin={setMin}
-					max={max}
-					setMax={setMax}
-					type={type}
-					setType={setType}
-					bed={bed}
-					setBed={setBed}
-					bath={bath}
-					setBath={setBath}
+					min={min} setMin={setMin}
+					max={max} setMax={setMax}
+					type={type} setType={setType}
+					bed={bed} setBed={setBed}
+					bath={bath} setBath={setBath}
 					propArr={sidebarArr}
 					setOver={setOver}
 					showMapAreaButton={false}
 					isMapSyncing={isMapSyncing}
+					hideSearch={true}
 				/>
 			</main>
 			{showConsent && (

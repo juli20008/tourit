@@ -14,7 +14,6 @@ import { Modal } from "../../../context/Modal";
 import Property from "../../Property";
 import PropertyPreviewList from "./PropertyPreviewList";
 import BottomSheet from "./BottomSheet";
-import MapSearchBar from "./MapSearchBar";
 import { hydrateMlsListing } from "../../../utils/mlsListingHydrator";
 
 // Compute pixelOffset so the InfoWindow card stays within the visible map area.
@@ -357,16 +356,6 @@ const MapCore = withGoogleMap((props) => {
 
 		return (
 			<>
-				{/* Google Places search — top-center map overlay */}
-				{props.showSearch && (
-					<div className="absolute top-3 z-10" style={{ left: "50%", transform: "translateX(-50%)", width: 360, maxWidth: "70%" }}>
-						<MapSearchBar onPlaceSelect={(lat, lng, bounds) => {
-							if (!mapRef.current) return;
-							if (bounds) mapRef.current.fitBounds(bounds);
-							else { const d = 0.005; mapRef.current.fitBounds({ north: lat+d, south: lat-d, east: lng+d, west: lng-d }); }
-						}} />
-					</div>
-				)}
 				{/* For Sale / For Lease filter — top-left map overlay */}
 				{props.setTransactionType && (
 					<div className="absolute top-3 left-3 z-10">
