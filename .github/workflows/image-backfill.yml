@@ -2,7 +2,7 @@ name: Image Backfill
 
 on:
   schedule:
-    - cron: "0 9 * * *"   # 5am EST / 9am UTC — after ddf-sync (7am) and geocode (8am)
+    - cron: "0 9 * * 0"   # Weekly, Sunday 9am UTC
   workflow_dispatch:
     inputs:
       max_listings:

@@ -79,6 +79,30 @@ function toDbRow(raw: Record<string, any>): Record<string, any> {
   return filtered;
 }
 
+// ─── Photo timestamp helpers ──────────────────────────────────────────────────
+
+function toDotNetTicks(value: any): string | null {
+  if (!value) return null;
+  const date = new Date(String(value));
+  if (Number.isNaN(date.getTime())) return null;
+  const ticks = 621355968000000000n + BigInt(date.getTime()) * 10000n;
+  return String(ticks);
+}
+
+async function fetchExistingTimestamps(mlsNumbers: string[]): Promise<Map<string, string | null>> {
+  if (!mlsNumbers.length) return new Map();
+  const list = mlsNumbers.map(n => `"${n}"`).join(',');
+  const url = `${SUPABASE_URL}/rest/v1/mls_listings?select=mls_number,photos_timestamp&mls_number=in.(${list})`;
+  const res = await fetch(url, {
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, Accept: 'application/json' },
+  });
+  const map = new Map<string, string | null>();
+  if (!res.ok) return map;
+  const rows: any[] = await res.json();
+  for (const r of rows) map.set(r.mls_number, r.photos_timestamp ?? null);
+  return map;
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -119,16 +143,34 @@ async function main() {
   await supabaseUpsert(dbRows);
   console.log(`[hourly] Upserted ${dbRows.length} listing(s).`);
 
-  // ── Step 3: Fetch & store photos ──────────────────────────────────────────
+  // ── Step 3: Fetch & store photos (only if photos_timestamp changed) ──────────
+  const mlsNums = dbRows.map(r => String(r.mls_number ?? '')).filter(Boolean);
+  const existingTs = await fetchExistingTimestamps(mlsNums);
+
+  // Determine which listings actually need a GetObject call
+  const needsPhoto = rawListings.filter((raw, i) => {
+    const mls = String(dbRows[i].mls_number ?? '');
+    if (!mls) return false;
+    const ddfTs = toDotNetTicks(raw.PhotosChangeTimestamp ?? raw.photosChangeTimestamp);
+    const dbTs  = existingTs.get(mls) ?? null;
+    return ddfTs !== dbTs; // fetch only when timestamp changed or listing is new
+  });
+
+  console.log(`[hourly] ${needsPhoto.length}/${rawListings.length} listing(s) need photo update`);
+
+  if (!needsPhoto.length) {
+    console.log(`\n[hourly] Done. Listings: ${dbRows.length} | Photos: all unchanged`);
+    return;
+  }
+
   const photoSession = new DdfPhotoSession(loginUrl, username, password);
   await photoSession.login();
 
   let photoOk = 0;
   let photoFail = 0;
 
-  for (let i = 0; i < rawListings.length; i++) {
-    const raw = rawListings[i];
-    const mlsNumber  = String(dbRows[i].mls_number ?? '');
+  for (const raw of needsPhoto) {
+    const mlsNumber  = String(raw.ListingId ?? raw.ListingID ?? raw.MLS_NUM ?? raw.MlsNumber ?? raw.ListingKey ?? '');
     const listingKey = raw.ListingKey ?? raw.ListingID ?? mlsNumber;
     if (!listingKey || !mlsNumber) continue;
 

@@ -136,7 +136,7 @@ function createSupabaseClient(): SupabaseClientLike {
               apikey: key,
               Authorization: `Bearer ${key}`,
               'Content-Type': 'application/json',
-              Prefer: 'resolution=merge-duplicates,return=representation',
+              Prefer: 'resolution=merge-duplicates,return=minimal',
             },
             body: JSON.stringify(payload),
           });
@@ -146,16 +146,8 @@ function createSupabaseClient(): SupabaseClientLike {
             return { data: null, error: { status: response.status, message: text } };
           }
 
-          const text = await response.text();
-          let data: any = null;
-          if (text) {
-            try {
-              data = JSON.parse(text);
-            } catch {
-              data = text;
-            }
-          }
-          return { data, error: null };
+          // return=minimal → empty body; treat length of input as success count
+          return { data: payload, error: null };
         },
       };
     },
@@ -168,14 +160,15 @@ function toDbRow(row: SupabaseRow): SupabaseRow {
   );
 }
 
-// Returns a map of mls_number → { photos_timestamp, hasImages } from the DB.
+// Returns a map of mls_number → photos_timestamp from the DB.
+// Only fetches photos_timestamp — avoids transferring images arrays.
 async function fetchExistingPhotoState(
   mlsNumbers: string[]
 ): Promise<Map<string, { photos_timestamp: string | null; hasImages: boolean }>> {
   const url  = process.env.SUPABASE_URL!;
   const key  = process.env.SUPABASE_SERVICE_ROLE_KEY!;
   const list = mlsNumbers.map(n => `"${n}"`).join(',');
-  const endpoint = `${url}/rest/v1/mls_listings?select=mls_number,photos_timestamp,images&mls_number=in.(${list})`;
+  const endpoint = `${url}/rest/v1/mls_listings?select=mls_number,photos_timestamp&mls_number=in.(${list})`;
 
   const res = await fetch(endpoint, {
     headers: { apikey: key, Authorization: `Bearer ${key}`, Accept: 'application/json' },
@@ -184,10 +177,11 @@ async function fetchExistingPhotoState(
   if (!res.ok) return map;
   const rows: any[] = await res.json();
   for (const r of rows) {
-    const imgs = r.images;
+    // If the record exists and has a photos_timestamp, assume it has images.
+    // Avoids fetching the images array just to check length.
     map.set(r.mls_number, {
       photos_timestamp: r.photos_timestamp ?? null,
-      hasImages: Array.isArray(imgs) ? imgs.length > 0 : Boolean(imgs),
+      hasImages: Boolean(r.photos_timestamp),
     });
   }
   return map;

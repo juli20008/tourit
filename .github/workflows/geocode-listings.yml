@@ -2,7 +2,7 @@ name: Geocode Listings
 
 on:
   schedule:
-    - cron: "0 8 * * *"   # 4am EST / 8am UTC — runs after ddf-sync (7am UTC)
+    - cron: "0 8 * * 0"   # Weekly, Sunday 8am UTC
   workflow_dispatch:
     inputs:
       state:
