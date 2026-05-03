@@ -18,6 +18,17 @@ const List = ({
 	setBed,
 	bath,
 	setBath,
+	sqftMin: sqftMinProp = null,
+	setSqftMin: setSqftMinProp = null,
+	sqftMax: sqftMaxProp = null,
+	setSqftMax: setSqftMaxProp = null,
+	strataMin: strataMinProp = null,
+	setStrataMin: setStrataMinProp = null,
+	strataMax: strataMaxProp = null,
+	setStrataMax: setStrataMaxProp = null,
+	titleStatus: titleStatusProp = null,
+	setTitleStatus: setTitleStatusProp = null,
+	transactionType: transactionTypeProp = null,
 	propArr,
 	setOver,
 	url,
@@ -41,6 +52,25 @@ const List = ({
 	const [showFiltersInternal, setShowFiltersInternal] = useState(false);
 	const showFilters = showFiltersProp !== null ? showFiltersProp : showFiltersInternal;
 	const setShowFilters = setShowFiltersProp !== null ? setShowFiltersProp : setShowFiltersInternal;
+
+	const [sqftMinInternal, setSqftMinInternal] = useState(0);
+	const [sqftMaxInternal, setSqftMaxInternal] = useState(999999);
+	const [strataMinInternal, setStrataMinInternal] = useState(0);
+	const [strataMaxInternal, setStrataMaxInternal] = useState(999999);
+	const [titleStatusInternal, setTitleStatusInternal] = useState("");
+	const [transactionTypeInternal] = useState("For Sale");
+
+	const sqftMin = sqftMinProp !== null ? sqftMinProp : sqftMinInternal;
+	const setSqftMin = setSqftMinProp !== null ? setSqftMinProp : setSqftMinInternal;
+	const sqftMax = sqftMaxProp !== null ? sqftMaxProp : sqftMaxInternal;
+	const setSqftMax = setSqftMaxProp !== null ? setSqftMaxProp : setSqftMaxInternal;
+	const strataMin = strataMinProp !== null ? strataMinProp : strataMinInternal;
+	const setStrataMin = setStrataMinProp !== null ? setStrataMinProp : setStrataMinInternal;
+	const strataMax = strataMaxProp !== null ? strataMaxProp : strataMaxInternal;
+	const setStrataMax = setStrataMaxProp !== null ? setStrataMaxProp : setStrataMaxInternal;
+	const titleStatus = titleStatusProp !== null ? titleStatusProp : titleStatusInternal;
+	const setTitleStatus = setTitleStatusProp !== null ? setTitleStatusProp : setTitleStatusInternal;
+	const transactionType = transactionTypeProp !== null ? transactionTypeProp : transactionTypeInternal;
 
 	const searchDivRef = useRef();
 	const searchDDRef = useRef();
@@ -238,6 +268,12 @@ const List = ({
 					type={type} setType={setType}
 					bed={bed} setBed={setBed}
 					bath={bath} setBath={setBath}
+					sqftMin={sqftMin} setSqftMin={setSqftMin}
+					sqftMax={sqftMax} setSqftMax={setSqftMax}
+					strataMin={strataMin} setStrataMin={setStrataMin}
+					strataMax={strataMax} setStrataMax={setStrataMax}
+					titleStatus={titleStatus} setTitleStatus={setTitleStatus}
+					transactionType={transactionType}
 					onClose={() => setShowFilters(false)}
 				/>
 			)}
