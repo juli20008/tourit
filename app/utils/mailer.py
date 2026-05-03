@@ -9,7 +9,7 @@ def send_magic_link(to_email, magic_url):
         print(f'[DEV] Magic link for {to_email}: {magic_url}')
         return True
 
-    from_addr = os.environ.get('MAIL_FROM', 'Tourit <onboarding@resend.dev>').strip()
+    from_addr = os.environ.get('MAIL_FROM', 'Tourit <NoReply@tourit.ca>').strip()
 
     text_body = (
         f'Log in to your Tourit agent account:\n\n{magic_url}\n\n'
