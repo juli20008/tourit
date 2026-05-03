@@ -3,7 +3,7 @@ import ReactDOM from "react-dom";
 
 const BUY_PRICE_MAX  = 5_000_000;
 const RENT_PRICE_MAX = 10_000;
-const SQFT_MAX       = 20_000;
+const SQFT_MAX       = 25_000;
 const YEAR_MIN       = 1900;
 const YEAR_MAX       = new Date().getFullYear();
 const STRATA_MAX     = 2_000;
@@ -196,10 +196,10 @@ const FilterPanel = ({
 	const priceMin = Math.min(min, PRICE_MAX);
 	const priceMax = max >= 99_999_999 ? PRICE_MAX : Math.min(max, PRICE_MAX);
 
-	const [localSqftMin,   setLocalSqftMin]   = useState(sqftMin ?? 0);
-	const [localSqftMax,   setLocalSqftMax]   = useState(sqftMax ?? SQFT_MAX);
-	const [localStrataMin, setLocalStrataMin] = useState(strataMin ?? 0);
-	const [localStrataMax, setLocalStrataMax] = useState(strataMax ?? STRATA_MAX);
+	const [localSqftMin,   setLocalSqftMin]   = useState(!sqftMin ? 0 : sqftMin);
+	const [localSqftMax,   setLocalSqftMax]   = useState(!sqftMax || sqftMax >= 99999 ? SQFT_MAX : sqftMax);
+	const [localStrataMin, setLocalStrataMin] = useState(!strataMin ? 0 : strataMin);
+	const [localStrataMax, setLocalStrataMax] = useState(!strataMax || strataMax >= 99999 ? STRATA_MAX : strataMax);
 	const [localTitle,     setLocalTitle]     = useState(titleStatus ?? "");
 
 	// Reset price range when transactionType changes
