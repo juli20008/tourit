@@ -120,8 +120,7 @@ const SearchArea = () => {
 			.filter((prop) => {
 				if (bed === 0)  return true;
 				if (bed === -1) return prop?.bed === 0;
-				if (bed >= 5)   return prop?.bed >= 5;
-				return prop?.bed === bed;
+				return prop?.bed >= bed;
 			})
 			.filter((prop) => {
 				if (bath === 0) return true;

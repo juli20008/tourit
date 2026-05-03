@@ -3,7 +3,7 @@ import ReactDOM from "react-dom";
 
 const BUY_PRICE_MAX  = 5_000_000;
 const RENT_PRICE_MAX = 10_000;
-const SQFT_MAX       = 10_000;
+const SQFT_MAX       = 20_000;
 const YEAR_MIN       = 1900;
 const YEAR_MAX       = new Date().getFullYear();
 const STRATA_MAX     = 2_000;
@@ -157,8 +157,8 @@ const PROP_TYPES = [
 
 const BED_OPTIONS = [
 	{ label: "Any", value: 0 }, { label: "Studio", value: -1 },
-	{ label: "1",   value: 1 }, { label: "2",      value: 2  },
-	{ label: "3",   value: 3 }, { label: "4",      value: 4  },
+	{ label: "1+",  value: 1 }, { label: "2+",     value: 2  },
+	{ label: "3+",  value: 3 }, { label: "4+",     value: 4  },
 	{ label: "5+",  value: 5 },
 ];
 
@@ -192,10 +192,10 @@ const FilterPanel = ({
 	const PRICE_MAX  = isRent ? RENT_PRICE_MAX : BUY_PRICE_MAX;
 	const PRICE_STEP = isRent ? 100 : 10_000;
 
-	const [priceMin, setPriceMin] = useState(Math.min(min, PRICE_MAX));
-	const [priceMax, setPriceMax] = useState(
-		max >= 99999999 ? PRICE_MAX : Math.min(max, PRICE_MAX)
-	);
+	// Price is applied on the fly — derive display values from parent state
+	const priceMin = Math.min(min, PRICE_MAX);
+	const priceMax = max >= 99_999_999 ? PRICE_MAX : Math.min(max, PRICE_MAX);
+
 	const [localSqftMin,   setLocalSqftMin]   = useState(sqftMin ?? 0);
 	const [localSqftMax,   setLocalSqftMax]   = useState(sqftMax ?? SQFT_MAX);
 	const [localStrataMin, setLocalStrataMin] = useState(strataMin ?? 0);
@@ -204,13 +204,14 @@ const FilterPanel = ({
 
 	// Reset price range when transactionType changes
 	useEffect(() => {
-		setPriceMin(0);
-		setPriceMax(PRICE_MAX);
+		setMin(0);
+		setMax(99999999999);
 	}, [isRent]); // eslint-disable-line react-hooks/exhaustive-deps
 
+	const setPriceMin = (v) => setMin(v);
+	const setPriceMax = (v) => setMax(v >= PRICE_MAX ? 99999999999 : v);
+
 	const handleDone = () => {
-		setMin(priceMin);
-		setMax(priceMax >= PRICE_MAX ? 99999999999 : priceMax);
 		setSqftMin(localSqftMin);
 		setSqftMax(localSqftMax >= SQFT_MAX ? 999999 : localSqftMax);
 		setStrataMin(localStrataMin);
@@ -220,7 +221,6 @@ const FilterPanel = ({
 	};
 
 	const handleClear = () => {
-		setPriceMin(0);       setPriceMax(PRICE_MAX);
 		setMin(0);            setMax(99999999999);
 		setType("");          setBed(0);   setBath(0);
 		setLocalSqftMin(0);   setLocalSqftMax(SQFT_MAX);
