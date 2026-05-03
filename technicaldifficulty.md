@@ -69,19 +69,17 @@ Next Steps:
 2. One button to create a listing on FBMP/Kijiji/Xiaohongshu
 
 Absolutely need to be fixed:
-7. Search function
-3. Filters
-4. For Sale/For Lease
-5. Realtor login
-6. Request a showing
+2. Filters （价格，类型，几bed，几bath）：
+3. Realtor login
+Completed - 4. Request a showing - works basic to book Julie
 
 
-![alt text](image.png)
 
-1. 字段
-2. Geo精确性
-6. Chat function
-8. Sort - 广告？
+next step
+1. 字段整理
+2. Chat function
+3. Sort - 广告？
+
 
 Nice to have:
 1. Gallery滚动浏览
