@@ -67,7 +67,7 @@ const Splash = () => {
 	useEffect(() => {
 		const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
 		if (!apiKey) return;
-		const loader = new Loader({ apiKey, version: "weekly", libraries: ["places"] });
+		const loader = new Loader({ apiKey, version: "weekly", libraries: ["geometry", "drawing", "places"] });
 		loader.load().then(() => {
 			autocompleteRef.current = new window.google.maps.places.AutocompleteService();
 			const div = document.createElement("div");
@@ -103,11 +103,15 @@ const Splash = () => {
 
 	const fetchPredictions = (value) => {
 		if (!value.trim() || !autocompleteRef.current) { setPredictions([]); return; }
+		const gtaBounds = new window.google.maps.LatLngBounds(
+			{ lat: 43.2, lng: -80.5 },
+			{ lat: 44.3, lng: -78.5 }
+		);
 		autocompleteRef.current.getPlacePredictions(
 			{
 				input: value,
 				componentRestrictions: { country: "ca" },
-				locationBias: { center: TORONTO, radius: 60000 },
+				bounds: gtaBounds,
 				sessionToken: sessionTokenRef.current,
 			},
 			(results, status) => {

@@ -168,6 +168,7 @@ const SearchArea = () => {
 					zoom={zoom}
 					onBoundsChange={handleMapBoundsChange}
 					onMapReady={(fn) => { mapFlyToRef.current = fn; }}
+					showSearch={true}
 					enableAreaSearch={false}
 					syncCenter={false}
 					transactionType={transactionType}
