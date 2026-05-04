@@ -46,17 +46,7 @@ const Search = () => {
 		};
 	}, []);
 
-	const matchesType = (prop, slug) => {
-		if (!slug) return true;
-		const t = ((prop?.type || "") + " " + (prop?.property_type || "")).toLowerCase();
-		if (slug === "condo")     return t.includes("condo") || t.includes("condominium");
-		if (slug === "townhouse") return t.includes("townhouse") || t.includes("town house");
-		if (slug === "multi")     return t.includes("multi") || t.includes("duplex") || t.includes("triplex");
-		if (slug === "house")     return t.includes("single family") || t.includes("detached") || (t.includes("residential") && !t.includes("condo"));
-		return t.includes(slug);
-	};
-
-	const matchesTitle = (ownershipType, slug) => {
+		const matchesTitle = (ownershipType, slug) => {
 		if (!slug) return true;
 		const t = (ownershipType || "").toLowerCase();
 		if (!t) return false;
@@ -72,7 +62,7 @@ const Search = () => {
 		const arr = (Array.isArray(properties) ? properties : [])
 			.filter((prop) => prop?.price > min)
 			.filter((prop) => prop?.price < max)
-			.filter((prop) => matchesType(prop, type))
+			.filter((prop) => !type || prop?.category === type)
 			.filter((prop) => {
 				if (bed === 0)  return true;
 				const propBed = parseInt(prop?.bed, 10) || 0;

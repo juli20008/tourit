@@ -149,9 +149,9 @@ const BtnStrip = ({ options, value, onChange }) => (
 // ── data ──────────────────────────────────────────────────────────────────────
 
 const PROP_TYPES = [
-	{ label: "Condo",        value: "condo",        icon: "fa-building" },
-	{ label: "House",        value: "house",         icon: "fa-house" },
-	{ label: "Townhouse",    value: "townhouse",     icon: "fa-city" },
+	{ label: "Condo",        value: "Condo",         icon: "fa-building" },
+	{ label: "House",        value: "House",          icon: "fa-house" },
+	{ label: "Townhouse",    value: "Townhouse",      icon: "fa-city" },
 ];
 
 const BED_OPTIONS = [
