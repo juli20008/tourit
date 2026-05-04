@@ -53,8 +53,9 @@ const Detail = ({ property }) => {
 
 	const propText = [property?.style, property?.property_type, property?.property_class, property?.type]
 		.filter(Boolean).join(' ').toLowerCase();
-	const isCondo    = /condo|apt|apartment|flat|strata/i.test(propText);
-	const isTownhouse = /townhouse|town.?house|row/i.test(propText);
+	const cat = property?.category || '';
+	const isCondo    = cat ? cat === 'Condo'     : /condo|apt|apartment|flat|strata/i.test(propText);
+	const isTownhouse = cat ? cat === 'Townhouse' : /townhouse|town.?house|row/i.test(propText);
 	const isHouse    = !isCondo && !isTownhouse;
 	const isForSale  = (property?.transaction_type || '').toLowerCase() !== 'for lease';
 	const showStrataFee = isCondo && isForSale && property?.association_fee > 0;
@@ -157,8 +158,8 @@ const Detail = ({ property }) => {
 					<Row label="Partial Bathrooms" value={property.bath_half} />
 				)}
 				{property?.parking_total && <Row label="Parking Spaces" value={property.parking_total} />}
-				{(property?.style || property?.property_type || property?.property_class) && (
-					<Row label="Property Type" value={property.style || property.property_type || property.property_class} />
+				{(property?.category || property?.style || property?.property_type || property?.property_class) && (
+					<Row label="Property Type" value={property.category || property.style || property.property_type || property.property_class} />
 				)}
 				{property?.sqft         && <Row label="Sqft"       value={Number(property.sqft).toLocaleString()} />}
 				{property?.levels       && <Row label="Storeys"     value={property.levels} />}
