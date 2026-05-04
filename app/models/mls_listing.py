@@ -253,6 +253,9 @@ class MlsListing(db.Model):
             'construction_materials': self.construction_materials or None,
             'levels': self.levels or None,
             'ownership_type': self.ownership_type or None,
+            # 在 _base_frontend_dict 里面改：
+            'category': self.category if self.category else '',
+            'type': self.category if self.category else (self.style or self.property_type or ''),
         }
 
     def to_frontend_dict(self):
@@ -310,4 +313,5 @@ class MlsListing(db.Model):
             'image_urls': imgs,
             'agent_name': self.agent_name,
             'brokerage': self.brokerage,
+            'category': self.category,
         }

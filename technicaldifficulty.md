@@ -69,9 +69,7 @@ Next Steps:
 2. One button to create a listing on FBMP/Kijiji/Xiaohongshu
 
 Absolutely need to be fixed:
-2. Filters （价格，类型，几bed，几bath）：
-3. Realtor login
-Completed - 4. Request a showing - works basic to book Julie
+2. Filters （类型）：
 
 
 
