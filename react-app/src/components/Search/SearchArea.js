@@ -102,11 +102,21 @@ const SearchArea = () => {
 		return false;
 	};
 
+	const matchesType = (prop, slug) => {
+		if (!slug) return true;
+		if (prop?.category) return prop.category === slug;
+		const txt = [prop?.style, prop?.property_type, prop?.type].filter(Boolean).join(' ');
+		if (slug === 'Condo')     return /condo|apt|apartment|flat|strata/i.test(txt);
+		if (slug === 'Townhouse') return /townhouse|town.?house|row/i.test(txt);
+		if (slug === 'House')     return !(/condo|apt|apartment|flat|strata|townhouse|town.?house|row/i.test(txt));
+		return false;
+	};
+
 	useEffect(() => {
 		const arr = (Array.isArray(properties) ? properties : [])
 			.filter((prop) => prop?.price > min)
 			.filter((prop) => prop?.price < max)
-			.filter((prop) => !type || prop?.category === type)
+			.filter((prop) => matchesType(prop, type))
 			.filter((prop) => {
 				if (bed === 0)  return true;
 				const propBed = parseInt(prop?.bed, 10) || 0;
