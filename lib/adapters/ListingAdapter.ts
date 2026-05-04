@@ -35,6 +35,7 @@ export interface SupabaseListing {
   year_built: number | null;
   style: string | null;
   property_type: string | null;
+  category: string | null; // <-- 在这里加这一行
   description: string | null;
   images: string[];
   agent_name: string | null;
@@ -67,6 +68,32 @@ function firstEmail(...values: any[]): string | null {
     if (s && s !== 'False' && s !== 'True' && s.includes('@')) return s;
   }
   return null;
+}
+
+// 纯逻辑判定，不依赖 PublicRemarks
+function deriveCategory(raw: any): string {
+  const pType = String(raw.PropertyType || "");
+  const oType = String(raw.OwnershipType || "");
+  const unit = String(raw.UnitNumber || "").trim();
+  const fee = toNumber(raw.AssociationFee) || 0;
+
+  // 1. 判定非住宅 (根据 PropertyType)
+  if (pType === "303") return "Land";
+  if (pType === "304" || pType === "305") return "Commercial";
+
+  // 2. 判定 Condo (法律产权优先：12=Condo, 16=Strata)
+  if (oType === "12" || oType === "16") return "Condo";
+
+  // 3. 判定 Townhouse (代码 14)
+  if (oType === "14") return "Townhouse";
+
+  // 4. 判定 House (Freehold 产权 3 或 4，且没有单元号)
+  if ((oType === "3" || oType === "4") && unit === "") return "House";
+
+  // 5. 补充逻辑：只要有管理费且不属于上述分类，通常归为 Condo 体系
+  if (fee > 0) return "Condo";
+
+  return "House"; // 默认兜底为 House
 }
 
 function toNumber(value: any): number | null {
@@ -179,7 +206,7 @@ export function mapDDFToSupabase(item: any): any {
   const listingId = firstDefined(raw.ListingId, raw.ListingID, raw.MLS_NUM, raw.MlsNumber, raw.ListingKey);
   const photosCount = parseIntSafe(firstDefined(raw.PhotosCount, raw.PhotoCount, raw.ImageCount));
   const photosTimestamp = firstDefined(raw.PhotosChangeTimestamp, raw.photosChangeTimestamp);
-
+  const propertyCategory = deriveCategory(raw);
   return {
     id: listingKey,
     external_id: firstDefined(raw.ListingId, raw.ListingIdFormat, raw.ListingID, raw.MLS_NUM, raw.MlsNumber) !== null
@@ -215,6 +242,7 @@ export function mapDDFToSupabase(item: any): any {
     year_built: toInteger(firstDefined(raw.YearBuilt, raw.YrBuilt, raw.ConstructionYear)),
     style: firstDefined(raw.Style, raw.TypeDwel),
     property_type: normalizePropertyType(firstDefined(raw.PropertyType, raw.PropertyClass, raw.TypeDwel)),
+    category: propertyCategory, // <-- 把分类存进数据库
     description: firstDefined(raw.PublicRemarks, raw.Description, raw.MLSComments, raw.Remarks_for_Clients),
     images: [],
     agent_name: firstDefined(raw.ListAgentFullName, raw.LA_Name_format, raw.ListAgentName),

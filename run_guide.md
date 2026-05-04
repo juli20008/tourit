@@ -74,7 +74,7 @@ python -m flask db upgrade
  npx ts-node lib/scripts/resyncCdnFields.ts 
 
  npx ts-node lib/scripts/checkCdnFields.ts
-npx ts-node lib/scripts/ddfResearch.ts
+npx ts-node lib/scripts/ddfResearch2.ts
    npx ts-node lib/scripts/ddfPhotos.ts
      npx ts-node lib/scripts/ddfMediaSearch.ts
        npx ts-node lib/scripts/ddfGetPhotos.ts

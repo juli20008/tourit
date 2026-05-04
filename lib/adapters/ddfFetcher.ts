@@ -96,8 +96,8 @@ export async function upsertListings(listings: SupabaseListing[]): Promise<void>
     'street_number','street_name','street_suffix','unit_number',
     'city','state','zip','country','neighborhood',
     'lat','lng',
-    'bed','bath','sqft','year_built','style','property_type','description',
-    'images','agent_name','agent_email','brokerage',
+    'bed','bath','sqft','year_built','style','property_type','category', // <--- 必须手动加在这里
+    'description','images','agent_name','agent_email','brokerage',
     'external_id','photos_timestamp','photos_count',
     'updated_at',
   ] as const;
