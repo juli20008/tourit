@@ -103,7 +103,7 @@ class MlsListing(db.Model):
     construction_materials = db.Column(db.Text, nullable=True)
     levels = db.Column(db.String(20), nullable=True)
     ownership_type = db.Column(db.String(50), nullable=True)
-
+    category = db.Column(db.String(50), nullable=True) # <-- 增加这一行
     # Agent / brokerage
     agent_name = db.Column(db.String(100))
 
@@ -210,6 +210,7 @@ class MlsListing(db.Model):
             'is_mls': True,
             'mls_number': self.mls_number,
             'status': self.standard_status or self.status or 'Active',
+            'category': self.category or '',  # <-- 将计算好的分类传给前端
             'type': self.style or self.property_type or self.transaction_type or '',
             'style': self.style or '',
             'property_type': self.property_type or '',
