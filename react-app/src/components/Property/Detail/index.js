@@ -224,8 +224,8 @@ const Detail = ({ property }) => {
 				or any other purpose.
 			</p>
 			<p className="text-[10px] text-gray-400 leading-relaxed mt-1 mb-8">
-				Tourit &mdash; Home Tours Simplified.<br />
-				&copy; 2026 Tourit. All rights reserved. &middot; Julie Li, Bay Street Group &middot; 905-909-0101
+				&copy; 2026 Tourit. All rights reserved.<br />
+				Julie Li, Bay Street Group &middot; 905-909-0101
 			</p>
 		</div>
 	);
