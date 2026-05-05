@@ -27,3 +27,15 @@
 	max-width: 100%;
 	height: auto;
 }
+
+/* Global developer credit — fixed bottom-right, visible on every page */
+.app-credit {
+	position: fixed;
+	bottom: 8px;
+	right: 12px;
+	font-size: 10px;
+	color: rgba(100, 116, 139, 0.6);
+	z-index: 9;
+	pointer-events: none;
+	letter-spacing: 0.02em;
+}

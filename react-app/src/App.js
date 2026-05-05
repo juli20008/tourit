@@ -68,6 +68,7 @@ function App() {
 			<TourReturnHandler />
 			<NavBar />
 			<Notification />
+			<div className="app-credit">Developed by Julie Li &middot; Bay Street Group</div>
 			<Switch>
 				<Route path="/" exact={true}>
 					<Redirect to={DEFAULT_AREA} />
