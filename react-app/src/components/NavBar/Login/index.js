@@ -7,11 +7,12 @@ const API_BASE = rawApiBase
 
 const Login = ({ onClose, inline = false, returnContext = null }) => {
 	const handleGoogleLogin = () => {
+		const returnPath = returnContext?.path || `${window.location.pathname}${window.location.search}`;
 		if (returnContext?.property) {
 			sessionStorage.setItem(
 				"tourReturn",
 				JSON.stringify({
-					path: returnContext.path || `${window.location.pathname}${window.location.search}`,
+					path: returnPath,
 					propertyId: String(returnContext.property.id),
 					date: returnContext.date || null,
 					hour: returnContext.hour || null,
@@ -19,7 +20,7 @@ const Login = ({ onClose, inline = false, returnContext = null }) => {
 				})
 			);
 		}
-		window.location.href = `${API_BASE}/api/auth/google`;
+		window.location.href = `${API_BASE}/api/auth/google?return_to=${encodeURIComponent(returnPath)}`;
 	};
 
 	return (

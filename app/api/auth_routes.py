@@ -121,6 +121,9 @@ def sign_up():
 
 @auth_routes.route('/google')
 def google_login():
+    return_to = request.args.get('return_to', '')
+    if return_to and return_to.startswith('/'):
+        session['google_return_to'] = return_to
     redirect_uri = url_for('auth.google_callback', _external=True)
     return oauth.google.authorize_redirect(redirect_uri)
 
@@ -128,6 +131,7 @@ def google_login():
 @auth_routes.route('/google/callback')
 def google_callback():
     frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
+    return_to = session.pop('google_return_to', '')
     try:
         token = oauth.google.authorize_access_token()
     except Exception:
@@ -166,6 +170,8 @@ def google_callback():
         db.session.commit()
 
     login_user(user)
+    if return_to and return_to.startswith('/'):
+        return redirect(f'{frontend_url}{return_to}')
     return redirect(frontend_url)
 
 
