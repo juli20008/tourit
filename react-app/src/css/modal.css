@@ -45,6 +45,16 @@
 	}
 }
 
+.modal-credit {
+	text-align: center;
+	font-size: 10px;
+	color: rgba(100, 116, 139, 0.55);
+	letter-spacing: 0.02em;
+	padding-top: 10px;
+	pointer-events: none;
+	user-select: none;
+}
+
 @keyframes modal-scale-in {
 	from {
 		opacity: 0;
