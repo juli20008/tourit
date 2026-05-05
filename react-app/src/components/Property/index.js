@@ -9,7 +9,7 @@ import Tour from "./Tour";
 import * as propertyImgActions from "../../store/property_img";
 import * as agentActions from "../../store/agent";
 
-const Property = ({ property, onClose, referralAgent = null }) => {
+const Property = ({ property, onClose, referralAgent = null, isPage = false }) => {
 	const dispatch = useDispatch();
 	const user = useSelector((state) => state.session.user);
 	const [showMobileTour, setShowMobileTour] = useState(false);
@@ -64,7 +64,7 @@ const Property = ({ property, onClose, referralAgent = null }) => {
 			</div>
 
 			{/* Single scroll container — scrollbar on far right */}
-			<div className="overflow-y-auto flex-1 min-h-0 rounded-2xl">
+			<div className={`overflow-y-auto flex-1 min-h-0 rounded-2xl${isPage ? " pb-20 md:pb-0" : ""}`}>
 				<div className="flex items-start">
 
 					{/* Left: gallery + detail */}
@@ -85,20 +85,20 @@ const Property = ({ property, onClose, referralAgent = null }) => {
 
 			{/* Mobile: floating Tour button */}
 			{!showMobileTour && (
-				<div className="md:hidden absolute bottom-0 left-0 right-0 px-4 pb-4 pt-10 bg-gradient-to-t from-white via-white/90 to-transparent pointer-events-none rounded-b-2xl">
+				<div className={`md:hidden ${isPage ? "fixed" : "absolute"} bottom-0 left-0 right-0 px-4 pb-4 pt-10 bg-gradient-to-t from-white via-white/90 to-transparent pointer-events-none z-30`}>
 					<button
 						type="button"
 						className="pointer-events-auto w-full rounded-xl bg-[#0f172a] py-3.5 text-sm font-semibold text-white shadow-lg active:opacity-80 transition-opacity"
 						onClick={() => setShowMobileTour(true)}
 					>
-						Tour with a Buyer&apos;s Agent
+						{referralAgent ? `Tour with ${referralAgent.username}` : "Tour with a Buyer's Agent"}
 					</button>
 				</div>
 			)}
 
 			{/* Mobile: slide-up Tour panel */}
 			{showMobileTour && (
-				<div className="md:hidden absolute inset-x-0 bottom-0 bg-white rounded-t-2xl shadow-2xl z-20 max-h-[88%] flex flex-col">
+				<div className={`md:hidden ${isPage ? "fixed" : "absolute"} inset-x-0 bottom-0 bg-white rounded-t-2xl shadow-2xl z-40 max-h-[88%] flex flex-col`}>
 					<div className="flex items-center justify-center relative pt-3 pb-1 flex-shrink-0">
 						<div className="w-10 h-1 rounded-full bg-[#e2e8f0]" />
 						<button

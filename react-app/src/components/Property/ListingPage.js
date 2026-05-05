@@ -54,7 +54,7 @@ const ListingPage = () => {
 
 	return (
 		<div className="listing-page-wrap">
-			<Property property={property} onClose={handleClose} referralAgent={referralAgent} />
+			<Property property={property} onClose={handleClose} referralAgent={referralAgent} isPage />
 		</div>
 	);
 };
