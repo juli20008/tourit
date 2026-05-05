@@ -11,7 +11,7 @@ const LogoBrand = () => (
 			style={{ fontFamily: "'Inter', sans-serif", fontWeight: 400 }}
 			className="text-[13px] md:text-[16px] leading-none tracking-wide text-white/80"
 		>
-			The easiest home tour booking.
+			Every Home Tour, Just a Click Away.
 		</span>
 	</div>
 );

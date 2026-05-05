@@ -186,7 +186,7 @@ const Splash = () => {
 			<main className="splash-ctrl">
 				<section className="splash-search-wrap">
 					<div className="splash-hero-head">
-						<p className="splash-kicker">Modern home intelligence</p>
+						<p className="splash-kicker">Every Home Tour, Just a Click Away.</p>
 						<h1 className="splash-search-title">
 							Find your next property with calm, data-backed clarity.
 						</h1>
