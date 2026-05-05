@@ -68,8 +68,7 @@ function App() {
 			<TourReturnHandler />
 			<NavBar />
 			<Notification />
-			<div className="app-credit">&copy; 2026 Tourit. All rights reserved. &middot; Developed by Julie Li, Bay Street Group &middot; 905-909-0101</div>
-			<Switch>
+<Switch>
 				<Route path="/" exact={true}>
 					<Redirect to={DEFAULT_AREA} />
 				</Route>

@@ -225,7 +225,7 @@ const Detail = ({ property }) => {
 			</p>
 			<p className="text-[10px] text-gray-400 leading-relaxed mt-1 mb-8">
 				&copy; 2026 Tourit. All rights reserved.<br />
-				Developed by Julie Li, Bay Street Group &middot; 905-909-0101
+				Julie Li, Bay Street Group &middot; 905-909-0101
 			</p>
 		</div>
 	);
