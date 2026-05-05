@@ -7,6 +7,7 @@ from datetime import datetime
 from app.forms import AddAppointmentForm
 from app.utils.availability import (
     agent_is_available,
+    agent_has_conflict,
     available_agents_for_slot,
     parse_date_time,
     pick_agent_for_appointment,
@@ -207,11 +208,16 @@ def add_appointment():
             return {"errors": ["Timeslot not available"]}
 
         if selected_agent_id:
-            selected_agent = db.session.get(User, selected_agent_id)
-            if not selected_agent or not selected_agent.agent:
-                return {"errors": ["Selected agent does not exist"]}
-            if not agent_is_available(selected_agent.id, date, time):
-                return {"errors": ["Selected agent is not available for that timeslot"]}
+            try:
+                selected_agent = db.session.get(User, selected_agent_id)
+                if not selected_agent or not selected_agent.agent:
+                    return {"errors": ["Selected agent does not exist"]}
+                # Referral bookings: agent shared the link so they're implicitly available;
+                # only block on a direct scheduling conflict, not a missing schedule config.
+                if agent_has_conflict(selected_agent.id, date, time):
+                    return {"errors": ["Selected agent has another appointment at this timeslot. Please choose a different time."]}
+            except Exception:
+                return {"errors": ["Unable to assign the selected agent. Please try again."]}, 500
         else:
             selected_agent = pick_agent_for_appointment(property_obj, date, time)
 
