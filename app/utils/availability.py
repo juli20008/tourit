@@ -69,18 +69,33 @@ def agent_is_available(agent_id, date_str, time_str, appointment_id=None):
     )
 
 
+def _prop_fsa(property_obj):
+    """Return the 3-char FSA for a property's postal code, or None."""
+    zip_code = getattr(property_obj, 'zip', None) if property_obj else None
+    if not zip_code:
+        return None
+    clean = str(zip_code).strip().upper().replace(" ", "")
+    return clean[:3] if len(clean) >= 3 else None
+
+
 def candidate_agent_ids_for_property(property_obj):
+    """Return ordered candidate agent IDs for lead assignment.
+
+    Priority: agents whose FSA service area covers the property → all agents.
+    """
     agent_ids = []
 
     if property_obj and getattr(property_obj, 'listing_agent_id', None):
         agent_ids.append(property_obj.listing_agent_id)
 
-    if property_obj and property_obj.zip:
-        same_zip_agents = [
+    prop_fsa = _prop_fsa(property_obj)
+    if prop_fsa:
+        fsa_agent_ids = [
             area.agent_id
-            for area in AgentArea.query.filter(AgentArea.zip == property_obj.zip).all()
+            for area in AgentArea.query.all()
+            if area.zip and area.zip[:3].upper() == prop_fsa
         ]
-        agent_ids.extend(same_zip_agents)
+        agent_ids.extend(fsa_agent_ids)
 
     all_agent_ids = [agent.id for agent in User.query.filter(User.agent == True).all()]
     agent_ids.extend(all_agent_ids)
@@ -125,55 +140,37 @@ def agent_rating(agent):
 
 def pick_agent_for_appointment(property_obj, date_str, time_str):
     """
-    Tier 1 lead distribution — Phase 1 (Primary Match):
+    Lead assignment logic:
 
-    1. Service area: find agents whose designated zip covers the property's zip.
-    2. Availability: filter to those available for the requested slot.
-    3. Tie-break: assign the one with the highest Client Review Score.
+    1. Find agents whose service-area FSA (first 3 chars of their stored postal
+       code) matches the property's postal FSA, filtered to those who are
+       available for the requested slot. Assign the highest-rated match.
 
-    Falls back to any available agent (sorted by rating) when no service-area
-    agent is available for the slot.
+    2. If no FSA-matched agent exists OR none are available for that slot,
+       assign to the fallback agent (Julie Li) unconditionally — she accepts
+       multiple concurrent bookings.
     """
-    # Phase 1 – service-area agents who are available, best rating first
-    prop_zip = getattr(property_obj, 'zip', None) if property_obj else None
-    if prop_zip:
-        service_area_ids = {
+    prop_fsa = _prop_fsa(property_obj)
+
+    if prop_fsa:
+        all_areas = AgentArea.query.all()
+        fsa_agent_ids = {
             area.agent_id
-            for area in AgentArea.query.filter(AgentArea.zip == prop_zip).all()
+            for area in all_areas
+            if area.zip and area.zip[:3].upper() == prop_fsa
         }
-        if service_area_ids:
+
+        if fsa_agent_ids:
             candidates = User.query.filter(
-                User.id.in_(service_area_ids),
+                User.id.in_(fsa_agent_ids),
                 User.agent == True,
             ).all()
-            phase1 = [
+            available = [
                 a for a in candidates
                 if agent_is_available(a.id, date_str, time_str)
             ]
-            if phase1:
-                return max(phase1, key=agent_rating)
+            if available:
+                return max(available, key=agent_rating)
 
-    # Phase 2 – geographic proximity fallback
-    available = available_agents_for_slot(date_str, time_str, property_obj=property_obj)
-    if not available:
-        return _fallback_agent()
-
-    prop_lat = getattr(property_obj, 'lat', None) if property_obj else None
-    # Property uses column "long"; MlsListing uses "lng"
-    prop_lng = (
-        getattr(property_obj, 'lng', None) or getattr(property_obj, 'long', None)
-    ) if property_obj else None
-
-    if prop_lat is not None and prop_lng is not None:
-        from app.utils.geo import agent_centroid, haversine
-
-        def proximity_key(agent):
-            centroid = agent_centroid(agent)
-            if centroid is None:
-                return (float('inf'), -agent_rating(agent))
-            dist = haversine(float(prop_lat), float(prop_lng), centroid[0], centroid[1])
-            return (dist, -agent_rating(agent))
-
-        return min(available, key=proximity_key)
-
-    return max(available, key=agent_rating) or _fallback_agent()
+    # No FSA match, or FSA agents exist but none are free → fallback (Julie)
+    return _fallback_agent()

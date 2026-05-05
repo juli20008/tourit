@@ -5,6 +5,8 @@ import TableRow from "./TableRow";
 
 import * as agentActions from "../../store/agent";
 
+const toFSA = (s) => s.trim().toUpperCase().replace(/\s/g, "").slice(0, 3);
+
 const Agents = () => {
 	const dispatch = useDispatch();
 	const agents = useSelector((state) => state.agents);
@@ -18,18 +20,17 @@ const Agents = () => {
 
 	useEffect(() => {
 		if (agents) {
+			const fsaQuery = toFSA(zip);
 			const arr = Object.values(agents)
 				.filter((agent) =>
 					agent?.username.toLowerCase().includes(search.toLowerCase())
 				)
 				.filter((agent) => {
-					if (agent.areas.length > 0) {
-						return agent?.areas?.some((area) => {
-							return area.zip.includes(zip);
-						});
-					} else if (agent.areas.length === 0 && zip === "") {
-						return agent;
-					}
+					if (!fsaQuery) return true;
+					if (agent.areas.length === 0) return false;
+					return agent.areas.some((area) =>
+						area.zip.toUpperCase().replace(/\s/g, "").slice(0, 3) === fsaQuery
+					);
 				});
 
 			setAgentArr(arr);
@@ -54,13 +55,13 @@ const Agents = () => {
 				</div>
 				<div className="agents-search-wrap">
 					<label>
-						SERVICE AREAS <span>POSTAL CODE</span>
+						SERVICE AREAS <span>POSTAL CODE (first 3)</span>
 					</label>
 					<div>
 						<input
 							type="text"
-							placeholder="POSTAL CODE"
-							maxLength="7"
+							placeholder="M5V"
+							maxLength="3"
 							value={zip}
 							onChange={(e) => setZip(e.target.value.toUpperCase())}
 						/>

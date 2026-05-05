@@ -30,7 +30,7 @@ const TableRow = ({ agent }) => {
 				{agent?.areas.length > 0 ? (
 					agent?.areas.map((each) => (
 						<div key={agent.id + each.zip}>
-							<span className="zip">{each.zip}</span> - {each.cities.join(", ")}
+							<span className="zip">{each.zip}</span>{each.cities?.length > 0 && ` — ${each.cities.join(", ")}`}
 						</div>
 					))
 				) : (

@@ -8,6 +8,8 @@ import UploadPhoto from "../UploadPhoto";
 
 import * as sessionActions from "../../../store/session";
 
+const MAX_SERVICE_AREAS = 6;
+
 const AgentProfile = () => {
 	const dispatch = useDispatch();
 	const history = useHistory();
@@ -24,6 +26,9 @@ const AgentProfile = () => {
 	const [zipErrors, setZipErrors] = useState([]);
 
 	const { setToggleNotification, setNotificationMsg } = useNotification();
+
+	const areaCount = agent?.areas?.length ?? 0;
+	const areasRemaining = MAX_SERVICE_AREAS - areaCount;
 
 	const undo = (e) => {
 		e.preventDefault();
@@ -71,7 +76,6 @@ const AgentProfile = () => {
 
 		const data = await dispatch(sessionActions.updateThisUser(payload));
 		if (!data.errors) {
-			// Notification if updated
 			setToggleNotification("");
 			setNotificationMsg("Profile updated");
 
@@ -197,20 +201,34 @@ const AgentProfile = () => {
 			</form>
 			<form className="bio-wrap agent-sa" onSubmit={addServiceAreas}>
 				<div className="gap15">
-					<div className="about">Service Areas</div>
+					<div className="about">
+						Service Areas{" "}
+						<span style={{ fontWeight: 400, fontSize: "0.85em", color: "#64748b" }}>
+							({areaCount}/{MAX_SERVICE_AREAS})
+						</span>
+					</div>
 					<div className="service-area-btn-wrap">
 						<input
 							className="agent-input"
 							type="text"
-							maxLength="7"
-							placeholder="12345 or A1A 1A1"
+							maxLength="3"
+							placeholder="M5V"
 							value={zip}
 							onChange={(e) => setZip(e.target.value.toUpperCase())}
+							disabled={areasRemaining <= 0}
 						/>
-						<button type="button" className="btn" onClick={addServiceAreas}>
+						<button
+							type="button"
+							className="btn"
+							onClick={addServiceAreas}
+							disabled={areasRemaining <= 0}
+						>
 							Add
 						</button>
 						<div className="error-list">
+							{areasRemaining <= 0 && (
+								<div>Maximum {MAX_SERVICE_AREAS} service areas reached</div>
+							)}
 							{zipErrors.map((err) => (
 								<div key={err}>{err}</div>
 							))}
@@ -226,8 +244,10 @@ const AgentProfile = () => {
 								>
 									Remove
 								</button>
-								<span className="zip"> {each.zip}</span> -{" "}
-								{each.cities?.join(", ")}
+								<span className="zip"> {each.zip}</span>
+								{each.cities?.length > 0 && (
+									<> - {each.cities.join(", ")}</>
+								)}
 							</div>
 						))}
 					</div>

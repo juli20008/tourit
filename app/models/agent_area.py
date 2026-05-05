@@ -2,6 +2,7 @@ from .db import db
 from .property import Property
 from .zip_city import ZipCity
 
+
 class AgentArea(db.Model):
     __tablename__ = "agent_areas"
 
@@ -12,14 +13,35 @@ class AgentArea(db.Model):
     agent = db.relationship("User", back_populates="areas")
 
     def city(self):
+        fsa = self.zip[:3].upper() if self.zip else ""
+
+        # For Canadian FSAs (3 chars): look up cities from MLS listings whose
+        # postal code starts with this FSA, since ZipCity only covers US zips.
+        if len(self.zip) <= 3 and fsa:
+            try:
+                from .mls_listing import MlsListing
+                rows = (
+                    MlsListing.query
+                    .filter(MlsListing.zip.ilike(f"{fsa}%"))
+                    .with_entities(MlsListing.city)
+                    .distinct()
+                    .limit(5)
+                    .all()
+                )
+                cities = [r.city for r in rows if r.city]
+                if cities:
+                    return {"zip": self.zip, "cities": cities}
+            except Exception:
+                pass
+            return {"zip": self.zip, "cities": []}
+
+        # Full postal code or US zip — original lookup path
         cities = ZipCity.query.filter(ZipCity.zip == self.zip).all()
         cities_lst = [city.city for city in cities]
 
         if not cities_lst:
             properties = Property.query.filter(Property.zip == self.zip).all()
-            more_cities = [property.city for property in properties]
+            more_cities = [prop.city for prop in properties]
             cities_lst = list(set(more_cities))
-            if not cities_lst:
-                cities_lst = ["No matching city in database"]
 
         return {"zip": self.zip, "cities": cities_lst}
