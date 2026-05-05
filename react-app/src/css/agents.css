@@ -270,3 +270,13 @@ table {
 		display: flex;
 	}
 }
+
+.agents-footer {
+	margin-top: auto;
+	padding-top: 24px;
+	border-top: 1px solid var(--border-subtle);
+	text-align: center;
+	font-size: 10px;
+	color: rgba(100, 116, 139, 0.6);
+	line-height: 1.6;
+}
