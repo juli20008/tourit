@@ -1,6 +1,7 @@
 import apiFetch from "../../utils/apiFetch";
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useParams } from "react-router-dom";
 
 import Channels from "./Channels";
 import Chat from "./Chat";
@@ -9,16 +10,28 @@ import find_agent from "../../assets/find_agent.svg";
 
 import * as channelActions from "../../store/channel";
 import * as chatActions from "../../store/chat";
+import { clearUnread } from "../../store/unread";
 
 const Chats = () => {
 	const dispatch = useDispatch();
+	const { channelId: channelParam } = useParams();
 	const user = useSelector((state) => state.session.user);
 	const channels = useSelector((state) => state.channels);
 	const [channelsArr, setChannelsArr] = useState([]);
 	const [search, setSearch] = useState("");
+	const [showChannels, setShowChannels] = useState(!channelParam);
+
+	// Clear unread badge whenever the user lands on the chats page
+	useEffect(() => {
+		dispatch(clearUnread());
+	}, [dispatch]);
+
+	// Mobile: hide channel list when a chat is opened, show it when on root /chats
+	useEffect(() => {
+		setShowChannels(!channelParam);
+	}, [channelParam]);
 
 	useEffect(() => {
-		// fetch to get channels and chats
 		apiFetch("/api/channels/")
 			.then((res) => res.json())
 			.then((res) => {
@@ -42,7 +55,7 @@ const Chats = () => {
 	}, [search, channels, user]);
 
 	return (
-		<div className="chat-ctrl">
+		<div className={`chat-ctrl${showChannels ? " channels-open" : ""}`}>
 			<div className="chat-channel-wrap">
 				<label className="chnl-search-label">
 					<input
@@ -76,7 +89,7 @@ const Chats = () => {
 					)}
 				</div>
 			</div>
-			<Chat />
+			<Chat setShowChannels={setShowChannels} />
 		</div>
 	);
 };

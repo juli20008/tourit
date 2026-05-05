@@ -8,6 +8,7 @@ import appointments from "./appointment";
 import reviews from "./review";
 import channels from "./channel";
 import chats from "./chat";
+import hasUnread from "./unread";
 
 const rootReducer = combineReducers({
 	session,
@@ -18,6 +19,7 @@ const rootReducer = combineReducers({
 	reviews,
 	channels,
 	chats,
+	hasUnread,
 });
 
 let enhancer;

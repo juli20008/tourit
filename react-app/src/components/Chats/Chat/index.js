@@ -9,9 +9,11 @@ import ChatBox from "../ChatBox";
 
 import * as chatActions from "../../../store/chat";
 import * as channelActions from "../../../store/channel";
+import { markUnread } from "../../../store/unread";
 
 let socket;
-const Chat = () => {
+
+const Chat = ({ setShowChannels }) => {
 	const dispatch = useDispatch();
 	const user = useSelector((state) => state.session.user);
 	const channelParam = useParams().channelId;
@@ -25,50 +27,44 @@ const Chat = () => {
 	const focusRef = useRef();
 
 	useEffect(() => {
-		// creat websocket/connect
 		socket = io();
-
-		// join room
 		socket.emit("join", channelId.toString());
 
-		// listen for chat events
-		socket.on("chat", (chat) => {
-			// when receive a chat, dispatch to redux store
-			dispatch(chatActions.addEditChat(chat));
+		socket.on("chat", (incoming) => {
+			dispatch(chatActions.addEditChat(incoming));
 			dispatch(
 				channelActions.addChat({
-					channel_id: chat.channel_id,
-					chat_id: chat.id,
+					channel_id: incoming.channel_id,
+					chat_id: incoming.id,
 				})
 			);
+			// Show unread badge if the message is from the other person
+			if (incoming.user_id !== user.id) {
+				dispatch(markUnread());
+			}
 		});
 
-		// listen for edit events
-		socket.on("edit", (chat) => {
-			dispatch(chatActions.addEditChat(chat));
+		socket.on("edit", (incoming) => {
+			dispatch(chatActions.addEditChat(incoming));
 		});
 
-		// listen for delete events
 		socket.on("delete", (data) => {
 			dispatch(chatActions.deleteChat(data.chat_id));
 			dispatch(channelActions.deleteChat(data));
 		});
 
-		if (focusRef) {
+		if (focusRef.current) {
 			focusRef.current.addEventListener("DOMNodeInserted", (e) => {
 				const { currentTarget: target } = e;
 				target.scroll({ top: target.scrollHeight, behavior: "smooth" });
 			});
 		}
 
-		// when component unmounts, disconnet
 		return () => {
-			// leave room
 			socket.emit("leave", channelId.toString());
-
 			socket.disconnect();
 		};
-	}, [channelId, dispatch]);
+	}, [channelId, dispatch, user.id]);
 
 	if (channelParam) {
 		const channel = channels[channelId];
@@ -104,6 +100,21 @@ const Chat = () => {
 
 		return (
 			<div className="chat-chats-wrap">
+				<div className="chat-mobile-header">
+					<button
+						className="chat-back-btn"
+						onClick={() => setShowChannels && setShowChannels(true)}
+						aria-label="Back to contacts"
+					>
+						<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+							<polyline points="10 4 6 8 10 12" />
+						</svg>
+						Contacts
+					</button>
+					<span className="chat-mobile-name">
+						{user.agent ? channel?.user_name : channel?.agent_name}
+					</span>
+				</div>
 				<div className="chat-boxes-wrap" ref={focusRef}>
 					{channel?.chat_ids?.length > 0 ? (
 						channel?.chat_ids.map((id) => (

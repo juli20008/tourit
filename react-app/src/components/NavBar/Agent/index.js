@@ -1,11 +1,12 @@
 import React, { useState } from "react";
 import { NavLink } from "react-router-dom";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { logout } from "../../../store/session";
 import LogoBrand from "../LogoBrand";
 
 const AgentBar = () => {
 	const dispatch = useDispatch();
+	const hasUnread = useSelector((state) => state.hasUnread);
 	const [showMobileMenu, setShowMobileMenu] = useState(false);
 
 	const onLogout = async () => {
@@ -47,8 +48,9 @@ const AgentBar = () => {
 					<LogoBrand />
 				</NavLink>
 				<div className="nav-rt">
-					<NavLink to="/chats" exact={true} className="btn-font-lt nav-desktop-only">
+					<NavLink to="/chats" exact={true} className="btn-font-lt nav-desktop-only nav-chat-link">
 						<i className="fa-regular fa-comment"></i> Chats
+						{hasUnread && <span className="nav-badge-dot" />}
 					</NavLink>
 					<NavLink to="/appointments" exact={true} className="btn-font-lt nav-desktop-only">
 						Appointments
@@ -90,8 +92,11 @@ const AgentBar = () => {
 							className="nav-mobile-item"
 							onClick={() => setShowMobileMenu(false)}
 						>
-							<i className="fa-regular fa-comment mr-3 text-[#94a3b8]" />
-							Chats
+							<span className="nav-mobile-chat-wrap">
+								<i className="fa-regular fa-comment mr-3 text-[#94a3b8]" />
+								Chats
+								{hasUnread && <span className="nav-badge-dot nav-badge-dot--mobile" />}
+							</span>
 						</NavLink>
 						<NavLink
 							to="/appointments"

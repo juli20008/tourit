@@ -13,6 +13,7 @@ import UserProfile from "../../Profile/UserProfile";
 const UserBar = () => {
 	const dispatch = useDispatch();
 	const user = useSelector((state) => state.session.user);
+	const hasUnread = useSelector((state) => state.hasUnread);
 	const [showMenu, setShowMenu] = useState(false);
 	const [showModal, setShowModal] = useState(false);
 	const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -74,8 +75,9 @@ const UserBar = () => {
 					<LogoBrand />
 				</NavLink>
 				<div className="nav-rt">
-					<NavLink className="btn-font-lt nav-desktop-only" to="/chats" exact={true}>
+					<NavLink className="btn-font-lt nav-desktop-only nav-chat-link" to="/chats" exact={true}>
 						<i className="fa-regular fa-comment"></i> Chats
+						{hasUnread && <span className="nav-badge-dot" />}
 					</NavLink>
 					<NavLink className="btn-font-lt nav-desktop-only" to="/appointments" exact={true}>
 						Appointments
@@ -120,8 +122,11 @@ const UserBar = () => {
 							className="nav-mobile-item"
 							onClick={() => setShowMobileMenu(false)}
 						>
-							<i className="fa-regular fa-comment mr-3 text-[#94a3b8]" />
-							Chats
+							<span className="nav-mobile-chat-wrap">
+								<i className="fa-regular fa-comment mr-3 text-[#94a3b8]" />
+								Chats
+								{hasUnread && <span className="nav-badge-dot nav-badge-dot--mobile" />}
+							</span>
 						</NavLink>
 						<NavLink
 							to="/appointments"
