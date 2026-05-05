@@ -188,6 +188,22 @@
 	color: #111827;
 }
 
+/* Slogan next to brand name — hidden on mobile */
+.nav-slogan {
+	display: inline;
+	font-family: 'Inter', sans-serif;
+	font-weight: 300;
+	font-size: 13px;
+	color: #ffffff;
+	letter-spacing: 0.02em;
+}
+
+@media screen and (max-width: 650px) {
+	.nav-slogan {
+		display: none;
+	}
+}
+
 /* Chat nav link — red unread dot */
 .nav-chat-link {
 	position: relative;
