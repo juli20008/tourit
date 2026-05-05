@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { useHistory } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
 
 import { Modal } from "../../../../context/Modal";
 import Property from "../../../Property";
@@ -10,7 +9,7 @@ import PropertyTop from "./PropertyTop";
 const PropertyCard = ({ property, setOver }) => {
 	const [showModal, setShowModal] = useState(false);
 	const [activeProperty, setActiveProperty] = useState(property);
-	const history = useHistory();
+	const prevUrl = useRef(null);
 
 	useEffect(() => {
 		setActiveProperty(property);
@@ -18,7 +17,10 @@ const PropertyCard = ({ property, setOver }) => {
 
 	const onClose = () => {
 		setShowModal(false);
-		history.goBack();
+		if (prevUrl.current) {
+			window.history.replaceState(null, "", prevUrl.current);
+			prevUrl.current = null;
+		}
 	};
 
 	const handleOpen = async (e) => {
@@ -28,7 +30,10 @@ const PropertyCard = ({ property, setOver }) => {
 		const detailed = await hydrateMlsListing(property);
 		setActiveProperty(detailed);
 		const mlsNum = property?.mls_number || property?.listing_id;
-		if (mlsNum) history.push(`/listing/${encodeURIComponent(mlsNum)}`);
+		if (mlsNum) {
+			prevUrl.current = window.location.href;
+			window.history.replaceState(null, "", `/listing/${encodeURIComponent(mlsNum)}`);
+		}
 		setShowModal(true);
 	};
 
