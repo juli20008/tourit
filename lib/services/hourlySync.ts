@@ -68,7 +68,7 @@ const COLUMNS = new Set([
   'board_id','realtor_link','updated_at',
   'association_fee','association_fee_frequency',
   'lot_frontage','lot_size_area','construction_materials','levels','ownership_type',
-  'last_seen_at',
+  'last_seen_at','category',
 ]);
 
 function toDbRow(raw: Record<string, any>): Record<string, any> {

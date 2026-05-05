@@ -65,6 +65,7 @@ const SUPABASE_COLUMNS = new Set([
   'levels',
   'ownership_type',
   'last_seen_at',
+  'category',
 ]);
 
 type SupabaseClientLike = {
