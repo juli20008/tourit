@@ -7,6 +7,15 @@ from sqlalchemy.dialects.postgresql import JSONB
 _CDN_BASE = "https://ddfcdn.realtor.ca/listings"
 
 
+def _determine_category(property_class, unit_number):
+    if str(property_class or '') == '300':
+        unit = str(unit_number or '').strip()
+        if unit and unit.lower() != 'nan':
+            return 'Condo'
+        return 'House'
+    return 'Other'
+
+
 def _normalize_ticks(photos_timestamp) -> str | None:
     """Convert photos_timestamp to a precise integer string.
 
@@ -205,13 +214,14 @@ class MlsListing(db.Model):
     def _base_frontend_dict(self):
         imgs = self.effective_images
         sqft_int = self._sqft_int()
+        category = _determine_category(self.property_class, self.unit_number)
         return {
             'id': f'mls_{self.id}',
             'is_mls': True,
             'mls_number': self.mls_number,
             'status': self.standard_status or self.status or 'Active',
-            'category': self.category or '',  # <-- 将计算好的分类传给前端
-            'type': self.style or self.property_type or self.transaction_type or '',
+            'category': category,
+            'type': category,
             'style': self.style or '',
             'property_type': self.property_type or '',
             'transaction_type': self.transaction_type or 'For Sale',
@@ -253,9 +263,6 @@ class MlsListing(db.Model):
             'construction_materials': self.construction_materials or None,
             'levels': self.levels or None,
             'ownership_type': self.ownership_type or None,
-            # 在 _base_frontend_dict 里面改：
-            'category': self.category if self.category else '',
-            'type': self.category if self.category else (self.style or self.property_type or ''),
         }
 
     def to_frontend_dict(self):
