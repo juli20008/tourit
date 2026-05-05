@@ -4,9 +4,10 @@ import apiFetch from "../../utils/apiFetch";
 import Property from "./index";
 
 const ListingPage = () => {
-	const { mlsNumber } = useParams();
+	const { mlsNumber, agentId } = useParams();
 	const history = useHistory();
 	const [property, setProperty] = useState(null);
+	const [referralAgent, setReferralAgent] = useState(null);
 	const [notFound, setNotFound] = useState(false);
 
 	useEffect(() => {
@@ -18,6 +19,14 @@ const ListingPage = () => {
 			})
 			.catch(() => setNotFound(true));
 	}, [mlsNumber]);
+
+	useEffect(() => {
+		if (!agentId) return;
+		apiFetch(`/api/agents/${agentId}`)
+			.then((r) => (r.ok ? r.json() : null))
+			.then((data) => { if (data?.agent) setReferralAgent(data.agent); })
+			.catch(() => {});
+	}, [agentId]);
 
 	const handleClose = () => {
 		if (history.length > 2) history.goBack();
@@ -45,7 +54,7 @@ const ListingPage = () => {
 
 	return (
 		<div className="listing-page-wrap">
-			<Property property={property} onClose={handleClose} />
+			<Property property={property} onClose={handleClose} referralAgent={referralAgent} />
 		</div>
 	);
 };

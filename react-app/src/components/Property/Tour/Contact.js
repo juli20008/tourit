@@ -4,7 +4,7 @@ import { useSelector } from "react-redux";
 import LoggedIn from "./ContactForms/LoggedIn";
 import LoginCard from "../../NavBar/Login";
 
-const Contact = ({ property, today, hour, setShowSelectDate, setShowTour }) => {
+const Contact = ({ property, today, hour, setShowSelectDate, setShowTour, referralAgentId = null }) => {
 	const user = useSelector((state) => state.session.user);
 
 	const [username, setUsername] = useState("");
@@ -72,6 +72,7 @@ const Contact = ({ property, today, hour, setShowSelectDate, setShowTour }) => {
 					today={today}
 					hour={hour}
 					setShowTour={setShowTour}
+					agentId={referralAgentId}
 				/>
 			)}
 			{!isAgent && (

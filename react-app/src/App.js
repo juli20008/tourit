@@ -96,6 +96,9 @@ function App() {
 				<Route path="/agent-login" exact={true}>
 					<AgentLogin />
 				</Route>
+				<Route path="/a/:agentId/listing/:mlsNumber" exact={true}>
+					<ListingPage />
+				</Route>
 				<Route path="/listing/:mlsNumber" exact={true}>
 					<ListingPage />
 				</Route>

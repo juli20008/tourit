@@ -5,9 +5,10 @@ import Contact from "./Contact";
 
 import available from "../../Tools/Available";
 
-const Tour = ({ property, setShowTour, inline = false }) => {
+const Tour = ({ property, setShowTour, inline = false, referralAgent = null }) => {
 	const user = useSelector((state) => state.session.user);
 	const schedule = useMemo(() => available(property), [property?.id, property?.appointments]);
+	const agentLabel = referralAgent ? `Tour with ${referralAgent.username}` : "Tour with a Buyer’s Agent";
 	const initialDay = Object.keys(schedule)[0] || "";
 
 	const [today, setToday] = useState(initialDay);
@@ -63,7 +64,7 @@ const Tour = ({ property, setShowTour, inline = false }) => {
 	if (inline) {
 		return (
 			<form className="tour-sidebar">
-				<div className="tour-sidebar-header">Tour with a Buyer&apos;s Agent</div>
+				<div className="tour-sidebar-header">{agentLabel}</div>
 				<div className="tour-sidebar-body">
 					{showSelectDate ? (
 						<SelectDate
@@ -84,6 +85,7 @@ const Tour = ({ property, setShowTour, inline = false }) => {
 							setShowSelectDate={setShowSelectDate}
 							hour={hour}
 							setShowTour={setShowTour}
+							referralAgentId={referralAgent?.id ?? null}
 						/>
 					)}
 				</div>
@@ -91,11 +93,11 @@ const Tour = ({ property, setShowTour, inline = false }) => {
 		);
 	}
 
-	// ── Modal variant (unchanged) ─────────────────────────────────────────
+	// ── Modal variant ─────────────────────────────────────────────────────
 	return (
 		<form className="tour-ctrl">
 			<div className="tour-top">
-				<div>Tour with a Buyer&apos;s Agent</div>
+				<div>{agentLabel}</div>
 				<i className="fa-solid fa-xmark" onClick={() => setShowTour(false)}></i>
 			</div>
 			<div className="tour-btm">
@@ -118,6 +120,7 @@ const Tour = ({ property, setShowTour, inline = false }) => {
 						setShowSelectDate={setShowSelectDate}
 						hour={hour}
 						setShowTour={setShowTour}
+						referralAgentId={referralAgent?.id ?? null}
 					/>
 				)}
 			</div>

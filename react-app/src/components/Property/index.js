@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
-import { useDispatch } from "react-redux";
-import { X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { X, Share2 } from "lucide-react";
 
 import Images from "./Images";
 import Detail from "./Detail";
@@ -9,9 +9,24 @@ import Tour from "./Tour";
 import * as propertyImgActions from "../../store/property_img";
 import * as agentActions from "../../store/agent";
 
-const Property = ({ property, onClose }) => {
+const Property = ({ property, onClose, referralAgent = null }) => {
 	const dispatch = useDispatch();
+	const user = useSelector((state) => state.session.user);
 	const [showMobileTour, setShowMobileTour] = useState(false);
+	const [copied, setCopied] = useState(false);
+	const copyTimer = useRef(null);
+
+	const handleShare = () => {
+		const mlsNum = property?.mls_number || property?.listing_id;
+		const base = window.location.origin;
+		const url = (user?.agent && !referralAgent)
+			? `${base}/a/${user.id}/listing/${encodeURIComponent(mlsNum)}`
+			: `${base}/listing/${encodeURIComponent(mlsNum)}`;
+		navigator.clipboard.writeText(url).catch(() => {});
+		setCopied(true);
+		clearTimeout(copyTimer.current);
+		copyTimer.current = setTimeout(() => setCopied(false), 2000);
+	};
 
 	useEffect(() => {
 		if (!property?.is_mls && property?.id != null) {
@@ -25,14 +40,28 @@ const Property = ({ property, onClose }) => {
 	return (
 		<div className="relative bg-white w-[96vw] max-w-[1350px] max-h-[92vh] rounded-2xl flex flex-col">
 
-			{/* Close button — outside the scroll area so it stays visible */}
-			<button
-				type="button"
-				className="absolute top-3 right-3 z-30 flex items-center justify-center w-8 h-8 rounded-full bg-white/90 shadow text-gray-500 hover:text-gray-900 transition-colors"
-				onClick={(e) => { e.stopPropagation(); onClose(); }}
-			>
-				<X size={16} strokeWidth={2} />
-			</button>
+			{/* Close + Share buttons */}
+			<div className="absolute top-3 right-3 z-30 flex items-center gap-1.5">
+				<button
+					type="button"
+					className="flex items-center justify-center w-8 h-8 rounded-full bg-white/90 shadow text-gray-500 hover:text-gray-900 transition-colors"
+					onClick={handleShare}
+					title="Copy link"
+				>
+					{copied ? (
+						<span className="text-[10px] font-semibold text-emerald-600 px-1">Copied!</span>
+					) : (
+						<Share2 size={14} strokeWidth={2} />
+					)}
+				</button>
+				<button
+					type="button"
+					className="flex items-center justify-center w-8 h-8 rounded-full bg-white/90 shadow text-gray-500 hover:text-gray-900 transition-colors"
+					onClick={(e) => { e.stopPropagation(); onClose(); }}
+				>
+					<X size={16} strokeWidth={2} />
+				</button>
+			</div>
 
 			{/* Single scroll container — scrollbar on far right */}
 			<div className="overflow-y-auto flex-1 min-h-0 rounded-2xl">
@@ -48,7 +77,7 @@ const Property = ({ property, onClose }) => {
 
 										{/* Right: Tour — sticky so it stays at top while left column scrolls */}
 										<div className="max-sm:hidden flex-shrink-0 w-[350px] sticky top-0 self-start border-l border-gray-100 p-5">
-											<Tour property={property} setShowTour={onClose} inline />
+											<Tour property={property} setShowTour={onClose} inline referralAgent={referralAgent} />
 										</div>
 
 				</div>
@@ -85,6 +114,7 @@ const Property = ({ property, onClose }) => {
 							property={property}
 							setShowTour={() => setShowMobileTour(false)}
 							inline
+							referralAgent={referralAgent}
 						/>
 					</div>
 				</div>

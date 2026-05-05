@@ -19,6 +19,7 @@ const LoggedIn = ({
 	message,
 	setMessage,
 	setShowTour,
+	agentId = null,
 }) => {
 	const dispatch = useDispatch();
 	const [errors, setErrors] = useState([]);
@@ -36,6 +37,7 @@ const LoggedIn = ({
 				date: today,
 				time: hour,
 				message,
+				...(agentId ? { agent_id: agentId } : {}),
 			};
 			const data = await dispatch(appointmentActions.addAppointment(appointment));
 

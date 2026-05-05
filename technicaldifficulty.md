@@ -69,7 +69,6 @@ Next Steps:
 2. One button to create a listing on FBMP/Kijiji/Xiaohongshu
 
 Absolutely need to be fixed:
-2. Filters （类型）：
 
 
 
