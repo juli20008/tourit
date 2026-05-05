@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useHistory } from "react-router-dom";
 
 import { Modal } from "../../../../context/Modal";
 import Property from "../../../Property";
@@ -9,6 +10,7 @@ import PropertyTop from "./PropertyTop";
 const PropertyCard = ({ property, setOver }) => {
 	const [showModal, setShowModal] = useState(false);
 	const [activeProperty, setActiveProperty] = useState(property);
+	const history = useHistory();
 
 	useEffect(() => {
 		setActiveProperty(property);
@@ -16,6 +18,7 @@ const PropertyCard = ({ property, setOver }) => {
 
 	const onClose = () => {
 		setShowModal(false);
+		history.goBack();
 	};
 
 	const handleOpen = async (e) => {
@@ -24,6 +27,8 @@ const PropertyCard = ({ property, setOver }) => {
 		if (e && !e.currentTarget.contains(e.target)) return;
 		const detailed = await hydrateMlsListing(property);
 		setActiveProperty(detailed);
+		const mlsNum = property?.mls_number || property?.listing_id;
+		if (mlsNum) history.push(`/listing/${encodeURIComponent(mlsNum)}`);
 		setShowModal(true);
 	};
 

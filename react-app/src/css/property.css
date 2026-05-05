@@ -1,6 +1,20 @@
 /* property-ctrl, property-imgs-ctrl, property-front, property-img, property-imgs-wrap
    all replaced by Tailwind in Property/index.js and Images/index.js */
 
+/* Standalone listing page — override modal sizing */
+.listing-page-wrap {
+	max-width: 1350px;
+	margin: 0 auto;
+	padding: 24px 16px 48px;
+}
+
+.listing-page-wrap > div {
+	width: 100% !important;
+	max-width: 100% !important;
+	max-height: none !important;
+	border-radius: 16px;
+}
+
 .property-img-wrap {
 	display: flex;
 	flex-direction: column;

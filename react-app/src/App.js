@@ -19,6 +19,7 @@ import { authenticate } from "./store/session";
 
 import About from "./components/About";
 import AgentLogin from "./components/AgentLogin";
+import ListingPage from "./components/Property/ListingPage";
 
 const DEFAULT_AREA = "/area/neLat=44.20&neLng=-78.90&swLat=43.30&swLng=-80.80&zoom=10";
 
@@ -94,6 +95,9 @@ function App() {
 				</Route>
 				<Route path="/agent-login" exact={true}>
 					<AgentLogin />
+				</Route>
+				<Route path="/listing/:mlsNumber" exact={true}>
+					<ListingPage />
 				</Route>
 				<ProtectedRoute path="/appointments" exact={true}>
 					<Appointments />
