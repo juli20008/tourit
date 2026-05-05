@@ -158,8 +158,8 @@ const Detail = ({ property }) => {
 					<Row label="Partial Bathrooms" value={property.bath_half} />
 				)}
 				{property?.parking_total && <Row label="Parking Spaces" value={property.parking_total} />}
-				{(property?.category || property?.style || property?.property_type || property?.property_class) && (
-					<Row label="Property Type" value={property.category || property.style || property.property_type || property.property_class} />
+				{property?.category && (
+					<Row label="Property Type" value={property.category} />
 				)}
 				{property?.sqft         && <Row label="Sqft"       value={Number(property.sqft).toLocaleString()} />}
 				{property?.levels       && <Row label="Storeys"     value={property.levels} />}

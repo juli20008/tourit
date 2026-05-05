@@ -137,15 +137,10 @@ function toDotNetTicks(value: any): string | null {
   return String(ticks);
 }
 
-const PROPERTY_TYPE_CODES: Record<string, string> = {
-  '300': 'Residential',
-  '307': 'Residential',
-};
-
 function normalizePropertyType(value: any): string | null {
   if (value == null) return null;
   const s = String(value).trim();
-  return PROPERTY_TYPE_CODES[s] ?? (s || null);
+  return s || null;
 }
 
 function cleanCity(value: any): string | null {
