@@ -84,8 +84,8 @@ const Agents = () => {
 				</tbody>
 			</table>
 			<footer className="agents-footer">
-				<p>&copy; 2026 Tourit. All rights reserved.</p>
-				<p>Julie Li, Bay Street Group &middot; 905-909-0101</p>
+				<p>Tourit &mdash; Home Tours Simplified.</p>
+				<p>&copy; 2026 Tourit. All rights reserved. &middot; Julie Li, Bay Street Group &middot; 905-909-0101</p>
 			</footer>
 		</div>
 	);

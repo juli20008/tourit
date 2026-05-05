@@ -32,7 +32,7 @@ export function Modal({ onClose, children }) {
 			<div className="modal-content" onClick={(e) => e.stopPropagation()}>
 				{children}
 				<div className="modal-credit">
-					&copy; 2026 Tourit. All rights reserved.<br />Julie Li, Bay Street Group &middot; 905-909-0101
+					Tourit &mdash; Home Tours Simplified.<br />&copy; 2026 Tourit. All rights reserved. &middot; Julie Li, Bay Street Group &middot; 905-909-0101
 				</div>
 			</div>
 		</div>,
