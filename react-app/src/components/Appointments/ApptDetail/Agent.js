@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useHistory } from "react-router-dom";
 
@@ -8,6 +8,7 @@ import { useNotification } from "../../../context/Notification";
 import { Modal } from "../../../context/Modal";
 import Property from "../../Property";
 
+import apiFetch from "../../../utils/apiFetch";
 import * as appointmentActions from "../../../store/appointment";
 import * as propertyActions from "../../../store/property";
 import * as channelActions from "../../../store/channel";
@@ -18,22 +19,39 @@ const ApptDetail = ({ appt, past, onClose }) => {
 
 	const properties = useSelector((state) => state.properties);
 
-	const [today, setToday] = useState("");
-	const [hour, setHour] = useState("");
+	const [today, setToday] = useState(appt.date);
+	const [hour, setHour] = useState(appt.time);
 
 	const [hourList, setHourList] = useState([]);
 	const [errors, setErrors] = useState([]);
-	const [availableAgents, setAvailableAgents] = useState([]);
+	const [allAgents, setAllAgents] = useState([]);
 	const [selectedAgentId, setSelectedAgentId] = useState("");
 	const [reassigning, setReassigning] = useState(false);
 	const [assignErrors, setAssignErrors] = useState([]);
 	const [showProperty, setShowProperty] = useState(false);
+	const [agentsLoading, setAgentsLoading] = useState(false);
 
 	const { setToggleNotification, setNotificationMsg } = useNotification();
 
 	const property = properties[appt?.property_id];
 
-	const schedule = editAvailable(property, appt.date, appt.time);
+	// Use Redux property if loaded; fall back to the serialized listing embedded
+	// in the appointment dict (always populated by to_dict() on the backend).
+	const listing = appt?.listing;
+	const displayStreet = property?.street || listing?.street || "";
+	const displayCity   = property?.city   || listing?.city   || "";
+	const displayState  = property?.state  || listing?.state  || "";
+	const displayZip    = property?.zip    || listing?.zip    || "";
+	const displayImg    = property?.image_urls?.[0] || property?.front_img || listing?.image || null;
+
+	// Memoize so schedule reference is stable between renders — prevents the
+	// useEffect([schedule, today]) from firing on every render and cascading
+	// into a re-render loop that fights user input.
+	const schedule = useMemo(
+		() => editAvailable(property, appt.date, appt.time),
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+		[appt.date, appt.time, appt.id]
+	);
 
 	const update = async (e) => {
 		e.preventDefault();
@@ -48,8 +66,10 @@ const ApptDetail = ({ appt, past, onClose }) => {
 			appointmentActions.editAppointment(apptToUpdate)
 		);
 		if (!data.errors) {
-			// after appt updated, need to dispatch to update property
-			await dispatch(propertyActions.getThisProperty(appt.property_id));
+			// only refetch for seeded properties (integer IDs)
+			if (Number.isInteger(appt.property_id)) {
+				await dispatch(propertyActions.getThisProperty(appt.property_id));
+			}
 			setNotificationMsg("Appointment updated");
 			setToggleNotification("");
 			setTimeout(() => {
@@ -76,8 +96,9 @@ const ApptDetail = ({ appt, past, onClose }) => {
 			appointmentActions.deleteThisAppointment(appt.id)
 		);
 		if (!data.errors) {
-			// after appt updated, need to dispatch to update property
-			await dispatch(propertyActions.getThisProperty(appt.property_id));
+			if (Number.isInteger(appt.property_id)) {
+				await dispatch(propertyActions.getThisProperty(appt.property_id));
+			}
 			setNotificationMsg("Appointment Deleted");
 			setToggleNotification("");
 			setTimeout(() => {
@@ -93,31 +114,30 @@ const ApptDetail = ({ appt, past, onClose }) => {
 	const chatWithClient = async (e) => {
 		e.preventDefault();
 		const this_channel = { user_id: appt.user_id, agent_id: appt.agent_id };
-		// send a post request to channels. will create channel if does not exist
 		const data = await dispatch(channelActions.addThisChannel(this_channel));
-		// use history to redirect
 		history.push(`/chats/${data.id}`);
 	};
 
-	const loadAvailableAgents = async () => {
+	const loadAllAgents = async () => {
+		setAgentsLoading(true);
 		try {
-			const response = await fetch(
-				`/api/appointments/available-agents?date=${appt.date}&time=${appt.time}&property_id=${appt.property_id}`
-			);
+			const response = await apiFetch("/api/agents/");
 			const data = await response.json();
 			if (response.ok) {
 				const others = (data.agents || []).filter(
 					(agent) => agent.id !== appt.agent_id
 				);
-				setAvailableAgents(others);
+				setAllAgents(others);
 				setSelectedAgentId(others[0]?.id ? String(others[0].id) : "");
 			} else {
-				setAvailableAgents([]);
-				setAssignErrors(data.errors || ["Unable to load available agents"]);
+				setAllAgents([]);
+				setAssignErrors(data.errors || ["Unable to load agents"]);
 			}
-		} catch (error) {
-			setAvailableAgents([]);
-			setAssignErrors(["Unable to load available agents"]);
+		} catch {
+			setAllAgents([]);
+			setAssignErrors(["Unable to load agents"]);
+		} finally {
+			setAgentsLoading(false);
 		}
 	};
 
@@ -143,28 +163,30 @@ const ApptDetail = ({ appt, past, onClose }) => {
 		setReassigning(false);
 	};
 
+	// Reset date/time only when a different appointment is opened (by ID),
+	// not when the appt object re-renders with the same ID — avoids resetting
+	// the user's in-progress edits.
 	useEffect(() => {
 		setToday(appt.date);
 		setHour(appt.time);
+		setErrors([]);
 		setAssignErrors([]);
-	}, [appt]);
+	}, [appt.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	useEffect(() => {
-		setHourList(schedule[today]);
+		setHourList(schedule[today] || []);
 	}, [schedule, today]);
 
 	useEffect(() => {
-		if (appt?.id) {
-			loadAvailableAgents();
-		}
-	}, [appt?.id, appt?.date, appt?.time, appt?.property_id]);
+		loadAllAgents();
+	}, []); // eslint-disable-line react-hooks/exhaustive-deps
 
 	return (
 		<div className="appt-detail-modal">
-			{property?.front_img ? (
+			{displayImg ? (
 				<div
 					className="appt-img-detail"
-					style={{ backgroundImage: `url("${property.front_img}")` }}
+					style={{ backgroundImage: `url("${displayImg}")` }}
 					onClick={() => setShowProperty(true)}
 				>
 					<div className="appt-img-prop-detail">
@@ -183,12 +205,14 @@ const ApptDetail = ({ appt, past, onClose }) => {
 								<i className="fa-solid fa-circle sold"></i>Sold
 							</div>
 						)}
-						<div>
-							$
-							{property?.price
-								.toFixed()
-								.replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,")}
-						</div>
+						{property?.price != null && (
+							<div>
+								$
+								{property.price
+									.toFixed()
+									.replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,")}
+							</div>
+						)}
 					</div>
 				</div>
 			) : (
@@ -203,8 +227,8 @@ const ApptDetail = ({ appt, past, onClose }) => {
 				>
 					<div className="appt-label">Address</div>
 					<div className="appt-address">
-						{property?.street}, {property?.city}, {property?.state},{" "}
-						{property?.zip}
+						{displayStreet}, {displayCity}, {displayState},{" "}
+						{displayZip}
 					</div>
 					<div className="appt-visit-property">
 						Click here to visit property page
@@ -231,9 +255,9 @@ const ApptDetail = ({ appt, past, onClose }) => {
 							onChange={(e) => setHour(e.target.value)}
 							disabled={past}
 						>
-							{hourList?.map((hour) => (
-								<option value={hour} key={hour}>
-									{hour}
+							{hourList?.map((h) => (
+								<option value={h} key={h}>
+									{h}
 								</option>
 							))}
 						</select>
@@ -273,14 +297,16 @@ const ApptDetail = ({ appt, past, onClose }) => {
 							className="appt-input"
 							value={selectedAgentId}
 							onChange={(e) => setSelectedAgentId(e.target.value)}
-							disabled={availableAgents.length === 0}
+							disabled={agentsLoading || allAgents.length === 0}
 						>
-							{availableAgents.length === 0 ? (
-								<option value="">No other agents available</option>
+							{agentsLoading ? (
+								<option value="">Loading agents…</option>
+							) : allAgents.length === 0 ? (
+								<option value="">No other agents found</option>
 							) : (
-								availableAgents.map((agent) => (
-									<option value={agent.id} key={agent.id}>
-										{agent.username} - {agent.office}
+								allAgents.map((agent) => (
+									<option value={String(agent.id)} key={agent.id}>
+										{agent.username}{agent.office ? ` — ${agent.office}` : ""}
 									</option>
 								))
 							)}
@@ -289,7 +315,7 @@ const ApptDetail = ({ appt, past, onClose }) => {
 							type="button"
 							className="btn btn-bl"
 							onClick={reassignAgent}
-							disabled={availableAgents.length === 0 || reassigning}
+							disabled={agentsLoading || allAgents.length === 0 || reassigning}
 						>
 							{reassigning ? "Assigning..." : "Assign"}
 						</button>
@@ -329,7 +355,7 @@ const ApptDetail = ({ appt, past, onClose }) => {
 					</>
 				)}
 			</div>
-			{showProperty && (
+			{showProperty && property && (
 				<Modal onClose={() => setShowProperty(false)}>
 					<Property
 						property={property}
