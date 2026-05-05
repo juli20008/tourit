@@ -6,12 +6,11 @@ const LogoBrand = () => (
 		>
 			Tourit.ca
 		</span>
-		<span className="hidden sm:inline text-[#cbd5e1] font-light text-sm md:text-base select-none">|</span>
 		<span
-			style={{ fontFamily: "'Inter', sans-serif", fontWeight: 400 }}
-			className="hidden sm:inline text-[13px] md:text-[16px] leading-none tracking-wide text-white/80"
+			style={{ fontFamily: "'Inter', sans-serif", fontWeight: 300 }}
+			className="hidden sm:inline text-[12px] md:text-[14px] leading-none tracking-wide text-white"
 		>
-			Every Home Tour, Just a Click Away.
+			Home Tours Simplified.
 		</span>
 	</div>
 );
