@@ -137,6 +137,25 @@
 	margin: 6px 0;
 }
 
+/* Mobile-only Google icon button — hidden on desktop */
+.nav-google-icon {
+	display: none;
+	align-items: center;
+	justify-content: center;
+	width: 32px;
+	height: 32px;
+	border-radius: 8px;
+	border: 1px solid rgba(255, 255, 255, 0.15);
+	background: white;
+	cursor: pointer;
+	flex-shrink: 0;
+	transition: background 0.15s;
+}
+
+.nav-google-icon:hover {
+	background: #f1f5f9;
+}
+
 @media screen and (max-width: 650px) {
 	.nav {
 		padding: 12px 14px;
@@ -148,6 +167,10 @@
 
 	.nav-desktop-only {
 		display: none !important;
+	}
+
+	.nav-google-icon {
+		display: flex;
 	}
 }
 
