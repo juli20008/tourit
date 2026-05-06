@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "Tourit → FBMP Sync",
+  "version": "1.0",
+  "description": "Sync Tourit.ca listings to Facebook Marketplace",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": [
+    "https://tourit.ca/*",
+    "https://*.supabase.co/*",
+    "https://*.supabase.in/*",
+    "https://www.facebook.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://tourit.ca/*"],
+      "js": ["content/tourit.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.facebook.com/marketplace/create/rental*"],
+      "js": ["content/fbmp.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup/popup.html"
+  }
+}
