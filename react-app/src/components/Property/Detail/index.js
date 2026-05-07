@@ -217,7 +217,7 @@ const Detail = ({ property }) => {
 			<hr className="border-stroke mb-4" />
 
 			{/* Disclaimer */}
-			<p className="text-[10px] text-gray-400 leading-relaxed">
+			<p className="text-[10px] text-gray-400 leading-relaxed pb-12">
 				The information provided herein is deemed reliable but is not guaranteed accurate by PROPTX.
 				The information provided herein must only be used by consumers that have a bona fide interest
 				in the purchase, sale, or lease of real estate and may not be used for any commercial purpose
