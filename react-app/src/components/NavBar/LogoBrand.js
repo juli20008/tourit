@@ -6,7 +6,7 @@ const LogoBrand = () => (
 		>
 			Tourit.ca
 		</span>
-		<span className="nav-slogan">Home Tours Simplified.</span>
+		<span className="nav-slogan">Instant Bookings with Trusted Experts</span>
 	</div>
 );
 
