@@ -74,6 +74,8 @@
     .btn-primary:hover { background: #1d4ed8; }
     .btn-ghost { background: #f1f5f9; color: #475569; }
     .btn-ghost:hover { background: #e2e8f0; }
+    .btn-capture { background: #0f172a; color: #fff; }
+    .btn-capture:hover { background: #1e293b; }
     footer {
       margin-top: 12px;
       padding-top: 10px;
@@ -92,8 +94,11 @@
 
   <div id="no-listing">
     No listing captured yet.<br />
-    Open a listing on <strong>tourit.ca</strong> first.
+    Open a listing on <strong>tourit.ca</strong>, then click <strong>Save to FBMP</strong> on the page — or use the button below.
   </div>
+
+  <button class="btn btn-capture" id="btn-capture">📋 Capture Current Listing</button>
+  <div id="capture-status" style="font-size:11px;color:#16a34a;min-height:16px;margin-bottom:6px;text-align:center;"></div>
 
   <div id="listing-info">
     <div class="listing-address" id="listing-address"></div>

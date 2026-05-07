@@ -1,42 +1,119 @@
-// Runs on tourit.ca — extracts listing data and saves to chrome.storage.local.
-// tourit.ca embeds a <script id="tourit-listing-data" type="application/json">
-// on standalone listing pages (/listing/:mls and /a/:agentId/listing/:mls).
+// Runs on tourit.ca — captures listing data whenever a listing is open
+// (modal OR standalone page) and saves to chrome.storage.local.
+// Also injects a floating "Save to FBMP" button on the page.
 
 (() => {
+  if (window.__touritCaptureLoaded) return;
+  window.__touritCaptureLoaded = true;
+
+  const EMBED_ID = 'tourit-listing-data';
+  const BTN_ID   = 'tourit-capture-btn';
+
+  // ─── Extract listing from embedded JSON ──────────────────────────────────
+
   function extractListing() {
-    // Primary: read from embedded JSON (set by ListingPage.js via useEffect)
-    const el = document.getElementById('tourit-listing-data');
-    if (el) {
-      try {
-        const data = JSON.parse(el.textContent);
-        if (data && data.mls_number) return data;
-      } catch {}
-    }
-    return null;
+    const el = document.getElementById(EMBED_ID);
+    if (!el) return null;
+    try {
+      const data = JSON.parse(el.textContent);
+      return (data && data.mls_number) ? data : null;
+    } catch { return null; }
   }
 
-  function save(listing) {
+  // ─── Save to extension storage ───────────────────────────────────────────
+
+  function capture(listing) {
     chrome.storage.local.set({ tourit_listing: listing }, () => {
-      console.log('[Tourit FBMP] Listing captured:', listing.address);
+      showToast(`✓ Captured: ${listing.address || listing.mls_number}`);
+      updateBtn(true);
     });
   }
 
-  // Try immediately (page already rendered)
-  const immediate = extractListing();
-  if (immediate) {
-    save(immediate);
-    return;
+  // ─── MutationObserver — watches document.head for embed appearing/changing
+
+  const observer = new MutationObserver(() => {
+    const listing = extractListing();
+    if (listing) capture(listing);
+    else updateBtn(false);
+  });
+
+  observer.observe(document.head, { childList: true, subtree: true, characterData: true });
+
+  // Also try immediately in case embed is already there on page load
+  const existing = extractListing();
+  if (existing) capture(existing);
+
+  // ─── Floating "Save to FBMP" button ──────────────────────────────────────
+
+  function injectBtn() {
+    if (document.getElementById(BTN_ID)) return;
+
+    const btn = document.createElement('button');
+    btn.id = BTN_ID;
+    btn.textContent = 'Save to FBMP';
+    btn.style.cssText = [
+      'position:fixed', 'bottom:48px', 'right:16px', 'z-index:2147483646',
+      'padding:8px 14px', 'border-radius:20px',
+      'background:#2563eb', 'color:#fff',
+      'font:600 12px/1 system-ui,sans-serif',
+      'border:none', 'cursor:pointer',
+      'box-shadow:0 4px 16px rgba(37,99,235,0.4)',
+      'transition:opacity 0.2s, background 0.15s',
+      'opacity:0.9',
+    ].join(';');
+
+    btn.addEventListener('mouseenter', () => { btn.style.opacity = '1'; btn.style.background = '#1d4ed8'; });
+    btn.addEventListener('mouseleave', () => { btn.style.opacity = '0.9'; btn.style.background = '#2563eb'; });
+
+    btn.addEventListener('click', () => {
+      const listing = extractListing();
+      if (listing) {
+        capture(listing);
+      } else {
+        showToast('⚠ No listing open — open a listing first');
+      }
+    });
+
+    document.body.appendChild(btn);
   }
 
-  // Otherwise wait for React to inject the element (up to 8 seconds)
-  const start = Date.now();
-  const interval = setInterval(() => {
-    const listing = extractListing();
-    if (listing) {
-      clearInterval(interval);
-      save(listing);
-    } else if (Date.now() - start > 8000) {
-      clearInterval(interval);
+  function updateBtn(hasListing) {
+    const btn = document.getElementById(BTN_ID);
+    if (!btn) return;
+    btn.textContent = hasListing ? '✓ Saved — Save Again' : 'Save to FBMP';
+    btn.style.background = hasListing ? '#16a34a' : '#2563eb';
+    if (hasListing) setTimeout(() => {
+      if (document.getElementById(BTN_ID)) {
+        btn.textContent = 'Save to FBMP';
+        btn.style.background = '#2563eb';
+      }
+    }, 3000);
+  }
+
+  // Inject button once DOM is ready
+  if (document.body) injectBtn();
+  else document.addEventListener('DOMContentLoaded', injectBtn);
+
+  // ─── Toast notification ───────────────────────────────────────────────────
+
+  function showToast(msg) {
+    let toast = document.getElementById('tourit-toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'tourit-toast';
+      toast.style.cssText = [
+        'position:fixed', 'bottom:92px', 'right:16px', 'z-index:2147483647',
+        'padding:8px 14px', 'border-radius:10px',
+        'background:#0f172a', 'color:#f8fafc',
+        'font:13px/1.4 system-ui,sans-serif',
+        'box-shadow:0 4px 20px rgba(0,0,0,0.3)',
+        'pointer-events:none', 'transition:opacity 0.3s',
+      ].join(';');
+      document.body.appendChild(toast);
     }
-  }, 300);
+    toast.textContent = msg;
+    toast.style.opacity = '1';
+    clearTimeout(toast._timer);
+    toast._timer = setTimeout(() => { toast.style.opacity = '0'; }, 2500);
+  }
 })();
