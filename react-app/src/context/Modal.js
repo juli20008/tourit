@@ -31,9 +31,6 @@ export function Modal({ onClose, children }) {
 			<div className="modal-background" onClick={(e) => { e.stopPropagation(); onClose(); }} />
 			<div className="modal-content" onClick={(e) => e.stopPropagation()}>
 				{children}
-				<div className="modal-credit">
-					&copy; 2026 Tourit. All rights reserved.<br />Julie Li, Bay Street Group &middot; 905-909-0101
-				</div>
 			</div>
 		</div>,
 		modalNode

@@ -1,3 +1,8 @@
+/* Prevent fixed footer from overlapping page content */
+body {
+	padding-bottom: 36px;
+}
+
 .footer-ctrl {
 	display: flex;
 	flex-direction: column;
@@ -28,14 +33,22 @@
 	height: auto;
 }
 
-/* Global developer credit — fixed bottom-right, visible on every page */
-.app-credit {
+/* Global footer bar — same black as the nav bar */
+.app-footer {
 	position: fixed;
-	bottom: 8px;
-	right: 12px;
-	font-size: 10px;
-	color: rgba(100, 116, 139, 0.6);
-	z-index: 9;
-	pointer-events: none;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	height: 36px;
+	background: #000000;
+	color: rgba(255, 255, 255, 0.75);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 11px;
 	letter-spacing: 0.02em;
+	z-index: 15;
+	border-top: 1px solid rgba(255, 255, 255, 0.08);
+	pointer-events: none;
+	white-space: nowrap;
 }

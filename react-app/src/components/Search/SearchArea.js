@@ -376,7 +376,6 @@ const SearchArea = () => {
 			<footer className="search-pg-footer">
 				<p>The information provided herein is deemed reliable but is not guaranteed accurate by PROPTX.</p>
 				<p>The information provided herein must only be used by consumers that have a bona fide interest in the purchase, sale, or lease of real estate and may not be used for any commercial purpose or any other purpose.</p>
-				<p>&copy; 2026 Tourit. All rights reserved. &middot; Julie Li, Bay Street Group &middot; 905-909-0101</p>
 			</footer>
 		</div>
 	);

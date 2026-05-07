@@ -223,10 +223,6 @@ const Detail = ({ property }) => {
 				in the purchase, sale, or lease of real estate and may not be used for any commercial purpose
 				or any other purpose.
 			</p>
-			<p className="text-[10px] text-gray-400 leading-relaxed mt-1 mb-8">
-				&copy; 2026 Tourit. All rights reserved.<br />
-				Julie Li, Bay Street Group &middot; 905-909-0101
-			</p>
 		</div>
 	);
 };

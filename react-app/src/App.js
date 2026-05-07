@@ -118,6 +118,9 @@ function App() {
 					<NotFound />
 				</Route>
 			</Switch>
+			<footer className="app-footer">
+				&copy; 2026 Tourit. All rights reserved. &nbsp;&middot;&nbsp; Julie Li, Bay Street Group &nbsp;&middot;&nbsp; 905-909-0101
+			</footer>
 		</BrowserRouter>
 	);
 }
