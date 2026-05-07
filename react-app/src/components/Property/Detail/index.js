@@ -79,11 +79,14 @@ const Detail = ({ property }) => {
 			<div className="flex items-center gap-2 mb-3">
 				<span className={`inline-block w-2.5 h-2.5 rounded-full ${statusColor(property?.status)}`} />
 				<span className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
-					{statusLabel(property?.status)}
-					{property?.transaction_type && (
-						<span className="ml-2 text-gray-400 normal-case font-normal">
-							· {property.transaction_type}
-						</span>
+					{property?.transaction_type
+						? property.transaction_type
+						: statusLabel(property?.status)}
+					{(property?.status?.toLowerCase() === "u" || property?.status?.toLowerCase() === "pending") && (
+						<span className="ml-2 text-amber-500 normal-case font-normal">· Pending</span>
+					)}
+					{property?.status?.toLowerCase() === "sold" && (
+						<span className="ml-2 text-gray-400 normal-case font-normal">· Sold</span>
 					)}
 				</span>
 			</div>
