@@ -37,10 +37,24 @@
   async function startFill(listing) {
     const btn = document.getElementById('tourit-fill-btn');
     if (btn) btn.disabled = true;
-    showStatus('Fetching images from Tourit…', 'info');
 
-    const imageFiles = await fetchImages(listing.images || []);
-    showStatus(`Got ${imageFiles.length} image(s). Filling form…`, 'info');
+    const imageUrls = listing.images || [];
+    let imageFiles = [];
+
+    if (imageUrls.length) {
+      showStatus(`Fetching ${imageUrls.length} image(s)…`, 'info');
+      imageFiles = await fetchImages(imageUrls);
+      if (imageFiles.length === 0) {
+        showStatus(`⚠ Could not fetch images (CDN blocked or no permission).\nFilling other fields…`, 'warn');
+        await sleep(1200);
+      } else if (imageFiles.length < imageUrls.length) {
+        showStatus(`Fetched ${imageFiles.length}/${imageUrls.length} image(s). Filling form…`, 'info');
+      } else {
+        showStatus(`Got ${imageFiles.length} image(s). Filling form…`, 'info');
+      }
+    } else {
+      showStatus('No images in listing. Filling text fields…', 'info');
+    }
 
     const result = await autofillListing({ ...listing, images: imageFiles });
     renderSummary(result);
@@ -113,9 +127,15 @@
     const transfer = new DataTransfer();
     for (const file of files) transfer.items.add(file);
 
+    // Set files — valid for file inputs (unlike text inputs, no prototype setter needed)
     input.files = transfer.files;
-    dispatchInputEvents(input);
-    input.closest('form')?.dispatchEvent(new Event('change', { bubbles: true }));
+    await sleep(50);
+
+    // Dispatch change event — React 17+ uses delegation so bubbles:true is required
+    input.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+    input.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
+    // Also notify any parent form listeners
+    input.closest('form, [role="form"]')?.dispatchEvent(new Event('change', { bubbles: true }));
     return true;
   }
 
@@ -126,12 +146,17 @@
     const trigger = findPhotoUploadTrigger();
     if (trigger) {
       trigger.click();
-      await sleep(400);
+      // Wait longer for FBMP's photo upload overlay to appear
+      await sleep(800);
       input = findBestFileInput(trigger);
+      if (input) return input;
+      // One more attempt after extra delay
+      await sleep(600);
+      input = findBestFileInput();
       if (input) return input;
     }
 
-    return waitFor(() => findBestFileInput(), 5000, 200);
+    return waitFor(() => findBestFileInput(), 6000, 250);
   }
 
   async function fillTextField(keywords, rawValue, filled, skipped, label, options = {}) {

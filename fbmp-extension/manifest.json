@@ -8,7 +8,9 @@
     "https://tourit.ca/*",
     "https://*.supabase.co/*",
     "https://*.supabase.in/*",
-    "https://www.facebook.com/*"
+    "https://www.facebook.com/*",
+    "https://*.realtor.ca/*",
+    "https://*.crea.ca/*"
   ],
   "background": {
     "service_worker": "background.js"

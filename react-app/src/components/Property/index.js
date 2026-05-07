@@ -21,7 +21,7 @@ function useFbmpEmbed(property) {
 		const payload = {
 			mls_number: property.mls_number,
 			title: `${property.bed ?? "?"}BR ${property.style || property.property_type || "Home"} for Rent | ${address}, ${property.city || ""}`,
-			price: property.list_price,
+			price: property.price,
 			description: property.description || "",
 			address,
 			city: property.city || "",
