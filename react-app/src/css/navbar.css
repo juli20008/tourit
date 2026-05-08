@@ -188,7 +188,7 @@
 	color: #111827;
 }
 
-/* Slogan next to brand name — hidden on mobile */
+/* Slogan — inline next to brand on desktop, small block below on mobile */
 .nav-slogan {
 	display: inline;
 	font-family: 'Inter', sans-serif;
@@ -196,11 +196,18 @@
 	font-size: 16px;
 	color: #ffffff;
 	letter-spacing: 0.02em;
+	white-space: nowrap;
 }
 
 @media screen and (max-width: 650px) {
 	.nav-slogan {
-		display: none;
+		display: block;
+		font-size: 10px;
+		font-weight: 400;
+		letter-spacing: 0.03em;
+		opacity: 0.75;
+		margin-top: 1px;
+		white-space: nowrap;
 	}
 }
 
