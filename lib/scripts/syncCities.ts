@@ -121,9 +121,17 @@ async function fetchExistingTimestamps(mlsNumbers: string[]): Promise<Map<string
 // We fetch all listings using a far-past date and filter by city in TypeScript.
 
 const CITY_SET = new Set(CITIES.map(c => c.toLowerCase()));
+const DEBUG_CITIES = process.argv.includes('--debug-cities');
+const seenCities = new Set<string>(); // for --debug-cities sampling
 
 function matchesTargetCity(raw: Record<string, any>): boolean {
   const city = String(raw.City ?? raw.Municipality ?? raw.city ?? '').toLowerCase().trim();
+
+  if (DEBUG_CITIES && city && !seenCities.has(city)) {
+    seenCities.add(city);
+    if (seenCities.size <= 40) console.log(`  [city sample] raw.City="${raw.City}" → normalized="${city}"`);
+  }
+
   return CITY_SET.has(city);
 }
 
