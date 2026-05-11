@@ -117,8 +117,8 @@ async function fetchExistingTimestamps(mlsNumbers: string[]): Promise<Map<string
 }
 
 // ── Full-feed scan with client-side city filter ───────────────────────────────
-// DDF is a full-feed API — string/equality DMQL queries are not supported.
-// We fetch all listings (ListPrice=0+) and filter by city in TypeScript.
+// DDF only accepts (LastUpdated=...) queries — all other DMQL fields are rejected.
+// We fetch all listings using a far-past date and filter by city in TypeScript.
 
 const CITY_SET = new Set(CITIES.map(c => c.toLowerCase()));
 
@@ -132,9 +132,9 @@ async function scanAllAndFilter(
   photoSession: DdfPhotoSession | null,
   counters: { scanned: number; fetched: number; upserted: number; photos: number }
 ): Promise<void> {
-  // (ListPrice=0+) is the broadest valid DMQL query on this full-feed server —
-  // string/equality queries (City, Status, StateOrProvince) are rejected.
-  const dmql = '(ListPrice=0+)';
+  // Only (LastUpdated=...) is accepted by this DDF server.
+  // Using epoch start to get every listing ever indexed.
+  const dmql = '(LastUpdated=2000-01-01T00:00:00Z)';
   console.log(`[syncCities] DMQL: ${dmql}`);
   console.log(`[syncCities] Filtering to: ${CITIES.join(', ')}`);
   console.log(`[syncCities] (Scanning full feed — this will take a while)`);
