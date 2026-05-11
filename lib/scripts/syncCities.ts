@@ -116,56 +116,70 @@ async function fetchExistingTimestamps(mlsNumbers: string[]): Promise<Map<string
   return map;
 }
 
-// ── Per-city paginated sync (runs inside one RETS session) ────────────────────
+// ── Full-feed scan with client-side city filter ───────────────────────────────
+// DDF is a full-feed API — string/equality DMQL queries are not supported.
+// We fetch all listings (ListPrice=0+) and filter by city in TypeScript.
 
-async function syncOneCity(
+const CITY_SET = new Set(CITIES.map(c => c.toLowerCase()));
+
+function matchesTargetCity(raw: Record<string, any>): boolean {
+  const city = String(raw.City ?? raw.Municipality ?? raw.city ?? '').toLowerCase().trim();
+  return CITY_SET.has(city);
+}
+
+async function scanAllAndFilter(
   rets: any,
-  city: string,
   photoSession: DdfPhotoSession | null,
-  counters: { fetched: number; upserted: number; photos: number }
+  counters: { scanned: number; fetched: number; upserted: number; photos: number }
 ): Promise<void> {
-  // DDF server requires single-value City queries
-  const dmql = `(City=${city}),(Status=A)`;
-  console.log(`\n[syncCities] ── City: ${city} ──`);
+  // (ListPrice=0+) is the broadest valid DMQL query on this full-feed server —
+  // string/equality queries (City, Status, StateOrProvince) are rejected.
+  const dmql = '(ListPrice=0+)';
   console.log(`[syncCities] DMQL: ${dmql}`);
+  console.log(`[syncCities] Filtering to: ${CITIES.join(', ')}`);
+  console.log(`[syncCities] (Scanning full feed — this will take a while)`);
 
   let offset = 1;
   let page   = 1;
 
   while (page <= MAX_PAGES) {
-    console.log(`[syncCities] ${city} — page ${page} (offset ${offset})…`);
+    process.stdout.write(`\r[syncCities] Page ${page} | scanned ${counters.scanned.toLocaleString()} | matched ${counters.fetched.toLocaleString()}   `);
 
     let results: any[];
     let totalCount: number | null = null;
 
     try {
       const response = await rets.search.query(
-        'Property', 'Property',
-        dmql,
+        'Property', 'Property', dmql,
         { limit: PAGE_SIZE, offset, count: 1, format: 'COMPACT', standardNames: 1 }
       );
       results    = response.results ?? [];
       totalCount = typeof response.count === 'number' ? response.count : null;
     } catch (e: any) {
-      console.error(`[syncCities] ${city} page ${page} failed: ${e.message} — skipping city`);
+      console.error(`\n[syncCities] Page ${page} failed: ${e.message} — stopping`);
       break;
     }
 
     if (results.length === 0) {
-      console.log(`[syncCities] ${city}: no more results.`);
+      console.log('\n[syncCities] No more results.');
       break;
     }
 
-    counters.fetched += results.length;
     if (totalCount !== null && page === 1) {
-      console.log(`[syncCities] ${city}: DDF reports ${totalCount.toLocaleString()} total listings`);
+      console.log(`\n[syncCities] DDF total listings: ${totalCount.toLocaleString()}`);
     }
 
-    if (!DRY_RUN) {
+    counters.scanned += results.length;
+
+    // Filter to target cities only
+    const matched = results.filter(matchesTargetCity);
+    counters.fetched += matched.length;
+
+    if (!DRY_RUN && matched.length > 0) {
       const listingKeyByMls = new Map<string, string | number>();
       const ddfTsByMls      = new Map<string, string | null>();
 
-      const dbRows = results.map((raw) => {
+      const dbRows = matched.map((raw) => {
         const row = toDbRow(raw);
         if (row.mls_number) {
           const key = raw.ListingKey ?? raw.ListingID ?? raw.id;
@@ -188,8 +202,7 @@ async function syncOneCity(
             if (!mls) continue;
             const ddfTs = ddfTsByMls.get(mls) ?? null;
             const dbTs  = existingTs.get(mls) ?? null;
-            const isNew = !existingTs.has(mls);
-            if (!isNew && dbTs === ddfTs) continue;
+            if (existingTs.has(mls) && dbTs === ddfTs) continue;
 
             try {
               const key  = listingKeyByMls.get(mls) ?? row.id ?? mls;
@@ -197,25 +210,23 @@ async function syncOneCity(
               if (urls.length > 0) {
                 await patchImages(mls, urls);
                 counters.photos++;
-                console.log(`  [photo] ${mls}: ${urls.length} photo(s)`);
               }
             } catch (e: any) {
-              console.warn(`  [photo] ${mls}: ${e.message}`);
+              console.warn(`\n  [photo] ${mls}: ${e.message}`);
             }
           }
         }
       } catch (e: any) {
-        console.error(`[syncCities] ${city} upsert failed page ${page}: ${e.message}`);
+        console.error(`\n[syncCities] Upsert failed page ${page}: ${e.message}`);
       }
     }
-
-    console.log(`[syncCities] ${city} page ${page}: ${results.length} fetched | ${counters.upserted} total upserted`);
 
     if (results.length < PAGE_SIZE) break;
     offset += PAGE_SIZE;
     page++;
     await sleep(PAGE_DELAY);
   }
+  console.log(''); // newline after progress line
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -233,13 +244,12 @@ async function main() {
   if (DRY_RUN)   console.log('[syncCities] DRY RUN — no DB writes');
   if (NO_PHOTOS) console.log('[syncCities] Photos disabled');
 
-  const counters = { fetched: 0, upserted: 0, photos: 0 };
+  const counters = { scanned: 0, fetched: 0, upserted: 0, photos: 0 };
 
   await (getAutoLogoutClient as any)(
     { loginUrl, username, password, version: 'RETS/1.7.2', userAgent: 'Tourit-CitySync/1.0' },
     async (rets: any) => {
 
-      // One photo session shared across all cities
       let photoSession: DdfPhotoSession | null = null;
       if (!DRY_RUN && !NO_PHOTOS) {
         try {
@@ -251,16 +261,14 @@ async function main() {
         }
       }
 
-      // Query each city individually (DDF server rejects multi-value City queries)
-      for (const city of CITIES) {
-        await syncOneCity(rets, city, photoSession, counters);
-      }
+      await scanAllAndFilter(rets, photoSession, counters);
     }
   );
 
   console.log(`\n[syncCities] ── Done ──`);
   console.log(`  Cities   : ${CITIES.join(', ')}`);
-  console.log(`  Fetched  : ${counters.fetched.toLocaleString()}`);
+  console.log(`  Scanned  : ${counters.scanned.toLocaleString()}`);
+  console.log(`  Matched  : ${counters.fetched.toLocaleString()}`);
   console.log(`  Upserted : ${counters.upserted.toLocaleString()}`);
   console.log(`  Photos   : ${counters.photos.toLocaleString()}`);
   if (DRY_RUN) console.log('\nRe-run without --dry-run to write to DB.');
