@@ -1,13 +1,14 @@
 /**
  * City-targeted sync: pulls all active listings for specific cities from DDF
- * and upserts them into mls_listings. Safe to run alongside existing data —
- * upsert on mls_number never touches rows from other cities.
+ * and upserts them into mls_listings. Queries each city separately (the DDF
+ * server rejects multi-value City queries). Safe to run alongside existing
+ * data — upsert on mls_number never touches rows from other cities.
  *
  * Usage:
  *   npx ts-node lib/scripts/syncCities.ts
  *   npx ts-node lib/scripts/syncCities.ts --dry-run       (count only, no writes)
  *   npx ts-node lib/scripts/syncCities.ts --no-photos     (skip photo fetch)
- *   npx ts-node lib/scripts/syncCities.ts --cities="Vaughan,Aurora"  (override cities)
+ *   npx ts-node lib/scripts/syncCities.ts --cities="Vaughan,Aurora"
  *
  * Default cities: Richmond Hill, Markham
  */
@@ -39,8 +40,8 @@ const CITIES: string[] = CITIES_ARG
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const PAGE_SIZE  = 100;
-const PAGE_DELAY = 1500;   // ms between pages
-const MAX_PAGES  = 500;    // safety ceiling
+const PAGE_DELAY = 1500;
+const MAX_PAGES  = 500;
 
 const COLUMNS = new Set([
   'external_id','mls_number','status','standard_status','property_class',
@@ -115,6 +116,108 @@ async function fetchExistingTimestamps(mlsNumbers: string[]): Promise<Map<string
   return map;
 }
 
+// ── Per-city paginated sync (runs inside one RETS session) ────────────────────
+
+async function syncOneCity(
+  rets: any,
+  city: string,
+  photoSession: DdfPhotoSession | null,
+  counters: { fetched: number; upserted: number; photos: number }
+): Promise<void> {
+  // DDF server requires single-value City queries
+  const dmql = `(City=${city}),(Status=A)`;
+  console.log(`\n[syncCities] ── City: ${city} ──`);
+  console.log(`[syncCities] DMQL: ${dmql}`);
+
+  let offset = 1;
+  let page   = 1;
+
+  while (page <= MAX_PAGES) {
+    console.log(`[syncCities] ${city} — page ${page} (offset ${offset})…`);
+
+    let results: any[];
+    let totalCount: number | null = null;
+
+    try {
+      const response = await rets.search.query(
+        'Property', 'Property',
+        dmql,
+        { limit: PAGE_SIZE, offset, count: 1, format: 'COMPACT', standardNames: 1 }
+      );
+      results    = response.results ?? [];
+      totalCount = typeof response.count === 'number' ? response.count : null;
+    } catch (e: any) {
+      console.error(`[syncCities] ${city} page ${page} failed: ${e.message} — skipping city`);
+      break;
+    }
+
+    if (results.length === 0) {
+      console.log(`[syncCities] ${city}: no more results.`);
+      break;
+    }
+
+    counters.fetched += results.length;
+    if (totalCount !== null && page === 1) {
+      console.log(`[syncCities] ${city}: DDF reports ${totalCount.toLocaleString()} total listings`);
+    }
+
+    if (!DRY_RUN) {
+      const listingKeyByMls = new Map<string, string | number>();
+      const ddfTsByMls      = new Map<string, string | null>();
+
+      const dbRows = results.map((raw) => {
+        const row = toDbRow(raw);
+        if (row.mls_number) {
+          const key = raw.ListingKey ?? raw.ListingID ?? raw.id;
+          if (key) listingKeyByMls.set(String(row.mls_number), key);
+          ddfTsByMls.set(String(row.mls_number), row.photos_timestamp ?? null);
+        }
+        return row;
+      });
+
+      try {
+        const mlsNums    = dbRows.map(r => r.mls_number).filter(Boolean) as string[];
+        const existingTs = photoSession ? await fetchExistingTimestamps(mlsNums) : new Map<string, string | null>();
+
+        await upsertBatch(dbRows);
+        counters.upserted += dbRows.length;
+
+        if (photoSession) {
+          for (const row of dbRows) {
+            const mls = row.mls_number;
+            if (!mls) continue;
+            const ddfTs = ddfTsByMls.get(mls) ?? null;
+            const dbTs  = existingTs.get(mls) ?? null;
+            const isNew = !existingTs.has(mls);
+            if (!isNew && dbTs === ddfTs) continue;
+
+            try {
+              const key  = listingKeyByMls.get(mls) ?? row.id ?? mls;
+              const urls = await photoSession.fetchPhotoUrls(key);
+              if (urls.length > 0) {
+                await patchImages(mls, urls);
+                counters.photos++;
+                console.log(`  [photo] ${mls}: ${urls.length} photo(s)`);
+              }
+            } catch (e: any) {
+              console.warn(`  [photo] ${mls}: ${e.message}`);
+            }
+          }
+        }
+      } catch (e: any) {
+        console.error(`[syncCities] ${city} upsert failed page ${page}: ${e.message}`);
+      }
+    }
+
+    console.log(`[syncCities] ${city} page ${page}: ${results.length} fetched | ${counters.upserted} total upserted`);
+
+    if (results.length < PAGE_SIZE) break;
+    offset += PAGE_SIZE;
+    page++;
+    await sleep(PAGE_DELAY);
+  }
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -126,24 +229,17 @@ async function main() {
     throw new Error('Missing required env vars: DDF_LOGIN_URL, DDF_USERNAME, DDF_PASSWORD, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY');
   }
 
-  // DMQL: OR across all target cities within the City field, Status=A only
-  const cityList = CITIES.join(',');
-  const dmqlQuery = `(City=${cityList}),(Status=A)`;
-
   console.log(`[syncCities] Cities: ${CITIES.join(', ')}`);
-  console.log(`[syncCities] DMQL: ${dmqlQuery}`);
   if (DRY_RUN)   console.log('[syncCities] DRY RUN — no DB writes');
   if (NO_PHOTOS) console.log('[syncCities] Photos disabled');
 
-  let totalFetched  = 0;
-  let totalUpserted = 0;
-  let totalPhotos   = 0;
+  const counters = { fetched: 0, upserted: 0, photos: 0 };
 
   await (getAutoLogoutClient as any)(
     { loginUrl, username, password, version: 'RETS/1.7.2', userAgent: 'Tourit-CitySync/1.0' },
     async (rets: any) => {
 
-      // Establish photo session once; reuse across all pages
+      // One photo session shared across all cities
       let photoSession: DdfPhotoSession | null = null;
       if (!DRY_RUN && !NO_PHOTOS) {
         try {
@@ -152,111 +248,21 @@ async function main() {
           console.log('[syncCities] Photo session ready');
         } catch (e: any) {
           console.warn(`[syncCities] Photo session failed: ${e.message} — photos will be skipped`);
-          photoSession = null;
         }
       }
 
-      let offset = 1;
-      let page   = 1;
-
-      while (page <= MAX_PAGES) {
-        console.log(`[syncCities] Page ${page} (offset ${offset})…`);
-
-        let results: any[];
-        let totalCount: number | null = null;
-
-        try {
-          const response = await rets.search.query(
-            'Property', 'Property',
-            dmqlQuery,
-            { limit: PAGE_SIZE, offset, count: 1, format: 'COMPACT', standardNames: 1 }
-          );
-          results    = response.results ?? [];
-          totalCount = typeof response.count === 'number' ? response.count : null;
-        } catch (e: any) {
-          console.error(`[syncCities] Page ${page} query failed: ${e.message} — stopping`);
-          break;
-        }
-
-        if (results.length === 0) {
-          console.log('[syncCities] No more results.');
-          break;
-        }
-
-        totalFetched += results.length;
-        if (totalCount !== null && page === 1) {
-          console.log(`[syncCities] DDF reports ${totalCount.toLocaleString()} total matching listings`);
-        }
-
-        if (!DRY_RUN) {
-          // Build DB rows; track DDF ListingKey for photo fetching
-          const listingKeyByMls = new Map<string, string | number>();
-          const ddfTsByMls      = new Map<string, string | null>();
-
-          const dbRows = results.map((raw) => {
-            const row = toDbRow(raw);
-            if (row.mls_number) {
-              const key = raw.ListingKey ?? raw.ListingID ?? raw.id;
-              if (key) listingKeyByMls.set(String(row.mls_number), key);
-              ddfTsByMls.set(String(row.mls_number), row.photos_timestamp ?? null);
-            }
-            return row;
-          });
-
-          try {
-            // Read existing timestamps BEFORE upsert so we can detect changes
-            const mlsNums = dbRows.map(r => r.mls_number).filter(Boolean) as string[];
-            const existingTs = photoSession ? await fetchExistingTimestamps(mlsNums) : new Map<string, string | null>();
-
-            await upsertBatch(dbRows);
-            totalUpserted += dbRows.length;
-
-            // Fetch photos for new listings or listings whose timestamp changed
-            if (photoSession) {
-              for (const row of dbRows) {
-                const mls   = row.mls_number;
-                if (!mls) continue;
-
-                const ddfTs = ddfTsByMls.get(mls) ?? null;
-                const dbTs  = existingTs.get(mls) ?? null;
-                const isNew = !existingTs.has(mls);
-
-                if (!isNew && dbTs === ddfTs) continue; // no change needed
-
-                try {
-                  const key  = listingKeyByMls.get(mls) ?? row.id ?? mls;
-                  const urls = await photoSession.fetchPhotoUrls(key);
-                  if (urls.length > 0) {
-                    await patchImages(mls, urls);
-                    totalPhotos++;
-                    console.log(`  [photo] ${mls}: ${urls.length} photo(s)`);
-                  }
-                } catch (e: any) {
-                  console.warn(`  [photo] ${mls}: ${e.message}`);
-                }
-              }
-            }
-          } catch (e: any) {
-            console.error(`[syncCities] Upsert failed page ${page}: ${e.message}`);
-          }
-        }
-
-        console.log(`[syncCities] Page ${page}: ${results.length} fetched | ${totalUpserted} upserted total`);
-
-        if (results.length < PAGE_SIZE) break; // last page
-
-        offset += PAGE_SIZE;
-        page++;
-        await sleep(PAGE_DELAY);
+      // Query each city individually (DDF server rejects multi-value City queries)
+      for (const city of CITIES) {
+        await syncOneCity(rets, city, photoSession, counters);
       }
     }
   );
 
   console.log(`\n[syncCities] ── Done ──`);
   console.log(`  Cities   : ${CITIES.join(', ')}`);
-  console.log(`  Fetched  : ${totalFetched.toLocaleString()}`);
-  console.log(`  Upserted : ${totalUpserted.toLocaleString()}`);
-  console.log(`  Photos   : ${totalPhotos.toLocaleString()}`);
+  console.log(`  Fetched  : ${counters.fetched.toLocaleString()}`);
+  console.log(`  Upserted : ${counters.upserted.toLocaleString()}`);
+  console.log(`  Photos   : ${counters.photos.toLocaleString()}`);
   if (DRY_RUN) console.log('\nRe-run without --dry-run to write to DB.');
 }
 
