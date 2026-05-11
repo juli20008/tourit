@@ -125,7 +125,10 @@ const DEBUG_CITIES = process.argv.includes('--debug-cities');
 const seenCities = new Set<string>(); // for --debug-cities sampling
 
 function matchesTargetCity(raw: Record<string, any>): boolean {
-  const city = String(raw.City ?? raw.Municipality ?? raw.city ?? '').toLowerCase().trim();
+  // Apply same normalization as ListingAdapter.cleanCity:
+  // strip trailing "(Neighbourhood)" qualifiers before comparing
+  const raw_city = String(raw.City ?? raw.Municipality ?? raw.city ?? '');
+  const city = raw_city.replace(/\s*\([^)]*\)\s*$/, '').trim().toLowerCase();
 
   if (DEBUG_CITIES && city && !seenCities.has(city)) {
     seenCities.add(city);
