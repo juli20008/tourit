@@ -40,8 +40,8 @@ const CITIES: string[] = CITIES_ARG
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const PAGE_SIZE  = 100;
-const PAGE_DELAY = 1500;
-const MAX_PAGES  = 500;
+const PAGE_DELAY = 500;   // ms between pages — DDF full-feed, be reasonably fast
+const MAX_PAGES  = 2000;
 
 const COLUMNS = new Set([
   'external_id','mls_number','status','standard_status','property_class',
@@ -133,11 +133,12 @@ async function scanAllAndFilter(
   counters: { scanned: number; fetched: number; upserted: number; photos: number }
 ): Promise<void> {
   // Only (LastUpdated=...) is accepted by this DDF server.
-  // Using epoch start to get every listing ever indexed.
-  const dmql = '(LastUpdated=2000-01-01T00:00:00Z)';
+  // Active listings are always updated within ~2 years; 2023-01-01 captures all.
+  const since = getArg('since') ?? '2023-01-01T00:00:00Z';
+  const dmql = `(LastUpdated=${since})`;
   console.log(`[syncCities] DMQL: ${dmql}`);
   console.log(`[syncCities] Filtering to: ${CITIES.join(', ')}`);
-  console.log(`[syncCities] (Scanning full feed — this will take a while)`);
+  console.log(`[syncCities] Waiting for DDF page 1 response (may take 10–30s)…`);
 
   let offset = 1;
   let page   = 1;
