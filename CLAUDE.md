@@ -110,6 +110,13 @@ DDF (RETS)
 - **Agent appointment detail**: `schedule` in `ApptDetail/Agent.js` must be memoized with `useMemo` — without it, a new object reference is created every render, causing `useEffect([schedule, today])` to loop infinitely and freeze the dropdowns. The `[appt]` reset effect uses `appt.id` as dependency (not the full object) so in-progress edits survive re-renders.
 - **Always use `apiFetch`**: Never use bare `fetch()` in React components — it will hit the frontend domain in production instead of `api.tourit.ca`.
 
+## DDF / RETS Feed Gotchas
+
+- **Full-feed API only**: The CREA DDF RETS server rejects ALL string/equality DMQL queries — `(City=...)`, `(Status=...)`, `(StateOrProvince=...)`, `(PostalCode=...)` all return `ReplyCode 20206 INVALID_QUERY_SYNTAX`. The only accepted query forms are timestamp-based (`(LastUpdated=2024-01-01T00:00:00Z)`) and numeric range (`(ListPrice=0+)` — though this also fails on some servers). **Always filter by city/status in TypeScript after fetching, never in the DMQL query.**
+- **City values include neighbourhood qualifiers**: DDF stores city as `"Richmond Hill (Doncrest)"`, `"Toronto (Annex)"`, etc. `ListingAdapter.cleanCity()` strips the `(x)` suffix. Any code that compares against city names must apply the same strip: `raw.City.replace(/\s*\([^)]*\)\s*$/, '').trim()` before comparing.
+- **Use `(LastUpdated=YYYY-MM-DDT00:00:00Z)` for bulk fetches**: A date far enough in the past (e.g. `2023-01-01`) captures all active listings. A date of `2000-01-01` hangs — the result set is too large and the server times out. `2023-01-01` returns ~208k listings across Canada reliably.
+- **City-targeted sync**: Use `lib/scripts/syncCities.ts`. It scans the full feed and filters to target cities in TypeScript. Upserts by `mls_number` — safe to run alongside existing data, never touches other cities' rows.
+
 ## Local Dev
 ```bash
 # Backend
