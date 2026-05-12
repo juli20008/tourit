@@ -196,7 +196,10 @@ export function mapDDFToSupabase(item: any): any {
   const listPrice = toNumber(raw.ListPrice);
   const price = lease !== null && lease > 0 ? lease : listPrice;
 
-  const city = cleanCity(raw.City);
+  const rawCityStr = String(raw.City ?? '');
+  const city = cleanCity(rawCityStr);
+  // Extract "(Doncrest)" style community from city string as neighbourhood fallback
+  const cityNeighbourhood = rawCityStr.match(/\(([^)]+)\)\s*$/)?.[1]?.trim() ?? null;
   const listingKey = toInteger(raw.ListingKey ?? raw.ListingID ?? raw.id);
   const listingId = firstDefined(raw.ListingId, raw.ListingID, raw.MLS_NUM, raw.MlsNumber, raw.ListingKey);
   const photosCount = parseIntSafe(firstDefined(raw.PhotosCount, raw.PhotoCount, raw.ImageCount));
@@ -226,7 +229,7 @@ export function mapDDFToSupabase(item: any): any {
     state: firstDefined(raw.StateOrProvince, raw.Prov_State, raw.State),
     zip: firstDefined(raw.PostalCode, raw.Zip),
     country: firstDefined(raw.Country),
-    neighborhood: firstDefined(raw.Neighborhood, raw.Community, raw.Area),
+    neighborhood: firstDefined(raw.Neighborhood, raw.Community, raw.Area) ?? cityNeighbourhood,
     lat: toNumber(firstDefined(raw.Address?.Latitude, raw.Latitude, raw.Lat, raw.lat)),
     lng: toNumber(firstDefined(raw.Address?.Longitude, raw.Longitude, raw.Lng, raw.lng)),
     bed: toInteger(firstDefined(raw.BedroomsTotal, raw.Bedrooms, raw.Beds)),
