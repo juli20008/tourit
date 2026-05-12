@@ -156,9 +156,13 @@ function createSupabaseClient(): SupabaseClientLike {
 }
 
 function toDbRow(row: SupabaseRow): SupabaseRow {
-  return Object.fromEntries(
+  const filtered = Object.fromEntries(
     Object.entries(row).filter(([key]) => SUPABASE_COLUMNS.has(key))
   );
+  // Never overwrite geocoded coordinates with null — omit lat/lng when DDF doesn't provide them
+  if (filtered.lat == null) delete filtered.lat;
+  if (filtered.lng == null) delete filtered.lng;
+  return filtered;
 }
 
 // Returns a map of mls_number → photos_timestamp from the DB.

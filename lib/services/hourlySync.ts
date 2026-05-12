@@ -76,6 +76,9 @@ function toDbRow(raw: Record<string, any>): Record<string, any> {
   const filtered = Object.fromEntries(Object.entries(mapped).filter(([k]) => COLUMNS.has(k)));
   // ensure id is set
   if (!filtered.id && filtered.mls_number) filtered.id = filtered.mls_number;
+  // Never overwrite geocoded coordinates with null — omit lat/lng when DDF doesn't provide them
+  if (filtered.lat == null) delete filtered.lat;
+  if (filtered.lng == null) delete filtered.lng;
   return filtered;
 }
 
