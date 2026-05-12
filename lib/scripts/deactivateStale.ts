@@ -99,7 +99,7 @@ async function main() {
         try {
           const result = await rets.search.query(
             'Property', 'Property',
-            '(LastUpdated=2000-01-01T00:00:00Z)',
+            '(LastUpdated=2023-01-01T00:00:00Z)',
             { limit: PAGE_SIZE, offset, count: 1, format: 'COMPACT', standardNames: 1 } as any
           );
           items = result.results ?? [];
