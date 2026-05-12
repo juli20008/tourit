@@ -134,12 +134,18 @@ class MlsListing(db.Model):
 
     @classmethod
     def property_type_filter(cls):
-        """Only show Residential / Single Family / Condo listings; pass through nulls."""
+        """Only show Residential / Single Family / Condo listings; pass through nulls.
+
+        DDF stores PropertyType as numeric codes (300=Residential, 301=ResidentialCondo,
+        302=Recreational). Older RETS-loaded rows may have text values. Accept both.
+        Explicitly exclude 303 (Land), 304/305 (Commercial).
+        """
         return or_(
             cls.property_type.is_(None),
             cls.property_type.ilike('%Residential%'),
             cls.property_type.ilike('%Single Family%'),
             cls.property_type.ilike('%Condo%'),
+            cls.property_type.in_(['300', '301', '302']),
         )
 
     @classmethod
