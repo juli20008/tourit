@@ -91,46 +91,35 @@ async function patchGeo(mlsNumber: string, lat: number, lng: number): Promise<vo
 
 // ─── Nominatim geocoder ───────────────────────────────────────────────────────
 
-async function nominatimSearch(params: Record<string, string>): Promise<{ lat: number; lng: number } | null> {
-  const p = new URLSearchParams({ ...params, country: 'Canada', format: 'json', limit: '1', addressdetails: '0' });
-  const res = await fetch(`https://nominatim.openstreetmap.org/search?${p}`, {
-    headers: { 'User-Agent': 'Tourit/1.0 (mialitoronto@gmail.com)', 'Accept-Language': 'en' },
-  });
-  if (!res.ok) throw new Error(`Nominatim HTTP ${res.status}`);
-  const data: any[] = await res.json();
-  if (!data.length) return null;
-  const lat = parseFloat(data[0].lat);
-  const lng = parseFloat(data[0].lon);
-  return (isFinite(lat) && isFinite(lng)) ? { lat, lng } : null;
-}
-
-async function geocode(listing: Listing): Promise<{ lat: number; lng: number; method: string } | null> {
+async function geocode(listing: Listing): Promise<{ lat: number; lng: number } | null> {
   const street = [listing.street_number, listing.street_name, listing.street_suffix]
     .filter(Boolean).join(' ');
 
-  // 1. Full address (most precise)
-  if (street && listing.city) {
-    const q: Record<string, string> = { street, city: listing.city };
-    if (listing.zip) q.postalcode = listing.zip;
-    const r = await nominatimSearch(q);
-    if (r) return { ...r, method: 'address' };
-    await sleep(DELAY_MS); // extra delay for fallback calls
-  }
+  if (!street || !listing.city) return null;
 
-  // 2. Postal code only (good for newer streets not yet in OSM)
-  if (listing.zip) {
-    const r = await nominatimSearch({ postalcode: listing.zip });
-    if (r) return { ...r, method: 'postalcode' };
-    await sleep(DELAY_MS);
-  }
+  const params = new URLSearchParams({
+    street,
+    city:           listing.city,
+    country:        'Canada',
+    format:         'json',
+    limit:          '1',
+    addressdetails: '0',
+  });
+  if (listing.zip) params.set('postalcode', listing.zip);
 
-  // 3. City centre (last resort — at least lands on the map)
-  if (listing.city) {
-    const r = await nominatimSearch({ city: listing.city });
-    if (r) return { ...r, method: 'city' };
-  }
+  const res = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
+    headers: { 'User-Agent': 'Tourit/1.0 (mialitoronto@gmail.com)', 'Accept-Language': 'en' },
+  });
+  if (!res.ok) throw new Error(`Nominatim HTTP ${res.status}`);
 
-  return null;
+  const data: any[] = await res.json();
+  if (!data.length) return null;
+
+  const lat = parseFloat(data[0].lat);
+  const lng = parseFloat(data[0].lon);
+  if (!isFinite(lat) || !isFinite(lng)) return null;
+
+  return { lat, lng };
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
@@ -161,10 +150,6 @@ async function main() {
       if (coords) {
         await patchGeo(listing.mls_number, coords.lat, coords.lng);
         ok++;
-        if (coords.method !== 'address') {
-          const addr = [listing.street_number, listing.street_name, listing.street_suffix, listing.city].filter(Boolean).join(' ');
-          console.log(`  ~ ${listing.mls_number} geocoded via ${coords.method}: ${addr}`);
-        }
       } else {
         notFound++;
         if (notFound <= 10) {
