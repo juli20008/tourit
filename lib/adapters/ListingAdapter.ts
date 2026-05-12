@@ -181,8 +181,9 @@ function standardStatusFromReplyCode(item: DdfRaw): { status: string | null; sta
   const status = firstDefined(item.Status, item.status);
   const standardStatus = firstDefined(item.StandardStatus, item.standard_status);
   return {
-    status: status !== null ? String(status) : null,
-    standard_status: standardStatus !== null ? String(standardStatus) : null,
+    // DDF search results only include active listings — default to Active when fields are absent
+    status: status !== null ? String(status) : 'A',
+    standard_status: standardStatus !== null ? String(standardStatus) : 'Active',
   };
 }
 
