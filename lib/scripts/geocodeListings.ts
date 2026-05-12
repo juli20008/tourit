@@ -22,9 +22,13 @@ function getArg(name: string): string | null {
   return a ? a.split('=').slice(1).join('=') : null;
 }
 
-const STATE    = getArg('state') ?? 'Ontario';
-const LIMIT    = parseInt(getArg('limit') ?? '99999', 10);
-const DELAY_MS = 1100; // Nominatim: max 1 req/sec
+const STATE      = getArg('state') ?? 'Ontario';
+const LIMIT      = parseInt(getArg('limit') ?? '99999', 10);
+const DELAY_MS   = 1100; // Nominatim: max 1 req/sec
+const CITIES_ARG = getArg('cities');
+const CITY_FILTER: string[] = CITIES_ARG
+  ? CITIES_ARG.split(',').map(c => c.trim()).filter(Boolean)
+  : [];
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 
@@ -44,11 +48,16 @@ async function fetchNullGeoListings(): Promise<Listing[]> {
   let offset = 0;
   const pageSize = 1000;
 
+  const cityParam = CITY_FILTER.length
+    ? `&city=in.(${CITY_FILTER.map(c => encodeURIComponent(c)).join(',')})` : '';
+  if (CITY_FILTER.length) console.log(`[geocode] City filter: ${CITY_FILTER.join(', ')}`);
+
   while (true) {
     const url = `${SUPABASE_URL}/rest/v1/mls_listings` +
       `?select=mls_number,street_number,street_name,street_suffix,city,zip` +
       `&state=eq.${encodeURIComponent(STATE)}` +
       `&lat=is.null` +
+      cityParam +
       `&limit=${pageSize}&offset=${offset}`;
 
     const res = await fetch(url, {
