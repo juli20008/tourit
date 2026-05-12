@@ -28,10 +28,14 @@ function getArg(name: string): string | null {
   return a ? a.split('=').slice(1).join('=') : null;
 }
 
-const MAX       = parseInt(getArg('max') ?? '5000', 10);
-const DELAY_MS  = parseInt(getArg('delay-ms') ?? '2000', 10); // conservative — GetObject can be slow
-const PAGE_SIZE = 100;
+const MAX        = parseInt(getArg('max') ?? '5000', 10);
+const DELAY_MS   = parseInt(getArg('delay-ms') ?? '800', 10);
+const PAGE_SIZE  = 100;
 const PAGE_DELAY = 500;
+const CITIES_ARG = getArg('cities');
+const CITY_FILTER: string[] = CITIES_ARG
+  ? CITIES_ARG.split(',').map(c => c.trim()).filter(Boolean)
+  : [];
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 
@@ -42,10 +46,15 @@ async function loadNeedsPhotos(): Promise<Set<string>> {
   let offset = 0;
   const limit = 1000;
 
+  const cityParam = CITY_FILTER.length
+    ? `&city=in.(${CITY_FILTER.map(c => encodeURIComponent(c)).join(',')})` : '';
+  if (CITY_FILTER.length) console.log(`[image-backfill] City filter: ${CITY_FILTER.join(', ')}`);
+
   while (true) {
     const url = `${SUPABASE_URL}/rest/v1/mls_listings` +
       `?select=mls_number` +
       `&or=(images.is.null,images.eq.%5B%5D)` +
+      cityParam +
       `&limit=${limit}&offset=${offset}`;
     const res = await fetch(url, {
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, Accept: 'application/json' },
@@ -125,7 +134,7 @@ async function main() {
         try {
           const result = await rets.search.query(
             'Property', 'Property',
-            '(LastUpdated=2000-01-01T00:00:00Z)',
+            '(LastUpdated=2023-01-01T00:00:00Z)',
             { limit: PAGE_SIZE, offset, count: page === 1 ? 1 : 0, format: 'COMPACT', standardNames: 1 } as any
           );
           items = result.results ?? [];
