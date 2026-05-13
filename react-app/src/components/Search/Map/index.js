@@ -85,6 +85,7 @@ const MapCore = withGoogleMap((props) => {
 		const location = useLocation();
 		const { areaParam } = useParams();
 		const mapRef = useRef(null);
+		const prevUrlRef = useRef(null);
 		const isProductionHost =
 			typeof window !== "undefined" &&
 			(window.location.hostname === "tourit.ca" ||
@@ -326,12 +327,19 @@ const MapCore = withGoogleMap((props) => {
 			const detailed = await hydrateMlsListing(property);
 			setPreviewCluster(null);
 			setSelectedProperty(detailed);
-			history.replace({ search: `?selected=${detailed.id}` });
+			const mls = detailed?.mls_number;
+			if (mls) {
+				prevUrlRef.current = window.location.href;
+				window.history.replaceState(null, '', `/listing/${encodeURIComponent(mls)}`);
+			}
 		};
 
 		const closeSelectedProperty = () => {
 			setSelectedProperty(null);
-			history.replace({ search: "" });
+			if (prevUrlRef.current) {
+				window.history.replaceState(null, '', prevUrlRef.current);
+				prevUrlRef.current = null;
+			}
 		};
 
 		// Restore modal from URL on mount (e.g. after page refresh with ?selected=123).
@@ -459,6 +467,11 @@ const MapCore = withGoogleMap((props) => {
 											setSelectedProperty(null);
 											setMarkerModalProperty(detailed);
 											setShowModal({ show: detailed.id });
+											const mls = detailed?.mls_number;
+											if (mls) {
+												prevUrlRef.current = window.location.href;
+												window.history.replaceState(null, '', `/listing/${encodeURIComponent(mls)}`);
+											}
 										});
 									}
 								}}
@@ -480,12 +493,22 @@ const MapCore = withGoogleMap((props) => {
 									</InfoWindow>
 								)}
 								{showModal.show === marker.id && (
-									<Modal onClose={() => setShowModal({ show: 0 })}>
+									<Modal onClose={() => {
+										setShowModal({ show: 0 });
+										if (prevUrlRef.current) {
+											window.history.replaceState(null, '', prevUrlRef.current);
+											prevUrlRef.current = null;
+										}
+									}}>
 										<Property
 											property={markerModalProperty || marker}
 											onClose={() => {
 												setShowModal({ show: 0 });
 												setMarkerModalProperty(null);
+												if (prevUrlRef.current) {
+													window.history.replaceState(null, '', prevUrlRef.current);
+													prevUrlRef.current = null;
+												}
 											}}
 										/>
 									</Modal>
