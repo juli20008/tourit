@@ -12,8 +12,27 @@
 		></script>
 		<link rel="icon" type="image/svg+xml" href="%PUBLIC_URL%/favicon.svg" />
 	<title>Tourit.ca</title>
+	<style>
+		/* Suppress all Google Translate chrome — we use our own button */
+		.goog-te-banner-frame,
+		.goog-te-balloon-frame,
+		#goog-gt-tt,
+		.goog-tooltip { display: none !important; }
+		body { top: 0 !important; }
+		.translated-ltr, .translated-rtl { margin-top: 0 !important; }
+	</style>
 	</head>
 	<body>
 		<div id="root"></div>
+		<div id="google_translate_element" style="display:none"></div>
+		<script>
+			function googleTranslateElementInit() {
+				new google.translate.TranslateElement(
+					{ pageLanguage: 'en', includedLanguages: 'zh-CN', autoDisplay: false },
+					'google_translate_element'
+				);
+			}
+		</script>
+		<script src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
 	</body>
 </html>

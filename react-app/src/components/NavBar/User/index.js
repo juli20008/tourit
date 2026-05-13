@@ -4,6 +4,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { logout } from "../../../store/session";
 import LogoutButton from "../../auth/LogoutButton";
 import LogoBrand from "../LogoBrand";
+import LangToggle from "../LangToggle";
 
 import no_photo from "../../../assets/no_photo.svg";
 
@@ -82,6 +83,7 @@ const UserBar = () => {
 					<NavLink className="btn-font-lt nav-desktop-only" to="/appointments" exact={true}>
 						Appointments
 					</NavLink>
+					<LangToggle />
 					<div
 						className="photo nav-desktop-only"
 						style={{ backgroundImage: `url("${image}")` }}

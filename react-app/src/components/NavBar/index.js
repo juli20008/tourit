@@ -7,6 +7,7 @@ import { useNotification } from "../../context/Notification";
 import AgentBar from "./Agent";
 import UserBar from "./User";
 import LogoBrand from "./LogoBrand";
+import LangToggle from "./LangToggle";
 
 import { Modal } from "../../context/Modal";
 import Login from "./Login";
@@ -130,6 +131,7 @@ const NavBar = () => {
 						<LogoBrand />
 					</NavLink>
 					<div className="nav-rt">
+						<LangToggle />
 						{/* Desktop: full text button */}
 						<button
 							type="button"

@@ -3,6 +3,7 @@ import { NavLink } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { logout } from "../../../store/session";
 import LogoBrand from "../LogoBrand";
+import LangToggle from "../LangToggle";
 
 const AgentBar = () => {
 	const dispatch = useDispatch();
@@ -61,6 +62,7 @@ const AgentBar = () => {
 					<button className="btn-font-lt nav-desktop-only" onClick={onLogout}>
 						Logout
 					</button>
+					<LangToggle />
 				</div>
 			</nav>
 			{showMobileMenu && (

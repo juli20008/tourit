@@ -182,6 +182,23 @@
 	color: #cbd5e1;
 }
 
+.lang-toggle-btn {
+	padding: 4px 10px;
+	border: 1px solid rgba(255, 255, 255, 0.35);
+	border-radius: 6px;
+	background: transparent;
+	color: white;
+	font: 600 11px/1 system-ui, sans-serif;
+	cursor: pointer;
+	letter-spacing: 0.03em;
+	transition: background 0.15s, border-color 0.15s;
+	white-space: nowrap;
+}
+.lang-toggle-btn:hover {
+	background: rgba(255, 255, 255, 0.12);
+	border-color: rgba(255, 255, 255, 0.6);
+}
+
 /* Restore dark text inside dropdown (white bg) */
 .nav .dropdown .btn-font-lt,
 .nav .dropdown .btn-font-lt:hover {
