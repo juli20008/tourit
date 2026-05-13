@@ -16,10 +16,12 @@
 		/* Suppress all Google Translate chrome — we use our own button */
 		.goog-te-banner-frame,
 		.goog-te-balloon-frame,
+		.skiptranslate,
 		#goog-gt-tt,
 		.goog-tooltip { display: none !important; }
+		/* Prevent Google from pushing body down */
 		body { top: 0 !important; }
-		.translated-ltr, .translated-rtl { margin-top: 0 !important; }
+		body.translated-ltr, body.translated-rtl { top: 0 !important; }
 	</style>
 	</head>
 	<body>
@@ -32,6 +34,30 @@
 					'google_translate_element'
 				);
 			}
+
+			// Google injects a banner iframe and sets body.style.top to push content down.
+			// Watch for both and undo them immediately.
+			(function () {
+				function suppressBanner() {
+					// Force body back to top:0
+					if (document.body && document.body.style.top !== '0px') {
+						document.body.style.setProperty('top', '0px', 'important');
+					}
+					// Hide the banner iframe if it slipped through CSS
+					var banner = document.querySelector('.goog-te-banner-frame');
+					if (banner) banner.style.setProperty('display', 'none', 'important');
+				}
+
+				// Watch for DOM changes (Google inserts the iframe dynamically)
+				var obs = new MutationObserver(suppressBanner);
+				obs.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });
+
+				// Also catch inline style changes on body directly
+				var bodyObs = new MutationObserver(suppressBanner);
+				document.addEventListener('DOMContentLoaded', function () {
+					bodyObs.observe(document.body, { attributes: true, attributeFilter: ['style'] });
+				});
+			})();
 		</script>
 		<script src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
 	</body>
