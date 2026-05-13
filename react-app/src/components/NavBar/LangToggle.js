@@ -6,7 +6,7 @@ function currentLang() {
 }
 
 function clearGoogCookies() {
-  const host = location.hostname;
+  const host = window.location.hostname;
   const exp  = 'expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
   document.cookie = `googtrans=; ${exp}`;
   document.cookie = `googtrans=; ${exp}; domain=${host}`;
