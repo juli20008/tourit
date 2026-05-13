@@ -89,7 +89,7 @@
 	border-radius: 10px;
 	max-height: 90vh;
 	overflow-x: hidden;
-	white-space: nowrap;
+	overflow-y: auto;
 }
 
 .user-profile-modal .title {
@@ -103,4 +103,46 @@
 	height: 300px;
 	border-radius: 100%;
 	background-size: cover;
+}
+
+/* ── Mobile ──────────────────────────────────────────────── */
+@media (max-width: 650px) {
+	.agent-profile-photo,
+	.agent-profile-no-photo {
+		width: 140px;
+		height: 140px;
+		font-size: 16px;
+	}
+
+	.profile-upload-preview {
+		width: 60px;
+		height: 60px;
+	}
+
+	.upload-photo-div {
+		right: 6px;
+		top: 6px;
+		width: 26px;
+		height: 26px;
+	}
+
+	.agent-profile .about {
+		font-size: 18px;
+	}
+
+	/* User profile modal */
+	.user-profile-modal {
+		padding: 24px 20px;
+		width: 92vw;
+		max-width: 420px;
+	}
+
+	.user-profile-modal .title {
+		font-size: 24px;
+	}
+
+	.user-profile-modal .photo {
+		width: 140px;
+		height: 140px;
+	}
 }

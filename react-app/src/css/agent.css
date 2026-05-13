@@ -143,6 +143,77 @@
 	box-shadow: 0px 0px 3px rgba(0, 0, 0, 0.3);
 }
 
+/* ── Mobile ──────────────────────────────────────────────── */
+@media (max-width: 650px) {
+	.agent-profile-div {
+		overflow-x: hidden;
+	}
+
+	.agent-ctrl {
+		padding: 20px 16px;
+		gap: 20px;
+	}
+
+	.agent-ctrl .split {
+		grid-template-columns: 1fr;
+		gap: 20px;
+	}
+
+	.agent-ctrl .center {
+		align-items: center;
+	}
+
+	.agent-ctrl .photo {
+		width: 140px;
+		height: 140px;
+		font-size: 16px;
+	}
+
+	.agent-ctrl .name {
+		font-size: 24px;
+		text-align: center;
+	}
+
+	.agent-ctrl .office {
+		font-size: 16px;
+	}
+
+	.agent-ctrl .bio-wrap {
+		gap: 20px;
+	}
+
+	.bio-wrap .about,
+	.agent-profile .about {
+		font-size: 18px;
+	}
+
+	.bio-wrap .phone {
+		font-size: 15px;
+	}
+
+	.btn-wrap-rt {
+		flex-wrap: wrap;
+		justify-content: stretch;
+	}
+
+	.btn-wrap-rt .btn {
+		flex: 1;
+		min-width: 100px;
+		justify-content: center;
+		text-align: center;
+	}
+
+	/* Service areas: pull out of absolute positioning, flow below the form */
+	.agent-sa {
+		position: static;
+		width: 100%;
+		padding: 20px 16px;
+		border-radius: 0;
+		box-shadow: none;
+		border-top: 1px solid #f1f5f9;
+	}
+}
+
 /* Agent 404 */
 .agent-404-ctrl {
 	display: flex;
