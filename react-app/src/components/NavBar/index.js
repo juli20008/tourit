@@ -77,8 +77,7 @@ const NavBar = () => {
 	const onClose = () => setShowLogin(false);
 
 	const handleGoogleLogin = () => {
-		const returnTo = `${window.location.pathname}${window.location.search}`;
-		window.location.href = `${API_BASE}/api/auth/google?return_to=${encodeURIComponent(returnTo)}`;
+		window.location.href = `${API_BASE}/api/auth/google?return_to=${encodeURIComponent(window.location.href)}`;
 	};
 
 	if (user && user.agent) {

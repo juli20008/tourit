@@ -1,4 +1,5 @@
 import os
+import re
 from flask import Blueprint, jsonify, session, request, redirect, url_for
 from app.models import User, db
 from app.forms import LoginForm
@@ -7,6 +8,17 @@ from app.oauth_client import oauth
 from flask_login import current_user, login_user, logout_user, login_required
 from app.s3_helpers import (
     upload_file_to_s3, allowed_file, get_unique_filename)
+
+_ALLOWED_RETURN_RE = re.compile(
+    r'^https?://(localhost(:\d+)?|[a-z0-9-]+\.tourit\.ca)(\/.*)?$',
+    re.IGNORECASE,
+)
+
+def _safe_return_url(url, fallback):
+    """Return url if it's within tourit.ca/localhost, else fallback."""
+    if url and _ALLOWED_RETURN_RE.match(url):
+        return url
+    return fallback
 
 
 auth_routes = Blueprint('auth', __name__)
@@ -122,7 +134,7 @@ def sign_up():
 @auth_routes.route('/google')
 def google_login():
     return_to = request.args.get('return_to', '')
-    if return_to and return_to.startswith('/'):
+    if return_to and (return_to.startswith('/') or _ALLOWED_RETURN_RE.match(return_to)):
         session['google_return_to'] = return_to
     redirect_uri = url_for('auth.google_callback', _external=True)
     return oauth.google.authorize_redirect(redirect_uri)
@@ -170,8 +182,12 @@ def google_callback():
         db.session.commit()
 
     login_user(user)
-    if return_to and return_to.startswith('/'):
-        return redirect(f'{frontend_url}{return_to}')
+    if return_to:
+        target = _safe_return_url(return_to, None)
+        if target:
+            return redirect(target)
+        if return_to.startswith('/'):
+            return redirect(f'{frontend_url}{return_to}')
     return redirect(frontend_url)
 
 

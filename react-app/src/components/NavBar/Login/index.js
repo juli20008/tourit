@@ -8,6 +8,8 @@ const API_BASE = rawApiBase
 const Login = ({ onClose, inline = false, returnContext = null }) => {
 	const handleGoogleLogin = () => {
 		const returnPath = returnContext?.path || `${window.location.pathname}${window.location.search}`;
+		// Build full URL so Flask redirects back to the correct subdomain (e.g. julieli.tourit.ca)
+		const returnUrl = `${window.location.origin}${returnPath}`;
 		if (returnContext?.property) {
 			sessionStorage.setItem(
 				"tourReturn",
@@ -20,7 +22,7 @@ const Login = ({ onClose, inline = false, returnContext = null }) => {
 				})
 			);
 		}
-		window.location.href = `${API_BASE}/api/auth/google?return_to=${encodeURIComponent(returnPath)}`;
+		window.location.href = `${API_BASE}/api/auth/google?return_to=${encodeURIComponent(returnUrl)}`;
 	};
 
 	return (
