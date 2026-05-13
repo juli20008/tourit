@@ -37,15 +37,7 @@ const LangToggle = () => {
     setLang('en');
   }, []);
 
-  return (
-    <button
-      className="notranslate lang-toggle-btn"
-      onClick={lang === 'zh' ? deactivate : activate}
-      title={lang === 'zh' ? 'Switch to English' : '切换为中文'}
-    >
-      {lang === 'zh' ? 'EN' : '中文'}
-    </button>
-  );
+  return null; // temporarily hidden
 };
 
 export default LangToggle;
