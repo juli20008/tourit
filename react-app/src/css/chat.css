@@ -4,6 +4,9 @@
    Desktop: 280 px sidebar + flex chat window
 ═══════════════════════════════════════════════════════ */
 
+/* Hide fixed footer on the chat page — it sits on top of the input bar */
+body.page-chat .app-footer { display: none; }
+
 /* ── Root ───────────────────────────────────────────────── */
 .chat-ctrl {
 	display: flex;

@@ -21,6 +21,12 @@ const Chats = () => {
 	const [search, setSearch] = useState("");
 	const [showChannels, setShowChannels] = useState(!channelParam);
 
+	// Hide the fixed app footer while on the chat page (it overlaps the input bar)
+	useEffect(() => {
+		document.body.classList.add('page-chat');
+		return () => document.body.classList.remove('page-chat');
+	}, []);
+
 	// Clear unread badge whenever the user lands on the chats page
 	useEffect(() => {
 		dispatch(clearUnread());
