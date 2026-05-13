@@ -106,10 +106,9 @@ const Chat = ({ setShowChannels }) => {
 						onClick={() => setShowChannels && setShowChannels(true)}
 						aria-label="Back to contacts"
 					>
-						<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+						<svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
 							<polyline points="10 4 6 8 10 12" />
 						</svg>
-						Contacts
 					</button>
 					<span className="chat-mobile-name">
 						{user.agent ? channel?.user_name : channel?.agent_name}
@@ -144,8 +143,11 @@ const Chat = ({ setShowChannels }) => {
 								if (e.charCode === 13) sendChat(e);
 							}}
 						/>
-						<button type="button" onClick={sendChat}>
-							Send
+						<button type="button" onClick={sendChat} aria-label="Send">
+							<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+								<line x1="22" y1="2" x2="11" y2="13" />
+								<polygon points="22 2 15 22 11 13 2 9 22 2" />
+							</svg>
 						</button>
 						{error && <div className="chat-error">{error}</div>}
 					</label>

@@ -32,7 +32,7 @@ const Channels = ({ channel }) => {
 					className="photo"
 					style={{ backgroundImage: `url("${image}")` }}
 				></div>
-				<div>{channel?.user_name}</div>
+				<div className="channel-name">{channel?.user_name}</div>
 			</div>
 		);
 	} else {
