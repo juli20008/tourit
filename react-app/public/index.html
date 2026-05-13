@@ -28,16 +28,20 @@
 		<div id="root"></div>
 		<div id="google_translate_element" style="display:none"></div>
 		<script>
-			function googleTranslateElementInit() {
-				// If the user last chose English, clear the googtrans cookie NOW —
-				// before TranslateElement reads it — so Google won't auto-translate.
-				if (localStorage.getItem('tourit_lang') === 'en') {
-					var h = location.hostname;
-					var e = 'expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
+			// ── Run synchronously BEFORE Google's script tag loads ──────────────────
+			// Google reads googtrans cookie as element.js initialises — before our
+			// callback fires. Clear it here if the user last chose English.
+			(function () {
+				var h = location.hostname;
+				var e = 'expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
+				if (localStorage.getItem('tourit_lang') !== 'zh') {
 					document.cookie = 'googtrans=; ' + e;
 					document.cookie = 'googtrans=; ' + e + '; domain=' + h;
 					document.cookie = 'googtrans=; ' + e + '; domain=.' + h;
 				}
+			})();
+
+			function googleTranslateElementInit() {
 				new google.translate.TranslateElement(
 					{ pageLanguage: 'en', includedLanguages: 'zh-CN', autoDisplay: false },
 					'google_translate_element'
