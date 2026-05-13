@@ -123,6 +123,7 @@ function App() {
 				</Route>
 			</Switch>
 			<footer className="app-footer">
+				<span style={{ marginRight: '12px', opacity: 0.6 }}>⚠ Beta version — features may change without notice.</span>
 				&copy; 2026 Tourit. All rights reserved. &nbsp;&middot;&nbsp; Julie Li, Bay Street Group &nbsp;&middot;&nbsp; 905-909-0101
 			</footer>
 		</BrowserRouter>
