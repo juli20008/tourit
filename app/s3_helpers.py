@@ -34,7 +34,7 @@ def get_unique_filename(filename):
 def upload_file_to_s3(file, acl="public-read"):
     s3, bucket_name = get_s3_client()
     if not s3 or not bucket_name:
-        return {"errors": "S3 is not configured"}
+        return {"errors": ["S3 is not configured"]}
 
     try:
         s3.upload_fileobj(
@@ -48,6 +48,6 @@ def upload_file_to_s3(file, acl="public-read"):
         )
     except Exception as e:
         # in case the our s3 upload fails
-        return {"errors": str(e)}
+        return {"errors": [str(e)]}
 
     return {"url": f"https://{bucket_name}.s3.amazonaws.com/{file.filename}"}

@@ -36,7 +36,8 @@ const UploadPhoto = () => {
 			setSrc("");
 		} else {
 			setPhotoLoading(false);
-			setErrors(url.errors);
+			const errs = url.errors;
+			setErrors(Array.isArray(errs) ? errs : [errs || "Upload failed"]);
 		}
 	};
 

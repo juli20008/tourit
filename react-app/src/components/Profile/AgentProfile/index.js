@@ -235,7 +235,7 @@ const AgentProfile = () => {
 						</div>
 					</div>
 					<div className="bio gap5">
-						{agent?.areas.map((each) => (
+						{(agent?.areas ?? []).map((each) => (
 							<div className="service-area-btn-wrap" key={each.zip}>
 								<button
 									type="button"
