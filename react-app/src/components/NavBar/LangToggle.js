@@ -1,8 +1,12 @@
 import React, { useState, useCallback } from 'react';
 
+// localStorage is the authority — Google's cookie alone can't be trusted
+// because Google re-applies translation from the cookie even after clearing it.
 function currentLang() {
-  const c = document.cookie.split(';').find(s => s.trim().startsWith('googtrans='));
-  return c && c.includes('zh') ? 'zh' : 'en';
+  const stored = localStorage.getItem('tourit_lang');
+  if (stored === 'zh' || stored === 'en') return stored;
+  // First visit: default English
+  return 'en';
 }
 
 function clearGoogCookies() {
@@ -22,6 +26,7 @@ const LangToggle = () => {
       if (sel) {
         sel.value = 'zh-CN';
         sel.dispatchEvent(new Event('change'));
+        localStorage.setItem('tourit_lang', 'zh');
         setLang('zh');
       } else if (retries > 0) {
         setTimeout(() => attempt(retries - 1), 100);
@@ -31,6 +36,9 @@ const LangToggle = () => {
   }, []);
 
   const deactivate = useCallback(() => {
+    // Mark English preference BEFORE reload so googleTranslateElementInit
+    // clears the cookie before Google's widget reads it.
+    localStorage.setItem('tourit_lang', 'en');
     clearGoogCookies();
     window.location.reload();
   }, []);
