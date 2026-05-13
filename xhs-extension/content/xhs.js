@@ -3,16 +3,14 @@
 // XHS two-step flow:
 //
 //   STEP 1 — large grey drop zone with red "上传图片" button
-//     We intercept the hidden <input type="file"> click so we can inject
-//     all listing photos at once without opening the native file dialog.
+//     We intercept the hidden <input type="file"> so we can inject all photos
+//     at once without opening the native file dialog.
 //
 //   STEP 2 — title + body editor appears after 下一步
 //     Auto-fills title and body.
 //
-// Source variants:
-//   listing.source === 'desktop'  → images are base64 JPEG data-URLs stored
-//                                   in chrome.storage; no background fetch needed.
-//   (anything else)               → images are CDN URLs; fetch via background SW.
+// Both sources (CDN listing and desktop folder upload) go through the background
+// service worker so the XHS page's main thread is never blocked by heavy I/O.
 
 (() => {
   if (window.__touritXhsLoaded) return;
@@ -75,39 +73,27 @@
     id('tourit-xhs-upload-btn').addEventListener('click', () => runStep1(listing));
   }
 
+  // ── Step 1: fetch → File[] → inject ──────────────────────────────────────
+  //
+  // Both CDN and desktop paths now follow the same structure:
+  //   1. Ask background worker for images (network fetch or storage decode)
+  //   2. Background returns {images:[{data,mime,name}], errors:[]}
+  //   3. Create File objects here (cheap — data already in memory)
+  //   4. Inject into XHS upload input
+
   async function runStep1(listing) {
     const btn = id('tourit-xhs-upload-btn');
     if (btn) btn.disabled = true;
 
-    let files;
+    // ── 1. Get images from background worker ─────────────────────────────────
+    let files, fetchErrors;
 
     if (listing.source === 'desktop') {
-      // ── Desktop: images are base64 data-URLs, convert to File objects ──────
-      const dataURLs = (listing.images || []).slice(0, MAX_PHOTOS);
-      if (!dataURLs.length) {
-        setProgress('⚠ 没有图片数据，请重新从桌面上传。');
-        if (btn) btn.disabled = false;
-        return;
-      }
-      setProgress(`从本地读取 ${dataURLs.length} 张图片…`);
-      files = dataURLs.map((dataURL, i) => {
-        try {
-          const comma  = dataURL.indexOf(',');
-          const header = dataURL.slice(0, comma);
-          const b64    = dataURL.slice(comma + 1);
-          const mime   = (header.match(/:(.*?);/) || ['', 'image/jpeg'])[1];
-          const ext    = mime.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg';
-          const bin    = atob(b64);
-          const arr    = new Uint8Array(bin.length);
-          for (let j = 0; j < bin.length; j++) arr[j] = bin.charCodeAt(j);
-          return new File([arr], `photo_${String(i + 1).padStart(2, '0')}.${ext}`, { type: mime });
-        } catch { return null; }
-      }).filter(Boolean);
-      setProgress(`已准备 ${files.length} 张图片，正在注入…`);
-      await sleep(300);
-
+      setProgress('正在准备图片…');
+      const resp = await fetchDesktopImages();
+      files = resp.files;
+      fetchErrors = resp.errors;
     } else {
-      // ── CDN: fetch via background service worker ───────────────────────────
       const urls = (listing.images || []).slice(0, MAX_PHOTOS);
       if (!urls.length) {
         setProgress('⚠ listing.images 为空，此房源没有图片数据。');
@@ -117,23 +103,23 @@
       const sample = urls[0].length > 55 ? '…' + urls[0].slice(-45) : urls[0];
       setProgress(`找到 ${urls.length} 张图片\n${sample}`);
       await sleep(1000);
-
       setProgress(`正在下载 ${urls.length} 张图片…`);
-      const { files: fetched, errors } = await fetchImages(urls);
-      files = fetched;
-
-      if (!files.length) {
-        setProgress(`⚠ 下载失败\n${errors[0] || '未知错误'}`);
-        if (btn) btn.disabled = false;
-        return;
-      }
-      if (errors.length) {
-        setProgress(`下载 ${files.length}/${urls.length} 张，继续…`);
-        await sleep(600);
-      }
+      const resp = await fetchCdnImages(urls);
+      files = resp.files;
+      fetchErrors = resp.errors;
     }
 
-    // ── Inject into XHS (same path for both sources) ─────────────────────────
+    if (!files.length) {
+      setProgress(`⚠ ${fetchErrors[0] || '图片获取失败'}`);
+      if (btn) btn.disabled = false;
+      return;
+    }
+    if (fetchErrors.length) {
+      setProgress(`已获取 ${files.length} 张，继续…`);
+      await sleep(600);
+    }
+
+    // ── 2. Inject into XHS ────────────────────────────────────────────────────
     setProgress(`注入 ${files.length} 张图片…`);
     const ok = await injectViaUploadBtn(files);
 
@@ -191,30 +177,43 @@
     if (btn) btn.disabled = false;
   }
 
-  // ── Image fetching (background service worker, CDN only) ──────────────────
+  // ── Image fetching ────────────────────────────────────────────────────────
+  // Both helpers return { files: File[], errors: string[] }.
+  // Heavy work (network fetch or base64 decode) happens in the background SW.
 
-  function fetchImages(urls) {
+  function bgMessage(payload) {
     return new Promise(resolve => {
-      chrome.runtime.sendMessage({ type: 'TOURIT_FETCH_IMAGES', urls }, resp => {
+      chrome.runtime.sendMessage(payload, resp => {
         if (chrome.runtime.lastError) {
           const msg = chrome.runtime.lastError.message || '消息发送失败';
           console.error('[xhs] sendMessage error:', msg);
-          return resolve({ files: [], errors: [`消息错误: ${msg}`] });
+          return resolve({ images: [], errors: [`消息错误: ${msg}`] });
         }
-        if (!resp) return resolve({ files: [], errors: ['background 无响应'] });
-
-        const files = (resp.images || []).map(img => {
-          try {
-            return new File(
-              [new Blob([new Uint8Array(img.data)], { type: img.mime })],
-              img.name, { type: img.mime }
-            );
-          } catch { return null; }
-        }).filter(Boolean);
-
-        resolve({ files, errors: resp.errors || [] });
+        resolve(resp || { images: [], errors: ['background 无响应'] });
       });
     });
+  }
+
+  function respToFiles(resp) {
+    const files = (resp.images || []).map(img => {
+      try {
+        return new File(
+          [new Blob([new Uint8Array(img.data)], { type: img.mime })],
+          img.name, { type: img.mime }
+        );
+      } catch { return null; }
+    }).filter(Boolean);
+    return { files, errors: resp.errors || [] };
+  }
+
+  async function fetchCdnImages(urls) {
+    const resp = await bgMessage({ type: 'TOURIT_FETCH_IMAGES', urls });
+    return respToFiles(resp);
+  }
+
+  async function fetchDesktopImages() {
+    const resp = await bgMessage({ type: 'TOURIT_FETCH_DESKTOP_IMAGES' });
+    return respToFiles(resp);
   }
 
   // ── Injection strategy A: intercept "上传图片" button → hidden input ───────
@@ -347,7 +346,7 @@
       '',
       `MLS# ${listing.mls_number || ''}`,
       '',
-      `#多伦多租房 ${city ? '#' + city.replace(/\s/g, '') + '租房 ' : ''}#加拿大房产 #海外走房 #多伦多房产`,
+      `#多伦多租房 ${city ? '#' + city.replace(/\s/g, '') + '租房 ' : ''}#加拿大房产 #海外租房 #多伦多房产`,
     ].filter(l => l !== null).join('\n').trim();
   }
 
