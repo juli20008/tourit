@@ -69,7 +69,7 @@
       <div class="t-imgs">${count} 张图片（最多 ${MAX_PHOTOS} 张）</div>
       <label class="t-crop-label">
         <input type="checkbox" id="tourit-crop-cover" checked>
-        封面图裁剪为 9:16 竖版
+        封面图裁剪为 4:3 竖版
       </label>
       <button id="tourit-xhs-upload-btn">上传全部图片</button>
       <div id="tourit-xhs-progress"></div>
@@ -125,7 +125,7 @@
 
     // ── 2. Crop cover image to 9:16 if checkbox is checked ────────────────────
     if (id('tourit-crop-cover')?.checked && files.length > 0) {
-      setProgress('正在裁剪封面图为 9:16…');
+      setProgress('正在裁剪封面图为 4:3…');
       try {
         const cropped = await cropTo9x16(files[0]);
         files = [cropped, ...files.slice(1)];
@@ -252,7 +252,7 @@
     parts.push('');
 
     // Key specs
-    parts.push(`💰 月租：$${price}`);
+    parts.push(`💰 价格：$${price}`);
     parts.push(`🏠 ${type}　${beds}卧 ${baths}卫`);
     parts.push('');
 
@@ -481,7 +481,7 @@
       img.onload = () => {
         URL.revokeObjectURL(objURL);
         const sw = img.naturalWidth, sh = img.naturalHeight;
-        const targetRatio = 9 / 16;           // width / height for portrait
+        const targetRatio = 3 / 4;            // width / height for portrait
 
         let cw, ch;
         if (sw / sh > targetRatio) {
