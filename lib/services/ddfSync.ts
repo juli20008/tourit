@@ -162,18 +162,21 @@ function toDbRow(row: SupabaseRow): SupabaseRow {
   // Never overwrite geocoded coordinates with null — omit lat/lng when DDF doesn't provide them
   if (filtered.lat == null) delete filtered.lat;
   if (filtered.lng == null) delete filtered.lng;
+  // Never wipe existing photos — images are managed separately via patchListingImages()
+  delete filtered.images;
   return filtered;
 }
 
-// Returns a map of mls_number → photos_timestamp from the DB.
-// Only fetches photos_timestamp — avoids transferring images arrays.
+// Returns a map of mls_number → photo state from the DB.
 async function fetchExistingPhotoState(
   mlsNumbers: string[]
 ): Promise<Map<string, { photos_timestamp: string | null; hasImages: boolean }>> {
   const url  = process.env.SUPABASE_URL!;
   const key  = process.env.SUPABASE_SERVICE_ROLE_KEY!;
   const list = mlsNumbers.map(n => `"${n}"`).join(',');
-  const endpoint = `${url}/rest/v1/mls_listings?select=mls_number,photos_timestamp&mls_number=in.(${list})`;
+  // Fetch images alongside timestamp so hasImages is accurate, not just a
+  // timestamp-presence proxy (a listing can have a timestamp but images:[]).
+  const endpoint = `${url}/rest/v1/mls_listings?select=mls_number,photos_timestamp,images&mls_number=in.(${list})`;
 
   const res = await fetch(endpoint, {
     headers: { apikey: key, Authorization: `Bearer ${key}`, Accept: 'application/json' },
@@ -182,11 +185,9 @@ async function fetchExistingPhotoState(
   if (!res.ok) return map;
   const rows: any[] = await res.json();
   for (const r of rows) {
-    // If the record exists and has a photos_timestamp, assume it has images.
-    // Avoids fetching the images array just to check length.
     map.set(r.mls_number, {
       photos_timestamp: r.photos_timestamp ?? null,
-      hasImages: Boolean(r.photos_timestamp),
+      hasImages: Array.isArray(r.images) && r.images.length > 0,
     });
   }
   return map;

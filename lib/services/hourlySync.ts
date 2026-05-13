@@ -90,6 +90,8 @@ function toDbRow(raw: Record<string, any>): Record<string, any> {
   // Never overwrite geocoded coordinates with null — omit lat/lng when DDF doesn't provide them
   if (filtered.lat == null) delete filtered.lat;
   if (filtered.lng == null) delete filtered.lng;
+  // Never wipe existing photos — images are managed separately via patchImages()
+  delete filtered.images;
   return filtered;
 }
 
@@ -152,14 +154,15 @@ async function main() {
     return;
   }
 
-  // ── Step 2: Upsert listing data ───────────────────────────────────────────
+  // ── Step 2: Capture existing timestamps BEFORE upsert so we can detect changes
   const dbRows = rawListings.map(toDbRow);
+  const mlsNums = dbRows.map(r => String(r.mls_number ?? '')).filter(Boolean);
+  const existingTs = await fetchExistingTimestamps(mlsNums);
+
   await supabaseUpsert(dbRows);
   console.log(`[hourly] Upserted ${dbRows.length} listing(s).`);
 
-  // ── Step 3: Fetch & store photos (only if photos_timestamp changed) ──────────
-  const mlsNums = dbRows.map(r => String(r.mls_number ?? '')).filter(Boolean);
-  const existingTs = await fetchExistingTimestamps(mlsNums);
+  // ── Step 3: Fetch & store photos (only if photos_timestamp changed or new) ───
 
   // Determine which listings actually need a GetObject call
   const needsPhoto = rawListings.filter((raw, i) => {

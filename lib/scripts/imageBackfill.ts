@@ -36,6 +36,11 @@ const CITIES_ARG = getArg('cities');
 const CITY_FILTER: string[] = CITIES_ARG
   ? CITIES_ARG.split(',').map(c => c.trim()).filter(Boolean)
   : [];
+// --mls=N12835542,C9999999  → only backfill these specific listings
+const MLS_ARG = getArg('mls');
+const MLS_FILTER: Set<string> = MLS_ARG
+  ? new Set(MLS_ARG.split(',').map(s => s.trim()).filter(Boolean))
+  : new Set();
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 
@@ -49,6 +54,22 @@ async function loadNeedsPhotos(): Promise<Set<string>> {
   const cityParam = CITY_FILTER.length
     ? `&city=in.(${CITY_FILTER.map(c => encodeURIComponent(c)).join(',')})` : '';
   if (CITY_FILTER.length) console.log(`[image-backfill] City filter: ${CITY_FILTER.join(', ')}`);
+
+  // When --mls is given, only fetch those specific listings (ignores the
+  // images=[] condition — useful for fixing known-broken listings).
+  if (MLS_FILTER.size) {
+    console.log(`[image-backfill] MLS filter: ${[...MLS_FILTER].join(', ')}`);
+    const mlsList = [...MLS_FILTER].map(m => `"${m}"`).join(',');
+    const url2 = `${SUPABASE_URL}/rest/v1/mls_listings?select=mls_number&mls_number=in.(${mlsList})`;
+    const res2 = await fetch(url2, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, Accept: 'application/json' },
+    });
+    if (res2.ok) {
+      const rows2: any[] = await res2.json();
+      for (const r of rows2) if (r.mls_number) set.add(String(r.mls_number));
+    }
+    return set;
+  }
 
   while (true) {
     const url = `${SUPABASE_URL}/rest/v1/mls_listings` +
