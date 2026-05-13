@@ -20,6 +20,7 @@ const LoggedIn = ({
 	setMessage,
 	setShowTour,
 	agentId = null,
+	whitelabel = false,
 }) => {
 	const dispatch = useDispatch();
 	const [errors, setErrors] = useState([]);
@@ -38,6 +39,7 @@ const LoggedIn = ({
 				time: hour,
 				message,
 				...(agentId ? { agent_id: agentId } : {}),
+				...(whitelabel ? { whitelabel: true } : {}),
 			};
 			const data = await dispatch(appointmentActions.addAppointment(appointment));
 

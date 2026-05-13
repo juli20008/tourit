@@ -9,6 +9,7 @@ import reviews from "./review";
 import channels from "./channel";
 import chats from "./chat";
 import hasUnread from "./unread";
+import whitelabel from "./whitelabel";
 
 const rootReducer = combineReducers({
 	session,
@@ -20,6 +21,7 @@ const rootReducer = combineReducers({
 	channels,
 	chats,
 	hasUnread,
+	whitelabel,
 });
 
 let enhancer;

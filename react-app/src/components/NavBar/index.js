@@ -21,6 +21,7 @@ const NavBar = () => {
 	const history = useHistory();
 	const { setToggleNotification, setNotificationMsg } = useNotification();
 	const user = useSelector((state) => state.session.user);
+	const whitelabelAgent = useSelector((state) => state.whitelabel?.agent);
 	const [showLogin, setShowLogin] = useState(false);
 	const [showMenu, setShowMenu] = useState(false);
 	const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -90,9 +91,22 @@ const NavBar = () => {
 				<nav className="nav">
 					<div className="nav-lf">
 						{/* Desktop */}
-						<NavLink to="/agents" className="btn-font-lt nav-desktop-only">
-							Agent Finder
-						</NavLink>
+						{whitelabelAgent ? (
+							<div className="flex items-center gap-2 nav-desktop-only">
+								{whitelabelAgent.photo && (
+									<img
+										src={whitelabelAgent.photo}
+										alt={whitelabelAgent.username}
+										style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover" }}
+									/>
+								)}
+								<span className="btn-font-lt">{whitelabelAgent.office || whitelabelAgent.username}</span>
+							</div>
+						) : (
+							<NavLink to="/agents" className="btn-font-lt nav-desktop-only">
+								Agent Finder
+							</NavLink>
+						)}
 						{/* Mobile hamburger */}
 						<button
 							className="nav-hamburger"
@@ -159,14 +173,27 @@ const NavBar = () => {
 							onClick={() => setShowMobileMenu(false)}
 						/>
 						<div className="nav-mobile-menu">
-							<NavLink
-								to="/agents"
-								className="nav-mobile-item"
-								onClick={() => setShowMobileMenu(false)}
-							>
-								<i className="fa-solid fa-magnifying-glass mr-3 text-[#94a3b8]" />
-								Agent Finder
-							</NavLink>
+							{whitelabelAgent ? (
+								<div className="nav-mobile-item flex items-center">
+									{whitelabelAgent.photo && (
+										<img
+											src={whitelabelAgent.photo}
+											alt={whitelabelAgent.username}
+											style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover", marginRight: 12 }}
+										/>
+									)}
+									<span>{whitelabelAgent.office || whitelabelAgent.username}</span>
+								</div>
+							) : (
+								<NavLink
+									to="/agents"
+									className="nav-mobile-item"
+									onClick={() => setShowMobileMenu(false)}
+								>
+									<i className="fa-solid fa-magnifying-glass mr-3 text-[#94a3b8]" />
+									Agent Finder
+								</NavLink>
+							)}
 						</div>
 					</>
 				)}

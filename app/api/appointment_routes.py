@@ -157,6 +157,7 @@ def add_appointment():
             time = payload.get("time")
             message = payload.get("message")
             selected_agent_id = payload.get("agent_id")
+            is_whitelabel = bool(payload.get("whitelabel", False))
         else:
             form = AddAppointmentForm()
             form["csrf_token"].data = request.cookies["csrf_token"]
@@ -168,6 +169,7 @@ def add_appointment():
             time = form.data["time"]
             message = form.data["message"]
             selected_agent_id = form.data.get("agent_id")
+            is_whitelabel = False
 
         if not property_id or not date or not time:
             return {"errors": ["property_id, date, and time are required"]}, 400
@@ -212,9 +214,9 @@ def add_appointment():
                 selected_agent = db.session.get(User, selected_agent_id)
                 if not selected_agent or not selected_agent.agent:
                     return {"errors": ["Selected agent does not exist"]}
-                # Referral bookings: agent shared the link so they're implicitly available;
-                # only block on a direct scheduling conflict, not a missing schedule config.
-                if agent_has_conflict(selected_agent.id, date, time):
+                # Whitelabel bookings allow multiple concurrent appointments (agent
+                # can reassign extras). Referral bookings still check for conflicts.
+                if not is_whitelabel and agent_has_conflict(selected_agent.id, date, time):
                     return {"errors": ["Selected agent has another appointment at this timeslot. Please choose a different time."]}
             except Exception:
                 return {"errors": ["Unable to assign the selected agent. Please try again."]}, 500

@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
 from flask_login import current_user, login_required
+from sqlalchemy import func
 
 from app.models import User, Review, AgentAvailability, db
 
@@ -9,6 +10,27 @@ agent_routes = Blueprint('agents', __name__)
 def get_all_agents():
     agents = User.query.filter(User.agent == True).limit(100).all()
     return {"agents": [agent.to_dict() for agent in agents]}
+
+
+@agent_routes.route("/slug/<slug>")
+def get_agent_by_slug(slug):
+    agent = User.query.filter(
+        User.agent == True,
+        func.lower(func.regexp_replace(User.username, r'[^a-zA-Z0-9]', '', 'g')) == slug.lower()
+    ).first()
+    if not agent:
+        return {"errors": ["Agent not found"]}, 404
+    return {
+        "agent": {
+            "id": agent.id,
+            "username": agent.username,
+            "photo": agent.photo,
+            "office": agent.office,
+            "phone": agent.phone,
+            "bio": agent.bio,
+            "agent": True,
+        }
+    }
 
 
 @agent_routes.route("/<int:agent_id>")

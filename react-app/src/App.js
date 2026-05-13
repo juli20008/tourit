@@ -16,6 +16,7 @@ import Profile from "./components/Profile";
 import Reviews from "./components/Reviews";
 import Chats from "./components/Chats";
 import { authenticate } from "./store/session";
+import { initWhitelabel } from "./store/whitelabel";
 
 import About from "./components/About";
 import AgentLogin from "./components/AgentLogin";
@@ -54,7 +55,10 @@ function App() {
 
 	useEffect(() => {
 		(async () => {
-			await dispatch(authenticate());
+			await Promise.all([
+				dispatch(authenticate()),
+				dispatch(initWhitelabel()),
+			]);
 			setLoaded(true);
 		})();
 	}, [dispatch]);

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useSelector } from "react-redux";
+
 import SelectDate from "./SelectDate";
 import Contact from "./Contact";
 
@@ -7,8 +8,11 @@ import available from "../../Tools/Available";
 
 const Tour = ({ property, setShowTour, inline = false, referralAgent = null }) => {
 	const user = useSelector((state) => state.session.user);
+	const whitelabelAgent = useSelector((state) => state.whitelabel?.agent);
+	const effectiveAgent = referralAgent || whitelabelAgent || null;
+	const isWhitelabel = !referralAgent && !!whitelabelAgent;
 	const schedule = useMemo(() => available(property), [property?.id, property?.appointments]);
-	const agentLabel = referralAgent ? `Tour with ${referralAgent.username}` : "Tour with a Buyer’s Agent";
+	const agentLabel = effectiveAgent ? `Tour with ${effectiveAgent.username}` : "Tour with a Buyer’s Agent";
 	const initialDay = Object.keys(schedule)[0] || "";
 
 	const [today, setToday] = useState(initialDay);
@@ -85,7 +89,8 @@ const Tour = ({ property, setShowTour, inline = false, referralAgent = null }) =
 							setShowSelectDate={setShowSelectDate}
 							hour={hour}
 							setShowTour={setShowTour}
-							referralAgentId={referralAgent?.id ?? null}
+							referralAgentId={effectiveAgent?.id ?? null}
+							whitelabel={isWhitelabel}
 						/>
 					)}
 				</div>
@@ -120,7 +125,8 @@ const Tour = ({ property, setShowTour, inline = false, referralAgent = null }) =
 						setShowSelectDate={setShowSelectDate}
 						hour={hour}
 						setShowTour={setShowTour}
-						referralAgentId={referralAgent?.id ?? null}
+						referralAgentId={effectiveAgent?.id ?? null}
+						whitelabel={isWhitelabel}
 					/>
 				)}
 			</div>
