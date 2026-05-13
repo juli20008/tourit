@@ -16,10 +16,18 @@ def get_unique_filename(filename):
 
 
 def _supabase_config():
-    url = os.environ.get("SUPABASE_URL", "").rstrip("/")
-    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+    # Prefer Flask app config (populated by Config class via load_dotenv);
+    # fall back to raw os.environ for contexts outside a request.
+    try:
+        from flask import current_app
+        cfg = current_app.config
+        url = cfg.get("SUPABASE_URL") or os.environ.get("SUPABASE_URL", "")
+        key = cfg.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+    except RuntimeError:
+        url = os.environ.get("SUPABASE_URL", "")
+        key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
     bucket = os.environ.get("SUPABASE_STORAGE_BUCKET", "photos")
-    return url, key, bucket
+    return url.rstrip("/"), key, bucket
 
 
 def _ensure_bucket(url, key, bucket):
