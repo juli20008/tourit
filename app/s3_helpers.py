@@ -1,23 +1,8 @@
 import os
 import uuid
+import requests
 
-ALLOWED_EXTENSIONS = {"pdf", "png", "jpg", "jpeg", "gif"}
-
-def get_s3_client():
-    bucket_name = os.environ.get("S3_BUCKET")
-    s3_key = os.environ.get("S3_KEY")
-    s3_secret = os.environ.get("S3_SECRET")
-
-    if not bucket_name or not s3_key or not s3_secret:
-        return None, None
-
-    import boto3
-
-    return boto3.client(
-        "s3",
-        aws_access_key_id=s3_key,
-        aws_secret_access_key=s3_secret
-    ), bucket_name
+ALLOWED_EXTENSIONS = {"pdf", "png", "jpg", "jpeg", "gif", "webp"}
 
 
 def allowed_file(filename):
@@ -27,27 +12,62 @@ def allowed_file(filename):
 
 def get_unique_filename(filename):
     ext = filename.rsplit(".", 1)[1].lower()
-    unique_filename = uuid.uuid4().hex
-    return f"{unique_filename}.{ext}"
+    return f"{uuid.uuid4().hex}.{ext}"
+
+
+def _supabase_config():
+    url = os.environ.get("SUPABASE_URL", "").rstrip("/")
+    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+    bucket = os.environ.get("SUPABASE_STORAGE_BUCKET", "photos")
+    return url, key, bucket
+
+
+def _ensure_bucket(url, key, bucket):
+    """Create the bucket if it doesn't exist yet (idempotent)."""
+    try:
+        resp = requests.post(
+            f"{url}/storage/v1/bucket",
+            headers={
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json",
+            },
+            json={"id": bucket, "name": bucket, "public": True},
+            timeout=10,
+        )
+        # 200/201 = created, 409 = already exists — both are fine
+        return resp.status_code in (200, 201, 409)
+    except Exception:
+        return False
 
 
 def upload_file_to_s3(file, acl="public-read"):
-    s3, bucket_name = get_s3_client()
-    if not s3 or not bucket_name:
-        return {"errors": ["S3 is not configured"]}
+    """Upload to Supabase Storage. Keeps the same signature as the old S3 version."""
+    supabase_url, service_key, bucket = _supabase_config()
+
+    if not supabase_url or not service_key:
+        return {"errors": ["Storage is not configured (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY missing)"]}
+
+    _ensure_bucket(supabase_url, service_key, bucket)
+
+    filename = file.filename
+    content_type = getattr(file, "content_type", None) or "image/jpeg"
 
     try:
-        s3.upload_fileobj(
-            file,
-            bucket_name,
-            file.filename,
-            ExtraArgs={
-                "ACL": acl,
-                "ContentType": file.content_type
-            }
+        data = file.read()
+        resp = requests.post(
+            f"{supabase_url}/storage/v1/object/{bucket}/{filename}",
+            headers={
+                "Authorization": f"Bearer {service_key}",
+                "Content-Type": content_type,
+                "x-upsert": "true",
+            },
+            data=data,
+            timeout=30,
         )
-    except Exception as e:
-        # in case the our s3 upload fails
-        return {"errors": [str(e)]}
+        if resp.status_code not in (200, 201):
+            return {"errors": [f"Upload failed ({resp.status_code}): {resp.text[:300]}"]}
 
-    return {"url": f"https://{bucket_name}.s3.amazonaws.com/{file.filename}"}
+        public_url = f"{supabase_url}/storage/v1/object/public/{bucket}/{filename}"
+        return {"url": public_url}
+    except Exception as e:
+        return {"errors": [str(e)]}
