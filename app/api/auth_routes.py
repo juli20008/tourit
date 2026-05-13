@@ -227,6 +227,9 @@ def magic_link_login(token):
         return redirect(f'{frontend_url}/agent-login?error=invalid')
 
     login_user(user)
+    slug = re.sub(r'[^a-zA-Z0-9]', '', user.username or '').lower()
+    if slug and frontend_url and 'tourit.ca' in frontend_url:
+        return redirect(f'https://{slug}.tourit.ca/appointments')
     return redirect(f'{frontend_url}/appointments')
 
 

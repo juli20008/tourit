@@ -8,6 +8,7 @@ import Tour from "./Tour";
 
 import * as propertyImgActions from "../../store/property_img";
 import * as agentActions from "../../store/agent";
+import { getWhitelabelSlug } from "../../utils/whitelabel";
 
 // Injects listing JSON for the Tourit→FBMP Chrome extension.
 // Runs on every listing open (modal AND standalone page).
@@ -57,9 +58,21 @@ const Property = ({ property, onClose, referralAgent = null, isPage = false }) =
 	const handleShare = () => {
 		const mlsNum = property?.mls_number || property?.listing_id;
 		const base = window.location.origin;
-		const url = (user?.agent && !referralAgent)
-			? `${base}/a/${user.id}/listing/${encodeURIComponent(mlsNum)}`
-			: `${base}/listing/${encodeURIComponent(mlsNum)}`;
+		const wlSlug = getWhitelabelSlug();
+		let url;
+		if (wlSlug) {
+			// Already on the agent's subdomain — clean listing URL
+			url = `${base}/listing/${encodeURIComponent(mlsNum)}`;
+		} else if (user?.agent && !referralAgent) {
+			// Agent on www.tourit.ca — point to their subdomain in prod
+			const slug = (user.username || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+			const isProd = window.location.hostname.endsWith('tourit.ca');
+			url = (slug && isProd)
+				? `https://${slug}.tourit.ca/listing/${encodeURIComponent(mlsNum)}`
+				: `${base}/a/${user.id}/listing/${encodeURIComponent(mlsNum)}`;
+		} else {
+			url = `${base}/listing/${encodeURIComponent(mlsNum)}`;
+		}
 		navigator.clipboard.writeText(url).catch(() => {});
 		setCopied(true);
 		clearTimeout(copyTimer.current);
