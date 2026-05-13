@@ -240,24 +240,31 @@ def add_appointment():
             agent_id=selected_agent.id,
         )
 
-        db.session.add(new_appointment)
-        db.session.commit()
+        try:
+            db.session.add(new_appointment)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            import traceback; traceback.print_exc()
+            return {"errors": [f"Database error: {str(e)}"]}, 500
 
-        # Re-fetch with all nested relationships so to_dict() listing field is
-        # fully populated (session expires objects after commit).
-        loaded = (
-            Appointment.query
-            .options(
-                selectinload(Appointment.property)
-                    .selectinload(Property.images),
-                selectinload(Appointment.property)
-                    .selectinload(Property.state),
-                selectinload(Appointment.mls_listing),
-                selectinload(Appointment.user),
+        try:
+            loaded = (
+                Appointment.query
+                .options(
+                    selectinload(Appointment.property)
+                        .selectinload(Property.images),
+                    selectinload(Appointment.property)
+                        .selectinload(Property.state),
+                    selectinload(Appointment.mls_listing),
+                    selectinload(Appointment.user),
+                )
+                .get(new_appointment.id)
             )
-            .get(new_appointment.id)
-        )
-        return {"appointment": loaded.to_dict()}
+            return {"appointment": loaded.to_dict()}
+        except Exception as e:
+            import traceback; traceback.print_exc()
+            return {"appointment": {"id": new_appointment.id, "date": date, "time": time}}
 
 @appointment_routes.route("/<int:appointment_id>", methods=["GET", "PUT", "DELETE"])
 @login_required
