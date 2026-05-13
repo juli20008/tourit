@@ -55,6 +55,17 @@ async function patchImages(mlsNumber: string, urls: string[]): Promise<void> {
   if (!res.ok) throw new Error(`PATCH images ${res.status}: ${await res.text()}`);
 }
 
+const CDN_BASE = 'https://ddfcdn.realtor.ca/listings';
+
+function buildCdnUrls(externalId: string | null, photosTimestamp: string | null, photosCount: number | null): string[] {
+  if (!externalId || !photosTimestamp) return [];
+  const count = Math.max(photosCount || 1, 1);
+  const eid = externalId.toLowerCase();
+  return Array.from({ length: count }, (_, i) =>
+    `${CDN_BASE}/TS${photosTimestamp}/reb82/highres/4/${eid}_${i + 1}.jpg`
+  );
+}
+
 // ─── Column allowlist ─────────────────────────────────────────────────────────
 
 const COLUMNS = new Set([
@@ -184,7 +195,15 @@ async function main() {
         console.log(`[photo] ${mlsNumber} (key=${listingKey}): ${urls.length} photo(s) saved`);
         photoOk++;
       } else {
-        console.log(`[photo] ${mlsNumber}: 0 URLs returned`);
+        const dbRow = dbRows.find(r => String(r.mls_number) === mlsNumber);
+        const cdnUrls = buildCdnUrls(dbRow?.external_id, dbRow?.photos_timestamp, dbRow?.photos_count);
+        if (cdnUrls.length > 0) {
+          await patchImages(mlsNumber, cdnUrls);
+          console.log(`[photo] ${mlsNumber}: 0 from GetObject, stored ${cdnUrls.length} CDN URL(s)`);
+          photoOk++;
+        } else {
+          console.log(`[photo] ${mlsNumber}: 0 URLs returned`);
+        }
       }
     } catch (e: any) {
       console.warn(`[photo] ${mlsNumber}: ${e.message}`);
