@@ -161,12 +161,18 @@
     const btn = id('tourit-xhs-fill-btn');
     if (btn) btn.disabled = true;
 
+    // Pre-build content — CDN listings translate the description first
+    if (listing.source !== 'desktop') {
+      setProgress('正在翻译房源内容…');
+    }
+    const content = await buildContent(listing);
+
     setProgress('填写标题…');
-    const titleOk = await fillTitle(listing);
+    const titleOk = await fillTitleText(content.title);
     await sleep(400);
 
     setProgress('填写正文…');
-    const bodyOk = await fillBody(listing);
+    const bodyOk = await fillBodyText(content.body);
     await sleep(300);
 
     setProgress([
@@ -175,6 +181,137 @@
     ].join('  ') + '\n请检查后手动点击发布。');
 
     if (btn) btn.disabled = false;
+  }
+
+  // ── Content building ───────────────────────────────────────────────────────
+
+  async function buildContent(listing) {
+    if (listing.source === 'desktop') {
+      return {
+        title: (listing.title || '').slice(0, 20),
+        body:  (listing.description || '').trim(),
+      };
+    }
+
+    // CDN listing: translate English description, build full Chinese post
+    const rawDesc = (listing.description || '').trim().slice(0, 600);
+    const translatedDesc = rawDesc ? await translateToZh(rawDesc) : '';
+
+    return {
+      title: buildChineseTitle(listing),
+      body:  buildChineseBody(listing, translatedDesc),
+    };
+  }
+
+  function buildChineseTitle(listing) {
+    const city  = displayCity(listing.city || '');
+    const type  = translateType(listing.property_type, listing.style);
+    const beds  = listing.beds  ?? '';
+    const baths = listing.baths ?? '';
+    const price = fmt(listing.price);
+
+    // Try progressively shorter options to stay ≤ 20 chars
+    const opts = [
+      `${city}${type}${beds}卧${baths}卫 $${price}/月`,
+      `${city}${beds}卧${baths}卫${type} $${price}/月`,
+      `${city}${beds}卧${baths}卫 $${price}/月`,
+      `${city}${type}${beds}卧${baths}卫出租`,
+      `${city}${beds}卧${baths}卫出租`,
+    ];
+    for (const o of opts) if (o.length <= 20) return o;
+    return opts[opts.length - 1].slice(0, 20);
+  }
+
+  function buildChineseBody(listing, translatedDesc) {
+    const city  = displayCity(listing.city || '');
+    const type  = translateType(listing.property_type, listing.style);
+    const price = fmt(listing.price);
+    const beds  = listing.beds  ?? '?';
+    const baths = listing.baths ?? '?';
+    const mls   = listing.mls_number || '';
+
+    const parts = [];
+
+    // Location
+    parts.push(`📍 ${listing.address || ''}${city ? '，' + city : ''}`);
+    parts.push('');
+
+    // Key specs
+    parts.push(`💰 月租：$${price}`);
+    parts.push(`🏠 ${type}　${beds}卧 ${baths}卫`);
+    parts.push('');
+
+    // Translated description
+    if (translatedDesc) {
+      parts.push('✨ 房源详情：');
+      parts.push(translatedDesc);
+      parts.push('');
+    }
+
+    // CTA
+    if (mls) {
+      parts.push(`🔑 预约看房：tourit.ca/listing/${mls}`);
+      parts.push('');
+    }
+
+    // Hashtags
+    const cityTag  = city  ? `#${city}租房 `  : '';
+    const typeTag  = (type && type !== '住宅') ? `#多伦多${type} ` : '';
+    parts.push(`#多伦多租房 ${cityTag}${typeTag}#加拿大房产 #海外租房 #多伦多房产 #加拿大生活`);
+
+    return parts.join('\n').trim();
+  }
+
+  // ── Translation helper ─────────────────────────────────────────────────────
+
+  function translateToZh(text) {
+    return new Promise(resolve => {
+      chrome.runtime.sendMessage({ type: 'TOURIT_TRANSLATE', text }, resp => {
+        if (chrome.runtime.lastError || !resp) return resolve('');
+        resolve(resp.text || '');
+      });
+    });
+  }
+
+  // ── Field lookup tables ────────────────────────────────────────────────────
+
+  function displayCity(city) {
+    const map = {
+      'toronto':       '多伦多',
+      'mississauga':   '密西沙加',
+      'brampton':      '布兰普顿',
+      'markham':       '万锦',
+      'vaughan':       '旺市',
+      'richmond hill': '列治文山',
+      'oakville':      '奥克维尔',
+      'burlington':    '伯灵顿',
+      'hamilton':      '汉密尔顿',
+      'scarborough':   '士嘉堡',
+      'north york':    '北约克',
+      'etobicoke':     '依多碧各',
+      'east york':     '东约克',
+      'ajax':          '阿积士',
+      'pickering':     '皮克灵',
+      'oshawa':        '奥沙华',
+      'whitby':        '惠比',
+      'newmarket':     '纽市',
+      'aurora':        '奥罗拉',
+    };
+    return map[(city || '').toLowerCase()] || city || '';
+  }
+
+  function translateType(propertyType, style) {
+    const t = (propertyType || '').toLowerCase();
+    const s = (style        || '').toLowerCase();
+    const c = `${t} ${s}`;
+    if (c.includes('condo') || c.includes('apartment') || c.includes('co-op')) return '公寓';
+    if (c.includes('townhouse') || c.includes('att/row') || c.includes('row')) return '联排别墅';
+    if (t.includes('detached') && !t.includes('semi'))                          return '独立屋';
+    if (t.includes('semi'))                                                     return '半独立屋';
+    if (t.includes('house') || t.includes('bungalow'))                         return '独立屋';
+    if (t.includes('duplex') || t.includes('triplex') || t.includes('plex'))   return '多单元住宅';
+    if (t.includes('studio'))                                                   return '开间公寓';
+    return '住宅';
   }
 
   // ── Image fetching ────────────────────────────────────────────────────────
@@ -288,16 +425,16 @@
 
   // ── Title / body fill ─────────────────────────────────────────────────────
 
-  async function fillTitle(listing) {
+  async function fillTitleText(text) {
     const el = await waitFor(() => findFirst(SEL.title), 5000, 200);
     if (!el) return false;
     const rawMax = parseInt(el.getAttribute('maxlength') || '', 10);
     const max = rawMax > 0 ? rawMax : 20;
-    setReactValue(el, buildTitle(listing).slice(0, max));
+    setReactValue(el, text.slice(0, max));
     return true;
   }
 
-  async function fillBody(listing) {
+  async function fillBodyText(text) {
     const el = await waitFor(() => {
       const found = findFirst(SEL.body);
       if (found) return found;
@@ -311,43 +448,13 @@
     if (!el) return false;
     el.focus();
     document.execCommand('selectAll', false);
-    const ok = document.execCommand('insertText', false, buildBody(listing));
+    const ok = document.execCommand('insertText', false, text);
     if (!ok) {
-      el.textContent = buildBody(listing);
+      el.textContent = text;
       el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText' }));
     }
     el.dispatchEvent(new Event('change', { bubbles: true }));
     return true;
-  }
-
-  // ── Content builders ───────────────────────────────────────────────────────
-
-  function buildTitle(listing) {
-    if (listing.source === 'desktop') {
-      return (listing.title || '').slice(0, 20);
-    }
-    const city = listing.city || '';
-    return `${city} ${listing.beds ?? ''}床${listing.baths ?? '?'}卫 $${fmt(listing.price)}/月`.trim().slice(0, 20);
-  }
-
-  function buildBody(listing) {
-    if (listing.source === 'desktop') {
-      return (listing.description || '').trim();
-    }
-    const city = listing.city || '';
-    return [
-      `📍 ${listing.address || ''}${city ? ', ' + city : ''}`,
-      `💰 月租：$${fmt(listing.price)}`,
-      `🛏 卧室：${listing.beds ?? ''} 间`,
-      `🚿 卫生间：${listing.baths ?? ''} 间`,
-      listing.property_type ? `🏡 类型：${listing.property_type}` : null,
-      '',
-      listing.description || '',
-      '',
-      `MLS# ${listing.mls_number || ''}`,
-      '',
-      `#多伦多租房 ${city ? '#' + city.replace(/\s/g, '') + '租房 ' : ''}#加拿大房产 #海外租房 #多伦多房产`,
-    ].filter(l => l !== null).join('\n').trim();
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────

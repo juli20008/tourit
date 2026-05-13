@@ -10,7 +10,8 @@
     "https://*.supabase.in/*",
     "https://creator.xiaohongshu.com/*",
     "https://ddfcdn.realtor.ca/*",
-    "https://cdn.realtor.ca/*"
+    "https://cdn.realtor.ca/*",
+    "https://translate.googleapis.com/*"
   ],
   "background": {
     "service_worker": "background.js"

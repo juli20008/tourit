@@ -84,6 +84,31 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true; // async response
   }
 
+  // ── Translation (en → zh-CN via Google Translate free endpoint) ─────────────
+  // Handled in the service worker so host_permissions bypass applies and
+  // the XHS page's origin is never sent as the fetch origin.
+  if (msg.type === 'TOURIT_TRANSLATE') {
+    const text = (msg.text || '').trim();
+    if (!text) { sendResponse({ text: '' }); return false; }
+
+    const url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt=t&q='
+      + encodeURIComponent(text.slice(0, 3000));
+
+    fetch(url)
+      .then(r => r.json())
+      .then(data => {
+        // data[0] = [[translated_chunk, original_chunk, ...], ...]
+        const translated = (data[0] || []).map(c => c[0] || '').join('');
+        sendResponse({ text: translated });
+      })
+      .catch(err => {
+        console.warn('[Tourit XHS] Translation failed:', err.message);
+        sendResponse({ text: '', error: err.message });
+      });
+
+    return true; // async response
+  }
+
   if (msg.type === 'TOURIT_OPEN_XHS') {
     chrome.tabs.create({ url: XHS_URL });
     return false;
