@@ -127,7 +127,7 @@ const Search = () => {
 	};
 
 	const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
-	const googleMapURL = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&v=3.exp&libraries=geometry,drawing,places&loading=async`;
+	const googleMapURL = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&v=3.55&libraries=geometry,drawing,places`;
 
 	return (
 		<main className="search-pg-ctrl bg-[#f3f3f1]">
