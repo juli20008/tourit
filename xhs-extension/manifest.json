@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "Tourit → 小红书",
+  "version": "1.0",
+  "description": "Capture Tourit.ca listings and publish to 小红书 (Xiaohongshu)",
+  "permissions": ["activeTab", "scripting", "storage", "unlimitedStorage"],
+  "host_permissions": [
+    "https://tourit.ca/*",
+    "https://*.supabase.co/*",
+    "https://*.supabase.in/*",
+    "https://creator.xiaohongshu.com/*",
+    "https://ddfcdn.realtor.ca/*",
+    "https://cdn.realtor.ca/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://tourit.ca/*"],
+      "js": ["content/tourit.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://creator.xiaohongshu.com/publish/publish*"],
+      "js": ["content/xhs.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup/popup.html"
+  }
+}
