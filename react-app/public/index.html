@@ -19,7 +19,6 @@
 		.skiptranslate,
 		#goog-gt-tt,
 		.goog-tooltip { display: none !important; }
-		/* Prevent Google from pushing body down */
 		body { top: 0 !important; }
 		body.translated-ltr, body.translated-rtl { top: 0 !important; }
 	</style>
@@ -28,19 +27,7 @@
 		<div id="root"></div>
 		<div id="google_translate_element" style="display:none"></div>
 		<script>
-			// ── Run synchronously BEFORE Google's script tag loads ──────────────────
-			// Google reads googtrans cookie as element.js initialises — before our
-			// callback fires. Clear it here if the user last chose English.
-			(function () {
-				var h = location.hostname;
-				var e = 'expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
-				if (localStorage.getItem('tourit_lang') !== 'zh') {
-					document.cookie = 'googtrans=; ' + e;
-					document.cookie = 'googtrans=; ' + e + '; domain=' + h;
-					document.cookie = 'googtrans=; ' + e + '; domain=.' + h;
-				}
-			})();
-
+			// Google Translate callback — called after element.js loads
 			function googleTranslateElementInit() {
 				new google.translate.TranslateElement(
 					{ pageLanguage: 'en', includedLanguages: 'zh-CN', autoDisplay: false },
@@ -48,30 +35,24 @@
 				);
 			}
 
-			// Google injects a banner iframe and sets body.style.top to push content down.
-			// Watch for both and undo them immediately.
+			// Suppress the toolbar Google injects
 			(function () {
 				function suppressBanner() {
-					// Force body back to top:0
-					if (document.body && document.body.style.top !== '0px') {
+					if (document.body && document.body.style.top !== '0px')
 						document.body.style.setProperty('top', '0px', 'important');
-					}
-					// Hide the banner iframe if it slipped through CSS
-					var banner = document.querySelector('.goog-te-banner-frame');
-					if (banner) banner.style.setProperty('display', 'none', 'important');
+					var b = document.querySelector('.goog-te-banner-frame');
+					if (b) b.style.setProperty('display', 'none', 'important');
 				}
-
-				// Watch for DOM changes (Google inserts the iframe dynamically)
 				var obs = new MutationObserver(suppressBanner);
 				obs.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });
-
-				// Also catch inline style changes on body directly
-				var bodyObs = new MutationObserver(suppressBanner);
 				document.addEventListener('DOMContentLoaded', function () {
-					bodyObs.observe(document.body, { attributes: true, attributeFilter: ['style'] });
+					new MutationObserver(suppressBanner)
+						.observe(document.body, { attributes: true, attributeFilter: ['style'] });
 				});
 			})();
+
+			// Google Translate script is loaded ON DEMAND by LangToggle.js — not here.
+			// This keeps the English page completely free of Google's translation engine.
 		</script>
-		<script src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
 	</body>
 </html>
