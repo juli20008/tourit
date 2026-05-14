@@ -4,10 +4,20 @@
   if (window.__touritCaptureLoaded) return;
   window.__touritCaptureLoaded = true;
 
-  const EMBED_ID  = 'tourit-listing-data';
-  const BTN_ID    = 'tourit-capture-btn';
+  const EMBED_ID   = 'tourit-listing-data';
+  const BTN_ID     = 'tourit-capture-btn';
   const XHS_BTN_ID = 'tourit-xhs-btn';
-  const XHS_URL   = 'https://creator.xiaohongshu.com/publish/publish?source=official&from=tab_switch&target=image';
+  const XHS_URL    = 'https://creator.xiaohongshu.com/publish/publish?source=official&from=tab_switch&target=image';
+
+  // ─── Agent status ─────────────────────────────────────────────────────────
+
+  function isAgentLoggedIn() {
+    try {
+      const el = document.getElementById('tourit-user-data');
+      if (!el) return false;
+      return JSON.parse(el.textContent).is_agent === true;
+    } catch { return false; }
+  }
 
   // ─── Extract listing from embedded JSON ──────────────────────────────────
 
@@ -31,18 +41,31 @@
   }
 
   // ─── MutationObserver ────────────────────────────────────────────────────
+  // Watches <head> for listing data changes AND agent login/logout changes.
 
   const observer = new MutationObserver(() => {
-    const listing = extractListing();
-    if (listing) capture(listing);
-    else updateBtn(false);
+    if (isAgentLoggedIn()) {
+      const listing = extractListing();
+      if (listing) capture(listing);
+      else updateBtn(false);
+      if (document.body) injectBtn();
+    } else {
+      removeButtons();
+    }
   });
   observer.observe(document.head, { childList: true, subtree: true, characterData: true });
 
-  const existing = extractListing();
-  if (existing) capture(existing);
+  if (isAgentLoggedIn()) {
+    const existing = extractListing();
+    if (existing) capture(existing);
+  }
 
   // ─── Floating buttons ─────────────────────────────────────────────────────
+
+  function removeButtons() {
+    document.getElementById(BTN_ID)?.remove();
+    document.getElementById(XHS_BTN_ID)?.remove();
+  }
 
   function injectBtn() {
     // Capture / Save button (original)
@@ -108,8 +131,10 @@
     }, 3000);
   }
 
-  if (document.body) injectBtn();
-  else document.addEventListener('DOMContentLoaded', injectBtn);
+  if (isAgentLoggedIn()) {
+    if (document.body) injectBtn();
+    else document.addEventListener('DOMContentLoaded', injectBtn);
+  }
 
   // ─── Toast ────────────────────────────────────────────────────────────────
 

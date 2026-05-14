@@ -24,6 +24,24 @@ import ListingPage from "./components/Property/ListingPage";
 
 const DEFAULT_AREA = "/area/neLat=44.20&neLng=-78.90&swLat=43.30&swLng=-80.80&zoom=10";
 
+// Keeps a hidden DOM element in sync with agent login status so the
+// Tourit Chrome extension content script can read it.
+const AgentStatusEmbed = () => {
+	const user = useSelector((state) => state.session.user);
+	useEffect(() => {
+		let el = document.getElementById('tourit-user-data');
+		if (!el) {
+			el = document.createElement('script');
+			el.id = 'tourit-user-data';
+			el.type = 'application/json';
+			document.head.appendChild(el);
+		}
+		el.textContent = JSON.stringify({ is_agent: !!(user?.agent) });
+		return () => { try { el.remove(); } catch {} };
+	}, [user]);
+	return null;
+};
+
 // Runs once after Google OAuth callback: if sessionStorage has a saved listing,
 // navigate to it so the user can resume booking.
 const TourReturnHandler = () => {
@@ -69,6 +87,7 @@ function App() {
 
 	return (
 		<BrowserRouter>
+			<AgentStatusEmbed />
 			<TourReturnHandler />
 			<NavBar />
 			<Notification />
