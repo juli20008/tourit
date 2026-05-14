@@ -28,7 +28,7 @@
   }
 
   function syncAccountKey() {
-    if (!isChromeAlive()) { observer.disconnect(); return; }
+    if (!isChromeAlive()) return;
     try {
       const d = readUserData();
       if (d?.is_agent && d?.account_key) {
@@ -36,7 +36,7 @@
       } else {
         chrome.storage.local.remove('tourit_account_key');
       }
-    } catch { observer.disconnect(); }
+    } catch { /* extension context gone */ }
   }
 
   // ─── Extract listing from embedded JSON ──────────────────────────────────
@@ -61,7 +61,7 @@
         showToast(`✓ Captured: ${listing.address || listing.mls_number}`);
         updateBtn(true);
       });
-    } catch { observer.disconnect(); }
+    } catch { /* extension context gone */ }
   }
 
   // ─── MutationObserver ─────────────────────────────────────────────────────
