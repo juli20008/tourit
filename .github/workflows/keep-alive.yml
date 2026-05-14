@@ -1,0 +1,12 @@
+name: Keep Render Alive
+
+on:
+  schedule:
+    - cron: '*/14 * * * *'  # every 14 min — Render sleeps after 15 min idle
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping API
+        run: curl -sf https://api.tourit.ca/api/listings/?limit=1 > /dev/null
