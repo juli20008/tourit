@@ -29,7 +29,11 @@
 
   // ── Boot ──────────────────────────────────────────────────────────────────
 
-  chrome.storage.local.get('tourit_listing', ({ tourit_listing: listing }) => {
+  chrome.storage.local.get(['tourit_listing', 'tourit_account_key'], ({ tourit_listing: listing, tourit_account_key: accountKey }) => {
+    if (!accountKey) {
+      showStatus('请先登录经纪人账号\ntourit.ca/agent-login', 'warn');
+      return;
+    }
     if (!listing) {
       showStatus('没有已抓取的房源。\n请先在 tourit.ca 上打开一个房源，或通过插件弹窗从桌面上传。', 'warn');
       return;
@@ -236,6 +240,10 @@
           { type: 'TOURIT_CLAUDE_REWRITE', listing, city_zh, type_zh, translated_desc, device_id: tourit_account_key || '' },
           resp => {
             if (chrome.runtime.lastError || !resp) return resolve(null);
+            if (resp.error === 'not_logged_in') {
+              setProgress('⚠ 请先登录经纪人账号：tourit.ca/agent-login');
+              return resolve(null);
+            }
             if (resp.error === 'no_credits') {
               setProgress('⚠ AI额度已用完，请在插件弹窗中充值 →');
               return resolve(null);  // fall back to built-in template

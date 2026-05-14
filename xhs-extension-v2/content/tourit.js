@@ -24,13 +24,20 @@
     return !!(d?.is_agent && d?.account_key);
   }
 
+  function isChromeAlive() {
+    try { return !!chrome?.runtime?.id; } catch { return false; }
+  }
+
   function syncAccountKey() {
-    const d = readUserData();
-    if (d?.is_agent && d?.account_key) {
-      chrome.storage.local.set({ tourit_account_key: d.account_key });
-    } else {
-      chrome.storage.local.remove('tourit_account_key');
-    }
+    if (!isChromeAlive()) { observer.disconnect(); return; }
+    try {
+      const d = readUserData();
+      if (d?.is_agent && d?.account_key) {
+        chrome.storage.local.set({ tourit_account_key: d.account_key });
+      } else {
+        chrome.storage.local.remove('tourit_account_key');
+      }
+    } catch { observer.disconnect(); }
   }
 
   // ─── Extract listing from embedded JSON ──────────────────────────────────
@@ -47,11 +54,15 @@
   // ─── Capture ─────────────────────────────────────────────────────────────
 
   function capture(listing) {
+    if (!isChromeAlive()) return;
     const enriched = { ...listing, site_origin: window.location.origin };
-    chrome.storage.local.set({ tourit_listing: enriched }, () => {
-      showToast(`✓ Captured: ${listing.address || listing.mls_number}`);
-      updateBtn(true);
-    });
+    try {
+      chrome.storage.local.set({ tourit_listing: enriched }, () => {
+        if (chrome.runtime.lastError) return;
+        showToast(`✓ Captured: ${listing.address || listing.mls_number}`);
+        updateBtn(true);
+      });
+    } catch { observer.disconnect(); }
   }
 
   // ─── MutationObserver ────────────────────────────────────────────────────
@@ -62,16 +73,13 @@
     if (isAgentLoggedIn()) {
       const listing = extractListing();
       if (listing) capture(listing);
-      else updateBtn(false);
-      if (document.body) injectBtn();
-    } else {
-      removeButtons();
     }
+    if (document.body) injectBtn();
   });
   observer.observe(document.head, { childList: true, subtree: true, characterData: true });
 
+  syncAccountKey();
   if (isAgentLoggedIn()) {
-    syncAccountKey();
     const existing = extractListing();
     if (existing) capture(existing);
   }
@@ -101,11 +109,17 @@
       xhsBtn.addEventListener('mouseenter', () => { xhsBtn.style.opacity = '1'; xhsBtn.style.background = '#cc1a33'; });
       xhsBtn.addEventListener('mouseleave', () => { xhsBtn.style.opacity = '0.9'; xhsBtn.style.background = '#ff2442'; });
       xhsBtn.addEventListener('click', () => {
+        if (!isAgentLoggedIn()) {
+          showToast('请登录经纪人账号：www.tourit.ca/agent-login');
+          return;
+        }
         const listing = extractListing();
         if (!listing) { showToast('⚠ No listing open — open a listing first'); return; }
         capture(listing);
         showToast('Opening 小红书…');
-        setTimeout(() => chrome.runtime.sendMessage({ type: 'TOURIT_OPEN_XHS' }), 400);
+        if (isChromeAlive()) setTimeout(() => {
+          try { chrome.runtime.sendMessage({ type: 'TOURIT_OPEN_XHS' }); } catch {}
+        }, 400);
       });
       document.body.appendChild(xhsBtn);
     }
@@ -113,10 +127,8 @@
 
   function updateBtn() {}  // no-op — FBMP button hidden
 
-  if (isAgentLoggedIn()) {
-    if (document.body) injectBtn();
-    else document.addEventListener('DOMContentLoaded', injectBtn);
-  }
+  if (document.body) injectBtn();
+  else document.addEventListener('DOMContentLoaded', injectBtn);
 
   // ─── Toast ────────────────────────────────────────────────────────────────
 

@@ -261,19 +261,21 @@ def rewrite_for_xhs():
     data      = request.get_json(silent=True) or {}
     device_id = data.get('device_id', '').strip()
 
+    if not device_id:
+        return jsonify({'error': 'not_logged_in'}), 401
+
     # ── Credit check ───────────────────────────────────────────────────────────
     credits = None
-    if device_id:
-        try:
-            credits = _get_or_create_credits(device_id)
-            if credits['free_used'] >= FREE_LIMIT and credits['paid_credits'] <= 0:
-                return jsonify({
-                    'error':        'no_credits',
-                    'free_used':    credits['free_used'],
-                    'paid_credits': 0,
-                }), 402
-        except Exception:
-            credits = None  # fail open so AI is not blocked by Supabase downtime
+    try:
+        credits = _get_or_create_credits(device_id)
+        if credits['free_used'] >= FREE_LIMIT and credits['paid_credits'] <= 0:
+            return jsonify({
+                'error':        'no_credits',
+                'free_used':    credits['free_used'],
+                'paid_credits': 0,
+            }), 402
+    except Exception:
+        credits = None  # fail open so AI is not blocked by Supabase downtime
 
     # ── Build prompt ───────────────────────────────────────────────────────────
     listing         = data.get('listing', {})

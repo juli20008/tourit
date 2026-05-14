@@ -111,6 +111,11 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === 'TOURIT_CLAUDE_REWRITE') {
     const { listing, city_zh, type_zh, translated_desc, device_id } = msg;
 
+    if (!device_id) {
+      sendResponse({ error: 'not_logged_in' });
+      return true;
+    }
+
     fetch('https://api.tourit.ca/api/xhs/rewrite', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
