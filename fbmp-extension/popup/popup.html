@@ -25,6 +25,26 @@
     header img { width: 28px; height: 28px; border-radius: 6px; }
     header h1 { font-size: 14px; font-weight: 700; color: #0f172a; }
     header span { font-size: 11px; color: #94a3b8; margin-left: auto; }
+
+    /* ── Login gate ── */
+    #login-gate {
+      display: none;
+      text-align: center;
+      padding: 12px 0 4px;
+    }
+    #login-gate .gate-icon { font-size: 28px; margin-bottom: 8px; }
+    #login-gate p { font-size: 12px; color: #64748b; line-height: 1.6; margin-bottom: 12px; }
+    #login-gate a {
+      display: block; width: 100%; padding: 9px;
+      border-radius: 8px; font-size: 13px; font-weight: 600;
+      background: #2563eb; color: #fff; text-decoration: none;
+      transition: background 0.15s; margin-bottom: 6px;
+    }
+    #login-gate a:hover { background: #1d4ed8; }
+
+    /* ── Main section ── */
+    #main-section { display: none; }
+
     #no-listing {
       color: #64748b;
       font-size: 12px;
@@ -36,6 +56,7 @@
     .listing-address { font-weight: 700; font-size: 13px; color: #0f172a; margin-bottom: 4px; }
     .listing-meta { font-size: 11px; color: #64748b; margin-bottom: 2px; }
     .listing-imgs { font-size: 11px; color: #2563eb; margin-bottom: 12px; }
+
     .btn {
       display: block; width: 100%; padding: 9px;
       border-radius: 8px; font-size: 13px; font-weight: 600;
@@ -48,12 +69,15 @@
     .btn-ghost:hover { background: #e2e8f0; }
     .btn-capture { background: #0f172a; color: #fff; }
     .btn-capture:hover { background: #1e293b; }
+
     .status-line {
       font-size: 11px; min-height: 16px;
       margin-bottom: 6px; text-align: center;
     }
     #capture-status { color: #16a34a; }
     .status-line.error { color: #dc2626; }
+
+    /* ── Credits ── */
     #credits-section {
       margin-top: 10px; padding-top: 10px;
       border-top: 1px solid #f1f5f9;
@@ -67,6 +91,7 @@
       color: #94a3b8; font-size: 13px; padding: 0 2px; line-height: 1;
     }
     .btn-refresh:hover { color: #64748b; }
+
     #credits-buy { display: none; margin-top: 8px; }
     #credits-buy .qty-row {
       display: flex; gap: 6px; align-items: center; margin-bottom: 6px;
@@ -76,6 +101,7 @@
       border: 1px solid #e2e8f0; font-size: 13px; text-align: center;
     }
     #credits-buy .qty-hint { font-size: 11px; color: #94a3b8; }
+
     footer {
       margin-top: 12px; padding-top: 10px;
       border-top: 1px solid #f1f5f9;
@@ -90,34 +116,44 @@
     <span>One-click listing sync</span>
   </header>
 
-  <div id="no-listing">
-    No listing captured yet.<br />
-    Open a listing on <strong>tourit.ca</strong> and click <strong>Save to FBMP</strong>, or use the button below.
+  <!-- Shown when no agent is logged in -->
+  <div id="login-gate">
+    <div class="gate-icon">🔐</div>
+    <p>Please log in to your agent account<br />to use this extension.</p>
+    <a href="https://www.tourit.ca/agent-login" target="_blank">Log in at tourit.ca →</a>
   </div>
 
-  <button class="btn btn-capture" id="btn-capture">📋 Capture Current Listing</button>
-  <div class="status-line" id="capture-status"></div>
-
-  <div id="listing-info">
-    <div class="listing-address" id="listing-address"></div>
-    <div class="listing-meta"    id="listing-meta"></div>
-    <div class="listing-imgs"    id="listing-imgs"></div>
-    <button class="btn btn-primary" id="btn-open-fbmp">Open FBMP Create Listing →</button>
-    <button class="btn btn-ghost"   id="btn-clear">Clear captured listing</button>
-  </div>
-
-  <div id="credits-section">
-    <div class="credits-bar">
-      <span id="credits-text">Credits loading…</span>
-      <button class="btn-refresh" id="btn-refresh-credits" title="Refresh credits">↻</button>
+  <!-- Shown when agent is logged in -->
+  <div id="main-section">
+    <div id="no-listing">
+      No listing captured yet.<br />
+      Open a listing on <strong>tourit.ca</strong> and click <strong>Save to FBMP</strong>, or use the button below.
     </div>
-    <div id="credits-buy">
-      <div class="qty-row">
-        <input type="number" id="credits-qty" value="10" min="1" max="50" />
-        <span class="qty-hint">uses × $1/use USD</span>
+
+    <button class="btn btn-capture" id="btn-capture">📋 Capture Current Listing</button>
+    <div class="status-line" id="capture-status"></div>
+
+    <div id="listing-info">
+      <div class="listing-address" id="listing-address"></div>
+      <div class="listing-meta"    id="listing-meta"></div>
+      <div class="listing-imgs"    id="listing-imgs"></div>
+      <button class="btn btn-primary" id="btn-open-fbmp">Open FBMP Create Listing →</button>
+      <button class="btn btn-ghost"   id="btn-clear">Clear captured listing</button>
+    </div>
+
+    <div id="credits-section">
+      <div class="credits-bar">
+        <span id="credits-text">Credits loading…</span>
+        <button class="btn-refresh" id="btn-refresh-credits" title="Refresh credits">↻</button>
       </div>
-      <button class="btn btn-primary" id="btn-buy">Top up via PayPal</button>
-      <div class="status-line" id="buy-status"></div>
+      <div id="credits-buy">
+        <div class="qty-row">
+          <input type="number" id="credits-qty" value="10" min="1" max="50" />
+          <span class="qty-hint">uses × $1/use USD</span>
+        </div>
+        <button class="btn btn-primary" id="btn-buy">Top up via PayPal</button>
+        <div class="status-line" id="buy-status"></div>
+      </div>
     </div>
   </div>
 

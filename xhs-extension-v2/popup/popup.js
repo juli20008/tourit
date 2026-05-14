@@ -1,6 +1,20 @@
 const XHS_URL = 'https://creator.xiaohongshu.com/publish/publish?source=official&from=tab_switch&target=image';
 
-// ── Render ─────────────────────────────────────────────────────────────────
+// ── Login gate ────────────────────────────────────────────────────────────────
+
+let currentAccountKey = null;
+
+function showLoginGate() {
+  document.getElementById('login-gate').style.display    = 'block';
+  document.getElementById('main-section').style.display  = 'none';
+}
+
+function showMainSection() {
+  document.getElementById('login-gate').style.display    = 'none';
+  document.getElementById('main-section').style.display  = 'block';
+}
+
+// ── Render listing ────────────────────────────────────────────────────────────
 
 function render(listing) {
   const noEl   = document.getElementById('no-listing');
@@ -12,7 +26,6 @@ function render(listing) {
   }
   noEl.style.display   = 'none';
   infoEl.style.display = 'block';
-
   document.getElementById('listing-address').textContent =
     listing.address || listing.mls_number || '—';
   document.getElementById('listing-meta').textContent =
@@ -21,10 +34,7 @@ function render(listing) {
     `${(listing.images || []).length} 张图片待上传`;
 }
 
-// Load saved listing on open
-chrome.storage.local.get('tourit_listing', ({ tourit_listing }) => render(tourit_listing));
-
-// ── Status helpers ─────────────────────────────────────────────────────────
+// ── Status helpers ────────────────────────────────────────────────────────────
 
 function setStatus(elId, msg, isError = false) {
   const el = document.getElementById(elId);
@@ -33,7 +43,58 @@ function setStatus(elId, msg, isError = false) {
   el.classList.toggle('error', isError);
 }
 
-// ── Button: 抓取当前房源 ────────────────────────────────────────────────────
+// ── Credits ───────────────────────────────────────────────────────────────────
+
+function renderCredits(data) {
+  const textEl = document.getElementById('credits-text');
+  const buyEl  = document.getElementById('credits-buy');
+  if (!textEl || !buyEl) return;
+
+  const freeLeft = (data.free_total ?? 5) - (data.free_used ?? 0);
+  const paid     = data.paid_credits ?? 0;
+
+  if (freeLeft > 0) {
+    textEl.textContent  = `AI额度：免费剩余 ${freeLeft} 次`;
+    textEl.style.color  = '#16a34a';
+    buyEl.style.display = 'none';
+  } else if (paid > 0) {
+    textEl.textContent  = `AI额度：付费剩余 ${paid} 次`;
+    textEl.style.color  = '#2563eb';
+    buyEl.style.display = 'none';
+  } else {
+    textEl.textContent  = '⚠ AI额度已用完，请充值继续使用';
+    textEl.style.color  = '#dc2626';
+    buyEl.style.display = 'block';
+  }
+}
+
+function loadCredits() {
+  chrome.storage.local.get(['tourit_account_key', 'tourit_listing'], ({ tourit_account_key, tourit_listing }) => {
+    currentAccountKey = tourit_account_key || null;
+
+    if (!currentAccountKey) {
+      showLoginGate();
+      return;
+    }
+
+    showMainSection();
+    render(tourit_listing || null);
+
+    const textEl = document.getElementById('credits-text');
+    if (textEl) { textEl.textContent = 'AI额度加载中…'; textEl.style.color = '#94a3b8'; }
+
+    fetch(`https://api.tourit.ca/api/xhs/credits?device_id=${encodeURIComponent(currentAccountKey)}`)
+      .then(r => r.json())
+      .then(data => renderCredits(data))
+      .catch(() => {
+        if (textEl) { textEl.textContent = 'AI额度：加载失败'; textEl.style.color = '#94a3b8'; }
+      });
+  });
+}
+
+loadCredits();
+
+// ── Button: 抓取当前房源 ──────────────────────────────────────────────────────
 
 document.getElementById('btn-capture')?.addEventListener('click', () => {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -67,77 +128,28 @@ document.getElementById('btn-capture')?.addEventListener('click', () => {
   });
 });
 
-// ── Button: 发布到小红书 ───────────────────────────────────────────────────
+// ── Button: 发布到小红书 ──────────────────────────────────────────────────────
 
 document.getElementById('btn-open-xhs')?.addEventListener('click', () => {
   chrome.tabs.create({ url: XHS_URL });
   window.close();
 });
 
-// ── Button: 清除 ──────────────────────────────────────────────────────────
+// ── Button: 清除 ──────────────────────────────────────────────────────────────
 
 document.getElementById('btn-clear')?.addEventListener('click', () => {
   chrome.storage.local.remove('tourit_listing', () => render(null));
 });
 
-// ── Credits ───────────────────────────────────────────────────────────────────
-
-let currentAccountKey = null;
-
-function renderCredits(data) {
-  const textEl = document.getElementById('credits-text');
-  const buyEl  = document.getElementById('credits-buy');
-  if (!textEl || !buyEl) return;
-
-  const freeLeft = (data.free_total ?? 5) - (data.free_used ?? 0);
-  const paid     = data.paid_credits ?? 0;
-
-  if (freeLeft > 0) {
-    textEl.textContent  = `AI额度：免费剩余 ${freeLeft} 次`;
-    textEl.style.color  = '#16a34a';
-    buyEl.style.display = 'none';
-  } else if (paid > 0) {
-    textEl.textContent  = `AI额度：付费剩余 ${paid} 次`;
-    textEl.style.color  = '#2563eb';
-    buyEl.style.display = 'none';
-  } else {
-    textEl.textContent  = '⚠ AI额度已用完';
-    textEl.style.color  = '#dc2626';
-    buyEl.style.display = 'block';
-  }
-}
-
-function loadCredits() {
-  chrome.storage.local.get('tourit_account_key', ({ tourit_account_key }) => {
-    currentAccountKey = tourit_account_key || null;
-    const textEl = document.getElementById('credits-text');
-
-    if (!currentAccountKey) {
-      if (textEl) {
-        textEl.textContent = '请先在 tourit.ca 登录经纪人账户';
-        textEl.style.color = '#94a3b8';
-      }
-      const buyEl = document.getElementById('credits-buy');
-      if (buyEl) buyEl.style.display = 'none';
-      return;
-    }
-
-    fetch(`https://api.tourit.ca/api/xhs/credits?device_id=${encodeURIComponent(currentAccountKey)}`)
-      .then(r => r.json())
-      .then(data => renderCredits(data))
-      .catch(() => {
-        if (textEl) { textEl.textContent = 'AI额度：加载失败'; textEl.style.color = '#94a3b8'; }
-      });
-  });
-}
-
-loadCredits();
+// ── Refresh credits ───────────────────────────────────────────────────────────
 
 document.getElementById('btn-refresh-credits')?.addEventListener('click', () => {
   const textEl = document.getElementById('credits-text');
   if (textEl) { textEl.textContent = '刷新中…'; textEl.style.color = '#94a3b8'; }
   loadCredits();
 });
+
+// ── Buy / top-up ──────────────────────────────────────────────────────────────
 
 document.getElementById('credits-qty')?.addEventListener('input', (e) => {
   const qty = Math.max(1, Math.min(50, parseInt(e.target.value) || 1));
@@ -146,10 +158,7 @@ document.getElementById('credits-qty')?.addEventListener('input', (e) => {
 });
 
 document.getElementById('btn-buy')?.addEventListener('click', () => {
-  if (!currentAccountKey) {
-    setStatus('buy-status', '请先在 tourit.ca 登录经纪人账户。', true);
-    return;
-  }
+  if (!currentAccountKey) return;
   const qty = Math.max(1, Math.min(50, parseInt(document.getElementById('credits-qty')?.value) || 10));
   setStatus('buy-status', '正在创建订单…');
 
@@ -169,4 +178,3 @@ document.getElementById('btn-buy')?.addEventListener('click', () => {
     })
     .catch(e => setStatus('buy-status', '网络错误：' + e.message, true));
 });
-

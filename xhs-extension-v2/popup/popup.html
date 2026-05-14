@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -24,6 +24,26 @@
     }
     header h1 { font-size: 14px; font-weight: 700; color: #0f172a; }
     header span { font-size: 11px; color: #94a3b8; margin-left: auto; }
+
+    /* ── Login gate ── */
+    #login-gate {
+      display: none;
+      text-align: center;
+      padding: 12px 0 4px;
+    }
+    #login-gate .gate-icon { font-size: 28px; margin-bottom: 8px; }
+    #login-gate p { font-size: 12px; color: #64748b; line-height: 1.6; margin-bottom: 12px; }
+    #login-gate a {
+      display: block; width: 100%; padding: 9px;
+      border-radius: 8px; font-size: 13px; font-weight: 600;
+      background: #ff2442; color: #fff; text-decoration: none;
+      transition: background 0.15s; margin-bottom: 6px;
+    }
+    #login-gate a:hover { background: #cc1a33; }
+
+    /* ── Main section ── */
+    #main-section { display: none; }
+
     #no-listing {
       color: #64748b;
       font-size: 12px;
@@ -35,6 +55,7 @@
     .listing-address { font-weight: 700; font-size: 13px; color: #0f172a; margin-bottom: 4px; }
     .listing-meta { font-size: 11px; color: #64748b; margin-bottom: 2px; }
     .listing-imgs { font-size: 11px; color: #ff2442; margin-bottom: 12px; }
+
     .btn {
       display: block; width: 100%; padding: 9px;
       border-radius: 8px; font-size: 13px; font-weight: 600;
@@ -47,12 +68,15 @@
     .btn-capture:hover { background: #1e293b; }
     .btn-ghost   { background: #f1f5f9; color: #475569; }
     .btn-ghost:hover   { background: #e2e8f0; }
+
     .status-line {
       font-size: 11px; min-height: 16px;
       margin-bottom: 6px; text-align: center;
     }
     #capture-status { color: #16a34a; }
     .status-line.error { color: #dc2626; }
+
+    /* ── Credits ── */
     #credits-section {
       margin-top: 10px; padding-top: 10px;
       border-top: 1px solid #f1f5f9;
@@ -66,6 +90,7 @@
       color: #94a3b8; font-size: 13px; padding: 0 2px; line-height: 1;
     }
     .btn-refresh:hover { color: #64748b; }
+
     #credits-buy { display: none; margin-top: 8px; }
     #credits-buy .qty-row {
       display: flex; gap: 6px; align-items: center; margin-bottom: 6px;
@@ -75,6 +100,7 @@
       border: 1px solid #e2e8f0; font-size: 13px; text-align: center;
     }
     #credits-buy .qty-hint { font-size: 11px; color: #94a3b8; }
+
     footer {
       margin-top: 12px; padding-top: 10px;
       border-top: 1px solid #f1f5f9;
@@ -88,38 +114,48 @@
     <span>一键发布房源</span>
   </header>
 
-  <div id="no-listing">
-    暂无房源。<br />
-    在 <strong>tourit.ca</strong> 打开一个房源并点击「发布到小红书」，或使用「抓取当前房源」。
+  <!-- Shown when no agent is logged in -->
+  <div id="login-gate">
+    <div class="gate-icon">🔐</div>
+    <p>请先登录经纪人账号<br />才能使用此功能</p>
+    <a href="https://www.tourit.ca/agent-login" target="_blank">前往登录 tourit.ca →</a>
   </div>
 
-  <button class="btn btn-capture" id="btn-capture">📋 抓取当前房源</button>
-  <div class="status-line" id="capture-status"></div>
-
-  <div id="listing-info">
-    <div class="listing-address" id="listing-address"></div>
-    <div class="listing-meta"    id="listing-meta"></div>
-    <div class="listing-imgs"    id="listing-imgs"></div>
-    <button class="btn btn-xhs"   id="btn-open-xhs">发布到小红书 →</button>
-    <button class="btn btn-ghost" id="btn-clear">清除已抓取房源</button>
-  </div>
-
-<div id="credits-section">
-  <div class="credits-bar">
-    <span id="credits-text">AI额度加载中…</span>
-    <button class="btn-refresh" id="btn-refresh-credits" title="刷新额度">↻</button>
-  </div>
-  <div id="credits-buy">
-    <div class="qty-row">
-      <input type="number" id="credits-qty" value="10" min="1" max="50" />
-      <span class="qty-hint">次 × $1/次 USD</span>
+  <!-- Shown when agent is logged in -->
+  <div id="main-section">
+    <div id="no-listing">
+      暂无房源。<br />
+      在 <strong>tourit.ca</strong> 打开一个房源并点击「发布到小红书」，或使用「抓取当前房源」。
     </div>
-    <button class="btn btn-xhs" id="btn-buy">前往 PayPal 充值</button>
-    <div class="status-line" id="buy-status"></div>
-  </div>
-</div>
 
-<footer>Tourit.ca &middot; Julie Li, Bay Street Group</footer>
+    <button class="btn btn-capture" id="btn-capture">📋 抓取当前房源</button>
+    <div class="status-line" id="capture-status"></div>
+
+    <div id="listing-info">
+      <div class="listing-address" id="listing-address"></div>
+      <div class="listing-meta"    id="listing-meta"></div>
+      <div class="listing-imgs"    id="listing-imgs"></div>
+      <button class="btn btn-xhs"   id="btn-open-xhs">发布到小红书 →</button>
+      <button class="btn btn-ghost" id="btn-clear">清除已抓取房源</button>
+    </div>
+
+    <div id="credits-section">
+      <div class="credits-bar">
+        <span id="credits-text">AI额度加载中…</span>
+        <button class="btn-refresh" id="btn-refresh-credits" title="刷新额度">↻</button>
+      </div>
+      <div id="credits-buy">
+        <div class="qty-row">
+          <input type="number" id="credits-qty" value="10" min="1" max="50" />
+          <span class="qty-hint">次 × $1/次 USD</span>
+        </div>
+        <button class="btn btn-xhs" id="btn-buy">前往 PayPal 充值</button>
+        <div class="status-line" id="buy-status"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>Tourit.ca &middot; Julie Li, Bay Street Group</footer>
 
   <script src="popup.js"></script>
 </body>
