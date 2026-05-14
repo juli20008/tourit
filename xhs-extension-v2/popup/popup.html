@@ -52,6 +52,29 @@
       margin-bottom: 6px; text-align: center;
     }
     #capture-status { color: #16a34a; }
+    .status-line.error { color: #dc2626; }
+    #credits-section {
+      margin-top: 10px; padding-top: 10px;
+      border-top: 1px solid #f1f5f9;
+    }
+    .credits-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 11px; color: #64748b; margin-bottom: 4px;
+    }
+    .btn-refresh {
+      background: none; border: none; cursor: pointer;
+      color: #94a3b8; font-size: 13px; padding: 0 2px; line-height: 1;
+    }
+    .btn-refresh:hover { color: #64748b; }
+    #credits-buy { display: none; margin-top: 8px; }
+    #credits-buy .qty-row {
+      display: flex; gap: 6px; align-items: center; margin-bottom: 6px;
+    }
+    #credits-buy input[type=number] {
+      width: 56px; padding: 5px 6px; border-radius: 6px;
+      border: 1px solid #e2e8f0; font-size: 13px; text-align: center;
+    }
+    #credits-buy .qty-hint { font-size: 11px; color: #94a3b8; }
     footer {
       margin-top: 12px; padding-top: 10px;
       border-top: 1px solid #f1f5f9;
@@ -80,6 +103,21 @@
     <button class="btn btn-xhs"   id="btn-open-xhs">发布到小红书 →</button>
     <button class="btn btn-ghost" id="btn-clear">清除已抓取房源</button>
   </div>
+
+<div id="credits-section">
+  <div class="credits-bar">
+    <span id="credits-text">AI额度加载中…</span>
+    <button class="btn-refresh" id="btn-refresh-credits" title="刷新额度">↻</button>
+  </div>
+  <div id="credits-buy">
+    <div class="qty-row">
+      <input type="number" id="credits-qty" value="10" min="1" max="50" />
+      <span class="qty-hint">次 × $1/次 USD</span>
+    </div>
+    <button class="btn btn-xhs" id="btn-buy">前往 PayPal 充值</button>
+    <div class="status-line" id="buy-status"></div>
+  </div>
+</div>
 
 <footer>Tourit.ca &middot; Julie Li, Bay Street Group</footer>
 

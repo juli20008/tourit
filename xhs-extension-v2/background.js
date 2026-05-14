@@ -2,6 +2,20 @@
 
 const XHS_URL = 'https://creator.xiaohongshu.com/publish/publish?source=official&from=tab_switch&target=image';
 
+// ── Generate device ID on first install ──────────────────────────────────────
+
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.storage.local.get('tourit_device_id', ({ tourit_device_id }) => {
+    if (!tourit_device_id) {
+      const id = crypto.randomUUID();
+      chrome.storage.local.set({ tourit_device_id: id });
+      console.log('[Tourit XHS] Device ID generated:', id);
+    }
+  });
+});
+
+// ── Message listener ──────────────────────────────────────────────────────────
+
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 
   // ── CDN fetch (tourit.ca listings) ────────────────────────────────────────
@@ -44,8 +58,6 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   }
 
   // ── Desktop decode (local folder uploads) ────────────────────────────────
-  // Reads base64 data-URLs from storage and converts to binary here in the
-  // service worker so the XHS page's main thread is never blocked.
   if (msg.type === 'TOURIT_FETCH_DESKTOP_IMAGES') {
     chrome.storage.local.get('tourit_listing', ({ tourit_listing: listing }) => {
       if (!listing || listing.source !== 'desktop' || !listing.images?.length) {
@@ -63,7 +75,6 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           const b64    = dataURL.slice(comma + 1);
           const mime   = (header.match(/:(.*?);/) || ['', 'image/jpeg'])[1];
           const ext    = mime.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg';
-          // Uint8Array.from is much faster than a manual charCodeAt loop
           const binary = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
           images.push({
             ok:   true,
@@ -84,9 +95,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true; // async response
   }
 
-  // ── Translation (en → zh-CN via Google Translate free endpoint) ─────────────
-  // Handled in the service worker so host_permissions bypass applies and
-  // the XHS page's origin is never sent as the fetch origin.
+  // ── Translation (en → zh-CN via Google Translate free endpoint) ─────────
   if (msg.type === 'TOURIT_TRANSLATE') {
     const text = (msg.text || '').trim();
     if (!text) { sendResponse({ text: '' }); return false; }
@@ -97,7 +106,6 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     fetch(url)
       .then(r => r.json())
       .then(data => {
-        // data[0] = [[translated_chunk, original_chunk, ...], ...]
         const translated = (data[0] || []).map(c => c[0] || '').join('');
         sendResponse({ text: translated });
       })
@@ -109,17 +117,24 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true; // async response
   }
 
-  // ── AI rewrite via Tourit backend (DeepSeek, no key needed in extension) ────
+  // ── AI rewrite via Tourit backend ─────────────────────────────────────────
   if (msg.type === 'TOURIT_CLAUDE_REWRITE') {
-    const { listing, city_zh, type_zh, translated_desc } = msg;
+    const { listing, city_zh, type_zh, translated_desc, device_id } = msg;
 
     fetch('https://api.tourit.ca/api/xhs/rewrite', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ listing, city_zh, type_zh, translated_desc }),
+      body: JSON.stringify({ listing, city_zh, type_zh, translated_desc, device_id: device_id || '' }),
     })
-      .then(r => r.json())
-      .then(data => sendResponse({ text: data.text || '' }))
+      .then(async (r) => {
+        if (r.status === 402) {
+          const data = await r.json();
+          sendResponse({ error: 'no_credits', ...data });
+          return;
+        }
+        const data = await r.json();
+        sendResponse({ text: data.text || '' });
+      })
       .catch(e => {
         console.warn('[Tourit XHS] rewrite failed:', e.message);
         sendResponse({ text: '', error: e.message });
