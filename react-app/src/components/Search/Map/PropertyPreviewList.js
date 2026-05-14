@@ -26,14 +26,16 @@ const PreviewItem = ({ property, onSelect }) => {
 			onClick={() => onSelect && onSelect(property)}
 		>
 			{/* Thumbnail */}
-			<div className="relative flex-shrink-0 w-[128px] h-[104px] rounded overflow-hidden bg-[#dadad5]">
-				{imgSrc && (
+			<div className="relative flex-shrink-0 w-[128px] h-[104px] rounded overflow-hidden bg-[#dadad5] flex items-center justify-center">
+				{imgSrc ? (
 				<img
-					className="w-full h-full object-cover"
+					className="absolute inset-0 w-full h-full object-cover"
 					src={imgSrc}
 					alt=""
 					onError={() => setImgSrc(null)}
 				/>
+				) : (
+				<span className="text-[#9aabb8] text-[10px] text-center px-2">Photos coming soon</span>
 				)}
 				<span className="absolute bottom-1 left-1.5 bg-black/55 text-white text-[9px] font-semibold uppercase tracking-wide px-1.5 py-[2px] rounded-full leading-tight">
 					{statusLabel(property.status)}

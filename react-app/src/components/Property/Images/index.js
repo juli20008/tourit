@@ -46,7 +46,7 @@ const Images = ({ property }) => {
 				/>
 				) : (
 				<div className="w-full h-full flex items-center justify-center">
-					<span className="text-[#9aabb8] text-sm">No photos available</span>
+					<span className="text-[#9aabb8] text-sm">Photos coming soon</span>
 				</div>
 				)}
 
