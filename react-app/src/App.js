@@ -146,6 +146,7 @@ function App() {
 			</Switch>
 			<footer className="app-footer">
 				<span style={{ marginRight: '12px', opacity: 0.6 }}>⚠ Beta version — features may change without notice.</span>
+				<img src="/Yollow.png" alt="Tourit" style={{ height: 18, verticalAlign: 'middle', marginRight: 6, opacity: 0.75 }} />
 				&copy; 2026 Tourit. All rights reserved. &nbsp;&middot;&nbsp; Julie Li, Bay Street Group &nbsp;&middot;&nbsp; 905-909-0101
 			</footer>
 		</BrowserRouter>
