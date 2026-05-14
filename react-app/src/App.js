@@ -76,11 +76,9 @@ function App() {
 
 	useEffect(() => {
 		(async () => {
-			await Promise.all([
-				dispatch(authenticate()),
-				dispatch(initWhitelabel()),
-			]);
+			await dispatch(authenticate());
 			setLoaded(true);
+			dispatch(initWhitelabel());
 		})();
 	}, [dispatch]);
 
