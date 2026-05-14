@@ -34,9 +34,44 @@
     });
   }
 
+  function getFbmpAccountKey() {
+    return new Promise(resolve => {
+      chrome.storage.local.get('tourit_account_key', ({ tourit_account_key }) => {
+        resolve(tourit_account_key ? `fbmp_${tourit_account_key}` : null);
+      });
+    });
+  }
+
+  async function checkAndUseCredit(accountKey) {
+    try {
+      const r = await fetch('https://api.tourit.ca/api/fbmp/use', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ device_id: accountKey }),
+      });
+      if (r.status === 402) return 'no_credits';
+      return r.ok ? 'ok' : 'error';
+    } catch { return 'ok'; } // fail open on network error
+  }
+
   async function startFill(listing) {
     const btn = document.getElementById('tourit-fill-btn');
     if (btn) btn.disabled = true;
+
+    // ── Credit check ──────────────────────────────────────────────────────────
+    const accountKey = await getFbmpAccountKey();
+    if (!accountKey) {
+      showStatus('Please log in to your agent account on tourit.ca first.', 'warn');
+      if (btn) btn.disabled = false;
+      return;
+    }
+    showStatus('Checking usage credits…', 'info');
+    const creditResult = await checkAndUseCredit(accountKey);
+    if (creditResult === 'no_credits') {
+      showStatus('No credits remaining — open the extension popup to top up.', 'warn');
+      if (btn) btn.disabled = false;
+      return;
+    }
 
     const imageUrls = listing.images || [];
     let imageFiles = [];

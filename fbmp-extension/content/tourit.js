@@ -1,13 +1,36 @@
-// Runs on tourit.ca — captures listing data whenever a listing is open
-// (modal OR standalone page) and saves to chrome.storage.local.
-// Also injects a floating "Save to FBMP" button on the page.
+// Runs on tourit.ca — captures listing data and injects "Save to FBMP" button.
+// Only visible when an agent is logged in.
 
 (() => {
-  if (window.__touritCaptureLoaded) return;
-  window.__touritCaptureLoaded = true;
+  if (window.__touritFbmpCaptureLoaded) return;
+  window.__touritFbmpCaptureLoaded = true;
 
   const EMBED_ID = 'tourit-listing-data';
   const BTN_ID   = 'tourit-capture-btn';
+
+  // ─── Agent status ─────────────────────────────────────────────────────────
+
+  function readUserData() {
+    try {
+      const el = document.getElementById('tourit-user-data');
+      if (!el) return null;
+      return JSON.parse(el.textContent);
+    } catch { return null; }
+  }
+
+  function isAgentLoggedIn() {
+    const d = readUserData();
+    return !!(d?.is_agent && d?.account_key);
+  }
+
+  function syncAccountKey() {
+    const d = readUserData();
+    if (d?.is_agent && d?.account_key) {
+      chrome.storage.local.set({ tourit_account_key: d.account_key });
+    } else {
+      chrome.storage.local.remove('tourit_account_key');
+    }
+  }
 
   // ─── Extract listing from embedded JSON ──────────────────────────────────
 
@@ -23,27 +46,39 @@
   // ─── Save to extension storage ───────────────────────────────────────────
 
   function capture(listing) {
-    chrome.storage.local.set({ tourit_listing: listing }, () => {
+    const enriched = { ...listing, site_origin: window.location.origin };
+    chrome.storage.local.set({ tourit_listing: enriched }, () => {
       showToast(`✓ Captured: ${listing.address || listing.mls_number}`);
       updateBtn(true);
     });
   }
 
-  // ─── MutationObserver — watches document.head for embed appearing/changing
+  // ─── MutationObserver ─────────────────────────────────────────────────────
 
   const observer = new MutationObserver(() => {
-    const listing = extractListing();
-    if (listing) capture(listing);
-    else updateBtn(false);
+    syncAccountKey();
+    if (isAgentLoggedIn()) {
+      const listing = extractListing();
+      if (listing) capture(listing);
+      else updateBtn(false);
+      if (document.body) injectBtn();
+    } else {
+      removeBtn();
+    }
   });
-
   observer.observe(document.head, { childList: true, subtree: true, characterData: true });
 
-  // Also try immediately in case embed is already there on page load
-  const existing = extractListing();
-  if (existing) capture(existing);
+  if (isAgentLoggedIn()) {
+    syncAccountKey();
+    const existing = extractListing();
+    if (existing) capture(existing);
+  }
 
-  // ─── Floating "Save to FBMP" button ──────────────────────────────────────
+  // ─── Floating button ──────────────────────────────────────────────────────
+
+  function removeBtn() {
+    document.getElementById(BTN_ID)?.remove();
+  }
 
   function injectBtn() {
     if (document.getElementById(BTN_ID)) return;
@@ -58,22 +93,14 @@
       'font:600 12px/1 system-ui,sans-serif',
       'border:none', 'cursor:pointer',
       'box-shadow:0 4px 16px rgba(37,99,235,0.4)',
-      'transition:opacity 0.2s, background 0.15s',
-      'opacity:0.9',
+      'transition:opacity 0.2s, background 0.15s', 'opacity:0.9',
     ].join(';');
-
     btn.addEventListener('mouseenter', () => { btn.style.opacity = '1'; btn.style.background = '#1d4ed8'; });
     btn.addEventListener('mouseleave', () => { btn.style.opacity = '0.9'; btn.style.background = '#2563eb'; });
-
     btn.addEventListener('click', () => {
       const listing = extractListing();
-      if (listing) {
-        capture(listing);
-      } else {
-        showToast('⚠ No listing open — open a listing first');
-      }
+      listing ? capture(listing) : showToast('⚠ No listing open — open a listing first');
     });
-
     document.body.appendChild(btn);
   }
 
@@ -90,11 +117,12 @@
     }, 3000);
   }
 
-  // Inject button once DOM is ready
-  if (document.body) injectBtn();
-  else document.addEventListener('DOMContentLoaded', injectBtn);
+  if (isAgentLoggedIn()) {
+    if (document.body) injectBtn();
+    else document.addEventListener('DOMContentLoaded', injectBtn);
+  }
 
-  // ─── Toast notification ───────────────────────────────────────────────────
+  // ─── Toast ────────────────────────────────────────────────────────────────
 
   function showToast(msg) {
     let toast = document.getElementById('tourit-toast');

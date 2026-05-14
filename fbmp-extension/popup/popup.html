@@ -22,16 +22,9 @@
       padding-bottom: 12px;
       border-bottom: 1px solid #e2e8f0;
     }
-    header h1 {
-      font-size: 14px;
-      font-weight: 700;
-      color: #0f172a;
-    }
-    header span {
-      font-size: 11px;
-      color: #94a3b8;
-      margin-left: auto;
-    }
+    header img { width: 28px; height: 28px; border-radius: 6px; }
+    header h1 { font-size: 14px; font-weight: 700; color: #0f172a; }
+    header span { font-size: 11px; color: #94a3b8; margin-left: auto; }
     #no-listing {
       color: #64748b;
       font-size: 12px;
@@ -39,35 +32,14 @@
       text-align: center;
       padding: 12px 0;
     }
-    #listing-info {
-      display: none;
-    }
-    .listing-address {
-      font-weight: 700;
-      font-size: 13px;
-      color: #0f172a;
-      margin-bottom: 4px;
-    }
-    .listing-meta {
-      font-size: 11px;
-      color: #64748b;
-      margin-bottom: 2px;
-    }
-    .listing-imgs {
-      font-size: 11px;
-      color: #3b82f6;
-      margin-bottom: 12px;
-    }
+    #listing-info { display: none; }
+    .listing-address { font-weight: 700; font-size: 13px; color: #0f172a; margin-bottom: 4px; }
+    .listing-meta { font-size: 11px; color: #64748b; margin-bottom: 2px; }
+    .listing-imgs { font-size: 11px; color: #2563eb; margin-bottom: 12px; }
     .btn {
-      display: block;
-      width: 100%;
-      padding: 9px;
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      border: none;
-      margin-bottom: 6px;
+      display: block; width: 100%; padding: 9px;
+      border-radius: 8px; font-size: 13px; font-weight: 600;
+      cursor: pointer; border: none; margin-bottom: 6px;
       transition: background 0.15s;
     }
     .btn-primary { background: #2563eb; color: #fff; }
@@ -76,36 +48,77 @@
     .btn-ghost:hover { background: #e2e8f0; }
     .btn-capture { background: #0f172a; color: #fff; }
     .btn-capture:hover { background: #1e293b; }
-    footer {
-      margin-top: 12px;
-      padding-top: 10px;
+    .status-line {
+      font-size: 11px; min-height: 16px;
+      margin-bottom: 6px; text-align: center;
+    }
+    #capture-status { color: #16a34a; }
+    .status-line.error { color: #dc2626; }
+    #credits-section {
+      margin-top: 10px; padding-top: 10px;
       border-top: 1px solid #f1f5f9;
-      font-size: 10px;
-      color: #94a3b8;
-      text-align: center;
+    }
+    .credits-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 11px; color: #64748b; margin-bottom: 4px;
+    }
+    .btn-refresh {
+      background: none; border: none; cursor: pointer;
+      color: #94a3b8; font-size: 13px; padding: 0 2px; line-height: 1;
+    }
+    .btn-refresh:hover { color: #64748b; }
+    #credits-buy { display: none; margin-top: 8px; }
+    #credits-buy .qty-row {
+      display: flex; gap: 6px; align-items: center; margin-bottom: 6px;
+    }
+    #credits-buy input[type=number] {
+      width: 56px; padding: 5px 6px; border-radius: 6px;
+      border: 1px solid #e2e8f0; font-size: 13px; text-align: center;
+    }
+    #credits-buy .qty-hint { font-size: 11px; color: #94a3b8; }
+    footer {
+      margin-top: 12px; padding-top: 10px;
+      border-top: 1px solid #f1f5f9;
+      font-size: 10px; color: #94a3b8; text-align: center;
     }
   </style>
 </head>
 <body>
   <header>
+    <img src="../icons/icon48.png" alt="Tourit" />
     <h1>Tourit → FBMP</h1>
-    <span>Home Tours Simplified.</span>
+    <span>One-click listing sync</span>
   </header>
 
   <div id="no-listing">
     No listing captured yet.<br />
-    Open a listing on <strong>tourit.ca</strong>, then click <strong>Save to FBMP</strong> on the page — or use the button below.
+    Open a listing on <strong>tourit.ca</strong> and click <strong>Save to FBMP</strong>, or use the button below.
   </div>
 
   <button class="btn btn-capture" id="btn-capture">📋 Capture Current Listing</button>
-  <div id="capture-status" style="font-size:11px;color:#16a34a;min-height:16px;margin-bottom:6px;text-align:center;"></div>
+  <div class="status-line" id="capture-status"></div>
 
   <div id="listing-info">
     <div class="listing-address" id="listing-address"></div>
-    <div class="listing-meta" id="listing-meta"></div>
-    <div class="listing-imgs" id="listing-imgs"></div>
+    <div class="listing-meta"    id="listing-meta"></div>
+    <div class="listing-imgs"    id="listing-imgs"></div>
     <button class="btn btn-primary" id="btn-open-fbmp">Open FBMP Create Listing →</button>
-    <button class="btn btn-ghost" id="btn-clear">Clear captured listing</button>
+    <button class="btn btn-ghost"   id="btn-clear">Clear captured listing</button>
+  </div>
+
+  <div id="credits-section">
+    <div class="credits-bar">
+      <span id="credits-text">Credits loading…</span>
+      <button class="btn-refresh" id="btn-refresh-credits" title="Refresh credits">↻</button>
+    </div>
+    <div id="credits-buy">
+      <div class="qty-row">
+        <input type="number" id="credits-qty" value="10" min="1" max="50" />
+        <span class="qty-hint">uses × $1/use USD</span>
+      </div>
+      <button class="btn btn-primary" id="btn-buy">Top up via PayPal</button>
+      <div class="status-line" id="buy-status"></div>
+    </div>
   </div>
 
   <footer>Tourit.ca &middot; Julie Li, Bay Street Group</footer>

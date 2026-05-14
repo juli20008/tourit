@@ -1,23 +1,25 @@
 {
   "manifest_version": 3,
   "name": "Tourit → FBMP Sync",
-  "version": "1.0",
-  "description": "Sync Tourit.ca listings to Facebook Marketplace",
-  "permissions": ["activeTab", "scripting", "storage"],
+  "version": "2.0",
+  "description": "Sync Tourit.ca listings to Facebook Marketplace — agents only",
+  "permissions": ["activeTab", "scripting", "storage", "unlimitedStorage"],
   "host_permissions": [
     "https://tourit.ca/*",
+    "https://*.tourit.ca/*",
     "https://*.supabase.co/*",
     "https://*.supabase.in/*",
     "https://www.facebook.com/*",
     "https://*.realtor.ca/*",
-    "https://*.crea.ca/*"
+    "https://*.crea.ca/*",
+    "https://api.tourit.ca/*"
   ],
   "background": {
     "service_worker": "background.js"
   },
   "content_scripts": [
     {
-      "matches": ["https://tourit.ca/*"],
+      "matches": ["https://tourit.ca/*", "https://*.tourit.ca/*"],
       "js": ["content/tourit.js"],
       "run_at": "document_idle"
     },
@@ -27,7 +29,19 @@
       "run_at": "document_idle"
     }
   ],
+  "icons": {
+    "16":  "icons/icon16.png",
+    "32":  "icons/icon32.png",
+    "48":  "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
   "action": {
-    "default_popup": "popup/popup.html"
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16":  "icons/icon16.png",
+      "32":  "icons/icon32.png",
+      "48":  "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
   }
 }

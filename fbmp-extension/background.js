@@ -1,5 +1,5 @@
-// Service worker — fetches images from Tourit/Supabase URLs and returns
-// them as transferable ArrayBuffers so fbmp.js can reconstruct File objects.
+// Service worker — fetches images from Tourit/CDN URLs for the FBMP fill pipeline.
+// account_key is set by content/tourit.js when an agent logs in to tourit.ca.
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type !== 'TOURIT_FETCH_IMAGES') return false;
@@ -21,7 +21,6 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
             ext === 'webp' ? 'image/webp' :
             ext === 'gif'  ? 'image/gif'  : 'image/jpeg';
           const name = url.split('/').pop().split('?')[0] || `photo.${ext}`;
-          // Plain array survives structured-clone across MV3 message boundary
           return { name, mime, data: Array.from(new Uint8Array(buf)) };
         })
         .catch((err) => {
@@ -30,10 +29,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         })
     )
   ).then((results) => {
-    const images = results.filter(Boolean);
-    console.log(`[Tourit FBMP] Fetched ${images.length}/${urls.length} images`);
-    sendResponse({ images });
+    sendResponse({ images: results.filter(Boolean) });
   });
 
-  return true; // keep message channel open for async sendResponse
+  return true;
 });
