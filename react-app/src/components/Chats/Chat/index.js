@@ -27,7 +27,7 @@ const Chat = ({ setShowChannels }) => {
 	const focusRef = useRef();
 
 	useEffect(() => {
-		socket = io();
+		socket = io(process.env.REACT_APP_API_URL || '');
 		socket.emit("join", channelId.toString());
 
 		socket.on("chat", (incoming) => {
