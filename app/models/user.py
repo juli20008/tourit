@@ -83,7 +83,34 @@ class User(db.Model, UserMixin):
                 recent_review = ""
 
 
-            areas = [area.city() for area in self.areas]
+            # Batch all Canadian FSA lookups into one query instead of N.
+            from .agent_area import _FSA_CACHE
+            canadian = [(a, a.zip[:3].upper()) for a in self.areas if a.zip and len(a.zip) <= 3]
+            other    = [a for a in self.areas if not (a.zip and len(a.zip) <= 3)]
+            uncached = [fsa for _, fsa in canadian if fsa not in _FSA_CACHE]
+            if uncached:
+                try:
+                    from .mls_listing import MlsListing
+                    rows = (
+                        MlsListing.query
+                        .filter(db.or_(*[MlsListing.zip.ilike(f"{fsa}%") for fsa in set(uncached)]))
+                        .with_entities(MlsListing.zip, MlsListing.city)
+                        .all()
+                    )
+                    for r in rows:
+                        if r.zip and r.city:
+                            k = r.zip[:3].upper()
+                            bucket = _FSA_CACHE.setdefault(k, [])
+                            if r.city not in bucket and len(bucket) < 5:
+                                bucket.append(r.city)
+                    for fsa in uncached:
+                        _FSA_CACHE.setdefault(fsa, [])
+                except Exception:
+                    pass
+            areas = (
+                [{"zip": a.zip, "cities": _FSA_CACHE.get(fsa, [])} for a, fsa in canadian]
+                + [a.city() for a in other]
+            )
 
             try:
                 availability = [availability.to_dict() for availability in self.availabilities]
