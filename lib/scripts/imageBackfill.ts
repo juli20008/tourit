@@ -89,27 +89,11 @@ async function loadNeedsPhotos(): Promise<Set<string>> {
   return set;
 }
 
-const CDN_BASE = 'https://ddfcdn.realtor.ca/listings';
-
-function buildCdnUrls(
-  externalId: string | null,
-  photosTimestamp: string | null,
-  photosCount: number | null
-): string[] {
-  if (!externalId || !photosTimestamp) return [];
-  const count = Math.max(photosCount || 1, 1);
-  const eid = externalId.toLowerCase();
-  return Array.from({ length: count }, (_, i) =>
-    `${CDN_BASE}/TS${photosTimestamp}/reb82/highres/4/${eid}_${i + 1}.jpg`
-  );
-}
-
-// ─── Direct fetch: look up Supabase metadata, try DDF GetObject, fall back to CDN ──
+// ─── Direct fetch: look up DDF GetObject using Supabase id (numeric ListingKey) ──
 // Used when --mls is specified — avoids scanning 200k DDF pages.
-// Strategy:
-//  1. Get external_id, photos_timestamp, photos_count from Supabase
-//  2. Try GetObject with the Supabase id (works when id = numeric DDF ListingKey)
-//  3. If GetObject fails or returns 0 URLs, build CDN URLs from photos_timestamp
+// Only works when Supabase id is a numeric DDF ListingKey (non-TREB boards).
+// TREB listings (N/C/W/E/S/X prefix) have alphanumeric MLS numbers as id
+// and require the full DDF scan path.
 
 async function fetchDirectByMls(
   mlsNumbers: string[],
@@ -117,7 +101,7 @@ async function fetchDirectByMls(
 ): Promise<{ ok: number; zero: number; failed: number }> {
   const mlsList = mlsNumbers.map(m => `"${m}"`).join(',');
   const url = `${SUPABASE_URL}/rest/v1/mls_listings` +
-    `?select=mls_number,id,external_id,photos_timestamp,photos_count` +
+    `?select=mls_number,id` +
     `&mls_number=in.(${mlsList})`;
   const res = await fetch(url, {
     headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, Accept: 'application/json' },
@@ -128,49 +112,31 @@ async function fetchDirectByMls(
   let ok = 0, zero = 0, failed = 0;
 
   for (const row of rows) {
-    const mls           = String(row.mls_number ?? '');
-    const listingKey    = row.id;
-    const externalId    = row.external_id ?? null;
-    const photosTs      = row.photos_timestamp ?? null;
-    const photosCount   = row.photos_count != null ? Number(row.photos_count) : null;
+    const mls        = String(row.mls_number ?? '');
+    const listingKey = row.id;
 
     if (!mls) { failed++; continue; }
 
-    await sleep(DELAY_MS);
-
-    let urls: string[] = [];
-
-    // Try DDF GetObject first (only works when id is a numeric DDF ListingKey)
-    if (listingKey && /^\d+$/.test(String(listingKey))) {
-      try {
-        urls = await photoSession.fetchPhotoUrls(listingKey);
-        if (urls.length > 0) {
-          console.log(`  ✓ ${mls} (GetObject key=${listingKey}): ${urls.length} photo(s)`);
-        }
-      } catch (e: any) {
-        console.log(`  ~ ${mls}: GetObject failed (${e.message}), trying CDN fallback…`);
-      }
-    }
-
-    // CDN fallback: reconstruct URLs from photos_timestamp
-    if (urls.length === 0) {
-      urls = buildCdnUrls(externalId ?? mls, photosTs, photosCount);
-      if (urls.length > 0) {
-        console.log(`  ✓ ${mls} (CDN ts=${photosTs}): ${urls.length} URL(s) built`);
-      }
-    }
-
-    if (urls.length > 0) {
-      try {
-        await patchImages(mls, urls);
-        ok++;
-      } catch (e: any) {
-        console.warn(`  ✗ ${mls}: patchImages failed: ${e.message}`);
-        failed++;
-      }
-    } else {
-      console.log(`  ○ ${mls}: no photos_timestamp in Supabase — cannot build CDN URLs`);
+    if (!listingKey || !/^\d+$/.test(String(listingKey))) {
+      console.warn(`  ${mls}: id "${listingKey}" is not a numeric DDF ListingKey — use full DDF scan instead`);
       zero++;
+      continue;
+    }
+
+    await sleep(DELAY_MS);
+    try {
+      const urls = await photoSession.fetchPhotoUrls(listingKey);
+      if (urls.length > 0) {
+        await patchImages(mls, urls);
+        console.log(`  ✓ ${mls} (key=${listingKey}): ${urls.length} photo(s)`);
+        ok++;
+      } else {
+        console.log(`  ○ ${mls} (key=${listingKey}): 0 URLs returned`);
+        zero++;
+      }
+    } catch (e: any) {
+      console.warn(`  ✗ ${mls} (key=${listingKey}): ${e.message}`);
+      failed++;
     }
   }
 
