@@ -1,14 +1,61 @@
 from flask import Blueprint, jsonify, request
 from flask_login import current_user, login_required
-from sqlalchemy import func
+from sqlalchemy import func, or_
+from sqlalchemy.orm import selectinload, joinedload
 
 from app.models import User, Review, AgentAvailability, db
 
 agent_routes = Blueprint('agents', __name__)
 
+_AGENT_OPTS = [
+    selectinload(User.agent_reviews).joinedload(Review.user),
+    selectinload(User.areas),
+    selectinload(User.availabilities),
+]
+
+
+def _warm_fsa_cache(agents):
+    """One batch query to populate _FSA_CACHE for every area across all agents."""
+    from app.models.agent_area import _FSA_CACHE
+    from app.models.mls_listing import MlsListing
+    all_fsas = {
+        a.zip[:3].upper()
+        for agent in agents
+        for a in agent.areas
+        if a.zip and len(a.zip) <= 3
+    }
+    uncached = all_fsas - set(_FSA_CACHE.keys())
+    if not uncached:
+        return
+    try:
+        rows = (
+            MlsListing.query
+            .filter(or_(*[MlsListing.zip.ilike(f"{fsa}%") for fsa in uncached]))
+            .with_entities(MlsListing.zip, MlsListing.city)
+            .all()
+        )
+        for r in rows:
+            if r.zip and r.city:
+                k = r.zip[:3].upper()
+                bucket = _FSA_CACHE.setdefault(k, [])
+                if r.city not in bucket and len(bucket) < 5:
+                    bucket.append(r.city)
+        for fsa in uncached:
+            _FSA_CACHE.setdefault(fsa, [])
+    except Exception:
+        pass
+
+
 @agent_routes.route("/")
 def get_all_agents():
-    agents = User.query.filter(User.agent == True).limit(100).all()
+    agents = (
+        User.query
+        .filter(User.agent == True)
+        .options(*_AGENT_OPTS)
+        .limit(100)
+        .all()
+    )
+    _warm_fsa_cache(agents)
     return {"agents": [agent.to_dict() for agent in agents]}
 
 
@@ -35,11 +82,16 @@ def get_agent_by_slug(slug):
 
 @agent_routes.route("/<int:agent_id>")
 def get_agent(agent_id):
-    agent = User.query.filter(User.id == agent_id, User.agent == True).first()
+    agent = (
+        User.query
+        .filter(User.id == agent_id, User.agent == True)
+        .options(*_AGENT_OPTS)
+        .first()
+    )
     if agent:
+        _warm_fsa_cache([agent])
         return {"agent": agent.to_dict()}
-    else:
-        return {"errors": ["Agent does not exist"]}, 404
+    return {"errors": ["Agent does not exist"]}, 404
 
 
 @agent_routes.route("/<int:agent_id>/reviews", methods=["GET"])
