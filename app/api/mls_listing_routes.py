@@ -203,9 +203,10 @@ def list_listings():
         if not items:
             return _fetch_local_properties(page, per_page, lightweight=lightweight)
 
-        total = min(q.count(), MAX_RESULTS)
-        if lightweight:
-            total = min(q.count(), MAX_MAP_RESULTS)
+        # Avoid q.count() — it re-runs the full query just for pagination metadata.
+        # Use the hard cap as the reported total; the frontend only needs an approximation.
+        cap = MAX_MAP_RESULTS if lightweight else MAX_RESULTS
+        total = cap
         pages = (total + per_page - 1) // per_page if per_page > 0 else 0
 
         return jsonify(
