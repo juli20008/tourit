@@ -1,12 +1,12 @@
 const LogoBrand = () => (
 	<div className="flex flex-col items-center md:flex-row md:items-baseline md:gap-3">
 		<span
-			style={{ fontFamily: "'DM Sans', system-ui, sans-serif", fontWeight: 700 }}
-			className="text-[24px] md:text-[30px] leading-none tracking-tight text-white"
+			style={{ fontFamily: "'Outfit', 'DM Sans', system-ui, sans-serif", fontWeight: 400, letterSpacing: '0.01em' }}
+			className="text-[24px] md:text-[30px] leading-none text-white"
 		>
-			Tourit.ca
+			tourit.ca
 		</span>
-		<span className="nav-slogan">Instant Bookings with Trusted Experts</span>
+		<span className="nav-slogan">Instant Bookings with Trusted Local Realtors</span>
 	</div>
 );
 

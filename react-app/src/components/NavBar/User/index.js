@@ -15,6 +15,7 @@ const UserBar = () => {
 	const dispatch = useDispatch();
 	const user = useSelector((state) => state.session.user);
 	const hasUnread = useSelector((state) => state.hasUnread);
+	const whitelabelAgent = useSelector((state) => state.whitelabel?.agent);
 	const [showMenu, setShowMenu] = useState(false);
 	const [showModal, setShowModal] = useState(false);
 	const [showMobileMenu, setShowMobileMenu] = useState(false);
