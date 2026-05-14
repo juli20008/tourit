@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { resolveUrl, FALLBACK_IMAGE } from "../../../utils/imageResolver";
+import { resolveUrl } from "../../../utils/imageResolver";
 
 const statusLabel = (s) => {
 	if (!s) return "Active";
@@ -11,8 +11,7 @@ const statusLabel = (s) => {
 
 const PreviewItem = ({ property, onSelect }) => {
 	const rawSrc =
-		resolveUrl(property.image_urls?.[0] || property.front_img) ||
-		FALLBACK_IMAGE;
+		resolveUrl(property.image_urls?.[0] || property.front_img) || null;
 	const [imgSrc, setImgSrc] = useState(rawSrc);
 
 	const price = new Intl.NumberFormat("en-US", {
@@ -27,13 +26,15 @@ const PreviewItem = ({ property, onSelect }) => {
 			onClick={() => onSelect && onSelect(property)}
 		>
 			{/* Thumbnail */}
-			<div className="relative flex-shrink-0 w-[128px] h-[104px] rounded overflow-hidden">
+			<div className="relative flex-shrink-0 w-[128px] h-[104px] rounded overflow-hidden bg-[#dadad5]">
+				{imgSrc && (
 				<img
 					className="w-full h-full object-cover"
 					src={imgSrc}
 					alt=""
-					onError={() => setImgSrc(FALLBACK_IMAGE)}
+					onError={() => setImgSrc(null)}
 				/>
+				)}
 				<span className="absolute bottom-1 left-1.5 bg-black/55 text-white text-[9px] font-semibold uppercase tracking-wide px-1.5 py-[2px] rounded-full leading-tight">
 					{statusLabel(property.status)}
 				</span>

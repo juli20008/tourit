@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import {
 	resolvePropertyImage,
 	resolveUrl,
-	FALLBACK_IMAGE,
 } from "../../../utils/imageResolver";
 
 const Images = ({ property }) => {
@@ -16,20 +15,20 @@ const Images = ({ property }) => {
 	const allImages = [heroResolved, ...thumbUrls].filter(Boolean);
 
 	const [currentIndex, setCurrentIndex] = useState(0);
-	const [heroSrc, setHeroSrc] = useState(allImages[0] || FALLBACK_IMAGE);
+	const [heroSrc, setHeroSrc] = useState(allImages[0] || null);
 
 	// Reset when property changes
 	useEffect(() => {
 		const imgs = [resolvePropertyImage(property), ...thumbUrls].filter(Boolean);
 		setCurrentIndex(0);
-		setHeroSrc(imgs[0] || FALLBACK_IMAGE);
+		setHeroSrc(imgs[0] || null);
 	// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [property?.id]);
 
 	const goTo = (idx) => {
 		const next = (idx + allImages.length) % allImages.length;
 		setCurrentIndex(next);
-		setHeroSrc(allImages[next] || FALLBACK_IMAGE);
+		setHeroSrc(allImages[next] || null);
 	};
 
 	const total = allImages.length;
@@ -38,12 +37,18 @@ const Images = ({ property }) => {
 		<div className="w-full">
 			{/* Hero — 16:9 aspect ratio, full width */}
 			<div className="relative w-full overflow-hidden bg-[#dadad5]" style={{ maxWidth: 1024, aspectRatio: '1024/683' }}>
+				{heroSrc ? (
 				<img
 					className="w-full h-full object-cover"
 					src={heroSrc}
 					alt="Property"
-					onError={() => setHeroSrc(FALLBACK_IMAGE)}
+					onError={() => setHeroSrc(null)}
 				/>
+				) : (
+				<div className="w-full h-full flex items-center justify-center">
+					<span className="text-[#9aabb8] text-sm">No photos available</span>
+				</div>
+				)}
 
 				{/* Left arrow */}
 				{total > 1 && (

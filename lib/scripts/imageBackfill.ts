@@ -74,7 +74,8 @@ async function loadNeedsPhotos(): Promise<Set<string>> {
   while (true) {
     const url = `${SUPABASE_URL}/rest/v1/mls_listings` +
       `?select=mls_number` +
-      `&or=(images.is.null,images.eq.%5B%5D)` +
+      `&images=is.null` +
+      `&photos_timestamp=not.is.null` +
       cityParam +
       `&limit=${limit}&offset=${offset}`;
     const res = await fetch(url, {

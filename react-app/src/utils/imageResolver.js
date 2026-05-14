@@ -1,6 +1,5 @@
 export const REPLIERS_CDN = "https://cdn.repliers.io";
-export const FALLBACK_IMAGE =
-	"https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=500&q=80";
+export const FALLBACK_IMAGE = null;
 
 /**
  * Resolves one raw URL string.
@@ -44,5 +43,5 @@ export const resolvePropertyImage = (property) => {
 		const url = resolveUrl(src);
 		if (url) return url;
 	}
-	return FALLBACK_IMAGE;
+	return null;
 };
