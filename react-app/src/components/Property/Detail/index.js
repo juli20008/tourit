@@ -197,6 +197,7 @@ const Detail = ({ property }) => {
 			</Section>
 
 			<Section title="Location">
+				{property?.neighborhood && <Row label="Neighbourhood" value={property.neighborhood} />}
 				<Row label="City" value={property?.city || "—"} />
 				<Row label="Province / State" value={property?.state || "—"} />
 				<Row label="Postal Code" value={property?.zip || "—"} />
