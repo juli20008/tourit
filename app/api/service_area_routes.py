@@ -77,15 +77,4 @@ def add_service_area():
     db.session.add(AgentArea(agent_id=current_user.id, zip=normalized))
     db.session.commit()
 
-    # Return just the new area with a quick city lookup — no full to_dict() needed.
-    from app.models.agent_area import _FSA_CACHE
-    from app.models.mls_listing import MlsListing
-    if normalized not in _FSA_CACHE:
-        rows = (
-            MlsListing.query
-            .filter(MlsListing.zip.ilike(f"{normalized}%"))
-            .with_entities(MlsListing.city)
-            .distinct().limit(5).all()
-        )
-        _FSA_CACHE[normalized] = [r.city for r in rows if r.city]
-    return {"area": {"zip": normalized, "cities": _FSA_CACHE.get(normalized, [])}}
+    return {"area": {"zip": normalized, "cities": []}}
