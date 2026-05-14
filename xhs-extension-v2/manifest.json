@@ -6,6 +6,7 @@
   "permissions": ["activeTab", "scripting", "storage", "unlimitedStorage"],
   "host_permissions": [
     "https://tourit.ca/*",
+    "https://*.tourit.ca/*",
     "https://*.supabase.co/*",
     "https://*.supabase.in/*",
     "https://creator.xiaohongshu.com/*",
@@ -19,7 +20,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://tourit.ca/*"],
+      "matches": ["https://tourit.ca/*", "https://*.tourit.ca/*"],
       "js": ["content/tourit.js"],
       "run_at": "document_idle"
     },

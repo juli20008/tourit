@@ -281,10 +281,12 @@ def rewrite_for_xhs():
     type_zh         = data.get('type_zh', '') or '住宅'
     translated_desc = data.get('translated_desc', '') or '（无描述）'
 
-    price = f"{int(listing.get('price') or 0):,}"
-    beds  = listing.get('beds', '?')
-    baths = listing.get('baths', '?')
-    mls   = listing.get('mls_number', '')
+    price  = f"{int(listing.get('price') or 0):,}"
+    beds   = listing.get('beds', '?')
+    baths  = listing.get('baths', '?')
+    mls    = listing.get('mls_number', '')
+    origin = (listing.get('site_origin') or 'https://tourit.ca').rstrip('/')
+    host   = origin.replace('https://', '').replace('http://', '')
 
     prompt = f"""你是一位在加拿大多伦多从业多年的华人房产经纪，专门帮助华人买家找到心仪的房子。请根据以下房源信息，用小红书风格写一篇真实生动的购房推荐帖。
 
@@ -296,14 +298,14 @@ def rewrite_for_xhs():
 卫生间：{baths} 间
 售价：${price} 加元
 房源描述：{translated_desc}
-预约看房：tourit.ca/listing/{mls}
+预约看房：{host}/listing/{mls}
 
 写作要求：
 - 分4段，段与段之间空一行
 - 第一段：一句话勾起读者好奇心，结合区域特色（如士嘉堡提中文生活圈，密西沙加提购物方便，北约克提交通便利）
 - 第二段：房源2-3个最吸引人的亮点，语气真诚具体，不要虚构
 - 第三段：售价性价比分析，说明适合哪类买家（首次置业/换房家庭/投资客等）
-- 第四段：预约看房信息，附 tourit.ca 链接，提醒优质房源抢手
+- 第四段：预约看房信息，附 {host} 链接，提醒优质房源抢手
 - 最后一行：8-10个 hashtag，含具体城市和房型标签，用买房/置业而非租房
 - 总字数 200-320 字，每段最多 2 个 emoji，位置自然
 - 不要虚构任何未在描述中提到的设施或特点"""

@@ -294,7 +294,8 @@
 
     // CTA
     if (mls) {
-      parts.push(`🔑 预约看房：tourit.ca/listing/${mls}`);
+      const host = (listing.site_origin || 'https://tourit.ca').replace(/^https?:\/\//, '').replace(/\/$/, '');
+      parts.push(`🔑 预约看房：${host}/listing/${mls}`);
       parts.push('');
     }
 
