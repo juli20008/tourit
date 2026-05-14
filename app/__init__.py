@@ -20,6 +20,7 @@ from .api.channel_routes import channel_routes
 from .api.mls_agent_routes import mls_agent_routes
 from .api.mls_listing_routes import mls_listing_routes
 from .api.sync_routes import sync_routes
+from .api.xhs_routes import xhs_routes
 
 from .seeds import seed_commands
 from .commands import repliers_commands
@@ -68,6 +69,7 @@ app.register_blueprint(channel_routes, url_prefix='/api/channels')
 app.register_blueprint(mls_agent_routes, url_prefix='/api/mls-agents')
 app.register_blueprint(mls_listing_routes, url_prefix='/api/listings')
 app.register_blueprint(sync_routes, url_prefix='/api/sync')
+app.register_blueprint(xhs_routes, url_prefix='/api/xhs')
 app.cli.add_command(repliers_commands)
 db.init_app(app)
 Migrate(app, db)

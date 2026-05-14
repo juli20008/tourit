@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tourit → 小红书</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 13px;
+      color: #0f172a;
+      background: #ffffff;
+      width: 280px;
+      padding: 16px;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    header h1 { font-size: 14px; font-weight: 700; color: #0f172a; }
+    header span { font-size: 11px; color: #94a3b8; margin-left: auto; }
+    #no-listing {
+      color: #64748b;
+      font-size: 12px;
+      line-height: 1.5;
+      text-align: center;
+      padding: 12px 0;
+    }
+    #listing-info { display: none; }
+    .listing-address { font-weight: 700; font-size: 13px; color: #0f172a; margin-bottom: 4px; }
+    .listing-meta { font-size: 11px; color: #64748b; margin-bottom: 2px; }
+    .listing-imgs { font-size: 11px; color: #ff2442; margin-bottom: 12px; }
+    .btn {
+      display: block; width: 100%; padding: 9px;
+      border-radius: 8px; font-size: 13px; font-weight: 600;
+      cursor: pointer; border: none; margin-bottom: 6px;
+      transition: background 0.15s;
+    }
+    .btn-xhs     { background: #ff2442; color: #fff; }
+    .btn-xhs:hover     { background: #cc1a33; }
+    .btn-capture { background: #0f172a; color: #fff; }
+    .btn-capture:hover { background: #1e293b; }
+    .btn-ghost   { background: #f1f5f9; color: #475569; }
+    .btn-ghost:hover   { background: #e2e8f0; }
+    .status-line {
+      font-size: 11px; min-height: 16px;
+      margin-bottom: 6px; text-align: center;
+    }
+    #capture-status { color: #16a34a; }
+    footer {
+      margin-top: 12px; padding-top: 10px;
+      border-top: 1px solid #f1f5f9;
+      font-size: 10px; color: #94a3b8; text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Tourit → 小红书</h1>
+    <span>一键发布房源</span>
+  </header>
+
+  <div id="no-listing">
+    暂无房源。<br />
+    在 <strong>tourit.ca</strong> 打开一个房源并点击「发布到小红书」，或使用「抓取当前房源」。
+  </div>
+
+  <button class="btn btn-capture" id="btn-capture">📋 抓取当前房源</button>
+  <div class="status-line" id="capture-status"></div>
+
+  <div id="listing-info">
+    <div class="listing-address" id="listing-address"></div>
+    <div class="listing-meta"    id="listing-meta"></div>
+    <div class="listing-imgs"    id="listing-imgs"></div>
+    <button class="btn btn-xhs"   id="btn-open-xhs">发布到小红书 →</button>
+    <button class="btn btn-ghost" id="btn-clear">清除已抓取房源</button>
+  </div>
+
+<footer>Tourit.ca &middot; Julie Li, Bay Street Group</footer>
+
+  <script src="popup.js"></script>
+</body>
+</html>
