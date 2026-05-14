@@ -1,4 +1,5 @@
 import os
+import re
 from flask import Flask, request, redirect, jsonify, send_from_directory
 from flask_cors import CORS
 from flask_migrate import Migrate
@@ -84,7 +85,7 @@ _allowed_origins = list({
     "https://yillow.vercel.app",   # legacy — keep until DNS cutover
     "https://tourit.ca",
     "https://www.tourit.ca",
-    r"^https://[a-z0-9-]+\.tourit\.ca$",
+    re.compile(r"^https://[a-z0-9-]+\.tourit\.ca$"),
     *[o.strip() for o in os.environ.get("FRONTEND_URL", "").split(",") if o.strip()],
 })
 CORS(app, resources={r"/api/*": {"origins": _allowed_origins}}, supports_credentials=True)
