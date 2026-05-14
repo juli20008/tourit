@@ -174,7 +174,7 @@ def checkout_create():
             json={
                 'intent': 'CAPTURE',
                 'purchase_units': [{
-                    'amount': {'currency_code': 'USD', 'value': str(quantity)},
+                    'amount': {'currency_code': 'CAD', 'value': str(quantity)},
                     'description': f'Tourit XHS 发布次数 ×{quantity}',
                 }],
                 'application_context': {
