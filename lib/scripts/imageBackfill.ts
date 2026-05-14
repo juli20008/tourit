@@ -46,46 +46,47 @@ function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 
 // ─── Supabase: load all MLS numbers that need photos ─────────────────────────
 
-async function loadNeedsPhotos(): Promise<Set<string>> {
-  const set = new Set<string>();
-  let offset = 0;
-  const limit = 1000;
+// ─── Supabase: check which MLS numbers in a batch still need photos ──────────
+// Queries by MLS number (pk lookup — fast), returns the subset with null images.
+
+async function filterNeedsPhotos(mlsNumbers: string[]): Promise<Set<string>> {
+  if (!mlsNumbers.length) return new Set();
+  const list = mlsNumbers.map(m => `"${m}"`).join(',');
 
   const cityParam = CITY_FILTER.length
     ? `&city=in.(${CITY_FILTER.map(c => encodeURIComponent(c)).join(',')})` : '';
-  if (CITY_FILTER.length) console.log(`[image-backfill] City filter: ${CITY_FILTER.join(', ')}`);
 
-  // When --mls is given, only fetch those specific listings (ignores the
-  // images=[] condition — useful for fixing known-broken listings).
-  if (MLS_FILTER.size) {
-    console.log(`[image-backfill] MLS filter: ${[...MLS_FILTER].join(', ')}`);
-    const mlsList = [...MLS_FILTER].map(m => `"${m}"`).join(',');
-    const url2 = `${SUPABASE_URL}/rest/v1/mls_listings?select=mls_number&mls_number=in.(${mlsList})`;
-    const res2 = await fetch(url2, {
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, Accept: 'application/json' },
-    });
-    if (res2.ok) {
-      const rows2: any[] = await res2.json();
-      for (const r of rows2) if (r.mls_number) set.add(String(r.mls_number));
+  const url = `${SUPABASE_URL}/rest/v1/mls_listings` +
+    `?select=mls_number,images` +
+    `&mls_number=in.(${list})` +
+    cityParam;
+  const res = await fetch(url, {
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, Accept: 'application/json' },
+  });
+  if (!res.ok) return new Set(mlsNumbers); // on error, assume all need photos
+  const rows: any[] = await res.json();
+  const needs = new Set<string>();
+  for (const r of rows) {
+    if (!r.mls_number) continue;
+    const imgs = r.images;
+    if (!imgs || (Array.isArray(imgs) && imgs.length === 0)) {
+      needs.add(String(r.mls_number));
     }
-    return set;
   }
+  return needs;
+}
 
-  while (true) {
-    const url = `${SUPABASE_URL}/rest/v1/mls_listings` +
-      `?select=mls_number` +
-      `&images=is.null` +
-      `&photos_timestamp=not.is.null` +
-      cityParam +
-      `&limit=${limit}&offset=${offset}`;
-    const res = await fetch(url, {
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, Accept: 'application/json' },
-    });
-    if (!res.ok) throw new Error(`Supabase fetch failed: ${res.status}`);
+// --mls fast path: resolve Supabase MLS numbers for the pre-filter
+async function loadMlsFilter(): Promise<Set<string>> {
+  const set = new Set<string>();
+  const mlsList = [...MLS_FILTER].map(m => `"${m}"`).join(',');
+  const url = `${SUPABASE_URL}/rest/v1/mls_listings?select=mls_number&mls_number=in.(${mlsList})`;
+  const res = await fetch(url, {
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, Accept: 'application/json' },
+  });
+  if (res.ok) {
     const rows: any[] = await res.json();
     for (const r of rows) if (r.mls_number) set.add(String(r.mls_number));
-    if (rows.length < limit) break;
-    offset += limit;
   }
   return set;
 }
@@ -174,23 +175,20 @@ async function main() {
     throw new Error('Missing required env vars');
   }
 
-  console.log(`[image-backfill] Loading listings with empty images from Supabase…`);
-  const needsPhotos = await loadNeedsPhotos();
-  console.log(`[image-backfill] ${needsPhotos.size} listings need photos  |  max=${MAX}  delay=${DELAY_MS}ms`);
-
-  if (!needsPhotos.size) {
-    console.log('[image-backfill] Nothing to do.');
-    return;
-  }
+  if (CITY_FILTER.length) console.log(`[image-backfill] City filter: ${CITY_FILTER.join(', ')}`);
 
   let totalOk = 0, totalZero = 0, totalFailed = 0, totalProcessed = 0;
 
   // ── Fast path: --mls given → look up DDF ListingKey (id) from Supabase and
   //    call GetObject directly without scanning 200k DDF pages.
   if (MLS_FILTER.size) {
+    console.log(`[image-backfill] MLS filter: ${[...MLS_FILTER].join(', ')}`);
+    const targets = await loadMlsFilter();
+    if (!targets.size) { console.log('[image-backfill] None of those MLS numbers found in Supabase.'); return; }
+
     const photoSession = new DdfPhotoSession(loginUrl, username, password);
     await photoSession.login();
-    const result = await fetchDirectByMls([...needsPhotos], photoSession);
+    const result = await fetchDirectByMls([...targets], photoSession);
     totalOk    = result.ok;
     totalZero  = result.zero;
     totalFailed = result.failed;
@@ -202,6 +200,9 @@ async function main() {
     return;
   }
 
+  // ── Full DDF scan: check images status per-batch (avoids bulk Supabase query timeout) ──
+  console.log(`[image-backfill] Starting DDF scan (checking images per page)  max=${MAX}  delay=${DELAY_MS}ms`);
+
   await (getAutoLogoutClient as any)(
     { loginUrl, username, password, version: 'RETS/1.7.2', userAgent: 'Tourit-ImageBackfill/1.0' },
     async (rets: any) => {
@@ -211,17 +212,10 @@ async function main() {
       let offset = 1;
 
       for (let page = 1; ; page++) {
-        // Stop if we've hit the max or processed everything
         if (totalProcessed >= MAX) {
           console.log(`[image-backfill] Reached max=${MAX}, stopping.`);
           break;
         }
-        if (needsPhotos.size === 0) {
-          console.log('[image-backfill] All listings processed, stopping early.');
-          break;
-        }
-
-        console.log(`[image-backfill] DDF page ${page} (offset=${offset} | remaining=${needsPhotos.size} | ok=${totalOk})…`);
 
         let items: any[];
         try {
@@ -238,6 +232,17 @@ async function main() {
           break;
         }
 
+        // Extract MLS numbers from this DDF page, then ask Supabase which ones need photos
+        const pageMls = items.map(item => String(
+          item.ListingId ?? item.ListingID ?? item.MLS_NUM ?? item.MlsNumber ?? item.ListingKey ?? ''
+        )).filter(Boolean);
+
+        const needsPhotos = await filterNeedsPhotos(pageMls);
+
+        if (needsPhotos.size > 0) {
+          console.log(`[image-backfill] page ${page} | ${needsPhotos.size}/${items.length} need photos | ok=${totalOk}`);
+        }
+
         for (const item of items) {
           if (totalProcessed >= MAX) break;
 
@@ -246,11 +251,9 @@ async function main() {
           );
           if (!mls || !needsPhotos.has(mls)) continue;
 
-          // Prefer numeric ListingKey; fall back to MLS number for TREB listings that omit it
           const ddfKey = item.ListingKey ?? item.ListingID ?? item.id ?? mls;
           if (!ddfKey) {
             console.warn(`  ${mls}: no ListingKey available, skipping`);
-            needsPhotos.delete(mls);
             continue;
           }
 
@@ -271,8 +274,6 @@ async function main() {
             console.warn(`  ✗ ${mls} (key=${ddfKey}): ${e.message}`);
             totalFailed++;
           }
-
-          needsPhotos.delete(mls);
         }
 
         if (items.length < PAGE_SIZE) { console.log('[image-backfill] Last DDF page reached.'); break; }
