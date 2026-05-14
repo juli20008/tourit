@@ -68,7 +68,12 @@ const Tour = ({ property, setShowTour, inline = false, referralAgent = null }) =
 	if (inline) {
 		return (
 			<form className="tour-sidebar">
-				<div className="tour-sidebar-header">{agentLabel}</div>
+				<div className="tour-sidebar-header" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+					{effectiveAgent?.photo && (
+						<img src={effectiveAgent.photo} alt="" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+					)}
+					{agentLabel}
+				</div>
 				<div className="tour-sidebar-body">
 					{showSelectDate ? (
 						<SelectDate
@@ -102,7 +107,12 @@ const Tour = ({ property, setShowTour, inline = false, referralAgent = null }) =
 	return (
 		<form className="tour-ctrl">
 			<div className="tour-top">
-				<div>{agentLabel}</div>
+				<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+					{effectiveAgent?.photo && (
+						<img src={effectiveAgent.photo} alt="" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
+					)}
+					{agentLabel}
+				</div>
 				<i className="fa-solid fa-xmark" onClick={() => setShowTour(false)}></i>
 			</div>
 			<div className="tour-btm">
