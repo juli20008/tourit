@@ -68,30 +68,7 @@
   }
 
   function injectBtn() {
-    // Capture / Save button (original)
-    if (!document.getElementById(BTN_ID)) {
-      const btn = document.createElement('button');
-      btn.id = BTN_ID;
-      btn.textContent = 'Save to FBMP';
-      btn.style.cssText = [
-        'position:fixed', 'bottom:48px', 'right:16px', 'z-index:2147483646',
-        'padding:8px 14px', 'border-radius:20px',
-        'background:#2563eb', 'color:#fff',
-        'font:600 12px/1 system-ui,sans-serif',
-        'border:none', 'cursor:pointer',
-        'box-shadow:0 4px 16px rgba(37,99,235,0.4)',
-        'transition:opacity 0.2s, background 0.15s', 'opacity:0.9',
-      ].join(';');
-      btn.addEventListener('mouseenter', () => { btn.style.opacity = '1'; btn.style.background = '#1d4ed8'; });
-      btn.addEventListener('mouseleave', () => { btn.style.opacity = '0.9'; btn.style.background = '#2563eb'; });
-      btn.addEventListener('click', () => {
-        const listing = extractListing();
-        listing ? capture(listing) : showToast('⚠ No listing open — open a listing first');
-      });
-      document.body.appendChild(btn);
-    }
-
-    // 小红书 publish button (new)
+    // 小红书 publish button
     if (!document.getElementById(XHS_BTN_ID)) {
       const xhsBtn = document.createElement('button');
       xhsBtn.id = XHS_BTN_ID;
@@ -118,18 +95,7 @@
     }
   }
 
-  function updateBtn(hasListing) {
-    const btn = document.getElementById(BTN_ID);
-    if (!btn) return;
-    btn.textContent = hasListing ? '✓ Saved — Save Again' : 'Save to FBMP';
-    btn.style.background = hasListing ? '#16a34a' : '#2563eb';
-    if (hasListing) setTimeout(() => {
-      if (document.getElementById(BTN_ID)) {
-        btn.textContent = 'Save to FBMP';
-        btn.style.background = '#2563eb';
-      }
-    }, 3000);
-  }
+  function updateBtn() {}  // no-op — FBMP button hidden
 
   if (isAgentLoggedIn()) {
     if (document.body) injectBtn();
