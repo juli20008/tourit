@@ -287,7 +287,7 @@ async function main() {
   console.log(`  Photos saved:   ${totalOk}`);
   console.log(`  Zero URLs:      ${totalZero}`);
   console.log(`  Errors:         ${totalFailed}`);
-  console.log(`  Still pending:  ${needsPhotos.size}`);
+  console.log(`  Processed:      ${totalProcessed}`);
 }
 
 main().catch(e => {
