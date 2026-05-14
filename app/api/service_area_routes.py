@@ -41,7 +41,7 @@ def delete_service_area(zip):
     db.session.delete(service)
     db.session.commit()
 
-    return {"user": User.query.get(current_user.id).to_dict()}
+    return {"zip": zip}
 
 
 @service_area_routes.route("/", methods=["POST"])
@@ -77,4 +77,15 @@ def add_service_area():
     db.session.add(AgentArea(agent_id=current_user.id, zip=normalized))
     db.session.commit()
 
-    return {"user": User.query.get(current_user.id).to_dict()}
+    # Return just the new area with a quick city lookup — no full to_dict() needed.
+    from app.models.agent_area import _FSA_CACHE
+    from app.models.mls_listing import MlsListing
+    if normalized not in _FSA_CACHE:
+        rows = (
+            MlsListing.query
+            .filter(MlsListing.zip.ilike(f"{normalized}%"))
+            .with_entities(MlsListing.city)
+            .distinct().limit(5).all()
+        )
+        _FSA_CACHE[normalized] = [r.city for r in rows if r.city]
+    return {"area": {"zip": normalized, "cities": _FSA_CACHE.get(normalized, [])}}

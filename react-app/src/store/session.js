@@ -132,42 +132,32 @@ export const updateThisUser = (user) => async (dispatch) => {
 	}
 };
 
-export const addServiceArea = (zip) => async (dispatch) => {
+export const addServiceArea = (zip) => async (dispatch, getState) => {
 	const response = await apiFetch("/api/service_areas/", {
 		method: "POST",
-		headers: {
-			"Content-Type": "application/json",
-		},
+		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(zip),
 	});
 	const data = await response.json();
 	if (response.ok) {
-		dispatch(updateUser(data.user));
+		const currentAreas = getState().session.user?.areas || [];
+		dispatch(updateUser({ areas: [...currentAreas, data.area] }));
 		return data;
-	} else if (response.status < 500) {
-		if (data.errors) {
-			return data;
-		}
-	} else {
-		return { errors: ["An error occurred. Please try again."] };
 	}
+	return data?.errors ? data : { errors: ["An error occurred. Please try again."] };
 };
 
-export const removeServiceArea = (zip) => async (dispatch) => {
+export const removeServiceArea = (zip) => async (dispatch, getState) => {
 	const response = await apiFetch(`/api/service_areas/${zip}`, {
 		method: "DELETE",
 	});
 	const data = await response.json();
 	if (response.ok) {
-		dispatch(updateUser(data.user));
+		const currentAreas = getState().session.user?.areas || [];
+		dispatch(updateUser({ areas: currentAreas.filter((a) => a.zip !== zip) }));
 		return data;
-	} else if (response.status < 500) {
-		if (data.errors) {
-			return data;
-		}
-	} else {
-		return { errors: ["An error occurred. Please try again."] };
 	}
+	return data?.errors ? data : { errors: ["An error occurred. Please try again."] };
 };
 
 // Reducer

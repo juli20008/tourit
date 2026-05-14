@@ -43,7 +43,7 @@ const AgentProfile = () => {
 	const removeServiceArea = async (zipcode) => {
 		setZipErrors([]);
 		const data = await dispatch(sessionActions.removeServiceArea(zipcode));
-		if (data.errors) {
+		if (data?.errors) {
 			setZipErrors(data.errors);
 		} else {
 			setZip("");
@@ -56,7 +56,7 @@ const AgentProfile = () => {
 		const payload = { zip };
 
 		const data = await dispatch(sessionActions.addServiceArea(payload));
-		if (data.errors) {
+		if (data?.errors) {
 			setZipErrors(data.errors);
 		} else {
 			setZip("");
