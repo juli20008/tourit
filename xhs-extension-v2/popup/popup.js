@@ -82,7 +82,7 @@ document.getElementById('btn-clear')?.addEventListener('click', () => {
 
 // ── Credits ───────────────────────────────────────────────────────────────────
 
-let currentDeviceId = null;
+let currentAccountKey = null;
 
 function renderCredits(data) {
   const textEl = document.getElementById('credits-text');
@@ -108,16 +108,21 @@ function renderCredits(data) {
 }
 
 function loadCredits() {
-  chrome.storage.local.get('tourit_device_id', ({ tourit_device_id }) => {
-    currentDeviceId = tourit_device_id || null;
+  chrome.storage.local.get('tourit_account_key', ({ tourit_account_key }) => {
+    currentAccountKey = tourit_account_key || null;
     const textEl = document.getElementById('credits-text');
 
-    if (!currentDeviceId) {
-      if (textEl) { textEl.textContent = 'AI额度：初始化中…'; textEl.style.color = '#94a3b8'; }
+    if (!currentAccountKey) {
+      if (textEl) {
+        textEl.textContent = '请先在 tourit.ca 登录经纪人账户';
+        textEl.style.color = '#94a3b8';
+      }
+      const buyEl = document.getElementById('credits-buy');
+      if (buyEl) buyEl.style.display = 'none';
       return;
     }
 
-    fetch(`https://api.tourit.ca/api/xhs/credits?device_id=${encodeURIComponent(currentDeviceId)}`)
+    fetch(`https://api.tourit.ca/api/xhs/credits?device_id=${encodeURIComponent(currentAccountKey)}`)
       .then(r => r.json())
       .then(data => renderCredits(data))
       .catch(() => {
@@ -141,8 +146,8 @@ document.getElementById('credits-qty')?.addEventListener('input', (e) => {
 });
 
 document.getElementById('btn-buy')?.addEventListener('click', () => {
-  if (!currentDeviceId) {
-    setStatus('buy-status', '设备ID缺失，请重新安装插件。', true);
+  if (!currentAccountKey) {
+    setStatus('buy-status', '请先在 tourit.ca 登录经纪人账户。', true);
     return;
   }
   const qty = Math.max(1, Math.min(50, parseInt(document.getElementById('credits-qty')?.value) || 10));
@@ -151,7 +156,7 @@ document.getElementById('btn-buy')?.addEventListener('click', () => {
   fetch('https://api.tourit.ca/api/xhs/checkout/create', {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify({ device_id: currentDeviceId, quantity: qty }),
+    body:    JSON.stringify({ device_id: currentAccountKey, quantity: qty }),
   })
     .then(r => r.json())
     .then(data => {

@@ -231,9 +231,9 @@
 
   function claudeRewrite(listing, city_zh, type_zh, translated_desc) {
     return new Promise(resolve => {
-      chrome.storage.local.get('tourit_device_id', ({ tourit_device_id }) => {
+      chrome.storage.local.get('tourit_account_key', ({ tourit_account_key }) => {
         chrome.runtime.sendMessage(
-          { type: 'TOURIT_CLAUDE_REWRITE', listing, city_zh, type_zh, translated_desc, device_id: tourit_device_id || '' },
+          { type: 'TOURIT_CLAUDE_REWRITE', listing, city_zh, type_zh, translated_desc, device_id: tourit_account_key || '' },
           resp => {
             if (chrome.runtime.lastError || !resp) return resolve(null);
             if (resp.error === 'no_credits') {

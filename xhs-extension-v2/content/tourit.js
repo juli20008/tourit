@@ -11,12 +11,26 @@
 
   // ─── Agent status ─────────────────────────────────────────────────────────
 
-  function isAgentLoggedIn() {
+  function readUserData() {
     try {
       const el = document.getElementById('tourit-user-data');
-      if (!el) return false;
-      return JSON.parse(el.textContent).is_agent === true;
-    } catch { return false; }
+      if (!el) return null;
+      return JSON.parse(el.textContent);
+    } catch { return null; }
+  }
+
+  function isAgentLoggedIn() {
+    const d = readUserData();
+    return !!(d?.is_agent && d?.account_key);
+  }
+
+  function syncAccountKey() {
+    const d = readUserData();
+    if (d?.is_agent && d?.account_key) {
+      chrome.storage.local.set({ tourit_account_key: d.account_key });
+    } else {
+      chrome.storage.local.remove('tourit_account_key');
+    }
   }
 
   // ─── Extract listing from embedded JSON ──────────────────────────────────
@@ -44,6 +58,7 @@
   // Watches <head> for listing data changes AND agent login/logout changes.
 
   const observer = new MutationObserver(() => {
+    syncAccountKey();
     if (isAgentLoggedIn()) {
       const listing = extractListing();
       if (listing) capture(listing);
@@ -56,6 +71,7 @@
   observer.observe(document.head, { childList: true, subtree: true, characterData: true });
 
   if (isAgentLoggedIn()) {
+    syncAccountKey();
     const existing = extractListing();
     if (existing) capture(existing);
   }

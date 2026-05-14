@@ -36,7 +36,10 @@ const AgentStatusEmbed = () => {
 			el.type = 'application/json';
 			document.head.appendChild(el);
 		}
-		el.textContent = JSON.stringify({ is_agent: !!(user?.agent) });
+		el.textContent = JSON.stringify({
+			is_agent:    !!(user?.agent),
+			account_key: user?.agent ? `agent_${user.id}` : null,
+		});
 		return () => { try { el.remove(); } catch {} };
 	}, [user]);
 	return null;

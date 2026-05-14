@@ -2,17 +2,7 @@
 
 const XHS_URL = 'https://creator.xiaohongshu.com/publish/publish?source=official&from=tab_switch&target=image';
 
-// ── Generate device ID on first install ──────────────────────────────────────
-
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.storage.local.get('tourit_device_id', ({ tourit_device_id }) => {
-    if (!tourit_device_id) {
-      const id = crypto.randomUUID();
-      chrome.storage.local.set({ tourit_device_id: id });
-      console.log('[Tourit XHS] Device ID generated:', id);
-    }
-  });
-});
+// account_key is set by content/tourit.js when an agent logs in to tourit.ca
 
 // ── Message listener ──────────────────────────────────────────────────────────
 
