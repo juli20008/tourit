@@ -55,7 +55,7 @@ def search_by_term(term):
 
 
 def _mls_by_term(parsed: str) -> list:
-    """Search mls_listings by city, neighbourhood, street, or postal code."""
+    """Search mls_listings by MLS #, city, neighbourhood, street, or postal code."""
     from sqlalchemy import or_, func
     full_street = func.concat(
         func.coalesce(MlsListing.street_number, ''), ' ',
@@ -66,6 +66,7 @@ def _mls_by_term(parsed: str) -> list:
         MlsListing.query
         .filter(
             or_(
+                MlsListing.mls_number.ilike(f"%{parsed}%"),
                 MlsListing.city.ilike(f"%{parsed}%"),
                 MlsListing.neighborhood.ilike(f"%{parsed}%"),
                 MlsListing.street_name.ilike(f"%{parsed}%"),

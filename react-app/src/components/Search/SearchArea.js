@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useHistory } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 
 import List from "./List";
@@ -13,8 +13,12 @@ import { useNotification } from "../../context/Notification";
 const TORONTO = { lat: 43.6532, lng: -79.3832 };
 const GTA_BOUNDS_OBJ = { south: 43.2, west: -80.5, north: 44.3, east: -78.5 };
 
+// MLS numbers: one letter followed by 5+ digits (e.g. C12962084, W8901234)
+const MLS_RE = /^[a-zA-Z]\d{5,}$/;
+
 const SearchArea = () => {
 	const dispatch = useDispatch();
+	const history = useHistory();
 	const { areaParam } = useParams();
 	const { setToggleNotification, setNotificationMsg } = useNotification();
 
@@ -214,10 +218,15 @@ const SearchArea = () => {
 		mapFlyToRef.current?.(lat, lng, bounds);
 	};
 
-	// Search button: get first prediction and fly there
+	// Search button: MLS numbers go straight to listing page; everything else → Google Places
 	const handleSearchClick = () => {
 		const query = searchInputRef.current?.value?.trim();
-		if (!query || !autocompleteServiceRef.current) return;
+		if (!query) return;
+		if (MLS_RE.test(query)) {
+			history.push(`/listing/${encodeURIComponent(query.toUpperCase())}`);
+			return;
+		}
+		if (!autocompleteServiceRef.current) return;
 		autocompleteServiceRef.current.getPlacePredictions({
 			input: query,
 			componentRestrictions: { country: "ca" },
@@ -292,7 +301,8 @@ const SearchArea = () => {
 							<input
 								ref={searchInputRef}
 								type="text"
-								placeholder="City, neighbourhood, or address…"
+								placeholder="City, neighbourhood, address, or MLS #…"
+								onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSearchClick(); } }}
 								style={{
 									flex: 1, border: "none", outline: "none",
 									padding: "0 12px", fontSize: 13, color: "#0f172a",
