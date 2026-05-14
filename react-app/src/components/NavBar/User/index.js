@@ -49,9 +49,22 @@ const UserBar = () => {
 		<>
 			<nav className="nav">
 				<div className="nav-lf">
-					<NavLink to="/agents" className="btn-font-lt nav-desktop-only">
-						Agent Finder
-					</NavLink>
+					{whitelabelAgent ? (
+						<div className="flex items-center gap-2 nav-desktop-only">
+							{whitelabelAgent.photo && (
+								<img
+									src={whitelabelAgent.photo}
+									alt={whitelabelAgent.username}
+									style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }}
+								/>
+							)}
+							<span className="btn-font-lt">{whitelabelAgent.office || whitelabelAgent.username}</span>
+						</div>
+					) : (
+						<NavLink to="/agents" className="btn-font-lt nav-desktop-only">
+							Agent Finder
+						</NavLink>
+					)}
 					<button
 						type="button"
 						className="nav-hamburger"
