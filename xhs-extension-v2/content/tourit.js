@@ -5,9 +5,7 @@
   window.__touritCaptureLoaded = true;
 
   const EMBED_ID   = 'tourit-listing-data';
-  const BTN_ID     = 'tourit-capture-btn';
   const XHS_BTN_ID = 'tourit-xhs-btn';
-  const XHS_URL    = 'https://creator.xiaohongshu.com/publish/publish?source=official&from=tab_switch&target=image';
 
   // ─── Agent status ─────────────────────────────────────────────────────────
 
@@ -37,7 +35,7 @@
       } else {
         chrome.storage.local.remove('tourit_account_key');
       }
-    } catch { /* extension context gone — next call will bail at isChromeAlive() */ }
+    } catch {}
   }
 
   // ─── Extract listing from embedded JSON ──────────────────────────────────
@@ -60,75 +58,88 @@
       chrome.storage.local.set({ tourit_listing: enriched }, () => {
         if (chrome.runtime.lastError) return;
         showToast(`✓ Captured: ${listing.address || listing.mls_number}`);
-        updateBtn(true);
       });
-    } catch { /* extension context gone */ }
+    } catch {}
   }
 
-  // ─── MutationObserver ────────────────────────────────────────────────────
-  // Watches <head> for listing data changes AND agent login/logout changes.
+  // ─── Targeted head observer ───────────────────────────────────────────────
+  // Watches document.head with childList:true only (NO subtree).
+  // Fires only when #tourit-user-data or #tourit-listing-data are
+  // inserted/removed — on login/logout and listing open/close — never on
+  // ordinary React renders, which don't add/remove direct <head> children.
 
-  const observer = new MutationObserver(() => {
+  function startHeadObserver() {
+    const obs = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        for (const node of m.addedNodes) {
+          if (node.nodeType !== 1) continue;
+          if (node.id === 'tourit-user-data') {
+            syncAccountKey();
+          }
+          if (node.id === EMBED_ID) {
+            if (isAgentLoggedIn()) {
+              const listing = extractListing();
+              if (listing) capture(listing);
+            }
+          }
+        }
+        for (const node of m.removedNodes) {
+          if (node.nodeType !== 1) continue;
+          if (node.id === 'tourit-user-data') {
+            syncAccountKey(); // clears tourit_account_key from storage
+          }
+        }
+      }
+    });
+    obs.observe(document.head, { childList: true }); // no subtree
+  }
+
+  // ─── Init: run once on page load ─────────────────────────────────────────
+
+  function init() {
     syncAccountKey();
     if (isAgentLoggedIn()) {
       const listing = extractListing();
       if (listing) capture(listing);
     }
-    if (document.body) injectBtn();
-  });
-  observer.observe(document.head, { childList: true, subtree: true, characterData: true });
-
-  syncAccountKey();
-  if (isAgentLoggedIn()) {
-    const existing = extractListing();
-    if (existing) capture(existing);
+    injectBtn();
+    startHeadObserver();
   }
 
-  // ─── Floating buttons ─────────────────────────────────────────────────────
-
-  function removeButtons() {
-    document.getElementById(BTN_ID)?.remove();
-    document.getElementById(XHS_BTN_ID)?.remove();
-  }
+  // ─── Floating button ──────────────────────────────────────────────────────
 
   function injectBtn() {
-    // 小红书 publish button
-    if (!document.getElementById(XHS_BTN_ID)) {
-      const xhsBtn = document.createElement('button');
-      xhsBtn.id = XHS_BTN_ID;
-      xhsBtn.textContent = '发布到小红书';
-      xhsBtn.style.cssText = [
-        'position:fixed', 'bottom:90px', 'right:16px', 'z-index:2147483646',
-        'padding:8px 14px', 'border-radius:20px',
-        'background:#ff2442', 'color:#fff',
-        'font:600 12px/1 system-ui,sans-serif',
-        'border:none', 'cursor:pointer',
-        'box-shadow:0 4px 16px rgba(255,36,66,0.4)',
-        'transition:opacity 0.2s, background 0.15s', 'opacity:0.9',
-      ].join(';');
-      xhsBtn.addEventListener('mouseenter', () => { xhsBtn.style.opacity = '1'; xhsBtn.style.background = '#cc1a33'; });
-      xhsBtn.addEventListener('mouseleave', () => { xhsBtn.style.opacity = '0.9'; xhsBtn.style.background = '#ff2442'; });
-      xhsBtn.addEventListener('click', () => {
-        if (!isAgentLoggedIn()) {
-          showToast('请登录经纪人账号：www.tourit.ca/agent-login');
-          return;
-        }
-        const listing = extractListing();
-        if (!listing) { showToast('⚠ No listing open — open a listing first'); return; }
-        capture(listing);
-        showToast('Opening 小红书…');
-        if (isChromeAlive()) setTimeout(() => {
-          try { chrome.runtime.sendMessage({ type: 'TOURIT_OPEN_XHS' }); } catch {}
-        }, 400);
-      });
-      document.body.appendChild(xhsBtn);
-    }
+    if (document.getElementById(XHS_BTN_ID)) return;
+
+    const btn = document.createElement('button');
+    btn.id = XHS_BTN_ID;
+    btn.textContent = '发布到小红书';
+    btn.style.cssText = [
+      'position:fixed', 'bottom:90px', 'right:16px', 'z-index:2147483646',
+      'padding:8px 14px', 'border-radius:20px',
+      'background:#ff2442', 'color:#fff',
+      'font:600 12px/1 system-ui,sans-serif',
+      'border:none', 'cursor:pointer',
+      'box-shadow:0 4px 16px rgba(255,36,66,0.4)',
+      'transition:opacity 0.2s, background 0.15s', 'opacity:0.9',
+    ].join(';');
+    btn.addEventListener('mouseenter', () => { btn.style.opacity = '1'; btn.style.background = '#cc1a33'; });
+    btn.addEventListener('mouseleave', () => { btn.style.opacity = '0.9'; btn.style.background = '#ff2442'; });
+    btn.addEventListener('click', () => {
+      if (!isAgentLoggedIn()) {
+        showToast('请登录经纪人账号：www.tourit.ca/agent-login');
+        return;
+      }
+      const listing = extractListing();
+      if (!listing) { showToast('⚠ No listing open — open a listing first'); return; }
+      capture(listing);
+      showToast('Opening 小红书…');
+      if (isChromeAlive()) setTimeout(() => {
+        try { chrome.runtime.sendMessage({ type: 'TOURIT_OPEN_XHS' }, () => { void chrome.runtime.lastError; }); } catch {}
+      }, 400);
+    });
+    document.body.appendChild(btn);
   }
-
-  function updateBtn() {}  // no-op — FBMP button hidden
-
-  if (document.body) injectBtn();
-  else document.addEventListener('DOMContentLoaded', injectBtn);
 
   // ─── Toast ────────────────────────────────────────────────────────────────
 
@@ -152,4 +163,7 @@
     clearTimeout(toast._timer);
     toast._timer = setTimeout(() => { toast.style.opacity = '0'; }, 2500);
   }
+
+  if (document.body) init();
+  else document.addEventListener('DOMContentLoaded', init);
 })();

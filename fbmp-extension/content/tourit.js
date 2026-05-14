@@ -36,7 +36,7 @@
       } else {
         chrome.storage.local.remove('tourit_account_key');
       }
-    } catch { /* extension context gone */ }
+    } catch {}
   }
 
   // ─── Extract listing from embedded JSON ──────────────────────────────────
@@ -61,32 +61,63 @@
         showToast(`✓ Captured: ${listing.address || listing.mls_number}`);
         updateBtn(true);
       });
-    } catch { /* extension context gone */ }
+    } catch {}
   }
 
-  // ─── MutationObserver ─────────────────────────────────────────────────────
+  // ─── Targeted head observer ───────────────────────────────────────────────
+  // Watches document.head with childList:true only (NO subtree).
+  // This fires only when #tourit-user-data or #tourit-listing-data are
+  // inserted/removed — on login/logout and listing open/close — never on
+  // ordinary React renders, which don't add/remove direct <head> children.
 
-  const observer = new MutationObserver(() => {
+  function startHeadObserver() {
+    const obs = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        for (const node of m.addedNodes) {
+          if (node.nodeType !== 1) continue;
+          if (node.id === 'tourit-user-data') {
+            syncAccountKey();
+            if (isAgentLoggedIn()) {
+              const listing = extractListing();
+              if (listing) { capture(listing); updateBtn(true); }
+            }
+          }
+          if (node.id === EMBED_ID) {
+            if (isAgentLoggedIn()) {
+              const listing = extractListing();
+              if (listing) { capture(listing); updateBtn(true); }
+            } else {
+              updateBtn(false);
+            }
+          }
+        }
+        for (const node of m.removedNodes) {
+          if (node.nodeType !== 1) continue;
+          if (node.id === 'tourit-user-data') {
+            syncAccountKey(); // clears tourit_account_key from storage
+          }
+          if (node.id === EMBED_ID) {
+            updateBtn(false);
+          }
+        }
+      }
+    });
+    obs.observe(document.head, { childList: true }); // no subtree
+  }
+
+  // ─── Init: run once on page load ─────────────────────────────────────────
+
+  function init() {
     syncAccountKey();
     if (isAgentLoggedIn()) {
       const listing = extractListing();
       if (listing) capture(listing);
     }
-    if (document.body) injectBtn();
-  });
-  observer.observe(document.head, { childList: true, subtree: true, characterData: true });
-
-  syncAccountKey();
-  if (isAgentLoggedIn()) {
-    const existing = extractListing();
-    if (existing) capture(existing);
+    injectBtn();
+    startHeadObserver();
   }
 
   // ─── Floating button ──────────────────────────────────────────────────────
-
-  function removeBtn() {
-    document.getElementById(BTN_ID)?.remove();
-  }
 
   function injectBtn() {
     if (document.getElementById(BTN_ID)) return;
@@ -129,9 +160,6 @@
     }, 3000);
   }
 
-  if (document.body) injectBtn();
-  else document.addEventListener('DOMContentLoaded', injectBtn);
-
   // ─── Toast ────────────────────────────────────────────────────────────────
 
   function showToast(msg) {
@@ -154,4 +182,7 @@
     clearTimeout(toast._timer);
     toast._timer = setTimeout(() => { toast.style.opacity = '0'; }, 2500);
   }
+
+  if (document.body) init();
+  else document.addEventListener('DOMContentLoaded', init);
 })();
