@@ -1,11 +1,25 @@
 import { useState, useRef, useEffect } from "react";
 import { useHistory } from "react-router-dom";
-import { Search, MapPin } from "lucide-react";
+import { Search, MapPin, X, Clock } from "lucide-react";
 import apiFetch from "../../../utils/apiFetch";
 import { resolveUrl } from "../../../utils/imageResolver";
 
 const GTA_BOUNDS = { north: 44.3, south: 43.2, east: -78.5, west: -80.5 };
 const DEBOUNCE_MS = 280;
+const RECENT_KEY = "tourit_recent_searches";
+const MAX_RECENT = 6;
+
+const loadRecent = () => {
+	try { return JSON.parse(localStorage.getItem(RECENT_KEY) || "[]"); }
+	catch { return []; }
+};
+
+const saveRecent = (item) => {
+	try {
+		const prev = loadRecent().filter(r => r.id !== item.id);
+		localStorage.setItem(RECENT_KEY, JSON.stringify([item, ...prev].slice(0, MAX_RECENT)));
+	} catch {}
+};
 
 const SectionLabel = ({ children }) => (
 	<div style={{
@@ -21,16 +35,17 @@ const SectionLabel = ({ children }) => (
 
 const MapSearchBar = ({ onPlaceSelect, googleReady }) => {
 	const history = useHistory();
-	const [query, setQuery]           = useState("");
-	const [places, setPlaces]         = useState([]);
-	const [listings, setListings]     = useState([]);
-	const [activeIdx, setActiveIdx]   = useState(-1);
+	const [query, setQuery]         = useState("");
+	const [places, setPlaces]       = useState([]);
+	const [listings, setListings]   = useState([]);
+	const [recent, setRecent]       = useState([]);
+	const [focused, setFocused]     = useState(false);
+	const [activeIdx, setActiveIdx] = useState(-1);
 	const autocompleteRef = useRef(null);
 	const placesRef       = useRef(null);
 	const tokenRef        = useRef(null);
 	const listingTimer    = useRef(null);
 
-	// Wait for Google Maps API to be ready before initialising Places services
 	useEffect(() => {
 		if (!googleReady || !window.google?.maps?.places) return;
 		autocompleteRef.current = new window.google.maps.places.AutocompleteService();
@@ -39,7 +54,6 @@ const MapSearchBar = ({ onPlaceSelect, googleReady }) => {
 		tokenRef.current  = new window.google.maps.places.AutocompleteSessionToken();
 	}, [googleReady]);
 
-	// Google Places predictions
 	const fetchPlaces = (val) => {
 		if (!val.trim() || !autocompleteRef.current) { setPlaces([]); return; }
 		const gtaBounds = new window.google.maps.LatLngBounds(
@@ -61,22 +75,16 @@ const MapSearchBar = ({ onPlaceSelect, googleReady }) => {
 		});
 	};
 
-	// MLS listing search (debounced)
 	const fetchListings = (val) => {
 		clearTimeout(listingTimer.current);
 		if (!val.trim() || val.trim().length < 2) { setListings([]); return; }
 		listingTimer.current = setTimeout(async () => {
 			try {
 				const res = await apiFetch(`/api/search/${encodeURIComponent(val.trim())}`);
-				if (!res.ok) {
-					console.warn("[MapSearchBar] listing search HTTP", res.status);
-					setListings([]); return;
-				}
+				if (!res.ok) { setListings([]); return; }
 				const data = await res.json();
-				console.log("[MapSearchBar] listings received:", (data.properties || []).length);
 				setListings((data.properties || []).slice(0, 6));
-			} catch (err) {
-				console.error("[MapSearchBar] listing search error:", err);
+			} catch {
 				setListings([]);
 			}
 		}, DEBOUNCE_MS);
@@ -90,10 +98,27 @@ const MapSearchBar = ({ onPlaceSelect, googleReady }) => {
 		fetchListings(val);
 	};
 
-	const closeDropdown = () => { setPlaces([]); setListings([]); setActiveIdx(-1); };
+	const handleFocus = () => {
+		setFocused(true);
+		if (!query.trim()) setRecent(loadRecent());
+	};
+
+	const closeDropdown = () => {
+		setPlaces([]); setListings([]); setActiveIdx(-1); setFocused(false);
+	};
+
+	const clearSearch = () => {
+		setQuery("");
+		setPlaces([]);
+		setListings([]);
+		setActiveIdx(-1);
+		setRecent(loadRecent());
+		// keep focused=true so recent dropdown appears after clearing
+	};
 
 	const selectPlace = (pred) => {
 		setQuery(pred.description);
+		saveRecent({ id: pred.place_id, type: "place", label: pred.description, data: pred });
 		closeDropdown();
 		placesRef.current.getDetails({
 			placeId: pred.place_id,
@@ -117,16 +142,34 @@ const MapSearchBar = ({ onPlaceSelect, googleReady }) => {
 	};
 
 	const selectListing = (listing) => {
+		const unit = listing.unit ? `${listing.unit}-` : "";
+		const addr = [unit + listing.street, listing.city].filter(Boolean).join(", ");
+		saveRecent({
+			id: listing.mls_number || listing.listing_id || listing.id,
+			type: "listing",
+			label: addr || listing.mls_number || listing.listing_id,
+			data: listing,
+		});
 		closeDropdown();
 		setQuery("");
 		history.push(`/listing/${encodeURIComponent(listing.mls_number || listing.listing_id)}`);
 	};
 
-	// Flat list for keyboard nav: places first, then listings
-	const allItems = [
-		...places.map(p   => ({ type: "place",   data: p })),
-		...listings.map(l => ({ type: "listing", data: l })),
-	];
+	const selectRecent = (item) => {
+		if (item.type === "place") selectPlace(item.data);
+		else selectListing(item.data);
+	};
+
+	const showRecent = focused && !query.trim() && recent.length > 0;
+	const hasDropdown = places.length > 0 || listings.length > 0 || showRecent;
+
+	// Flat list for keyboard nav: recent OR (places + listings)
+	const allItems = showRecent
+		? recent.map(r => ({ type: "recent", data: r }))
+		: [
+			...places.map(p   => ({ type: "place",   data: p })),
+			...listings.map(l => ({ type: "listing", data: l })),
+		];
 
 	const handleKeyDown = (e) => {
 		if (e.key === "ArrowDown") {
@@ -143,8 +186,9 @@ const MapSearchBar = ({ onPlaceSelect, googleReady }) => {
 			e.preventDefault();
 			const item = allItems[activeIdx >= 0 ? activeIdx : 0];
 			if (!item) return;
-			if (item.type === "place")   selectPlace(item.data);
-			else                          selectListing(item.data);
+			if (item.type === "recent")   selectRecent(item.data);
+			else if (item.type === "place") selectPlace(item.data);
+			else                            selectListing(item.data);
 		}
 	};
 
@@ -152,11 +196,11 @@ const MapSearchBar = ({ onPlaceSelect, googleReady }) => {
 		e.preventDefault();
 		const item = allItems[activeIdx >= 0 ? activeIdx : 0];
 		if (!item) return;
-		if (item.type === "place") selectPlace(item.data);
-		else                        selectListing(item.data);
+		if (item.type === "recent")   selectRecent(item.data);
+		else if (item.type === "place") selectPlace(item.data);
+		else                            selectListing(item.data);
 	};
 
-	const hasDropdown = places.length > 0 || listings.length > 0;
 	let flatIdx = 0;
 
 	return (
@@ -174,6 +218,7 @@ const MapSearchBar = ({ onPlaceSelect, googleReady }) => {
 						value={query}
 						onChange={handleChange}
 						onKeyDown={handleKeyDown}
+						onFocus={handleFocus}
 						onBlur={() => setTimeout(closeDropdown, 160)}
 						placeholder="City, neighbourhood, address, or MLS#…"
 						autoComplete="off"
@@ -182,6 +227,19 @@ const MapSearchBar = ({ onPlaceSelect, googleReady }) => {
 							fontSize: 13, width: "100%", color: "#0f172a",
 						}}
 					/>
+					{query && (
+						<button
+							type="button"
+							onMouseDown={(e) => { e.preventDefault(); clearSearch(); }}
+							style={{
+								background: "none", border: "none", padding: 2,
+								cursor: "pointer", color: "#94a3b8", flexShrink: 0,
+								display: "flex", alignItems: "center", lineHeight: 1,
+							}}
+						>
+							<X size={14} strokeWidth={2} />
+						</button>
+					)}
 				</div>
 			</form>
 
@@ -193,6 +251,40 @@ const MapSearchBar = ({ onPlaceSelect, googleReady }) => {
 					overflow: "hidden", zIndex: 200,
 					maxHeight: 500, overflowY: "auto",
 				}}>
+					{/* ── Recent Searches ── */}
+					{showRecent && (
+						<>
+							<SectionLabel>Recent Searches</SectionLabel>
+							{recent.map((item) => {
+								const myIdx = flatIdx++;
+								return (
+									<div
+										key={item.id}
+										onMouseDown={() => selectRecent(item)}
+										style={{
+											display: "flex", alignItems: "center", gap: 8,
+											padding: "9px 14px", cursor: "pointer",
+											background: myIdx === activeIdx ? "#f1f5f9" : "white",
+											borderBottom: "1px solid #f0f0ec",
+										}}
+									>
+										<Clock size={13} strokeWidth={1.5} style={{ color: "#94a3b8", flexShrink: 0 }} />
+										<div style={{
+											fontSize: 13, flex: 1, minWidth: 0,
+											overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+											color: "#374151",
+										}}>
+											{item.label}
+										</div>
+										<span style={{ fontSize: 11, color: "#cbd5e1", flexShrink: 0 }}>
+											{item.type === "listing" ? "Listing" : "Location"}
+										</span>
+									</div>
+								);
+							})}
+						</>
+					)}
+
 					{/* ── Locations ── */}
 					{places.length > 0 && (
 						<>
@@ -249,7 +341,6 @@ const MapSearchBar = ({ onPlaceSelect, googleReady }) => {
 											borderBottom: "1px solid #f0f0ec",
 										}}
 									>
-										{/* Thumbnail */}
 										<div style={{
 											width: 54, height: 40, borderRadius: 6,
 											overflow: "hidden", flexShrink: 0, background: "#f0f0ec",
@@ -264,7 +355,6 @@ const MapSearchBar = ({ onPlaceSelect, googleReady }) => {
 												/>
 											)}
 										</div>
-										{/* Text */}
 										<div style={{ flex: 1, minWidth: 0 }}>
 											<div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 4 }}>
 												{price && (
