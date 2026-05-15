@@ -52,14 +52,14 @@
 
   // ─── Save to extension storage ───────────────────────────────────────────
 
-  function capture(listing) {
+  function capture(listing, onSuccess) {
     if (!isChromeAlive()) return;
     const enriched = { ...listing, site_origin: window.location.origin };
     try {
       chrome.storage.local.set({ tourit_listing: enriched }, () => {
         if (chrome.runtime.lastError) return;
-        showToast(`✓ Captured: ${listing.address || listing.mls_number}`);
         updateBtn(true);
+        onSuccess?.();
       });
     } catch {}
   }
@@ -142,7 +142,11 @@
         return;
       }
       const listing = extractListing();
-      listing ? capture(listing) : showToast('⚠ No listing open — open a listing first');
+      if (!listing) { showToast('⚠ No listing open — open a listing first'); return; }
+      showToast('✓ Saved — opening Facebook Marketplace…');
+      capture(listing, () => {
+        window.open('https://www.facebook.com/marketplace/create/rental', '_blank');
+      });
     });
     document.body.appendChild(btn);
   }
