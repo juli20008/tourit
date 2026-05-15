@@ -15,10 +15,9 @@ import { getWhitelabelSlug } from "../../utils/whitelabel";
 function useFbmpEmbed(property) {
 	useEffect(() => {
 		if (!property) return;
-		const street = [property.street_number, property.street_name, property.street_suffix]
-			.filter(Boolean).join(" ");
-		const unit = property.unit_number ? `#${property.unit_number} ` : "";
-		const address = `${unit}${street}`;
+		const street = property.street || "";
+		const unit = (property.unit || property.unit_number) ? `#${property.unit || property.unit_number} ` : "";
+		const address = `${unit}${street}`.trim();
 		const payload = {
 			mls_number: property.mls_number,
 			title: `${property.bed ?? "?"}BR ${property.style || property.property_type || "Home"} for Rent | ${address}, ${property.city || ""}`,

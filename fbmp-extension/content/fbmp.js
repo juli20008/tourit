@@ -101,7 +101,7 @@
     return new Promise((resolve) => {
       if (!urls.length) return resolve([]);
       chrome.runtime.sendMessage({ type: 'TOURIT_FETCH_IMAGES', urls }, (response) => {
-        if (!response || !response.images) return resolve([]);
+        if (chrome.runtime.lastError || !response || !response.images) return resolve([]);
         const files = response.images
           .map((img) => {
             try {
@@ -138,19 +138,22 @@
     await sleep(300);
 
     await fillRentCategoryField(filled, skipped);
-    await fillTextField(['title', 'listing title'], listing.title, filled, skipped, 'Title');
-    await fillTextField(['price', 'rent'], String(listing.price || ''), filled, skipped, 'Price', { numeric: true });
-    await fillTextField(['description'], listing.description, filled, skipped, 'Description', { multiline: true });
-    await fillAddressFields(listing, filled, skipped);
-    await fillNumericField(['number of bedrooms', 'bedrooms', 'bedroom', 'beds'], String(listing.beds ?? ''), filled, skipped, 'Bedrooms');
-    await fillNumericField(['number of bathrooms', 'bathrooms', 'bathroom', 'baths'], String(listing.baths ?? ''), filled, skipped, 'Bathrooms');
+    await sleep(700); // let FB re-render form after category change
+
+    await fillListingTypeForRent(filled, skipped);
+    await fillTextField(['listing title', 'title', 'add a title'], listing.title, filled, skipped, 'Title');
     await fillChoiceField(
-      ['property type', 'home type', 'rental type', 'type'],
+      ['property type', 'home type', 'type of property', 'type'],
       mapPropertyType(listing.property_type, listing.style),
       filled,
       skipped,
       'Property type'
     );
+    await fillTextField(['price', 'monthly rent', 'rent per month', 'rent'], String(listing.price || ''), filled, skipped, 'Price', { numeric: true });
+    await fillTextField(['description', 'additional information', 'about this listing'], listing.description, filled, skipped, 'Description', { multiline: true });
+    await fillAddressFields(listing, filled, skipped);
+    await fillNumericField(['number of bedrooms', 'bedrooms', 'bedroom', 'beds'], String(listing.beds ?? ''), filled, skipped, 'Bedrooms');
+    await fillNumericField(['number of bathrooms', 'bathrooms', 'bathroom', 'baths'], String(listing.baths ?? ''), filled, skipped, 'Bathrooms');
 
     return { filled, skipped, listing };
   }
@@ -223,6 +226,17 @@
     await fillChoiceField(keywords, value, filled, skipped, label);
   }
 
+  async function fillListingTypeForRent(filled, skipped) {
+    // Explicitly select "For Rent" if FB shows a For Rent / For Sale toggle
+    const forRentBtn = Array.from(document.querySelectorAll("input[type='radio'], button, [role='radio'], [role='tab'], [role='button'], label"))
+      .filter((el) => isVisible(el))
+      .find((el) => normalizeText(el.textContent || el.getAttribute('aria-label') || el.value || '') === 'for rent');
+    if (!forRentBtn) { skipped.push('For Rent toggle not found'); return; }
+    forRentBtn.click();
+    await sleep(300);
+    filled.push('For Rent selected');
+  }
+
   async function fillRentCategoryField(filled, skipped) {
     const field = await waitFor(() => findRentCategoryField(), 2000, 120);
     if (!field) { skipped.push('Category field not found'); return; }
@@ -232,9 +246,9 @@
     }
 
     field.click();
-    await sleep(250);
+    await sleep(600);
 
-    const option = await waitFor(() => findChoiceOption('Rent'), 2500, 120);
+    const option = await waitFor(() => findChoiceOption('Rent'), 4000, 150);
     if (!option) { skipped.push('Category option "Rent" not found'); return; }
 
     option.click();
@@ -284,9 +298,9 @@
     if (!combo) { skipped.push(`${label} field not found`); return; }
 
     combo.click();
-    await sleep(250);
+    await sleep(600);
 
-    const option = await waitFor(() => findChoiceOption(value), 2500, 120);
+    const option = await waitFor(() => findChoiceOption(value), 4000, 150);
     if (!option) { skipped.push(`${label} option "${value}" not found`); return; }
 
     option.click();
@@ -526,13 +540,15 @@
 
   function findChoiceOption(value) {
     const norm = normalizeText(value);
-    const candidates = Array.from(document.querySelectorAll("[role='option'], li, button, div[role='button'], div[tabindex]"))
-      .filter((el) => isVisible(el));
-    return (
-      candidates.find((el) => normalizeText(el.textContent || '') === norm) ||
-      candidates.find((el) => normalizeText(el.textContent || '').includes(norm)) ||
+    // Query all candidates — include non-visible ones since FB briefly renders portals at 0 opacity
+    const candidates = Array.from(document.querySelectorAll("[role='option'], [role='menuitem'], li, button, div[role='button'], div[tabindex='0']"));
+    const visible = candidates.filter(isVisible);
+    const search = (pool) => (
+      pool.find((el) => normalizeText(el.textContent || '') === norm) ||
+      pool.find((el) => normalizeText(el.textContent || '').includes(norm)) ||
       null
     );
+    return search(visible) || search(candidates);
   }
 
   function dispatchInputEvents(element) {
