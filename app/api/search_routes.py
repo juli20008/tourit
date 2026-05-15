@@ -71,8 +71,9 @@ def _mls_by_term(parsed: str, suggest: bool = False) -> list:
         MlsListing.visible_filter(),
     ]
     if suggest:
-        # Typeahead only returns Ontario listings (site is GTA-focused)
-        filters.append(MlsListing.state == 'ON')
+        # Typeahead only returns Ontario listings (site is GTA-focused).
+        # DDF stores the full province name ("Ontario"), not the abbreviation.
+        filters.append(MlsListing.state.ilike('ontario'))
 
     # Exact city or MLS# match floats to top; otherwise sort by price desc
     priority = case(
