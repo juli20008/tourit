@@ -1,4 +1,5 @@
 from sqlalchemy.orm import selectinload
+from sqlalchemy import or_, case
 from flask import Blueprint, request
 from app.models import Property, State
 from app.models.mls_listing import MlsListing
@@ -24,7 +25,6 @@ def search_by_area():
     sw_lat = float(request.json["swLat"])
     sw_lng = float(request.json["swLng"])
 
-    # MLS listings within the same bounding box
     mls = (
         MlsListing.query
         .filter(
@@ -38,7 +38,6 @@ def search_by_area():
     )
 
     results = [l.to_frontend_dict() for l in mls]
-
     return {"properties": results}
 
 
@@ -46,40 +45,50 @@ def search_by_area():
 def search_by_term(term):
     parsed = " ".join(term.split("-"))
     suggest = request.args.get("suggest", "").strip() == "1"
-
     results = _mls_by_term(parsed, suggest=suggest)
     return {"properties": results or []}
 
 
 def _mls_by_term(parsed: str, suggest: bool = False) -> list:
-    """Search mls_listings by MLS #, city, neighbourhood, street, or postal code.
+    """Search mls_listings by MLS #, city, neighbourhood, street name, or postal code.
 
-    suggest=True returns a lightweight dict capped at 6 results for typeahead.
+    suggest=True returns 6 lightweight map-pin dicts filtered to Ontario for typeahead.
+    Relies on pg_trgm GIN indexes on city, neighborhood, street_name, mls_number.
     """
-    from sqlalchemy import or_, func
-    full_street = func.concat(
-        func.coalesce(MlsListing.street_number, ''), ' ',
-        func.coalesce(MlsListing.street_name, ''), ' ',
-        func.coalesce(MlsListing.street_suffix, ''),
-    )
     limit = 6 if suggest else MLS_LIMIT
+
+    text_filter = or_(
+        MlsListing.mls_number.ilike(f"%{parsed}%"),
+        MlsListing.city.ilike(f"%{parsed}%"),
+        MlsListing.neighborhood.ilike(f"%{parsed}%"),
+        MlsListing.street_name.ilike(f"%{parsed}%"),
+        MlsListing.zip.ilike(f"{parsed}%"),
+    )
+
+    filters = [
+        text_filter,
+        MlsListing.list_price.isnot(None),
+        MlsListing.visible_filter(),
+    ]
+    if suggest:
+        # Typeahead only returns Ontario listings (site is GTA-focused)
+        filters.append(MlsListing.state == 'ON')
+
+    # Exact city or MLS# match floats to top; otherwise sort by price desc
+    priority = case(
+        (MlsListing.city.ilike(parsed), 0),
+        (MlsListing.mls_number.ilike(parsed), 0),
+        else_=1,
+    )
+
     rows = (
         MlsListing.query
-        .filter(
-            or_(
-                MlsListing.mls_number.ilike(f"%{parsed}%"),
-                MlsListing.city.ilike(f"%{parsed}%"),
-                MlsListing.neighborhood.ilike(f"%{parsed}%"),
-                MlsListing.street_name.ilike(f"%{parsed}%"),
-                full_street.ilike(f"%{parsed}%"),
-                MlsListing.zip.ilike(f"%{parsed}%"),
-            ),
-            MlsListing.list_price.isnot(None),
-            MlsListing.visible_filter(),
-        )
+        .filter(*filters)
+        .order_by(priority, MlsListing.list_price.desc())
         .limit(limit)
         .all()
     )
+
     if suggest:
         return [l.to_map_pin_dict() for l in rows]
     return [l.to_frontend_dict() for l in rows]

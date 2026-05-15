@@ -80,7 +80,7 @@ const MapSearchBar = ({ onPlaceSelect, googleReady }) => {
 		if (!val.trim() || val.trim().length < 2) { setListings([]); return; }
 		listingTimer.current = setTimeout(async () => {
 			try {
-				const res = await apiFetch(`/api/search/${encodeURIComponent(val.trim())}`);
+				const res = await apiFetch(`/api/search/${encodeURIComponent(val.trim())}?suggest=1`);
 				if (!res.ok) { setListings([]); return; }
 				const data = await res.json();
 				setListings((data.properties || []).slice(0, 6));
