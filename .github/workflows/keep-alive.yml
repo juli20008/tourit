@@ -9,5 +9,5 @@ jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping API health
-        run: curl -sf --max-time 10 https://api.tourit.ca/health > /dev/null
+      - name: Ping API warmup
+        run: curl -sf --max-time 30 https://api.tourit.ca/warmup > /dev/null

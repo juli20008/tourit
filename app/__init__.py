@@ -126,6 +126,21 @@ def health_check():
     return jsonify({'status': 'ok'})
 
 
+@app.route('/warmup')
+def warmup():
+    """Pre-warm Flask + the SQLAlchemy connection pool.
+    Called by the keep-alive cron and the page pre-ping so that a cold-start
+    Render container is fully ready before the first real API call arrives.
+    """
+    try:
+        from sqlalchemy import text
+        db.session.execute(text('SELECT 1'))
+        db.session.remove()
+        return jsonify({'status': 'ok', 'db': 'ok'})
+    except Exception:
+        return jsonify({'status': 'ok', 'db': 'error'})
+
+
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve(path):

@@ -3,6 +3,12 @@
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<script>
+			// Pre-ping the Render backend the moment the browser receives this HTML —
+			// before React JS downloads or mounts. This starts the cold-start clock
+			// ~3-5 s earlier so real API calls find a warm container.
+			fetch('https://api.tourit.ca/warmup', { credentials: 'include' }).catch(function () {});
+		</script>
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 		<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@700&family=Inter:wght@400;500&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet" />
