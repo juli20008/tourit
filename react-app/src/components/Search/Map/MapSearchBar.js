@@ -45,6 +45,7 @@ const MapSearchBar = ({ onPlaceSelect, googleReady }) => {
 	const placesRef       = useRef(null);
 	const tokenRef        = useRef(null);
 	const listingTimer    = useRef(null);
+	const abortRef        = useRef(null);
 
 	useEffect(() => {
 		if (!googleReady || !window.google?.maps?.places) return;
@@ -77,15 +78,21 @@ const MapSearchBar = ({ onPlaceSelect, googleReady }) => {
 
 	const fetchListings = (val) => {
 		clearTimeout(listingTimer.current);
+		if (abortRef.current) { abortRef.current.abort(); abortRef.current = null; }
 		if (!val.trim() || val.trim().length < 2) { setListings([]); return; }
 		listingTimer.current = setTimeout(async () => {
+			const ctrl = new AbortController();
+			abortRef.current = ctrl;
 			try {
-				const res = await apiFetch(`/api/search/${encodeURIComponent(val.trim())}?suggest=1`);
+				const res = await apiFetch(
+					`/api/search/${encodeURIComponent(val.trim())}?suggest=1`,
+					{ signal: ctrl.signal }
+				);
 				if (!res.ok) { setListings([]); return; }
 				const data = await res.json();
 				setListings((data.properties || []).slice(0, 6));
-			} catch {
-				setListings([]);
+			} catch (err) {
+				if (err.name !== 'AbortError') setListings([]);
 			}
 		}, DEBOUNCE_MS);
 	};

@@ -52,46 +52,57 @@ def search_by_term(term):
 def _mls_by_term(parsed: str, suggest: bool = False) -> list:
     """Search mls_listings by MLS #, city, neighbourhood, street name, or postal code.
 
-    suggest=True returns 6 lightweight map-pin dicts filtered to Ontario for typeahead.
-    Relies on pg_trgm GIN indexes on city, neighborhood, street_name, mls_number.
+    suggest=True  — 6 lightweight map-pin dicts, Ontario only, no photo gate.
+    suggest=False — up to MLS_LIMIT full dicts for the /search/:term page.
+    Relies on pg_trgm GIN indexes on city, neighborhood, street_name, mls_number
+    (see migrations/search_indexes.sql).
     """
-    limit = 6 if suggest else MLS_LIMIT
-
-    text_filter = or_(
-        MlsListing.mls_number.ilike(f"%{parsed}%"),
-        MlsListing.city.ilike(f"%{parsed}%"),
-        MlsListing.neighborhood.ilike(f"%{parsed}%"),
-        MlsListing.street_name.ilike(f"%{parsed}%"),
-        MlsListing.zip.ilike(f"{parsed}%"),
-    )
-
-    filters = [
-        text_filter,
-        MlsListing.list_price.isnot(None),
-        MlsListing.visible_filter(),
-    ]
     if suggest:
-        # Typeahead only returns Ontario listings (site is GTA-focused).
-        # DDF stores the full province name ("Ontario"), not the abbreviation.
-        filters.append(MlsListing.state.ilike('ontario'))
+        # Fast path: minimal filter set, no ORDER BY, returns immediately.
+        # is_active_filter only — visible_filter also requires photos which
+        # would silently drop listings with no images yet.
+        rows = (
+            MlsListing.query
+            .filter(
+                or_(
+                    MlsListing.mls_number.ilike(f"%{parsed}%"),
+                    MlsListing.city.ilike(f"%{parsed}%"),
+                    MlsListing.neighborhood.ilike(f"%{parsed}%"),
+                    MlsListing.street_name.ilike(f"%{parsed}%"),
+                    MlsListing.zip.ilike(f"{parsed}%"),
+                ),
+                MlsListing.list_price.isnot(None),
+                MlsListing.is_active_filter(),
+                MlsListing.state.ilike('ontario'),
+            )
+            .limit(6)
+            .all()
+        )
+        return [l.to_map_pin_dict() for l in rows]
 
-    # Exact city or MLS# match floats to top; otherwise sort by price desc
+    # Full search path
     priority = case(
         (MlsListing.city.ilike(parsed), 0),
         (MlsListing.mls_number.ilike(parsed), 0),
         else_=1,
     )
-
     rows = (
         MlsListing.query
-        .filter(*filters)
+        .filter(
+            or_(
+                MlsListing.mls_number.ilike(f"%{parsed}%"),
+                MlsListing.city.ilike(f"%{parsed}%"),
+                MlsListing.neighborhood.ilike(f"%{parsed}%"),
+                MlsListing.street_name.ilike(f"%{parsed}%"),
+                MlsListing.zip.ilike(f"{parsed}%"),
+            ),
+            MlsListing.list_price.isnot(None),
+            MlsListing.visible_filter(),
+        )
         .order_by(priority, MlsListing.list_price.desc())
-        .limit(limit)
+        .limit(MLS_LIMIT)
         .all()
     )
-
-    if suggest:
-        return [l.to_map_pin_dict() for l in rows]
     return [l.to_frontend_dict() for l in rows]
 
 
