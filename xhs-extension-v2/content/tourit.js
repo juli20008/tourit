@@ -104,6 +104,47 @@
     }
     injectBtn();
     startHeadObserver();
+    applyCreditsState();
+    listenForCreditsChanges();
+  }
+
+  // ─── Credit state ─────────────────────────────────────────────────────────
+
+  function applyCreditsState() {
+    if (!isChromeAlive()) return;
+    try {
+      chrome.storage.local.get(['tourit_has_credits'], ({ tourit_has_credits }) => {
+        setXhsBtnCredits(tourit_has_credits !== false);
+      });
+    } catch {}
+  }
+
+  function listenForCreditsChanges() {
+    if (!isChromeAlive()) return;
+    try {
+      chrome.storage.onChanged.addListener((changes, area) => {
+        if (area !== 'local' || !('tourit_has_credits' in changes)) return;
+        setXhsBtnCredits(changes.tourit_has_credits.newValue !== false);
+      });
+    } catch {}
+  }
+
+  function setXhsBtnCredits(hasCredits) {
+    const btn = document.getElementById(XHS_BTN_ID);
+    if (!btn) return;
+    if (hasCredits) {
+      btn.dataset.noCredits = '';
+      btn.style.background  = '#ff2442';
+      btn.style.opacity     = '0.9';
+      btn.style.cursor      = 'pointer';
+      btn.title             = '';
+    } else {
+      btn.dataset.noCredits = '1';
+      btn.style.background  = '#94a3b8';
+      btn.style.opacity     = '0.6';
+      btn.style.cursor      = 'not-allowed';
+      btn.title             = '请先充值 AI 额度';
+    }
   }
 
   // ─── Floating button ──────────────────────────────────────────────────────
@@ -123,9 +164,19 @@
       'box-shadow:0 4px 16px rgba(255,36,66,0.4)',
       'transition:opacity 0.2s, background 0.15s', 'opacity:0.9',
     ].join(';');
-    btn.addEventListener('mouseenter', () => { btn.style.opacity = '1'; btn.style.background = '#cc1a33'; });
-    btn.addEventListener('mouseleave', () => { btn.style.opacity = '0.9'; btn.style.background = '#ff2442'; });
+    btn.addEventListener('mouseenter', () => {
+      if (btn.dataset.noCredits === '1') return;
+      btn.style.opacity = '1'; btn.style.background = '#cc1a33';
+    });
+    btn.addEventListener('mouseleave', () => {
+      if (btn.dataset.noCredits === '1') return;
+      btn.style.opacity = '0.9'; btn.style.background = '#ff2442';
+    });
     btn.addEventListener('click', () => {
+      if (btn.dataset.noCredits === '1') {
+        showToast('⚠ AI额度已用完，请打开插件充值');
+        return;
+      }
       if (!isAgentLoggedIn()) {
         showToast('请登录经纪人账号：www.tourit.ca/agent-login');
         return;

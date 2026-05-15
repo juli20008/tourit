@@ -13,6 +13,7 @@ class Appointment(db.Model):
     time = db.Column(db.String(50), nullable=False)
     message = db.Column(db.String(255))
     canceled = db.Column(db.Boolean)
+    archived = db.Column(db.Boolean, default=False)
 
     user = db.relationship("User", foreign_keys=[user_id], back_populates="user_appointments")
     agent = db.relationship("User", foreign_keys=[agent_id], back_populates="agent_appointments")
@@ -66,6 +67,7 @@ class Appointment(db.Model):
             "time": self.time,
             "message": self.message,
             "canceled": self.canceled,
+            "archived": self.archived,
             "listing": listing,
         }
 

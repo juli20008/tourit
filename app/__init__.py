@@ -1,6 +1,7 @@
 import os
 import re
 from flask import Flask, request, redirect, jsonify, send_from_directory
+from flask_compress import Compress
 from flask_cors import CORS
 from flask_migrate import Migrate
 from flask_wtf.csrf import CSRFProtect, generate_csrf
@@ -77,6 +78,7 @@ app.cli.add_command(repliers_commands)
 db.init_app(app)
 Migrate(app, db)
 socketio.init_app(app)
+Compress(app)
 
 # Application Security
 # Hardcode known origins + pick up any extras from FRONTEND_URL env var.

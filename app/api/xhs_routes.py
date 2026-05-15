@@ -1,11 +1,12 @@
 import os
+import datetime
 import requests
 from flask import Blueprint, request, jsonify
 from flask_cors import cross_origin
 
 xhs_routes = Blueprint('xhs', __name__)
 
-FREE_LIMIT = 5  # free uses per device
+FREE_LIMIT = 5  # free uses per device per month
 
 
 # ── Supabase REST helpers ──────────────────────────────────────────────────────
@@ -22,23 +23,48 @@ def _sb_headers(extra=None):
     return h
 
 
+def _current_month():
+    return datetime.datetime.utcnow().strftime('%Y-%m')
+
+
+def _maybe_reset(row, device_id, month):
+    """If the row's reset_month is stale, zero free_used in DB and return updated row."""
+    if row.get('reset_month') == month:
+        return row
+    try:
+        requests.patch(
+            _sb_url('xhs_credits'),
+            headers=_sb_headers({'Prefer': 'return=minimal'}),
+            params={'device_id': f'eq.{device_id}'},
+            json={'free_used': 0, 'reset_month': month},
+            timeout=5,
+        )
+    except Exception:
+        pass
+    row = dict(row)
+    row['free_used'] = 0
+    row['reset_month'] = month
+    return row
+
+
 def _get_or_create_credits(device_id):
-    """Return {free_used, paid_credits} row, creating it if needed."""
+    """Return {free_used, paid_credits, reset_month} row, creating/resetting if needed."""
+    month = _current_month()
     r = requests.get(
         _sb_url('xhs_credits'),
         headers=_sb_headers(),
-        params={'device_id': f'eq.{device_id}', 'select': 'free_used,paid_credits'},
+        params={'device_id': f'eq.{device_id}', 'select': 'free_used,paid_credits,reset_month'},
         timeout=5,
     )
     if r.ok:
         rows = r.json()
         if rows:
-            return rows[0]
+            return _maybe_reset(rows[0], device_id, month)
 
     ins = requests.post(
         _sb_url('xhs_credits'),
         headers=_sb_headers({'Prefer': 'resolution=ignore-duplicates,return=representation'}),
-        json={'device_id': device_id, 'free_used': 0, 'paid_credits': 0},
+        json={'device_id': device_id, 'free_used': 0, 'paid_credits': 0, 'reset_month': month},
         timeout=5,
     )
     if ins.ok:
@@ -50,13 +76,13 @@ def _get_or_create_credits(device_id):
     r2 = requests.get(
         _sb_url('xhs_credits'),
         headers=_sb_headers(),
-        params={'device_id': f'eq.{device_id}', 'select': 'free_used,paid_credits'},
+        params={'device_id': f'eq.{device_id}', 'select': 'free_used,paid_credits,reset_month'},
         timeout=5,
     )
     if r2.ok and r2.json():
-        return r2.json()[0]
+        return _maybe_reset(r2.json()[0], device_id, month)
 
-    return {'free_used': 0, 'paid_credits': 0}
+    return {'free_used': 0, 'paid_credits': 0, 'reset_month': month}
 
 
 def _deduct_credit(device_id, row):
@@ -286,11 +312,8 @@ def rewrite_for_xhs():
     price  = f"{int(listing.get('price') or 0):,}"
     beds   = listing.get('beds', '?')
     baths  = listing.get('baths', '?')
-    mls    = listing.get('mls_number', '')
-    origin = (listing.get('site_origin') or 'https://tourit.ca').rstrip('/')
-    host   = origin.replace('https://', '').replace('http://', '')
 
-    prompt = f"""你是一位在加拿大多伦多从业多年的华人房产经纪，专门帮助华人买家找到心仪的房子。请根据以下房源信息，用小红书风格写一篇真实生动的购房推荐帖。
+    prompt = f"""你是一位在加拿大多伦多从业多年的华人房产经纪，专门帮助华人买家找到心仪的房子。请根据以下房源信息，用小红书风格写一篇购房推荐帖。
 
 房源信息：
 城市/区域：{city_zh}
@@ -300,17 +323,17 @@ def rewrite_for_xhs():
 卫生间：{baths} 间
 售价：${price} 加元
 房源描述：{translated_desc}
-预约看房：{host}/listing/{mls}
 
 写作要求：
-- 分4段，段与段之间空一行
-- 第一段：一句话勾起读者好奇心，结合区域特色（如士嘉堡提中文生活圈，密西沙加提购物方便，北约克提交通便利）
-- 第二段：房源2-3个最吸引人的亮点，语气真诚具体，不要虚构
-- 第三段：售价性价比分析，说明适合哪类买家（首次置业/换房家庭/投资客等）
-- 第四段：预约看房信息，附 {host} 链接，提醒优质房源抢手
+- 第一段：一句话点明房源地点、类型和价格，结合区域特色自然带出
+- 中间各段：将房源描述的亮点逐一展开，每个亮点独立成一段，每段2-3句，语气真诚具体
+- 段与段之间空一行
 - 最后一行：8-10个 hashtag，含具体城市和房型标签，用买房/置业而非租房
-- 总字数 200-320 字，每段最多 2 个 emoji，位置自然
-- 不要虚构任何未在描述中提到的设施或特点"""
+- 总字数 150-280 字，每段最多 1 个 emoji
+- 不要虚构任何未在描述中提到的设施或特点
+- 不要写任何预约、私信、扫码、抢手等呼吁行动的内容
+- 不要使用极端或夸张词汇，例如：最好、最优、最大、最强、最便宜、最豪华、顶级、绝对、必须、保证、承诺、一定、超值、无敌、爆款、秒杀、稀缺、独家、升值保证、回报率等
+- 语气平实客观，避免任何可能触发小红书审核的夸大宣传表述"""
 
     try:
         resp = requests.post(

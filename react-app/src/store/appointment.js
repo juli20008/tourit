@@ -3,6 +3,7 @@ import apiFetch from "../utils/apiFetch";
 const GET_APPOINTMENTS = "appointments/GET_APPOINTMENTS";
 const ADD_EDIT_APPOINTMENT = "appointments/ADD_EDIT_APPOINTMENT";
 const DELETE_APPOINTMENT = "appointments/DELETE_APPOINTMENT";
+const ARCHIVE_PAST = "appointments/ARCHIVE_PAST";
 
 // Action Creators
 const getAppointments = (appointments) => {
@@ -116,6 +117,22 @@ export const deleteThisAppointment = (appointmentId) => async (dispatch) => {
 	}
 };
 
+export const archivePastAppointments = () => async (dispatch) => {
+	try {
+		const response = await apiFetch("/api/appointments/archive-past", {
+			method: "POST",
+		});
+		if (response.ok) {
+			const data = await response.json();
+			dispatch({ type: ARCHIVE_PAST });
+			return data;
+		}
+		return { errors: ["Failed to archive appointments"] };
+	} catch {
+		return { errors: ["Something went wrong. Please try again"] };
+	}
+};
+
 export const assignAppointmentAgent = (appointmentId, agentId) => async (
 	dispatch
 ) => {
@@ -163,6 +180,17 @@ export default function reducer(state = initialState, action) {
 			newState = JSON.parse(JSON.stringify(state));
 			delete newState[action.appointmentId];
 			return newState;
+		case ARCHIVE_PAST: {
+			const now = new Date();
+			newState = { ...state };
+			Object.keys(newState).forEach((id) => {
+				const appt = newState[id];
+				if (new Date(`${appt.date} ${appt.time}`) < now) {
+					delete newState[id];
+				}
+			});
+			return newState;
+		}
 		default:
 			return state;
 	}

@@ -62,7 +62,7 @@
   // ── Step 1 panel ──────────────────────────────────────────────────────────
 
   function showStep1Panel(listing) {
-    const count = Math.min((listing.images || []).length, MAX_PHOTOS);
+    const count = Math.min((listing.images || []).length, MAX_PHOTOS - 1);
     const panel = ensurePanel();
     panel.dataset.tone = 'step1';
     panel.innerHTML = `
@@ -70,7 +70,7 @@
       <div class="t-step">① 上传图片</div>
       <div class="t-address">${esc(listing.title || listing.address || listing.mls_number)}</div>
       <div class="t-meta">${listing.source === 'desktop' ? '📁 桌面上传' : `${listing.beds ?? '?'}床 · ${listing.baths ?? '?'}卫 · $${fmt(listing.price)}`}</div>
-      <div class="t-imgs">${count} 张图片（最多 ${MAX_PHOTOS} 张）</div>
+      <div class="t-imgs">${count} 张图片 + 1 张二维码（最多 ${MAX_PHOTOS} 张）</div>
       <label class="t-crop-label">
         <input type="checkbox" id="tourit-crop-cover" checked>
         封面图裁剪为 4:3 竖版
@@ -99,10 +99,10 @@
     if (listing.source === 'desktop') {
       setProgress('正在准备图片…');
       const resp = await fetchDesktopImages();
-      files = resp.files;
+      files = resp.files.slice(0, MAX_PHOTOS - 1);
       fetchErrors = resp.errors;
     } else {
-      const urls = (listing.images || []).slice(0, MAX_PHOTOS);
+      const urls = (listing.images || []).slice(0, MAX_PHOTOS - 1);
       if (!urls.length) {
         setProgress('⚠ listing.images 为空，此房源没有图片数据。');
         if (btn) btn.disabled = false;
@@ -117,7 +117,7 @@
       fetchErrors = resp.errors;
     }
 
-    if (!files.length) {
+    if (!files.length && listing.source !== 'desktop') {
       setProgress(`⚠ ${fetchErrors[0] || '图片获取失败'}`);
       if (btn) btn.disabled = false;
       return;
@@ -138,7 +138,22 @@
       }
     }
 
-    // ── 3. Inject into XHS ────────────────────────────────────────────────────
+    // ── 3. Generate QR code slide and append as last image ────────────────────
+    setProgress('正在生成二维码…');
+    const qrSlide = await generateQrSlide(listing);
+    if (qrSlide) {
+      files = [...files, qrSlide];
+    } else {
+      console.warn('[xhs] QR slide generation failed, uploading without QR');
+    }
+
+    if (!files.length) {
+      setProgress('⚠ 没有可上传的图片');
+      if (btn) btn.disabled = false;
+      return;
+    }
+
+    // ── 4. Inject into XHS ────────────────────────────────────────────────────
     setProgress(`注入 ${files.length} 张图片…`);
     const ok = await injectViaUploadBtn(files);
 
@@ -301,11 +316,8 @@
     }
 
     // CTA
-    if (mls) {
-      const host = (listing.site_origin || 'https://tourit.ca').replace(/^https?:\/\//, '').replace(/\/$/, '');
-      parts.push(`🔑 预约看房：${host}/listing/${mls}`);
-      parts.push('');
-    }
+    parts.push('🔑 有意向的朋友欢迎私信预约看房！');
+    parts.push('');
 
     // Hashtags
     const cityTag  = city  ? `#${city}买房 `  : '';
@@ -365,6 +377,54 @@
     if (t.includes('duplex') || t.includes('triplex') || t.includes('plex'))   return '多单元住宅';
     if (t.includes('studio'))                                                   return '开间公寓';
     return '住宅';
+  }
+
+  // ── QR code slide generation ──────────────────────────────────────────────
+
+  async function generateQrSlide(listing) {
+    const mls    = listing.mls_number || '';
+    const origin = (listing.site_origin || 'https://tourit.ca').replace(/\/$/, '');
+    const qrTarget = mls ? `${origin}/listing/${encodeURIComponent(mls)}` : origin;
+
+    const resp = await bgMessage({ type: 'TOURIT_GENERATE_QR_IMAGE', url: qrTarget });
+    if (!resp.data) return null;
+
+    return new Promise(resolve => {
+      const size = 1080;
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, size, size);
+
+      ctx.fillStyle = '#1e293b';
+      ctx.font = 'bold 54px "PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('预约看房请扫码：', size / 2, 130);
+
+      const qrImg = new Image();
+      const blob = new Blob([new Uint8Array(resp.data)], { type: 'image/png' });
+      const objURL = URL.createObjectURL(blob);
+
+      qrImg.onload = () => {
+        URL.revokeObjectURL(objURL);
+        const qrSize = 720;
+        ctx.drawImage(qrImg, (size - qrSize) / 2, 170, qrSize, qrSize);
+
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '34px "PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif';
+        ctx.fillText('tourit.ca', size / 2, 975);
+
+        canvas.toBlob(b => {
+          if (!b) return resolve(null);
+          resolve(new File([b], 'qr-slide.jpg', { type: 'image/jpeg' }));
+        }, 'image/jpeg', 0.92);
+      };
+      qrImg.onerror = () => { URL.revokeObjectURL(objURL); resolve(null); };
+      qrImg.src = objURL;
+    });
   }
 
   // ── Image fetching ────────────────────────────────────────────────────────

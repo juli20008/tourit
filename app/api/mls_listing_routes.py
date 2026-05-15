@@ -10,7 +10,7 @@ mls_listing_routes = Blueprint("mls_listings", __name__)
 mls_listing_routes.before_request(rate_limit_check)
 
 MAX_RESULTS = 100
-MAX_MAP_RESULTS = 1000
+MAX_MAP_RESULTS = 500
 USE_LOCAL_PROPERTIES = os.environ.get("FORCE_LOCAL_DB", "").strip() == "1"
 LOCAL_DB_PATH = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", "instance", "yillow.db")
@@ -144,7 +144,9 @@ def _fetch_local_bounds(lat_min, lat_max, lng_min, lng_max, limit, lightweight=F
 
 
 def _serialize_listing(listing: MlsListing, lightweight: bool = False):
-    return listing.to_frontend_light_dict() if lightweight else listing.to_frontend_dict()
+    if lightweight:
+        return listing.to_map_pin_dict()
+    return listing.to_frontend_dict()
 
 
 @mls_listing_routes.route("/", methods=["GET"])

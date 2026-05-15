@@ -120,6 +120,7 @@ def add_appointment():
         appts = (
             Appointment.query
             .filter(appt_filter)
+            .filter(Appointment.archived.isnot(True))
             .options(
                 selectinload(Appointment.property)
                     .selectinload(Property.images),
@@ -265,6 +266,35 @@ def add_appointment():
         except Exception as e:
             import traceback; traceback.print_exc()
             return {"appointment": {"id": new_appointment.id, "date": date, "time": time}}
+
+@appointment_routes.route("/archive-past", methods=["POST"])
+@login_required
+def archive_past_appointments():
+    if not current_user.agent:
+        return {"errors": ["Unauthorized"]}, 401
+
+    now = datetime.now()
+    appts = (
+        Appointment.query
+        .filter(
+            Appointment.agent_id == current_user.id,
+            Appointment.archived.isnot(True),
+        )
+        .all()
+    )
+
+    count = 0
+    for appt in appts:
+        try:
+            if parse_date_time(appt.date, appt.time) < now:
+                appt.archived = True
+                count += 1
+        except Exception:
+            pass
+
+    db.session.commit()
+    return {"archived": count}
+
 
 @appointment_routes.route("/<int:appointment_id>", methods=["GET", "PUT", "DELETE"])
 @login_required

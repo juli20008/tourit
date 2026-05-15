@@ -46,12 +46,17 @@ function setStatus(elId, msg, isError = false) {
 // ── Credits ───────────────────────────────────────────────────────────────────
 
 function renderCredits(data) {
-  const textEl = document.getElementById('credits-text');
-  const buyEl  = document.getElementById('credits-buy');
+  const textEl  = document.getElementById('credits-text');
+  const buyEl   = document.getElementById('credits-buy');
+  const openBtn = document.getElementById('btn-open-xhs');
   if (!textEl || !buyEl) return;
 
   const freeLeft = (data.free_total ?? 5) - (data.free_used ?? 0);
   const paid     = data.paid_credits ?? 0;
+  const hasCredits = freeLeft > 0 || paid > 0;
+
+  // Persist credit state so tourit.js can grey the floating button without an API call
+  chrome.storage.local.set({ tourit_has_credits: hasCredits });
 
   if (freeLeft > 0) {
     textEl.textContent  = `AI额度：免费剩余 ${freeLeft} 次`;
@@ -65,6 +70,14 @@ function renderCredits(data) {
     textEl.textContent  = '⚠ AI额度已用完，请充值继续使用';
     textEl.style.color  = '#dc2626';
     buyEl.style.display = 'block';
+  }
+
+  // Grey out "发布到小红书" when no credits; capture is always free
+  if (openBtn) {
+    openBtn.disabled        = !hasCredits;
+    openBtn.style.opacity   = hasCredits ? '' : '0.4';
+    openBtn.style.cursor    = hasCredits ? '' : 'not-allowed';
+    openBtn.title           = hasCredits ? '' : '请先充值 AI 额度';
   }
 }
 

@@ -13,7 +13,8 @@
     "https://ddfcdn.realtor.ca/*",
     "https://cdn.realtor.ca/*",
     "https://translate.googleapis.com/*",
-    "https://api.tourit.ca/*"
+    "https://api.tourit.ca/*",
+    "https://api.qrserver.com/*"
   ],
   "background": {
     "service_worker": "background.js"

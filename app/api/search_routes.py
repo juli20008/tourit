@@ -45,23 +45,24 @@ def search_by_area():
 @search_routes.route("/<term>")
 def search_by_term(term):
     parsed = " ".join(term.split("-"))
+    suggest = request.args.get("suggest", "").strip() == "1"
 
-    # Prefer MLS listings so the frontend renders the unique Supabase images.
-    results = _mls_by_term(parsed)
-    if not results:
-        results = []
-
-    return {"properties": results}
+    results = _mls_by_term(parsed, suggest=suggest)
+    return {"properties": results or []}
 
 
-def _mls_by_term(parsed: str) -> list:
-    """Search mls_listings by MLS #, city, neighbourhood, street, or postal code."""
+def _mls_by_term(parsed: str, suggest: bool = False) -> list:
+    """Search mls_listings by MLS #, city, neighbourhood, street, or postal code.
+
+    suggest=True returns a lightweight dict capped at 6 results for typeahead.
+    """
     from sqlalchemy import or_, func
     full_street = func.concat(
         func.coalesce(MlsListing.street_number, ''), ' ',
         func.coalesce(MlsListing.street_name, ''), ' ',
         func.coalesce(MlsListing.street_suffix, ''),
     )
+    limit = 6 if suggest else MLS_LIMIT
     rows = (
         MlsListing.query
         .filter(
@@ -76,9 +77,11 @@ def _mls_by_term(parsed: str) -> list:
             MlsListing.list_price.isnot(None),
             MlsListing.visible_filter(),
         )
-        .limit(MLS_LIMIT)
+        .limit(limit)
         .all()
     )
+    if suggest:
+        return [l.to_map_pin_dict() for l in rows]
     return [l.to_frontend_dict() for l in rows]
 
 

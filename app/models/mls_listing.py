@@ -193,7 +193,7 @@ class MlsListing(db.Model):
         3. Empty list (fallback; UI should show placeholder).
         """
         stored = self.images or []
-        real = [img for img in stored if img and not str(img).startswith('sample/')]
+        real = [img for img in stored if img and not str(img).startswith('sample/') and 'unsplash.com' not in str(img)]
         if real:
             return real
         return self.cdn_image_urls
@@ -218,6 +218,13 @@ class MlsListing(db.Model):
             return int(self.sqft) if self.sqft else None
         except (ValueError, TypeError):
             return None
+
+    def _first_image(self):
+        """Return the first usable image URL without building the full list."""
+        for img in (self.images or []):
+            if img and not str(img).startswith('sample/') and 'unsplash.com' not in str(img):
+                return img
+        return _build_cdn_image_url(self.external_id, self.photos_timestamp, 1)
 
     def _base_frontend_dict(self):
         imgs = self.effective_images
@@ -294,6 +301,43 @@ class MlsListing(db.Model):
         data.pop('images', None)
         data.pop('image_urls', None)
         return data
+
+    def to_map_pin_dict(self):
+        """Minimal payload for map pins and list cards.
+
+        Fields intentionally omitted (hydrated on click via /api/listings/<mls>):
+        description, images, image_urls, style, property_type, property_class,
+        sold_price, original_price, lot, built, garage, neighborhood,
+        listing_id, listing_date, updated_at, listing_agent_id, agent_name,
+        agent_email, association_fee, association_fee_frequency, lot_frontage,
+        lot_size_area, construction_materials, levels, ownership_type.
+        """
+        front = self._first_image()
+        cat   = _determine_category(self.property_class, self.unit_number)
+        return {
+            'id':               f'mls_{self.id}',
+            'is_mls':           True,
+            'mls_number':       self.mls_number,
+            'lat':              float(self.lat) if self.lat is not None else None,
+            'lng':              float(self.lng) if self.lng is not None else None,
+            'price':            self.list_price or 0,
+            'bed':              self.bed or 0,
+            'bath':             float(self.bath) if self.bath is not None else 0,
+            'sqft':             self._sqft_int(),
+            'street':           self.street,
+            'unit':             self.unit_number or '',
+            'city':             self.city or '',
+            'state':            self.state or '',
+            'zip':              self.zip or '',
+            'status':           self.standard_status or self.status or 'Active',
+            'category':         cat,
+            'type':             cat,
+            'transaction_type': self.transaction_type or 'For Sale',
+            'brokerage':        self.brokerage or '',
+            'office':           self.brokerage or '',
+            'front_img':        front,
+            'image_url':        front,
+        }
 
     def to_dict(self):
         imgs = self.effective_images

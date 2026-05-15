@@ -44,10 +44,6 @@ const Section = ({ title, children }) => (
 const Detail = ({ property }) => {
 	const agents = useSelector((state) => state.agents);
 
-	const pricePerSqft =
-		property?.sqft > 0
-			? "$" + (property.price / property.sqft).toFixed(0)
-			: null;
 
 	const dom = daysOnMarket(property?.listing_date);
 
@@ -147,7 +143,7 @@ const Detail = ({ property }) => {
 				{property?.sold_price && (
 					<Row label="Sold Price" value={fmtPrice(property.sold_price)} />
 				)}
-				{pricePerSqft && <Row label="Price per sqft" value={pricePerSqft} />}
+	
 				{showStrataFee && (
 					<Row label="Strata / Maint. Fee" value={fmtFee(property.association_fee, property.association_fee_frequency)} />
 				)}

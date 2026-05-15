@@ -2,11 +2,12 @@ name: Keep Render Alive
 
 on:
   schedule:
-    - cron: '*/14 * * * *'  # every 14 min — Render sleeps after 15 min idle
+    - cron: '*/5 * * * *'   # every 5 min — absorbs GitHub's scheduling delays
+  workflow_dispatch:          # allow manual trigger to prevent workflow auto-disable
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping API
-        run: curl -sf https://api.tourit.ca/api/listings/?limit=1 > /dev/null
+      - name: Ping API health
+        run: curl -sf --max-time 10 https://api.tourit.ca/health > /dev/null

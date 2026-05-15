@@ -18,6 +18,7 @@ export const resolveUrl = (url) => {
 	const trimmed = url.trim();
 	if (!trimmed) return null;
 	if (trimmed.includes("amazonaws.com")) return null;
+	if (trimmed.includes("unsplash.com")) return null;
 	if (trimmed.startsWith("http")) return trimmed;
 	// Relative path → Repliers CDN (strip any accidental leading slashes)
 	const clean = trimmed.replace(/^\/+/, "");

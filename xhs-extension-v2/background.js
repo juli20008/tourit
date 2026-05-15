@@ -2,8 +2,6 @@
 
 const XHS_URL = 'https://creator.xiaohongshu.com/publish/publish?source=official&from=tab_switch&target=image';
 
-// account_key is set by content/tourit.js when an agent logs in to tourit.ca
-
 // ── Message listener ──────────────────────────────────────────────────────────
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
@@ -136,6 +134,22 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       });
 
     return true; // async response
+  }
+
+  // ── QR code generation via api.qrserver.com ──────────────────────────────
+  if (msg.type === 'TOURIT_GENERATE_QR_IMAGE') {
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=700x700&margin=10&data=${encodeURIComponent(msg.url || '')}`;
+    fetch(qrUrl, { credentials: 'omit' })
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.arrayBuffer();
+      })
+      .then(buf => sendResponse({ data: Array.from(new Uint8Array(buf)) }))
+      .catch(e => {
+        console.warn('[Tourit XHS] QR fetch failed:', e.message);
+        sendResponse({ data: null, error: e.message });
+      });
+    return true;
   }
 
   if (msg.type === 'TOURIT_OPEN_XHS') {

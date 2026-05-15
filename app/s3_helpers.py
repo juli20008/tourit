@@ -55,6 +55,9 @@ def upload_file_to_s3(file, acl="public-read"):
     if not supabase_url or not service_key:
         return {"errors": ["Storage is not configured (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY missing)"]}
 
+    if not service_key.startswith("eyJ"):
+        return {"errors": ["SUPABASE_SERVICE_ROLE_KEY is not a valid JWT — go to Supabase → Project Settings → API and copy the full service_role key (starts with eyJ)"]}
+
     _ensure_bucket(supabase_url, service_key, bucket)
 
     filename = file.filename

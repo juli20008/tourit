@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useParams, useHistory } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 
 import List from "./List";
 import MyMap from "./Map";
+import MapSearchBar from "./Map/MapSearchBar";
 import LocationConsent from "../LocationConsent";
 
 import * as propertyActions from "../../store/property";
@@ -13,12 +14,8 @@ import { useNotification } from "../../context/Notification";
 const TORONTO = { lat: 43.6532, lng: -79.3832 };
 const GTA_BOUNDS_OBJ = { south: 43.2, west: -80.5, north: 44.3, east: -78.5 };
 
-// MLS numbers: one letter followed by 5+ digits (e.g. C12962084, W8901234)
-const MLS_RE = /^[a-zA-Z]\d{5,}$/;
-
 const SearchArea = () => {
 	const dispatch = useDispatch();
-	const history = useHistory();
 	const { areaParam } = useParams();
 	const { setToggleNotification, setNotificationMsg } = useNotification();
 
@@ -48,11 +45,6 @@ const SearchArea = () => {
 
 	const [center] = useState(() => getInitialCenter(areaParam));
 	const mapFlyToRef = useRef(null);
-	const searchInputRef = useRef(null);
-	const autocompleteServiceRef = useRef(null);
-	const placesServiceRef = useRef(null);
-	const sessionTokenRef = useRef(null);
-	const gtaBoundsRef = useRef(null);
 	const [mapIsReady, setMapIsReady] = useState(false);
 	const [showConsent, setShowConsent] = useState(false);
 	const [propArr, setPropArr] = useState([]);
@@ -173,77 +165,8 @@ const SearchArea = () => {
 		fetchFromMap(boundsRef.current, newType);
 	};
 
-	// Init Places services once map/Google API is ready
-	useEffect(() => {
-		if (!mapIsReady || !searchInputRef.current || !window.google?.maps?.places) return;
-
-		const gtaBounds = new window.google.maps.LatLngBounds(
-			{ lat: GTA_BOUNDS_OBJ.south, lng: GTA_BOUNDS_OBJ.west },
-			{ lat: GTA_BOUNDS_OBJ.north, lng: GTA_BOUNDS_OBJ.east }
-		);
-		gtaBoundsRef.current = gtaBounds;
-
-		autocompleteServiceRef.current = new window.google.maps.places.AutocompleteService();
-		const div = document.createElement("div");
-		placesServiceRef.current = new window.google.maps.places.PlacesService(div);
-		sessionTokenRef.current = new window.google.maps.places.AutocompleteSessionToken();
-
-		const autocomplete = new window.google.maps.places.Autocomplete(searchInputRef.current, {
-			componentRestrictions: { country: "ca" },
-			bounds: gtaBounds,
-			strictBounds: false,
-			fields: ["geometry", "types"],
-		});
-
-		autocomplete.addListener("place_changed", () => {
-			const place = autocomplete.getPlace();
-			if (!place?.geometry?.location) return;
-			flyToPlace(place);
-		});
-
-		return () => window.google.maps.event.clearInstanceListeners(autocomplete);
-	}, [mapIsReady]); // eslint-disable-line react-hooks/exhaustive-deps
-
-	const flyToPlace = (place) => {
-		const lat = place.geometry.location.lat();
-		const lng = place.geometry.location.lng();
-		let bounds = null;
-		if (place.geometry.viewport) {
-			const vp = place.geometry.viewport;
-			bounds = {
-				north: vp.getNorthEast().lat(), east: vp.getNorthEast().lng(),
-				south: vp.getSouthWest().lat(), west: vp.getSouthWest().lng(),
-			};
-		}
+	const handleFlyTo = (lat, lng, bounds) => {
 		mapFlyToRef.current?.(lat, lng, bounds);
-	};
-
-	// Search button: MLS numbers go straight to listing page; everything else → Google Places
-	const handleSearchClick = () => {
-		const query = searchInputRef.current?.value?.trim();
-		if (!query) return;
-		if (MLS_RE.test(query)) {
-			history.push(`/listing/${encodeURIComponent(query.toUpperCase())}`);
-			return;
-		}
-		if (!autocompleteServiceRef.current) return;
-		autocompleteServiceRef.current.getPlacePredictions({
-			input: query,
-			componentRestrictions: { country: "ca" },
-			bounds: gtaBoundsRef.current,
-			sessionToken: sessionTokenRef.current,
-		}, (results, status) => {
-			if (status !== window.google.maps.places.PlacesServiceStatus.OK || !results?.length) return;
-			placesServiceRef.current.getDetails({
-				placeId: results[0].place_id,
-				fields: ["geometry", "types"],
-				sessionToken: sessionTokenRef.current,
-			}, (place, detailStatus) => {
-				sessionTokenRef.current = new window.google.maps.places.AutocompleteSessionToken();
-				if (detailStatus !== window.google.maps.places.PlacesServiceStatus.OK || !place?.geometry) return;
-				flyToPlace(place);
-			});
-		});
 	};
 
 	const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
@@ -292,35 +215,12 @@ const SearchArea = () => {
 							>Rent</button>
 						</div>
 
-						{/* Search input + magnifying glass button */}
-						<div style={{
-							flex: 1, display: "flex", alignItems: "center",
-							border: "1px solid #d6d6d0", borderRadius: 8,
-							background: "white", overflow: "hidden", height: 36,
-						}}>
-							<input
-								ref={searchInputRef}
-								type="text"
-								placeholder="City, neighbourhood, address, or MLS #…"
-								onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSearchClick(); } }}
-								style={{
-									flex: 1, border: "none", outline: "none",
-									padding: "0 12px", fontSize: 13, color: "#0f172a",
-									background: "transparent", height: "100%",
-								}}
+						{/* Search bar — locations + listings */}
+						<div style={{ flex: 1, position: "relative", zIndex: 30 }}>
+							<MapSearchBar
+								onPlaceSelect={handleFlyTo}
+								googleReady={mapIsReady}
 							/>
-							<button
-								type="button"
-								onClick={handleSearchClick}
-								style={{
-									padding: "0 12px", background: "none", border: "none",
-									borderLeft: "1px solid #e5e5e0", cursor: "pointer",
-									color: "#6b7280", height: "100%", display: "flex",
-									alignItems: "center",
-								}}
-							>
-								<i className="fa-solid fa-magnifying-glass" style={{ fontSize: 13 }} />
-							</button>
 						</div>
 
 						{/* Filter button */}

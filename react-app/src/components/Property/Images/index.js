@@ -42,6 +42,7 @@ const Images = ({ property }) => {
 					className="w-full h-full object-cover"
 					src={heroSrc}
 					alt="Property"
+					fetchpriority="high"
 					onError={() => setHeroSrc(null)}
 				/>
 				) : (
@@ -115,6 +116,7 @@ const ThumbTile = ({ url, active, onClick }) => {
 			}`}
 			src={src}
 			alt=""
+			loading="lazy"
 			onClick={onClick}
 			onError={() => setFailed(true)}
 		/>
