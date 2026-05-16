@@ -2,6 +2,7 @@ import { Loader } from "@googlemaps/js-api-loader";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useHistory } from "react-router-dom";
 import apiFetch from "../../utils/apiFetch";
+import { resolveUrl } from "../../utils/imageResolver";
 import {
 	ArrowRight,
 	Bookmark,
@@ -47,11 +48,14 @@ const toAreaURL = (place) => {
 const defaultGtaArea = "/area/neLat=44.20&neLng=-78.90&swLat=43.30&swLng=-80.80&zoom=10";
 const gtaAreaPayload = { neLat: 44.20, neLng: -78.90, swLat: 43.30, swLng: -80.80 };
 
+const DEBOUNCE_MS = 280;
+
 const Splash = () => {
 	const history = useHistory();
 
 	const [search, setSearch] = useState("");
 	const [predictions, setPredictions] = useState([]);
+	const [listings, setListings] = useState([]);
 	const [activePredIdx, setActivePredIdx] = useState(-1);
 	const [newlyListed, setNewlyListed] = useState([]);
 	const [mapCenter, setMapCenter] = useState(TORONTO);
@@ -62,6 +66,8 @@ const Splash = () => {
 	const placesRef = useRef(null);
 	const sessionTokenRef = useRef(null);
 	const inputRef = useRef(null);
+	const listingTimer = useRef(null);
+	const abortRef = useRef(null);
 
 	// Load Google Places API
 	useEffect(() => {
@@ -125,9 +131,38 @@ const Splash = () => {
 		);
 	};
 
+	const fetchListings = (val) => {
+		clearTimeout(listingTimer.current);
+		if (abortRef.current) { abortRef.current.abort(); abortRef.current = null; }
+		if (!val.trim() || val.trim().length < 2) { setListings([]); return; }
+		listingTimer.current = setTimeout(async () => {
+			const ctrl = new AbortController();
+			abortRef.current = ctrl;
+			try {
+				const res = await apiFetch(
+					`/api/search/${encodeURIComponent(val.trim())}?suggest=1`,
+					{ signal: ctrl.signal }
+				);
+				if (!res.ok) { setListings([]); return; }
+				const data = await res.json();
+				setListings((data.properties || []).slice(0, 6));
+			} catch (err) {
+				if (err.name !== 'AbortError') setListings([]);
+			}
+		}, DEBOUNCE_MS);
+	};
+
+	const selectListing = (listing) => {
+		setSearch("");
+		setPredictions([]);
+		setListings([]);
+		history.push(`/listing/${encodeURIComponent(listing.mls_number)}`);
+	};
+
 	const handleChange = (e) => {
 		setSearch(e.target.value);
 		fetchPredictions(e.target.value);
+		fetchListings(e.target.value);
 	};
 
 	const selectPrediction = (prediction) => {
@@ -210,30 +245,97 @@ const Splash = () => {
 								onFocus={() => setPlaceholder('Don\'t know where to start? Try "Toronto"')}
 								onBlur={() => {
 									setPlaceholder("Enter an address, city, or postal code");
-									setTimeout(() => setPredictions([]), 150);
+									setTimeout(() => { setPredictions([]); setListings([]); }, 160);
 								}}
 							/>
-							{predictions.length > 0 && (
+							{(predictions.length > 0 || listings.length > 0) && (
 								<div className="search-dd">
-									{predictions.map((pred, i) => (
-										<div
-											key={pred.place_id}
-											className={`div${i === activePredIdx ? " active" : ""}`}
-											onMouseDown={() => selectPrediction(pred)}
-										>
-											<MapPin size={14} strokeWidth={1.5} style={{ flexShrink: 0, color: "#94a3b8" }} />
-											<div className="term">
-												<span style={{ fontWeight: 500 }}>
-													{pred.structured_formatting?.main_text}
-												</span>
-												{pred.structured_formatting?.secondary_text && (
-													<span style={{ color: "#94a3b8", marginLeft: 4, fontWeight: 400 }}>
-														{pred.structured_formatting.secondary_text}
-													</span>
-												)}
-											</div>
-										</div>
-									))}
+									{listings.length > 0 && (
+										<>
+											<div style={{
+												padding: "5px 14px 3px",
+												fontSize: 11, fontWeight: 600, color: "#94a3b8",
+												textTransform: "uppercase", letterSpacing: "0.06em",
+												borderBottom: "1px solid #f0f0ec",
+											}}>Listings</div>
+											{listings.map((listing) => {
+												const img = resolveUrl(listing.front_img || listing.image_url);
+												const isLease = (listing.transaction_type || "").toLowerCase().includes("lease");
+												const unit = listing.unit ? `${listing.unit}-` : "";
+												const addr = [unit + listing.street, listing.city].filter(Boolean).join(", ");
+												const price = listing.price
+													? `$${Number(listing.price).toLocaleString()}`
+													: null;
+												return (
+													<div
+														key={listing.id || listing.mls_number}
+														className="div"
+														onMouseDown={() => selectListing(listing)}
+														style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px" }}
+													>
+														<div style={{
+															width: 52, height: 38, borderRadius: 6,
+															overflow: "hidden", flexShrink: 0, background: "#f0f0ec",
+														}}>
+															{img && (
+																<img src={img} alt="" loading="lazy"
+																	style={{ width: "100%", height: "100%", objectFit: "cover" }}
+																	onError={(e) => { e.currentTarget.style.display = "none"; }}
+																/>
+															)}
+														</div>
+														<div style={{ flex: 1, minWidth: 0 }}>
+															<div style={{ display: "flex", justifyContent: "space-between", gap: 4 }}>
+																{price && <span style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>{price}</span>}
+																<span style={{ fontSize: 11, color: isLease ? "#16a34a" : "#2563eb", flexShrink: 0 }}>
+																	{isLease ? "For Lease" : "For Sale"}
+																</span>
+															</div>
+															<div style={{ fontSize: 12, color: "#475569", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+																{addr}
+															</div>
+															<div style={{ fontSize: 11, color: "#94a3b8" }}>
+																{listing.category || listing.type || ""}
+																{listing.bed ? ` · ${listing.bed} bd` : ""}
+																{listing.bath ? ` · ${listing.bath} ba` : ""}
+															</div>
+														</div>
+													</div>
+												);
+											})}
+										</>
+									)}
+									{predictions.length > 0 && (
+										<>
+											{listings.length > 0 && (
+												<div style={{
+													padding: "5px 14px 3px",
+													fontSize: 11, fontWeight: 600, color: "#94a3b8",
+													textTransform: "uppercase", letterSpacing: "0.06em",
+													borderTop: "1px solid #f0f0ec", borderBottom: "1px solid #f0f0ec",
+												}}>Locations</div>
+											)}
+											{predictions.map((pred, i) => (
+												<div
+													key={pred.place_id}
+													className={`div${i === activePredIdx ? " active" : ""}`}
+													onMouseDown={() => selectPrediction(pred)}
+												>
+													<MapPin size={14} strokeWidth={1.5} style={{ flexShrink: 0, color: "#94a3b8" }} />
+													<div className="term">
+														<span style={{ fontWeight: 500 }}>
+															{pred.structured_formatting?.main_text}
+														</span>
+														{pred.structured_formatting?.secondary_text && (
+															<span style={{ color: "#94a3b8", marginLeft: 4, fontWeight: 400 }}>
+																{pred.structured_formatting.secondary_text}
+															</span>
+														)}
+													</div>
+												</div>
+											))}
+										</>
+									)}
 								</div>
 							)}
 						</label>

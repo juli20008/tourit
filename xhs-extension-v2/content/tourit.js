@@ -31,9 +31,12 @@
     try {
       const d = readUserData();
       if (d?.is_agent && d?.account_key) {
-        chrome.storage.local.set({ tourit_account_key: d.account_key });
+        chrome.storage.local.set({
+          tourit_account_key: d.account_key,
+          tourit_agent_slug:  d.agent_slug || null,
+        });
       } else {
-        chrome.storage.local.remove('tourit_account_key');
+        chrome.storage.local.remove(['tourit_account_key', 'tourit_agent_slug']);
       }
     } catch {}
   }

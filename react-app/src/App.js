@@ -36,9 +36,13 @@ const AgentStatusEmbed = () => {
 			el.type = 'application/json';
 			document.head.appendChild(el);
 		}
+		const agentSlug = user?.agent && user.username
+			? user.username.toLowerCase().replace(/[^a-z0-9]/g, '')
+			: null;
 		el.textContent = JSON.stringify({
 			is_agent:    !!(user?.agent),
 			account_key: user?.agent ? `agent_${user.id}` : null,
+			agent_slug:  agentSlug,
 		});
 		return () => { try { el.remove(); } catch {} };
 	}, [user]);

@@ -382,12 +382,39 @@
   // ── QR code slide generation ──────────────────────────────────────────────
 
   async function generateQrSlide(listing) {
-    const mls    = listing.mls_number || '';
-    const origin = (listing.site_origin || 'https://tourit.ca').replace(/\/$/, '');
+    const mls = listing.mls_number || '';
+
+    // Use agent's whitelabel URL if captured from tourit.ca main site
+    const agentSlug = await new Promise(resolve => {
+      try {
+        chrome.storage.local.get(['tourit_agent_slug'], r => resolve(r.tourit_agent_slug || null));
+      } catch { resolve(null); }
+    });
+
+    let origin = (listing.site_origin || 'https://tourit.ca').replace(/\/$/, '');
+    if (agentSlug && /^https?:\/\/(www\.)?tourit\.ca$/i.test(origin)) {
+      origin = `https://${agentSlug}.tourit.ca`;
+    }
     const qrTarget = mls ? `${origin}/listing/${encodeURIComponent(mls)}` : origin;
 
-    const resp = await bgMessage({ type: 'TOURIT_GENERATE_QR_IMAGE', url: qrTarget });
+    const [resp, logoResp] = await Promise.all([
+      bgMessage({ type: 'TOURIT_GENERATE_QR_IMAGE', url: qrTarget }),
+      bgMessage({ type: 'TOURIT_GET_LOGO' }),
+    ]);
     if (!resp.data) return null;
+
+    // Load logo from extension bytes (avoids cross-origin canvas taint)
+    let logoImg = null;
+    if (logoResp.data) {
+      const logoBlob = new Blob([new Uint8Array(logoResp.data)], { type: 'image/png' });
+      const logoURL  = URL.createObjectURL(logoBlob);
+      logoImg = await new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => { URL.revokeObjectURL(logoURL); resolve(img); };
+        img.onerror = () => { URL.revokeObjectURL(logoURL); resolve(null); };
+        img.src = logoURL;
+      });
+    }
 
     return new Promise(resolve => {
       const size = 1080;
@@ -399,10 +426,17 @@
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, size, size);
 
+      // Logo centered at top
+      if (logoImg) {
+        const logoH = 100;
+        const logoW = Math.round(logoImg.naturalWidth * (logoH / logoImg.naturalHeight));
+        ctx.drawImage(logoImg, Math.round((size - logoW) / 2), 15, logoW, logoH);
+      }
+
       ctx.fillStyle = '#1e293b';
-      ctx.font = 'bold 54px "PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif';
+      ctx.font = 'bold 52px "PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('预约看房请扫码：', size / 2, 130);
+      ctx.fillText('预约看房请扫码：', size / 2, 165);
 
       const qrImg = new Image();
       const blob = new Blob([new Uint8Array(resp.data)], { type: 'image/png' });
@@ -410,12 +444,13 @@
 
       qrImg.onload = () => {
         URL.revokeObjectURL(objURL);
-        const qrSize = 720;
-        ctx.drawImage(qrImg, (size - qrSize) / 2, 170, qrSize, qrSize);
+        const qrSize = 700;
+        ctx.drawImage(qrImg, (size - qrSize) / 2, 190, qrSize, qrSize);
 
+        // Domain label at bottom
         ctx.fillStyle = '#94a3b8';
-        ctx.font = '34px "PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif';
-        ctx.fillText('tourit.ca', size / 2, 975);
+        ctx.font = '30px "PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif';
+        ctx.fillText(origin.replace(/^https?:\/\//, ''), size / 2, 975);
 
         canvas.toBlob(b => {
           if (!b) return resolve(null);

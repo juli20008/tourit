@@ -152,6 +152,15 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true;
   }
 
+  // ── Logo PNG from extension package ──────────────────────────────────────
+  if (msg.type === 'TOURIT_GET_LOGO') {
+    fetch(chrome.runtime.getURL('logo.png'))
+      .then(r => r.arrayBuffer())
+      .then(buf => sendResponse({ data: Array.from(new Uint8Array(buf)) }))
+      .catch(() => sendResponse({ data: null }));
+    return true;
+  }
+
   if (msg.type === 'TOURIT_OPEN_XHS') {
     chrome.tabs.create({ url: XHS_URL });
     return false;
