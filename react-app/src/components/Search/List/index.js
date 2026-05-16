@@ -70,8 +70,8 @@ const List = ({
 	const setTitleStatus = setTitleStatusProp !== null ? setTitleStatusProp : setTitleStatusInternal;
 	const transactionType = transactionTypeProp !== null ? transactionTypeProp : transactionTypeInternal;
 
-	const [visibleCount, setVisibleCount] = useState(10);
-	const listRef = useRef(null);
+	const [pageSize] = useState(20);
+	const [currentPage, setCurrentPage] = useState(1);
 	const searchDivRef = useRef();
 	const searchDDRef = useRef();
 
@@ -117,21 +117,16 @@ const List = ({
 	}, [search, searchList]);
 
 	useEffect(() => {
-		setVisibleCount(10);
-		if (listRef.current) listRef.current.scrollTop = 0;
+		setCurrentPage(1);
 	}, [propArr]);
 
 	const RESULT_CAP = 100;
 	const cappedArr = propArr.slice(0, RESULT_CAP);
 	const totalResults = cappedArr.length;
-	const visibleProperties = cappedArr.slice(0, visibleCount);
-
-	const handleListScroll = (e) => {
-		const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
-		if (scrollHeight - scrollTop - clientHeight < 300) {
-			setVisibleCount(c => Math.min(c + 10, cappedArr.length));
-		}
-	};
+	const totalPages = Math.min(5, Math.max(1, Math.ceil(totalResults / pageSize)));
+	const safePage = Math.min(currentPage, totalPages);
+	const startIndex = (safePage - 1) * pageSize;
+	const pagedProperties = cappedArr.slice(startIndex, startIndex + pageSize);
 
 	return (
 		<div className="search-wrap bg-[#f3f3f1] text-[#1f1f1f]">
@@ -204,24 +199,45 @@ const List = ({
 				</div>
 			)}
 			{propArr.length ? (
-				<div
-					ref={listRef}
-					className="search-list grid flex-1 grid-cols-1 gap-3 overflow-y-auto px-4 py-3 lg:grid-cols-2"
-					onScroll={handleListScroll}
-				>
-					{visibleProperties.map((property, index) => (
-						<PropertyCard
-							key={`${property.id}-${index}`}
-							property={property}
-							setOver={setOver}
-						/>
-					))}
-					{visibleCount < totalResults && (
-						<div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "12px 0", color: "#94a3b8", fontSize: 13 }}>
-							Loading more…
+				<>
+					<div className="search-list grid flex-1 grid-cols-1 gap-3 overflow-y-auto px-4 py-3 lg:grid-cols-2">
+						{pagedProperties.map((property, index) => (
+							<PropertyCard
+								key={`${property.id}-${index}`}
+								property={property}
+								setOver={setOver}
+							/>
+						))}
+					</div>
+					<div className="search-pagination border-t border-[#e5e5e0] bg-[#f8f8f5] px-4 py-3">
+						<div className="search-pagination-info text-sm text-[#6d6d66]">
+							Showing {startIndex + 1}–{Math.min(startIndex + pageSize, totalResults)} of {totalResults}
 						</div>
-					)}
-				</div>
+						<div className="search-pagination-controls mt-2 flex items-center gap-2">
+							<button
+								className="search-page-btn rounded-md border border-[#d8d8d2] bg-white px-3 py-1 text-sm text-[#444] transition hover:bg-[#f1f1ec] disabled:cursor-not-allowed disabled:opacity-40"
+								type="button"
+								disabled={safePage === 1}
+								onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+							>Prev</button>
+							{Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+								<button
+									key={p}
+									className="search-page-btn rounded-md border border-[#d8d8d2] px-3 py-1 text-sm transition hover:bg-[#f1f1ec] disabled:cursor-not-allowed"
+									style={{ background: p === safePage ? "#0f172a" : "white", color: p === safePage ? "white" : "#444" }}
+									type="button"
+									onClick={() => setCurrentPage(p)}
+								>{p}</button>
+							))}
+							<button
+								className="search-page-btn rounded-md border border-[#d8d8d2] bg-white px-3 py-1 text-sm text-[#444] transition hover:bg-[#f1f1ec] disabled:cursor-not-allowed disabled:opacity-40"
+								type="button"
+								disabled={safePage >= totalPages}
+								onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+							>Next</button>
+						</div>
+					</div>
+				</>
 			) : (
 				<div className="search-no-results flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
 					<img className="img" src={noproperty} alt="No property" />
