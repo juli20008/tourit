@@ -70,7 +70,7 @@ const List = ({
 	const setTitleStatus = setTitleStatusProp !== null ? setTitleStatusProp : setTitleStatusInternal;
 	const transactionType = transactionTypeProp !== null ? transactionTypeProp : transactionTypeInternal;
 
-	const [pageSize] = useState(20);
+	const [pageSize, setPageSize] = useState(20);
 	const [currentPage, setCurrentPage] = useState(1);
 	const searchDivRef = useRef();
 	const searchDDRef = useRef();
@@ -118,7 +118,7 @@ const List = ({
 
 	useEffect(() => {
 		setCurrentPage(1);
-	}, [propArr]);
+	}, [propArr, pageSize]);
 
 	const RESULT_CAP = 100;
 	const cappedArr = propArr.slice(0, RESULT_CAP);
@@ -214,6 +214,15 @@ const List = ({
 							Showing {startIndex + 1}–{Math.min(startIndex + pageSize, totalResults)} of {totalResults}
 						</div>
 						<div className="search-pagination-controls mt-2 flex items-center gap-2">
+							<select
+								className="rounded-md border border-[#d8d8d2] bg-white px-2 py-1 text-xs text-[#444]"
+								value={pageSize}
+								onChange={(e) => { setPageSize(parseInt(e.target.value, 10)); setCurrentPage(1); }}
+							>
+								<option value="20">20 / page</option>
+								<option value="50">50 / page</option>
+								<option value="100">100 / page</option>
+							</select>
 							<button
 								className="search-page-btn rounded-md border border-[#d8d8d2] bg-white px-3 py-1 text-sm text-[#444] transition hover:bg-[#f1f1ec] disabled:cursor-not-allowed disabled:opacity-40"
 								type="button"
