@@ -45,8 +45,8 @@ const toAreaURL = (place) => {
 	return `/area/neLat=${neLat.toFixed(5)}&neLng=${neLng.toFixed(5)}&swLat=${swLat.toFixed(5)}&swLng=${swLng.toFixed(5)}&zoom=${zoom}`;
 };
 
-const defaultGtaArea = "/area/neLat=44.20&neLng=-78.90&swLat=43.30&swLng=-80.80&zoom=10";
-const gtaAreaPayload = { neLat: 44.20, neLng: -78.90, swLat: 43.30, swLng: -80.80 };
+const defaultGtaArea = "/area/neLat=43.855&neLng=-79.12&swLat=43.58&swLng=-79.64&zoom=11";
+const gtaAreaPayload = { neLat: 43.855, neLng: -79.12, swLat: 43.58, swLng: -79.64 };
 
 const DEBOUNCE_MS = 280;
 
@@ -87,7 +87,7 @@ const Splash = () => {
 		apiFetch("/api/listings?view=map", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ ...gtaAreaPayload, limit: 1000 }),
+			body: JSON.stringify({ ...gtaAreaPayload, limit: 200 }),
 		})
 			.then((res) => res.json())
 			.then((res) => setNewlyListed(res.listings || []))

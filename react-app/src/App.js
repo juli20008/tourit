@@ -22,7 +22,7 @@ import About from "./components/About";
 import AgentLogin from "./components/AgentLogin";
 import ListingPage from "./components/Property/ListingPage";
 
-const DEFAULT_AREA = "/area/neLat=44.20&neLng=-78.90&swLat=43.30&swLng=-80.80&zoom=10";
+const DEFAULT_AREA = "/area/neLat=43.855&neLng=-79.12&swLat=43.58&swLng=-79.64&zoom=11";
 
 // Keeps a hidden DOM element in sync with agent login status so the
 // Tourit Chrome extension content script can read it.
