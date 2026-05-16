@@ -142,35 +142,31 @@ def pick_agent_for_appointment(property_obj, date_str, time_str):
     """
     Lead assignment logic:
 
-    1. Find agents whose service-area FSA (first 3 chars of their stored postal
-       code) matches the property's postal FSA, filtered to those who are
-       available for the requested slot. Assign the highest-rated match.
+    All non-whitelabel bookings currently go directly to the fallback agent
+    (Julie Li). Whitelabel/referral bookings are handled upstream via the
+    selected_agent_id path and never reach this function.
 
-    2. If no FSA-matched agent exists OR none are available for that slot,
-       assign to the fallback agent (Julie Li) unconditionally — she accepts
-       multiple concurrent bookings.
+    FSA-based postal code distribution is preserved below for future use.
     """
-    prop_fsa = _prop_fsa(property_obj)
-
-    if prop_fsa:
-        all_areas = AgentArea.query.all()
-        fsa_agent_ids = {
-            area.agent_id
-            for area in all_areas
-            if area.zip and area.zip[:3].upper() == prop_fsa
-        }
-
-        if fsa_agent_ids:
-            candidates = User.query.filter(
-                User.id.in_(fsa_agent_ids),
-                User.agent == True,
-            ).all()
-            available = [
-                a for a in candidates
-                if agent_is_available(a.id, date_str, time_str)
-            ]
-            if available:
-                return max(available, key=agent_rating)
-
-    # No FSA match, or FSA agents exist but none are free → fallback (Julie)
     return _fallback_agent()
+
+    # ── FSA distribution (preserved, not active) ─────────────────────────────
+    # prop_fsa = _prop_fsa(property_obj)
+    # if prop_fsa:
+    #     all_areas = AgentArea.query.all()
+    #     fsa_agent_ids = {
+    #         area.agent_id
+    #         for area in all_areas
+    #         if area.zip and area.zip[:3].upper() == prop_fsa
+    #     }
+    #     if fsa_agent_ids:
+    #         candidates = User.query.filter(
+    #             User.id.in_(fsa_agent_ids), User.agent == True,
+    #         ).all()
+    #         available = [
+    #             a for a in candidates
+    #             if agent_is_available(a.id, date_str, time_str)
+    #         ]
+    #         if available:
+    #             return max(available, key=agent_rating)
+    # return _fallback_agent()
