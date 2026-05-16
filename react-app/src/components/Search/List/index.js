@@ -47,8 +47,6 @@ const List = ({
 	const [searchList, setSearchList] = useState([]);
 	const [searchFiltered, setSearchFiltered] = useState([]);
 	const [error, setError] = useState("");
-	const [pageSize, setPageSize] = useState(100);
-	const [currentPage, setCurrentPage] = useState(1);
 	const [showFiltersInternal, setShowFiltersInternal] = useState(false);
 	const showFilters = showFiltersProp !== null ? showFiltersProp : showFiltersInternal;
 	const setShowFilters = setShowFiltersProp !== null ? setShowFiltersProp : setShowFiltersInternal;
@@ -72,6 +70,8 @@ const List = ({
 	const setTitleStatus = setTitleStatusProp !== null ? setTitleStatusProp : setTitleStatusInternal;
 	const transactionType = transactionTypeProp !== null ? transactionTypeProp : transactionTypeInternal;
 
+	const [visibleCount, setVisibleCount] = useState(10);
+	const listRef = useRef(null);
 	const searchDivRef = useRef();
 	const searchDDRef = useRef();
 
@@ -117,18 +117,21 @@ const List = ({
 	}, [search, searchList]);
 
 	useEffect(() => {
-		setCurrentPage(1);
-	}, [propArr, pageSize]);
+		setVisibleCount(10);
+		if (listRef.current) listRef.current.scrollTop = 0;
+	}, [propArr]);
 
 	const RESULT_CAP = 100;
 	const cappedArr = propArr.slice(0, RESULT_CAP);
 	const totalResults = cappedArr.length;
-	const maxPages = Math.ceil(RESULT_CAP / pageSize);
-	const totalPages = Math.min(Math.max(1, Math.ceil(totalResults / pageSize)), maxPages);
-	const safePage = Math.min(currentPage, totalPages);
-	const startIndex = (safePage - 1) * pageSize;
-	const endIndex = startIndex + pageSize;
-	const pagedProperties = cappedArr.slice(startIndex, endIndex);
+	const visibleProperties = cappedArr.slice(0, visibleCount);
+
+	const handleListScroll = (e) => {
+		const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+		if (scrollHeight - scrollTop - clientHeight < 300) {
+			setVisibleCount(c => Math.min(c + 10, cappedArr.length));
+		}
+	};
 
 	return (
 		<div className="search-wrap bg-[#f3f3f1] text-[#1f1f1f]">
@@ -201,57 +204,24 @@ const List = ({
 				</div>
 			)}
 			{propArr.length ? (
-				<>
-					<div className="search-list grid flex-1 grid-cols-1 gap-3 overflow-y-auto px-4 py-3 lg:grid-cols-2">
-						{pagedProperties?.map((property, index) => (
-							<PropertyCard
-								key={`${property.id}-${index}`}
-								property={property}
-								setOver={setOver}
-							/>
-						))}
-					</div>
-					<div className="search-pagination border-t border-[#e5e5e0] bg-[#f8f8f5] px-4 py-3">
-						<div className="search-pagination-info text-sm text-[#6d6d66]">
-							Showing {startIndex + 1}–{Math.min(endIndex, totalResults)}
+				<div
+					ref={listRef}
+					className="search-list grid flex-1 grid-cols-1 gap-3 overflow-y-auto px-4 py-3 lg:grid-cols-2"
+					onScroll={handleListScroll}
+				>
+					{visibleProperties.map((property, index) => (
+						<PropertyCard
+							key={`${property.id}-${index}`}
+							property={property}
+							setOver={setOver}
+						/>
+					))}
+					{visibleCount < totalResults && (
+						<div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "12px 0", color: "#94a3b8", fontSize: 13 }}>
+							Loading more…
 						</div>
-						<div className="search-pagination-controls mt-2 flex flex-wrap items-center gap-2">
-							<label className="search-page-size flex items-center gap-2 text-xs text-[#6d6d66]">
-								<span>Per page</span>
-								<select
-									className="rounded-md border border-[#d8d8d2] bg-white px-2 py-1 text-[#444]"
-									value={pageSize}
-									onChange={(e) => setPageSize(parseInt(e.target.value, 10))}
-								>
-									<option value="20">20</option>
-									<option value="50">50</option>
-									<option value="100">100</option>
-								</select>
-							</label>
-							<button
-								className="search-page-btn rounded-md border border-[#d8d8d2] bg-white px-3 py-1 text-sm text-[#444] transition hover:bg-[#f1f1ec] disabled:cursor-not-allowed disabled:opacity-40"
-								type="button"
-								disabled={safePage === 1}
-								onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-							>
-								Prev
-							</button>
-							<div className="search-page-count text-sm font-medium text-[#56564f]">
-								Page {safePage} of {totalPages}
-							</div>
-							<button
-								className="search-page-btn rounded-md border border-[#d8d8d2] bg-white px-3 py-1 text-sm text-[#444] transition hover:bg-[#f1f1ec] disabled:cursor-not-allowed disabled:opacity-40"
-								type="button"
-								disabled={safePage >= totalPages}
-								onClick={() =>
-									setCurrentPage((page) => Math.min(totalPages, page + 1))
-								}
-							>
-								Next
-							</button>
-						</div>
-					</div>
-				</>
+					)}
+				</div>
 			) : (
 				<div className="search-no-results flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
 					<img className="img" src={noproperty} alt="No property" />
