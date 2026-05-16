@@ -117,20 +117,36 @@ def add_appointment():
         else:
             appt_filter = Appointment.user_id == current_user.id
 
-        appts = (
-            Appointment.query
-            .filter(appt_filter)
-            .filter(Appointment.archived.isnot(True))
-            .options(
-                selectinload(Appointment.property)
-                    .selectinload(Property.images),
-                selectinload(Appointment.property)
-                    .selectinload(Property.state),
-                selectinload(Appointment.mls_listing),
-                selectinload(Appointment.user),
+        try:
+            appts = (
+                Appointment.query
+                .filter(appt_filter)
+                .filter(Appointment.archived.isnot(True))
+                .options(
+                    selectinload(Appointment.property)
+                        .selectinload(Property.images),
+                    selectinload(Appointment.property)
+                        .selectinload(Property.state),
+                    selectinload(Appointment.mls_listing),
+                    selectinload(Appointment.user),
+                )
+                .all()
             )
-            .all()
-        )
+        except Exception:
+            # Fallback if archived column hasn't been migrated yet
+            appts = (
+                Appointment.query
+                .filter(appt_filter)
+                .options(
+                    selectinload(Appointment.property)
+                        .selectinload(Property.images),
+                    selectinload(Appointment.property)
+                        .selectinload(Property.state),
+                    selectinload(Appointment.mls_listing),
+                    selectinload(Appointment.user),
+                )
+                .all()
+            )
 
         appointments = [appt.to_dict() for appt in appts]
         properties = _serialize_appointment_properties(appts)
