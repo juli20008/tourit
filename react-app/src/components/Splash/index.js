@@ -189,7 +189,14 @@ const Splash = () => {
 					.then(r => r.json())
 					.then(data => {
 						if (searchRef.current === val && data.index?.length) {
-							setListings(data.index);
+							const numMatch = val.trim().match(/^\d+/);
+							const target = numMatch ? parseInt(numMatch[0], 10) : null;
+							const sorted = target !== null
+								? [...data.index].sort((a, b) =>
+									Math.abs((parseInt(a.street, 10) || 0) - target) -
+									Math.abs((parseInt(b.street, 10) || 0) - target))
+								: data.index;
+							setListings(sorted);
 						}
 					})
 					.catch(() => {});
