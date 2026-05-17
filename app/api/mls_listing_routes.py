@@ -294,7 +294,7 @@ def address_index():
                 MlsListing.street_name.isnot(None),
             )
             .order_by(MlsListing.updated_at.desc().nullslast())
-            .limit(5000)
+            .limit(30000)
             .all()
         )
         resp = jsonify({"index": [l.to_address_index_dict() for l in listings]})

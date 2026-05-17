@@ -66,18 +66,24 @@ export function ensureAddrIndex() {
 
 /**
  * Synchronous search against the loaded index. Returns [] if index not ready.
- * Matches on "street city" so "123 King Toronto" works.
+ *
+ * Matching strategy:
+ * - Split query into tokens ("5 totten" → ["5", "totten"])
+ * - Every token must appear somewhere in "street city"
+ * - This handles abbreviated suffixes: "Tottenham Court" matches "Tottenham Crt"
+ *   because "totten" is in "tottenham" and "5" matches the street number.
  */
 export function searchAddr(query, limit = 6) {
 	if (!_index) _index = readCache(); // parse localStorage once, then stay in memory
 	const idx = _index;
 	if (!idx || !query || query.trim().length < 2) return [];
-	const q = query.trim().toLowerCase();
+	const tokens = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+	if (!tokens.length) return [];
 	const results = [];
 	for (const l of idx) {
 		if (!l.street) continue;
 		const hay = `${l.street} ${l.city}`.toLowerCase();
-		if (hay.includes(q)) {
+		if (tokens.every(t => hay.includes(t))) {
 			results.push(l);
 			if (results.length >= limit) break;
 		}
