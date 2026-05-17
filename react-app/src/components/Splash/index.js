@@ -87,6 +87,7 @@ const Splash = () => {
 	const sessionTokenRef = useRef(null);
 	const inputRef = useRef(null);
 	const searchRef = useRef("");
+	const suggestTimer = useRef(null);
 
 	// Load Google Places API
 	useEffect(() => {
@@ -177,7 +178,23 @@ const Splash = () => {
 		setSearch(val);
 		searchRef.current = val;
 		fetchPredictions(val);
-		setListings(searchAddr(val));
+		const local = searchAddr(val);
+		setListings(local);
+
+		clearTimeout(suggestTimer.current);
+		if (local.length === 0 && val.trim().length >= 2) {
+			suggestTimer.current = setTimeout(() => {
+				if (searchRef.current !== val) return;
+				apiFetch(`/api/listings/suggest?q=${encodeURIComponent(val)}`)
+					.then(r => r.json())
+					.then(data => {
+						if (searchRef.current === val && data.index?.length) {
+							setListings(data.index);
+						}
+					})
+					.catch(() => {});
+			}, 350);
+		}
 	};
 
 	const selectPrediction = (prediction) => {

@@ -3,6 +3,7 @@ import { useHistory } from "react-router-dom";
 import { Search, MapPin, X, Clock } from "lucide-react";
 import { resolveUrl } from "../../../utils/imageResolver";
 import { ensureAddrIndex, searchAddr } from "../../../utils/addressIndex";
+import apiFetch from "../../../utils/apiFetch";
 
 const GTA_BOUNDS = { north: 44.3, south: 43.2, east: -78.5, west: -80.5 };
 const RECENT_KEY = "tourit_recent_searches";
@@ -44,6 +45,7 @@ const MapSearchBar = ({ onPlaceSelect, googleReady }) => {
 	const placesRef       = useRef(null);
 	const tokenRef        = useRef(null);
 	const queryRef        = useRef("");
+	const suggestTimer    = useRef(null);
 
 	useEffect(() => {
 		if (!googleReady || !window.google?.maps?.places) return;
@@ -87,9 +89,31 @@ const MapSearchBar = ({ onPlaceSelect, googleReady }) => {
 		const val = e.target.value;
 		setQuery(val);
 		queryRef.current = val;
-		if (!val.trim()) { setPlaces([]); setListings([]); return; }
+		if (!val.trim()) {
+			setPlaces([]); setListings([]);
+			clearTimeout(suggestTimer.current);
+			return;
+		}
 		fetchPlaces(val);
-		setListings(searchAddr(val));
+		const local = searchAddr(val);
+		setListings(local);
+
+		// If local index has no match, fall back to a live DB search after 350 ms.
+		// This covers cold-start (index not loaded yet) and addresses not in the index.
+		clearTimeout(suggestTimer.current);
+		if (local.length === 0) {
+			suggestTimer.current = setTimeout(() => {
+				if (queryRef.current !== val) return; // user kept typing
+				apiFetch(`/api/listings/suggest?q=${encodeURIComponent(val)}`)
+					.then(r => r.json())
+					.then(data => {
+						if (queryRef.current === val && data.index?.length) {
+							setListings(data.index);
+						}
+					})
+					.catch(() => {});
+			}, 350);
+		}
 	};
 
 	const handleFocus = () => {

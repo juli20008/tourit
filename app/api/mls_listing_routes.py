@@ -283,6 +283,80 @@ def list_listings_by_bounds():
         return _fetch_local_bounds(lat_min, lat_max, lng_min, lng_max, limit, lightweight=lightweight or limit > MAX_RESULTS)
 
 
+@mls_listing_routes.route("/suggest", methods=["GET"])
+def suggest_listings():
+    """Real-time street-name autocomplete — fallback when client index has no match."""
+    q = (request.args.get("q") or "").strip()
+    # Extract the longest non-numeric token as the street-name fragment
+    parts = [t for t in q.lower().split() if not t.isdigit() and len(t) >= 3]
+    if not parts:
+        return jsonify({"index": []})
+    street_token = max(parts, key=len)
+
+    try:
+        rows = (
+            db.session.query(
+                MlsListing.id,
+                MlsListing.mls_number,
+                MlsListing.street_number,
+                MlsListing.street_name,
+                MlsListing.street_suffix,
+                MlsListing.unit_number,
+                MlsListing.city,
+                MlsListing.list_price,
+                MlsListing.bed,
+                MlsListing.bath,
+                MlsListing.property_class,
+                MlsListing.external_id,
+                MlsListing.photos_timestamp,
+                MlsListing.images,
+                MlsListing.lat,
+                MlsListing.lng,
+                MlsListing.transaction_type,
+            )
+            .filter(
+                MlsListing.visible_filter(),
+                MlsListing.street_name.isnot(None),
+                MlsListing.street_name.ilike(f"{street_token}%"),
+            )
+            .order_by(MlsListing.updated_at.desc().nullslast())
+            .limit(10)
+            .all()
+        )
+
+        index = []
+        for r in rows:
+            street = ' '.join(filter(None, [r.street_number, r.street_name, r.street_suffix]))
+            cat    = _determine_category(r.property_class, r.unit_number)
+            front  = None
+            for img in (r.images or []):
+                s = str(img)
+                if img and not s.startswith('sample/') and 'unsplash.com' not in s:
+                    front = img
+                    break
+            if not front:
+                front = _build_cdn_image_url(r.external_id, r.photos_timestamp, 1)
+            index.append({
+                'id':               f'mls_{r.id}',
+                'mls_number':       r.mls_number,
+                'street':           street,
+                'unit':             r.unit_number or '',
+                'city':             r.city or '',
+                'price':            r.list_price or 0,
+                'bed':              r.bed or 0,
+                'bath':             float(r.bath) if r.bath is not None else 0,
+                'category':         cat,
+                'front_img':        front,
+                'lat':              float(r.lat) if r.lat is not None else None,
+                'lng':              float(r.lng) if r.lng is not None else None,
+                'transaction_type': r.transaction_type or 'For Sale',
+            })
+
+        return jsonify({"index": index})
+    except OperationalError:
+        return jsonify({"index": []})
+
+
 @mls_listing_routes.route("/address-index", methods=["GET"])
 def address_index():
     """Lightweight address index for client-side autocomplete.
