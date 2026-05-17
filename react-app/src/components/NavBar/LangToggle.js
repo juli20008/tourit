@@ -41,6 +41,57 @@ function waitForCombo(cb, retries = 50) {
   if (retries > 0) setTimeout(() => waitForCombo(cb, retries - 1), 100);
 }
 
+// ── Google Translate correction patches ────────────────────────────────────────
+// Google makes specific errors on real-estate and Canadian terminology.
+// Order matters: longer/more-specific patterns before shorter ones.
+const ZH_FIXES = [
+  ['积极的', '在售'],           // "Active" (adjective) → for sale
+  ['积极',   '在售'],           // "Active" → for sale
+  ['地位',   '状态'],           // "Status" field label
+  ['美元',   '加元'],           // currency: USD → CAD
+  ['奶油',   '加拿大地产协会'], // CREA mistranslated as "cream"
+  ['旅行',   '看房'],           // "Tour" mistranslated as "travel"
+];
+
+function applyFixes(root) {
+  const base = root || document.body;
+  if (!base) return;
+  const walker = document.createTreeWalker(base, NodeFilter.SHOW_TEXT);
+  const batch = [];
+  let node;
+  while ((node = walker.nextNode())) {
+    const el = node.parentElement;
+    if (!el || el.closest('script,style,.notranslate,[translate="no"]')) continue;
+    let t = node.textContent;
+    let changed = false;
+    for (const [from, to] of ZH_FIXES) {
+      if (t.includes(from)) { t = t.split(from).join(to); changed = true; }
+    }
+    if (changed) batch.push([node, t]);
+  }
+  // Mutate after walking to avoid invalidating the TreeWalker
+  for (const [n, t] of batch) n.textContent = t;
+}
+
+let _observer = null;
+let _pendingFix = null;
+
+function startObserver() {
+  if (_observer) return;
+  _observer = new MutationObserver(() => {
+    // Debounce so rapid DOM updates don't cause repeated full-page walks
+    clearTimeout(_pendingFix);
+    _pendingFix = setTimeout(() => { applyFixes(document.body); _pendingFix = null; }, 120);
+  });
+  _observer.observe(document.body, { childList: true, subtree: true });
+}
+
+function stopObserver() {
+  clearTimeout(_pendingFix);
+  _pendingFix = null;
+  if (_observer) { _observer.disconnect(); _observer = null; }
+}
+
 // ── Component ──────────────────────────────────────────────────────────────────
 
 const LangToggle = () => {
@@ -53,6 +104,7 @@ const LangToggle = () => {
       loadGoogleTranslate((combo) => {
         combo.value = 'zh-CN';
         combo.dispatchEvent(new Event('change'));
+        setTimeout(() => { applyFixes(document.body); startObserver(); }, 800);
       });
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -64,6 +116,7 @@ const LangToggle = () => {
     loadGoogleTranslate((combo) => {
       combo.value = 'zh-CN';
       combo.dispatchEvent(new Event('change'));
+      setTimeout(() => { applyFixes(document.body); startObserver(); }, 800);
     });
   }, []);
 
@@ -71,6 +124,7 @@ const LangToggle = () => {
     // Clear all Google state, then do a clean navigation.
     // The page reloads WITHOUT the Google script (it's not in index.html),
     // so there is nothing left to re-translate.
+    stopObserver();
     clearCookies();
     localStorage.setItem('tourit_lang', 'en');
     window.__gtLoaded = false; // allow re-load if user switches back to zh
