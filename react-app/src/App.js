@@ -21,6 +21,7 @@ import { initWhitelabel } from "./store/whitelabel";
 import About from "./components/About";
 import AgentLogin from "./components/AgentLogin";
 import ListingPage from "./components/Property/ListingPage";
+import UnreadNotifier from "./components/NavBar/UnreadNotifier";
 
 const DEFAULT_AREA = "/area/neLat=43.855&neLng=-79.12&swLat=43.58&swLng=-79.64&zoom=11";
 
@@ -99,6 +100,7 @@ function App() {
 		<BrowserRouter>
 			<AgentStatusEmbed />
 			<TourReturnHandler />
+			<UnreadNotifier />
 			<NavBar />
 			<Notification />
 <Switch>
