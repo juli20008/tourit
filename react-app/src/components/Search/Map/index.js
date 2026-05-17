@@ -290,8 +290,17 @@ const MapCore = withGoogleMap((props) => {
 		}, []);
 
 		useEffect(() => {
-			setIsOver({ id: props.over.id });
-		}, [props.over]);
+			const id = props.over?.id;
+			setIsOver({ id });
+			// On mobile there is no InfoWindow — use BottomSheet instead.
+			// This fires when fly-to (address search) highlights a nearby listing.
+			if (isMobile && id && id !== 0) {
+				const found = (props.markers || []).find(
+					(m) => m.id === id || String(m.id) === String(id)
+				);
+				if (found) setBottomSheet([found]);
+			}
+		}, [props.over]); // eslint-disable-line react-hooks/exhaustive-deps
 
 		useEffect(() => {
 			if (mapRef.current && props.center && props.syncCenter !== false) {
