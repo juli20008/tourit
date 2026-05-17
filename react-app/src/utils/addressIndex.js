@@ -69,7 +69,8 @@ export function ensureAddrIndex() {
  * Matches on "street city" so "123 King Toronto" works.
  */
 export function searchAddr(query, limit = 6) {
-	const idx = _index || readCache();
+	if (!_index) _index = readCache(); // parse localStorage once, then stay in memory
+	const idx = _index;
 	if (!idx || !query || query.trim().length < 2) return [];
 	const q = query.trim().toLowerCase();
 	const results = [];
