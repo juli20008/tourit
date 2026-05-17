@@ -3,7 +3,8 @@ import os
 import sqlite3
 from sqlalchemy.exc import OperationalError
 
-from ..models.mls_listing import MlsListing
+from ..models.mls_listing import MlsListing, _determine_category, _build_cdn_image_url
+from ..models.db import db
 from ..rate_limit import rate_limit_check
 
 mls_listing_routes = Blueprint("mls_listings", __name__)
@@ -284,20 +285,73 @@ def list_listings_by_bounds():
 
 @mls_listing_routes.route("/address-index", methods=["GET"])
 def address_index():
-    """Lightweight address index for client-side autocomplete. Cached by the
-    browser for 1 hour; fetched once per session."""
+    """Lightweight address index for client-side autocomplete.
+
+    Uses a column-only query (not full ORM objects) to keep memory under
+    control — loading 20k full MlsListing objects with JSONB images columns
+    was exceeding the 512 MB Render limit.
+    """
     try:
-        listings = (
-            MlsListing.query
+        rows = (
+            db.session.query(
+                MlsListing.id,
+                MlsListing.mls_number,
+                MlsListing.street_number,
+                MlsListing.street_name,
+                MlsListing.street_suffix,
+                MlsListing.unit_number,
+                MlsListing.city,
+                MlsListing.list_price,
+                MlsListing.bed,
+                MlsListing.bath,
+                MlsListing.property_class,
+                MlsListing.external_id,
+                MlsListing.photos_timestamp,
+                MlsListing.images,
+                MlsListing.lat,
+                MlsListing.lng,
+                MlsListing.transaction_type,
+            )
             .filter(
                 MlsListing.visible_filter(),
                 MlsListing.street_name.isnot(None),
             )
             .order_by(MlsListing.updated_at.desc().nullslast())
-            .limit(30000)
+            .limit(20000)
             .all()
         )
-        resp = jsonify({"index": [l.to_address_index_dict() for l in listings]})
+
+        index = []
+        for r in rows:
+            street = ' '.join(filter(None, [r.street_number, r.street_name, r.street_suffix]))
+            cat    = _determine_category(r.property_class, r.unit_number)
+
+            front = None
+            for img in (r.images or []):
+                s = str(img)
+                if img and not s.startswith('sample/') and 'unsplash.com' not in s:
+                    front = img
+                    break
+            if not front:
+                front = _build_cdn_image_url(r.external_id, r.photos_timestamp, 1)
+
+            index.append({
+                'id':               f'mls_{r.id}',
+                'mls_number':       r.mls_number,
+                'street':           street,
+                'unit':             r.unit_number or '',
+                'city':             r.city or '',
+                'price':            r.list_price or 0,
+                'bed':              r.bed or 0,
+                'bath':             float(r.bath) if r.bath is not None else 0,
+                'category':         cat,
+                'front_img':        front,
+                'lat':              float(r.lat) if r.lat is not None else None,
+                'lng':              float(r.lng) if r.lng is not None else None,
+                'transaction_type': r.transaction_type or 'For Sale',
+            })
+
+        resp = jsonify({"index": index})
         resp.headers["Cache-Control"] = "public, max-age=3600"
         return resp
     except OperationalError:
