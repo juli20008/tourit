@@ -157,12 +157,12 @@ const MapSearchBar = ({ onPlaceSelect, googleReady }) => {
 	const showRecent = focused && !query.trim() && recent.length > 0;
 	const hasDropdown = places.length > 0 || listings.length > 0 || showRecent;
 
-	// Flat list for keyboard nav: recent OR (places + listings)
+	// Flat list for keyboard nav: recent OR (listings first, then places)
 	const allItems = showRecent
 		? recent.map(r => ({ type: "recent", data: r }))
 		: [
-			...places.map(p   => ({ type: "place",   data: p })),
 			...listings.map(l => ({ type: "listing", data: l })),
+			...places.map(p   => ({ type: "place",   data: p })),
 		];
 
 	const handleKeyDown = (e) => {
@@ -279,38 +279,6 @@ const MapSearchBar = ({ onPlaceSelect, googleReady }) => {
 						</>
 					)}
 
-					{/* ── Locations ── */}
-					{places.length > 0 && (
-						<>
-							<SectionLabel>Locations</SectionLabel>
-							{places.map((pred) => {
-								const myIdx = flatIdx++;
-								return (
-									<div
-										key={pred.place_id}
-										onMouseDown={() => selectPlace(pred)}
-										style={{
-											display: "flex", alignItems: "center", gap: 8,
-											padding: "9px 14px", cursor: "pointer",
-											background: myIdx === activeIdx ? "#f1f5f9" : "white",
-											borderBottom: "1px solid #f0f0ec",
-										}}
-									>
-										<MapPin size={13} strokeWidth={1.5} style={{ color: "#94a3b8", flexShrink: 0 }} />
-										<div style={{ fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-											<span style={{ fontWeight: 500 }}>{pred.structured_formatting?.main_text}</span>
-											{pred.structured_formatting?.secondary_text && (
-												<span style={{ color: "#94a3b8", marginLeft: 4 }}>
-													{pred.structured_formatting.secondary_text}
-												</span>
-											)}
-										</div>
-									</div>
-								);
-							})}
-						</>
-					)}
-
 					{/* ── Listings ── */}
 					{listings.length > 0 && (
 						<>
@@ -366,6 +334,38 @@ const MapSearchBar = ({ onPlaceSelect, googleReady }) => {
 												{listing.bed  ? ` · ${listing.bed} bd`  : ""}
 												{listing.bath ? ` · ${listing.bath} ba` : ""}
 											</div>
+										</div>
+									</div>
+								);
+							})}
+						</>
+					)}
+
+					{/* ── Locations ── */}
+					{places.length > 0 && (
+						<>
+							<SectionLabel>Locations</SectionLabel>
+							{places.map((pred) => {
+								const myIdx = flatIdx++;
+								return (
+									<div
+										key={pred.place_id}
+										onMouseDown={() => selectPlace(pred)}
+										style={{
+											display: "flex", alignItems: "center", gap: 8,
+											padding: "9px 14px", cursor: "pointer",
+											background: myIdx === activeIdx ? "#f1f5f9" : "white",
+											borderBottom: "1px solid #f0f0ec",
+										}}
+									>
+										<MapPin size={13} strokeWidth={1.5} style={{ color: "#94a3b8", flexShrink: 0 }} />
+										<div style={{ fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+											<span style={{ fontWeight: 500 }}>{pred.structured_formatting?.main_text}</span>
+											{pred.structured_formatting?.secondary_text && (
+												<span style={{ color: "#94a3b8", marginLeft: 4 }}>
+													{pred.structured_formatting.secondary_text}
+												</span>
+											)}
 										</div>
 									</div>
 								);
