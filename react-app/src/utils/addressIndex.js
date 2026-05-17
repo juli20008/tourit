@@ -88,55 +88,92 @@ export function ensureAddrIndex() {
 	return _fetchPromise;
 }
 
-/**
- * Synchronous search against the loaded index. Returns [] if index not ready.
- *
- * Matching strategy:
- * - Split query into numeric tokens ("3") and text tokens ("holling", "toronto")
- * - Numeric tokens: matched against the STREET NUMBER as a whole word.
- *     "3" matches "3 Hollingsworth" or "3A …" but NOT "30", "32", "34".
- *     This fixes the bug where "3 holling" surfaced 30/32/34 Hollingsworth.
- * - Text tokens: matched against street + city combined.
- *     "5 tor" still shows Toronto listings (city="Toronto" contains "tor").
- *     "5 tott" only shows listings where street contains "tott" (e.g. Tottenham).
- */
-export function searchAddr(query, limit = 6) {
-	if (!_index) _index = readCache(); // parse localStorage once, then stay in memory
-	const idx = _index;
-	if (!idx || !query || query.trim().length < 2) return [];
+// ── Internal search helper ────────────────────────────────────────────────
 
-	const tokens = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
-	if (!tokens.length) return [];
-
-	// Separate numeric tokens (likely street numbers) from text tokens.
-	const numTokens  = tokens.filter(t => /^\d/.test(t));
-	const textTokens = tokens.filter(t => !/^\d/.test(t));
-
+function _runSearch(idx, numTokens, textTokens, cap) {
 	const results = [];
 	for (const l of idx) {
 		if (!l.street) continue;
-		const streetLow = l.street.toLowerCase(); // e.g. "3 hollingsworth st"
-		const cityLow   = (l.city || "").toLowerCase();
-		const hay       = `${streetLow} ${cityLow}`;
+		const streetLow = l.street.toLowerCase();
+		const hay       = `${streetLow} ${(l.city || "").toLowerCase()}`;
 
-		// Numeric tokens: match the street number as a whole "word" (not substring).
-		// "3" must match "3 …" or "3A …" but NOT "30 …" or "34 …".
 		if (numTokens.length) {
-			const streetNum = streetLow.split(/\s+/)[0] || ""; // first token = house number
+			const streetNum = streetLow.split(/\s+/)[0] || "";
 			const ok = numTokens.every(t => {
 				if (!streetNum.startsWith(t)) return false;
 				const next = streetNum[t.length];
-				return !next || /[a-z\-]/i.test(next); // next char must be non-digit
+				return !next || /[a-z\-]/i.test(next); // next char must not be a digit
 			});
 			if (!ok) continue;
 		}
 
-		// Text tokens: always search street + city so typing "toronto" or
-		// a partial city name keeps matching while the user narrows by street.
 		if (textTokens.length && !textTokens.every(t => hay.includes(t))) continue;
 
 		results.push(l);
-		if (results.length >= limit) break;
+		if (results.length >= cap) break;
 	}
 	return results;
+}
+
+/**
+ * Synchronous search against the loaded index. Returns [] if index not ready.
+ *
+ * Two-pass strategy:
+ *   Pass 1 — exact street-number boundary match + text in street+city.
+ *             "3" matches "3 Hollingsworth" but NOT "30", "32", "34".
+ *   Pass 2 — if Pass 1 is empty AND a text token is ≥ 4 chars, drop the
+ *             number constraint and search by street name only, then sort
+ *             results by how close their street number is to the searched
+ *             number.  "5 tottenham" falls back to all Tottenham listings
+ *             sorted closest to #5 first.
+ *
+ * Also handles MLS# lookup: purely numeric query ≥ 5 digits → search
+ * mls_number field directly.
+ */
+export function searchAddr(query, limit = 6) {
+	if (!_index) _index = readCache();
+	const idx = _index;
+	if (!idx || !query || query.trim().length < 2) return [];
+
+	const q      = query.trim().toLowerCase();
+	const tokens = q.split(/\s+/).filter(Boolean);
+	if (!tokens.length) return [];
+
+	// MLS# search — pure digits (possibly with dashes/spaces), ≥ 5 chars
+	const mlsRaw = q.replace(/[\s\-]/g, "");
+	if (/^\d{5,}$/.test(mlsRaw)) {
+		const found = [];
+		for (const l of idx) {
+			if (l.mls_number && String(l.mls_number).includes(mlsRaw)) {
+				found.push(l);
+				if (found.length >= limit) break;
+			}
+		}
+		if (found.length) return found;
+	}
+
+	const numTokens  = tokens.filter(t => /^\d/.test(t));
+	const textTokens = tokens.filter(t => !/^\d/.test(t));
+
+	// Pass 1: exact number boundary + text in street+city
+	const exact = _runSearch(idx, numTokens, textTokens, limit);
+	if (exact.length) return exact;
+
+	// Pass 2: if searching by address (has a number) and at least one meaningful
+	// text token (≥ 4 chars), fall back to street-name-only and sort by proximity
+	// to the requested house number so the closest matches rise to the top.
+	if (numTokens.length && textTokens.some(t => t.length >= 4)) {
+		const target  = parseInt(numTokens[0], 10) || 0;
+		const pool    = _runSearch(idx, [], textTokens, limit * 4); // grab more to sort
+		if (pool.length) {
+			pool.sort((a, b) => {
+				const aN = parseInt(a.street, 10) || 0;
+				const bN = parseInt(b.street, 10) || 0;
+				return Math.abs(aN - target) - Math.abs(bN - target);
+			});
+			return pool.slice(0, limit);
+		}
+	}
+
+	return [];
 }
