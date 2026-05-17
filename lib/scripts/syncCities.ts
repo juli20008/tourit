@@ -10,7 +10,7 @@
  *   npx ts-node lib/scripts/syncCities.ts --no-photos     (skip photo fetch)
  *   npx ts-node lib/scripts/syncCities.ts --cities="Vaughan,Aurora"
  *
- * Default cities: Richmond Hill, Markham
+ * Default cities: Toronto
  */
 
 import dotenv from 'dotenv';
@@ -36,7 +36,7 @@ function getArg(name: string): string | null {
 const CITIES_ARG = getArg('cities');
 const CITIES: string[] = CITIES_ARG
   ? CITIES_ARG.split(',').map(c => c.trim()).filter(Boolean)
-  : ['Richmond Hill', 'Markham'];
+  : ['Toronto'];
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const PAGE_SIZE  = 100;
