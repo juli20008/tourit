@@ -45,6 +45,8 @@ const SearchArea = () => {
 
 	const [center] = useState(() => getInitialCenter(areaParam));
 	const mapFlyToRef = useRef(null);
+	const flyTargetRef = useRef(null);
+	const flyTargetTimerRef = useRef(null);
 	const [mapIsReady, setMapIsReady] = useState(false);
 	const [showConsent, setShowConsent] = useState(false);
 	const [propArr, setPropArr] = useState([]);
@@ -166,8 +168,34 @@ const SearchArea = () => {
 	};
 
 	const handleFlyTo = (lat, lng, bounds) => {
+		if (flyTargetTimerRef.current) clearTimeout(flyTargetTimerRef.current);
+		flyTargetRef.current = { lat, lng };
+		setOver({ id: 0 });
 		mapFlyToRef.current?.(lat, lng, bounds);
+		// Expire the target if no nearby listing is found within 6 seconds
+		flyTargetTimerRef.current = setTimeout(() => {
+			flyTargetRef.current = null;
+		}, 6000);
 	};
+
+	// After a fly-to, when propArr loads new listings for the area, highlight
+	// the nearest listing to the searched point (if within ~150 m).
+	useEffect(() => {
+		if (!flyTargetRef.current || !propArr.length) return;
+		const { lat, lng } = flyTargetRef.current;
+		let nearest = null;
+		let minDist = Infinity;
+		for (const p of propArr) {
+			if (p.lat == null || p.lng == null) continue;
+			const d = Math.sqrt((p.lat - lat) ** 2 + (p.lng - lng) ** 2);
+			if (d < minDist) { minDist = d; nearest = p; }
+		}
+		if (nearest && minDist < 0.0015) {
+			setOver({ id: nearest.id });
+			flyTargetRef.current = null;
+			if (flyTargetTimerRef.current) clearTimeout(flyTargetTimerRef.current);
+		}
+	}, [propArr]);
 
 	const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
 	const googleMapURL = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&v=3.55&libraries=geometry,drawing,places`;
@@ -182,15 +210,18 @@ const SearchArea = () => {
 			<main className="search-pg-ctrl bg-[#f3f3f1]">
 				{/* Map column */}
 				<div style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
-					{/* Search bar row */}
-					<div style={{
-						display: "flex", alignItems: "center", gap: 8,
-						padding: "8px 10px", background: "white",
-						borderBottom: "1px solid #e5e5e0", flexShrink: 0,
-						position: "relative", zIndex: 20,
-					}}>
-						{/* Buy / Rent toggle */}
-						<div style={{
+					{/* Search bar row — stacks on smallest screens */}
+					<div className="flex flex-wrap sm:flex-nowrap items-center gap-2 shrink-0 relative z-20 bg-white border-b border-[#e5e5e0]" style={{ padding: "8px 10px" }}>
+						{/* Search bar — full-width row 1 on mobile, flex-1 row on desktop */}
+						<div className="order-1 sm:order-2 w-full sm:w-auto sm:flex-1 relative z-30">
+							<MapSearchBar
+								onPlaceSelect={handleFlyTo}
+								googleReady={mapIsReady}
+							/>
+						</div>
+
+						{/* Buy / Rent toggle — row 2 on mobile, left side on desktop */}
+						<div className="order-2 sm:order-1" style={{
 							display: "flex", borderRadius: 8, overflow: "hidden",
 							border: "1px solid #d6d6d0", flexShrink: 0, height: 36,
 						}}>
@@ -215,17 +246,10 @@ const SearchArea = () => {
 							>Rent</button>
 						</div>
 
-						{/* Search bar — locations + listings */}
-						<div style={{ flex: 1, position: "relative", zIndex: 30 }}>
-							<MapSearchBar
-								onPlaceSelect={handleFlyTo}
-								googleReady={mapIsReady}
-							/>
-						</div>
-
-						{/* Filter button */}
+						{/* Filter button — row 2 (right of Buy/Rent) on mobile, right side on desktop */}
 						<button
 							type="button"
+							className="order-3 sm:order-3"
 							onClick={() => setShowFilters(true)}
 							style={{
 								...btnBase, height: 36,
@@ -253,6 +277,7 @@ const SearchArea = () => {
 							zoom={zoom}
 							onBoundsChange={handleMapBoundsChange}
 							onMapReady={(fn) => { mapFlyToRef.current = fn; setMapIsReady(true); }}
+							onOverClear={() => setOver({ id: 0 })}
 							enableAreaSearch={false}
 							syncCenter={false}
 						/>

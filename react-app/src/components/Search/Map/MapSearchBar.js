@@ -1,11 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { useHistory } from "react-router-dom";
 import { Search, MapPin, X, Clock } from "lucide-react";
-import apiFetch from "../../../utils/apiFetch";
 import { resolveUrl } from "../../../utils/imageResolver";
+import { ensureAddrIndex, searchAddr } from "../../../utils/addressIndex";
 
 const GTA_BOUNDS = { north: 44.3, south: 43.2, east: -78.5, west: -80.5 };
-const DEBOUNCE_MS = 280;
 const RECENT_KEY = "tourit_recent_searches";
 const MAX_RECENT = 6;
 
@@ -44,8 +43,7 @@ const MapSearchBar = ({ onPlaceSelect, googleReady }) => {
 	const autocompleteRef = useRef(null);
 	const placesRef       = useRef(null);
 	const tokenRef        = useRef(null);
-	const listingTimer    = useRef(null);
-	const abortRef        = useRef(null);
+	const queryRef        = useRef("");
 
 	useEffect(() => {
 		if (!googleReady || !window.google?.maps?.places) return;
@@ -54,6 +52,15 @@ const MapSearchBar = ({ onPlaceSelect, googleReady }) => {
 		placesRef.current = new window.google.maps.places.PlacesService(div);
 		tokenRef.current  = new window.google.maps.places.AutocompleteSessionToken();
 	}, [googleReady]);
+
+	// Pre-load the address index; if user already typed, show results immediately.
+	useEffect(() => {
+		ensureAddrIndex().then(() => {
+			if (queryRef.current.trim().length >= 2) {
+				setListings(searchAddr(queryRef.current));
+			}
+		}).catch(() => {});
+	}, []);
 
 	const fetchPlaces = (val) => {
 		if (!val.trim() || !autocompleteRef.current) { setPlaces([]); return; }
@@ -76,33 +83,13 @@ const MapSearchBar = ({ onPlaceSelect, googleReady }) => {
 		});
 	};
 
-	const fetchListings = (val) => {
-		clearTimeout(listingTimer.current);
-		if (abortRef.current) { abortRef.current.abort(); abortRef.current = null; }
-		if (!val.trim() || val.trim().length < 2) { setListings([]); return; }
-		listingTimer.current = setTimeout(async () => {
-			const ctrl = new AbortController();
-			abortRef.current = ctrl;
-			try {
-				const res = await apiFetch(
-					`/api/search/${encodeURIComponent(val.trim())}?suggest=1`,
-					{ signal: ctrl.signal }
-				);
-				if (!res.ok) { setListings([]); return; }
-				const data = await res.json();
-				setListings((data.properties || []).slice(0, 6));
-			} catch (err) {
-				if (err.name !== 'AbortError') setListings([]);
-			}
-		}, DEBOUNCE_MS);
-	};
-
 	const handleChange = (e) => {
 		const val = e.target.value;
 		setQuery(val);
+		queryRef.current = val;
 		if (!val.trim()) { setPlaces([]); setListings([]); return; }
 		fetchPlaces(val);
-		fetchListings(val);
+		setListings(searchAddr(val));
 	};
 
 	const handleFocus = () => {

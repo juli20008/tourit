@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useHistory } from "react-router-dom";
 import apiFetch from "../../utils/apiFetch";
 import { resolveUrl } from "../../utils/imageResolver";
+import { ensureAddrIndex, searchAddr } from "../../utils/addressIndex";
 import {
 	ArrowRight,
 	Bookmark,
@@ -48,7 +49,26 @@ const toAreaURL = (place) => {
 const defaultGtaArea = "/area/neLat=43.855&neLng=-79.12&swLat=43.58&swLng=-79.64&zoom=11";
 const gtaAreaPayload = { neLat: 43.855, neLng: -79.12, swLat: 43.58, swLng: -79.64 };
 
-const DEBOUNCE_MS = 280;
+const SPLASH_CACHE_KEY = 'tourit_splash_listings';
+const SPLASH_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+function readSplashCache() {
+	try {
+		const raw = localStorage.getItem(SPLASH_CACHE_KEY);
+		if (!raw) return null;
+		const { listings, ts } = JSON.parse(raw);
+		if (Array.isArray(listings) && listings.length && Date.now() - ts < SPLASH_CACHE_TTL) {
+			return listings;
+		}
+	} catch {}
+	return null;
+}
+
+function writeSplashCache(listings) {
+	try {
+		localStorage.setItem(SPLASH_CACHE_KEY, JSON.stringify({ listings, ts: Date.now() }));
+	} catch {}
+}
 
 const Splash = () => {
 	const history = useHistory();
@@ -57,7 +77,7 @@ const Splash = () => {
 	const [predictions, setPredictions] = useState([]);
 	const [listings, setListings] = useState([]);
 	const [activePredIdx, setActivePredIdx] = useState(-1);
-	const [newlyListed, setNewlyListed] = useState([]);
+	const [newlyListed, setNewlyListed] = useState(() => readSplashCache() || []);
 	const [mapCenter, setMapCenter] = useState(TORONTO);
 	const [over, setOver] = useState({ id: 0 });
 	const [placeholder, setPlaceholder] = useState("Enter an address, city, or postal code");
@@ -66,8 +86,7 @@ const Splash = () => {
 	const placesRef = useRef(null);
 	const sessionTokenRef = useRef(null);
 	const inputRef = useRef(null);
-	const listingTimer = useRef(null);
-	const abortRef = useRef(null);
+	const searchRef = useRef("");
 
 	// Load Google Places API
 	useEffect(() => {
@@ -82,7 +101,16 @@ const Splash = () => {
 		}).catch(console.error);
 	}, []);
 
-	// Fetch map preview listings
+	// Pre-load address index so listing cards are instant when user types.
+	useEffect(() => {
+		ensureAddrIndex().then(() => {
+			if (searchRef.current.trim().length >= 2) {
+				setListings(searchAddr(searchRef.current));
+			}
+		}).catch(() => {});
+	}, []);
+
+	// Fetch map preview listings (cache-first: paint instantly, refresh in background)
 	useEffect(() => {
 		apiFetch("/api/listings?view=map", {
 			method: "POST",
@@ -90,7 +118,13 @@ const Splash = () => {
 			body: JSON.stringify({ ...gtaAreaPayload, limit: 200 }),
 		})
 			.then((res) => res.json())
-			.then((res) => setNewlyListed(res.listings || []))
+			.then((res) => {
+				const fresh = res.listings || [];
+				if (fresh.length) {
+					setNewlyListed(fresh);
+					writeSplashCache(fresh);
+				}
+			})
 			.catch(console.error);
 	}, []);
 
@@ -131,27 +165,6 @@ const Splash = () => {
 		);
 	};
 
-	const fetchListings = (val) => {
-		clearTimeout(listingTimer.current);
-		if (abortRef.current) { abortRef.current.abort(); abortRef.current = null; }
-		if (!val.trim() || val.trim().length < 2) { setListings([]); return; }
-		listingTimer.current = setTimeout(async () => {
-			const ctrl = new AbortController();
-			abortRef.current = ctrl;
-			try {
-				const res = await apiFetch(
-					`/api/search/${encodeURIComponent(val.trim())}?suggest=1`,
-					{ signal: ctrl.signal }
-				);
-				if (!res.ok) { setListings([]); return; }
-				const data = await res.json();
-				setListings((data.properties || []).slice(0, 6));
-			} catch (err) {
-				if (err.name !== 'AbortError') setListings([]);
-			}
-		}, DEBOUNCE_MS);
-	};
-
 	const selectListing = (listing) => {
 		setSearch("");
 		setPredictions([]);
@@ -160,9 +173,11 @@ const Splash = () => {
 	};
 
 	const handleChange = (e) => {
-		setSearch(e.target.value);
-		fetchPredictions(e.target.value);
-		fetchListings(e.target.value);
+		const val = e.target.value;
+		setSearch(val);
+		searchRef.current = val;
+		fetchPredictions(val);
+		setListings(searchAddr(val));
 	};
 
 	const selectPrediction = (prediction) => {

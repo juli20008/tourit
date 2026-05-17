@@ -339,6 +339,26 @@ class MlsListing(db.Model):
             'image_url':        front,
         }
 
+    def to_address_index_dict(self):
+        """Minimal payload for client-side address autocomplete index."""
+        front = self._first_image()
+        cat   = _determine_category(self.property_class, self.unit_number)
+        return {
+            'id':               f'mls_{self.id}',
+            'mls_number':       self.mls_number,
+            'street':           self.street,
+            'unit':             self.unit_number or '',
+            'city':             self.city or '',
+            'price':            self.list_price or 0,
+            'bed':              self.bed or 0,
+            'bath':             float(self.bath) if self.bath is not None else 0,
+            'category':         cat,
+            'front_img':        front,
+            'lat':              float(self.lat) if self.lat is not None else None,
+            'lng':              float(self.lng) if self.lng is not None else None,
+            'transaction_type': self.transaction_type or 'For Sale',
+        }
+
     def to_dict(self):
         imgs = self.effective_images
         return {

@@ -481,9 +481,11 @@ const MapCore = withGoogleMap((props) => {
 							>
 								{showInfo && (
 										<InfoWindow
-											onCloseClick={() =>
-												setIsOpen({ openInfoWindowMarkerId: 0 })
-											}
+											onCloseClick={() => {
+												setIsOpen({ openInfoWindowMarkerId: 0 });
+												setIsOver({ id: 0 });
+												props.onOverClear?.();
+											}}
 											options={{ disableAutoPan: true, ...getInfoWindowOptions(lat, lng, mapRef) }}
 										>
 										<PropertyPreviewList

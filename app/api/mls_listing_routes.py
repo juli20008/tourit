@@ -282,6 +282,28 @@ def list_listings_by_bounds():
         return _fetch_local_bounds(lat_min, lat_max, lng_min, lng_max, limit, lightweight=lightweight or limit > MAX_RESULTS)
 
 
+@mls_listing_routes.route("/address-index", methods=["GET"])
+def address_index():
+    """Lightweight address index for client-side autocomplete. Cached by the
+    browser for 1 hour; fetched once per session."""
+    try:
+        listings = (
+            MlsListing.query
+            .filter(
+                MlsListing.visible_filter(),
+                MlsListing.street_name.isnot(None),
+            )
+            .order_by(MlsListing.updated_at.desc().nullslast())
+            .limit(5000)
+            .all()
+        )
+        resp = jsonify({"index": [l.to_address_index_dict() for l in listings]})
+        resp.headers["Cache-Control"] = "public, max-age=3600"
+        return resp
+    except OperationalError:
+        return jsonify({"index": []})
+
+
 @mls_listing_routes.route("/nearby", methods=["GET"])
 def nearby_listings():
     try:
