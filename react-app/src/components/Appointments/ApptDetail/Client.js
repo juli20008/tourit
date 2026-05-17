@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
+import { useHistory } from "react-router-dom";
 import { useNotification } from "../../../context/Notification";
 
 import editAvailable from "../../Tools/EditAvailable";
@@ -13,6 +14,7 @@ import * as propertyActions from "../../../store/property";
 
 const ApptDetail = ({ appt, past, onClose }) => {
 	const dispatch = useDispatch();
+	const history = useHistory();
 
 	const properties = useSelector((state) => state.properties);
 	const agents = useSelector((state) => state.agents);
@@ -26,8 +28,27 @@ const ApptDetail = ({ appt, past, onClose }) => {
 
 	const { setToggleNotification, setNotificationMsg } = useNotification();
 
+	// appt.listing carries the embedded property snapshot (image, address, mls_number).
+	// Fall back to the Redux property for legacy seeded-property appointments.
+	const snap = appt?.listing;
 	const property = properties[appt?.property_id];
 	const agent = agents[appt?.agent_id];
+
+	const frontImg   = snap?.image    || property?.front_img;
+	const addrStreet = snap?.street   || property?.street || "";
+	const addrCity   = snap?.city     || property?.city   || "";
+	const addrState  = snap?.state    || (typeof property?.state === "object" ? property?.state?.state : property?.state) || "";
+	const addrZip    = snap?.zip      || property?.zip    || "";
+	const mlsNumber  = snap?.mls_number || appt?.mls_number;
+
+	const handleVisitProperty = () => {
+		if (mlsNumber) {
+			onClose();
+			history.push(`/listing/${encodeURIComponent(mlsNumber)}`);
+		} else {
+			setShowProperty(true);
+		}
+	};
 
 	const schedule = editAvailable(property, appt.date, appt.time);
 
@@ -104,54 +125,30 @@ const ApptDetail = ({ appt, past, onClose }) => {
 
 	return (
 		<div className="appt-detail-modal">
-			{property?.front_img ? (
+			{frontImg ? (
 				<div
 					className="appt-img-detail"
-					style={{ backgroundImage: `url("${property.front_img}")` }}
-					onClick={() => setShowProperty(true)}
-				>
-					<div className="appt-img-prop-detail">
-						{property?.status === "Active" && (
-							<div>
-								<i className="fa-solid fa-circle for-sale"></i>For sale
-							</div>
-						)}
-						{property?.status === "Pending" && (
-							<div>
-								<i className="fa-solid fa-circle pending"></i>Pending
-							</div>
-						)}
-						{property?.status === "Sold" && (
-							<div>
-								<i className="fa-solid fa-circle sold"></i>Sold
-							</div>
-						)}
-						<div>
-							$
-							{property?.price
-								.toFixed()
-								.replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,")}
-						</div>
-					</div>
-				</div>
+					style={{ backgroundImage: `url("${frontImg}")` }}
+					onClick={handleVisitProperty}
+				/>
 			) : (
-				<div className="appt-img-detail" onClick={() => setShowProperty(true)}>
+				<div className="appt-img-detail appt-img-placeholder" onClick={handleVisitProperty}>
 					No image available
 				</div>
 			)}
 			<div className="appt-modal-btm">
-				<div
-					className="appt-address-wrap"
-					onClick={() => setShowProperty(true)}
-				>
+				<div className="appt-address-wrap">
 					<div className="appt-label">Address</div>
 					<div className="appt-address">
-						{property?.street}, {property?.city}, {property?.state},{" "}
-						{property?.zip}
+						{[addrStreet, addrCity, addrState, addrZip].filter(Boolean).join(", ")}
 					</div>
-					<div className="appt-visit-property">
-						Click here to visit property page
-					</div>
+					<button
+						type="button"
+						className="appt-visit-property"
+						onClick={handleVisitProperty}
+					>
+						Click here to visit property page →
+					</button>
 				</div>
 				<div>
 					<div className="appt-label">Appointment Time</div>

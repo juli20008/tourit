@@ -38,6 +38,7 @@ class Appointment(db.Model):
                 "state": self.mls_listing.state or "",
                 "zip": self.mls_listing.zip or "",
                 "image": self.mls_listing.front_img,
+                "mls_number": self.mls_listing.mls_number,
             }
         elif self.mls_number:
             from app.models.mls_listing import MlsListing
@@ -49,6 +50,7 @@ class Appointment(db.Model):
                     "state": ml.state or "",
                     "zip": ml.zip or "",
                     "image": ml.front_img,
+                    "mls_number": ml.mls_number,
                 }
 
         return {
