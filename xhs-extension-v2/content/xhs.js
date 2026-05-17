@@ -426,17 +426,26 @@
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, size, size);
 
-      // Logo centered at top
+      // Logo centered at top — target ~28% of canvas height (between 1/4 and 1/3)
+      let logoYEnd = 20;
       if (logoImg) {
-        const logoH = 100;
-        const logoW = Math.round(logoImg.naturalWidth * (logoH / logoImg.naturalHeight));
-        ctx.drawImage(logoImg, Math.round((size - logoW) / 2), 15, logoW, logoH);
+        const targetH = 300;
+        const maxW    = Math.round(size * 0.82); // never wider than 82% of canvas
+        let logoW = Math.round(logoImg.naturalWidth * (targetH / logoImg.naturalHeight));
+        let logoH = targetH;
+        if (logoW > maxW) {
+          logoW = maxW;
+          logoH = Math.round(logoImg.naturalHeight * (logoW / logoImg.naturalWidth));
+        }
+        const logoX = Math.round((size - logoW) / 2);
+        ctx.drawImage(logoImg, logoX, 20, logoW, logoH);
+        logoYEnd = 20 + logoH;
       }
 
       ctx.fillStyle = '#1e293b';
-      ctx.font = 'bold 52px "PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif';
+      ctx.font = 'bold 48px "PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('预约看房请扫码：', size / 2, 165);
+      ctx.fillText('预约看房请扫码：', size / 2, logoYEnd + 70);
 
       const qrImg = new Image();
       const blob = new Blob([new Uint8Array(resp.data)], { type: 'image/png' });
@@ -444,13 +453,14 @@
 
       qrImg.onload = () => {
         URL.revokeObjectURL(objURL);
-        const qrSize = 700;
-        ctx.drawImage(qrImg, (size - qrSize) / 2, 190, qrSize, qrSize);
+        const qrSize = 600;
+        const qrY    = logoYEnd + 110;
+        ctx.drawImage(qrImg, (size - qrSize) / 2, qrY, qrSize, qrSize);
 
         // Domain label at bottom
         ctx.fillStyle = '#94a3b8';
-        ctx.font = '30px "PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif';
-        ctx.fillText(origin.replace(/^https?:\/\//, ''), size / 2, 975);
+        ctx.font = '26px "PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif';
+        ctx.fillText(origin.replace(/^https?:\/\//, ''), size / 2, qrY + qrSize + 42);
 
         canvas.toBlob(b => {
           if (!b) return resolve(null);
