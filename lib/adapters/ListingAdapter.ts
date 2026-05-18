@@ -30,12 +30,14 @@ export interface SupabaseListing {
   bed: number | null;
   bath: number | null;
   bath_half: number | null;
+  beds_above_grade: number | null;
+  basement_beds: number | null;
   sqft: string | null;
   building_area_units: string | null;
   year_built: number | null;
   style: string | null;
   property_type: string | null;
-  category: string | null; // <-- 在这里加这一行
+  category: string | null;
   description: string | null;
   images: string[];
   agent_name: string | null;
@@ -236,6 +238,24 @@ export function mapDDFToSupabase(item: any): any {
     bed: toInteger(firstDefined(raw.BedroomsTotal, raw.Bedrooms, raw.Beds)),
     bath: toInteger(firstDefined(raw.BathroomsTotal, raw.Bath_tot, raw.BathsTotal)),
     bath_half: parseIntSafe(firstDefined(raw.BathroomsHalf, raw.BathroomsPartial, raw.HalfBaths)),
+    beds_above_grade: (() => {
+      // COMPACT: may appear as BedroomsAboveGrade (RESO) — usually absent, will be null
+      // STANDARD-XML: nested at PropertyDetails.Building.BedroomsAboveGround
+      const v = firstDefined(
+        raw.BedroomsAboveGrade,
+        raw.BedroomsAboveGround,
+        raw?.PropertyDetails?.Building?.BedroomsAboveGround,
+      );
+      return v != null ? safeInteger(v) : null;
+    })(),
+    basement_beds: (() => {
+      const v = firstDefined(
+        raw.BedroomsBelowGrade,
+        raw.BedroomsBelowGround,
+        raw?.PropertyDetails?.Building?.BedroomsBelowGround,
+      );
+      return v != null ? safeInteger(v) : null;
+    })(),
     sqft: parseSqft(firstDefined(raw.BuildingAreaTotal, raw.Sqft, raw.TotFlArea, raw.ApproxSqFt)),
     building_area_units: firstDefined(raw.BuildingAreaUnits, raw.AreaUnits) ?? 'sqft',
     year_built: toInteger(firstDefined(raw.YearBuilt, raw.YrBuilt, raw.ConstructionYear)),

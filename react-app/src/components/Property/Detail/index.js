@@ -159,6 +159,8 @@ const Detail = ({ property }) => {
 			<Section title="Home details">
 				{/* ── Common ── */}
 				{property?.bed          && <Row label="Bedrooms"        value={property.bed} />}
+				{property?.beds_above_grade > 0 && <Row label="Bedrooms above grade" value={property.beds_above_grade} />}
+				{property?.basement_beds > 0    && <Row label="Basement bedrooms"    value={property.basement_beds} />}
 				{property?.bath         && <Row label="Full Bathrooms"  value={property.bath} />}
 				{(isCondo || isTownhouse) && property?.bath_half > 0 && (
 					<Row label="Partial Bathrooms" value={property.bath_half} />

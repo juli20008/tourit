@@ -39,6 +39,8 @@ const SUPABASE_COLUMNS = new Set([
   'bed',
   'bath',
   'bath_half',
+  'beds_above_grade',
+  'basement_beds',
   'sqft',
   'year_built',
   'style',

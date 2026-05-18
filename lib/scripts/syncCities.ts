@@ -48,7 +48,7 @@ const COLUMNS = new Set([
   'transaction_type','list_price','sold_price','original_price','list_date',
   'sold_date','last_status','street_number','street_name','street_suffix',
   'unit_number','city','state','zip','country','neighborhood','lat','lng',
-  'bed','bath','bath_half','sqft','year_built','style','property_type',
+  'bed','bath','bath_half','beds_above_grade','basement_beds','sqft','year_built','style','property_type',
   'description','images','agent_name','agent_email','brokerage','cooling',
   'heating','parking_total','garage_yn','photos_count','photos_timestamp',
   'board_id','realtor_link','updated_at',

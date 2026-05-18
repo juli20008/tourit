@@ -91,6 +91,9 @@ class MlsListing(db.Model):
     # Property details
     bed = db.Column(db.Integer, index=True)
     bath = db.Column(db.Integer)
+    bath_half = db.Column(db.Integer, nullable=True)
+    beds_above_grade = db.Column(db.Integer, nullable=True)
+    basement_beds = db.Column(db.Integer, nullable=True)
     sqft = db.Column(db.String(20))
     year_built = db.Column(db.String(10))
     style = db.Column(db.String(100))
@@ -246,6 +249,9 @@ class MlsListing(db.Model):
             'original_price': self.original_price,
             'bed': self.bed or 0,
             'bath': float(self.bath) if self.bath is not None else 0,
+            'bath_half': self.bath_half or 0,
+            'beds_above_grade': self.beds_above_grade,
+            'basement_beds': self.basement_beds,
             'sqft': sqft_int,
             'lot': None,
             'built': self.year_built,
