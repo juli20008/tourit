@@ -1,11 +1,10 @@
 /**
- * Probes DDF Standard-XML format to find BedroomsAboveGround / BedroomsBelowGround.
+ * Probes DDF to find BedroomsAboveGround / BedroomsBelowGround and room-level data.
  *
- * DDF Compact format only has BedroomsTotal.
- * Standard-XML nests them under PropertyDetails.Building per the DDF documentation.
+ * DDF rejects string equality queries (MLS#, City, etc.) — only timestamp queries work.
+ * This script fetches 50 listings and finds the best candidates for above-grade analysis.
  *
  * Run:  npx ts-node lib/scripts/probeBedroomFields.ts
- * Optional: npx ts-node lib/scripts/probeBedroomFields.ts --mls=W12345678
  */
 
 import '../env';
@@ -14,21 +13,43 @@ import { getAutoLogoutClient } from 'rets-client';
 const BEDROOM_KEYS = [
   'BedroomsAboveGround', 'BedroomsAboveGrade', 'AboveGradeBedrooms',
   'BedroomsBelowGround', 'BedroomsBelowGrade', 'BelowGradeBedrooms',
-  'BedroomsTotal', 'Bedrooms',
 ];
 
-function findBedFields(node: unknown, path = ''): Array<{ path: string; value: unknown }> {
-  if (!node || typeof node !== 'object') return [];
-  const hits: Array<{ path: string; value: unknown }> = [];
-  for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
-    const fullPath = path ? `${path}.${k}` : k;
-    const keyUpper = k.toUpperCase();
-    if (BEDROOM_KEYS.some(bk => bk.toUpperCase() === keyUpper)) {
-      hits.push({ path: fullPath, value: v });
-    }
-    if (v && typeof v === 'object') hits.push(...findBedFields(v, fullPath));
+const ROOM_KEYS = Object.fromEntries(
+  Array.from({ length: 20 }, (_, i) => [
+    [`RoomType${i + 1}`, i + 1],
+    [`RoomLevel${i + 1}`, i + 1],
+    [`RoomDimensions${i + 1}`, i + 1],
+    [`RoomLength${i + 1}`, i + 1],
+    [`RoomWidth${i + 1}`, i + 1],
+  ]).flat()
+);
+
+function findBedFields(node: Record<string, unknown>): Array<{ key: string; value: unknown }> {
+  return BEDROOM_KEYS
+    .filter(k => node[k] !== undefined && node[k] !== '' && node[k] !== null)
+    .map(k => ({ key: k, value: node[k] }));
+}
+
+function extractRooms(item: Record<string, unknown>): Array<{ index: number; type: string; level: string; dims: string }> {
+  const rooms: Array<{ index: number; type: string; level: string; dims: string }> = [];
+  for (let i = 1; i <= 20; i++) {
+    const type  = String(item[`RoomType${i}`]  ?? '').trim();
+    const level = String(item[`RoomLevel${i}`] ?? '').trim();
+    const dims  = String(item[`RoomDimensions${i}`] ?? item[`RoomLength${i}`] ?? '').trim();
+    if (type) rooms.push({ index: i, type, level, dims });
   }
-  return hits;
+  return rooms;
+}
+
+function isHouse(item: Record<string, unknown>): boolean {
+  const unit = String(item.UnitNumber ?? '').trim();
+  const ptype = String(item.PropertyType ?? item.PropertySubType ?? '').toLowerCase();
+  const ownership = String(item.OwnershipType ?? '').toLowerCase();
+  if (unit) return false;
+  if (ownership.includes('strata') || ownership.includes('condo')) return false;
+  if (ptype.includes('condo') || ptype.includes('apartment') || ptype.includes('flat')) return false;
+  return true;
 }
 
 async function main() {
@@ -38,67 +59,76 @@ async function main() {
 
   if (!loginUrl || !username || !password) throw new Error('Missing DDF env vars');
 
-  const mlsArg = process.argv.find(a => a.startsWith('--mls='))?.split('=')[1];
-
   await (getAutoLogoutClient as any)(
     { loginUrl, username, password, version: 'RETS/1.7.2', userAgent: 'Tourit-Probe/1.0' },
     async (rets: any) => {
 
-      // ── 1. COMPACT with standardNames (current format) ───────────────────────
-      console.log('\n=== COMPACT + standardNames (current sync format) ===');
-      const compactResult = await rets.search.query(
+      // Fetch 50 listings — filter in TypeScript for houses with bedrooms
+      const result = await rets.search.query(
         'Property', 'Property',
-        mlsArg ? `(ListingId=${mlsArg})` : '(LastUpdated=2020-01-01T00:00:00Z)',
-        { limit: 1, offset: 1, count: 0, format: 'COMPACT', standardNames: 1 }
+        '(LastUpdated=2020-01-01T00:00:00Z)',
+        { limit: 50, offset: 1, count: 0, format: 'COMPACT', standardNames: 1 }
       );
-      const compactItem = compactResult?.results?.[0];
-      if (compactItem) {
-        const hits = findBedFields(compactItem);
+
+      const items: Record<string, unknown>[] = result?.results ?? [];
+      console.log(`\nFetched ${items.length} listings.`);
+
+      // ── Find listings with direct above/below grade fields ───────────────────
+      console.log('\n=== Listings with BedroomsAboveGround / BedroomsBelowGround ===');
+      let foundDirect = 0;
+      for (const item of items) {
+        const hits = findBedFields(item);
         if (hits.length) {
-          console.log('Bedroom fields found in COMPACT:');
-          for (const h of hits) console.log(`  ${h.path}: ${h.value}`);
-        } else {
-          console.log('No above-grade / below-grade bedroom fields in COMPACT.');
-          console.log('BedroomsTotal:', compactItem.BedroomsTotal ?? compactItem.Bedrooms ?? '(missing)');
+          foundDirect++;
+          console.log(`  MLS ${item.ListingId} (${item.City}) — ${item.PropertyType}`);
+          for (const h of hits) console.log(`    ${h.key}: ${h.value}`);
         }
-      } else {
-        console.log('No COMPACT results returned.');
+      }
+      if (!foundDirect) console.log('  None found — DDF COMPACT does not provide above/below grade directly.');
+
+      // ── Find houses with room-level data ─────────────────────────────────────
+      console.log('\n=== Houses with RoomType / RoomLevel data ===');
+      const houses = items.filter(isHouse);
+      console.log(`  ${houses.length}/${items.length} listings look like houses.`);
+
+      let foundRoomData = 0;
+      for (const item of houses) {
+        const rooms = extractRooms(item);
+        if (rooms.length > 0) {
+          foundRoomData++;
+          console.log(`\n  MLS ${item.ListingId} (${item.City}) — Beds: ${item.BedroomsTotal}, Ownership: ${item.OwnershipType}`);
+          for (const r of rooms) {
+            console.log(`    Room ${r.index}: type="${r.type}" level="${r.level}" dims="${r.dims}"`);
+          }
+          if (foundRoomData >= 3) break; // Show max 3 examples
+        }
       }
 
-      // ── 2. STANDARD-XML ──────────────────────────────────────────────────────
-      console.log('\n=== STANDARD-XML format ===');
-      try {
-        const xmlResult = await rets.search.query(
-          'Property', 'Property',
-          mlsArg ? `(ListingId=${mlsArg})` : '(LastUpdated=2020-01-01T00:00:00Z)',
-          { limit: 1, offset: 1, count: 0, format: 'STANDARD-XML', standardNames: 1 }
-        );
-        const xmlItem = xmlResult?.results?.[0] ?? xmlResult?.result ?? xmlResult;
-        if (xmlItem) {
-          const hits = findBedFields(xmlItem);
-          if (hits.length) {
-            console.log('Bedroom fields found in STANDARD-XML:');
-            for (const h of hits) console.log(`  ${h.path}: ${h.value}`);
-          } else {
-            console.log('No above-grade / below-grade bedroom fields in STANDARD-XML either.');
+      if (!foundRoomData) {
+        console.log('\n  No room-level data found in this batch.');
+        console.log('  Showing first house listing raw fields relevant to bedrooms:');
+        const sample = houses[0];
+        if (sample) {
+          const relevant = Object.entries(sample).filter(([k]) =>
+            k.startsWith('Room') || k.includes('Bedroom') || k.includes('Level') || k.includes('Floor')
+          );
+          for (const [k, v] of relevant) {
+            if (v !== '' && v !== null && v !== undefined) console.log(`    ${k}: ${v}`);
           }
-
-          // Print the PropertyDetails.Building section if it exists
-          const building =
-            (xmlItem as any)?.PropertyDetails?.Building ??
-            (xmlItem as any)?.Building ?? null;
-          if (building) {
-            console.log('\nPropertyDetails.Building section:');
-            console.log(JSON.stringify(building, null, 2));
-          } else {
-            console.log('\nFull raw result (first 4000 chars):');
-            console.log(JSON.stringify(xmlItem, null, 2).slice(0, 4000));
-          }
-        } else {
-          console.log('No STANDARD-XML results returned.');
         }
-      } catch (err: any) {
-        console.error('STANDARD-XML query failed:', err?.message ?? err);
+      }
+
+      // ── Summary ──────────────────────────────────────────────────────────────
+      console.log('\n=== Summary ===');
+      if (foundDirect > 0) {
+        console.log('✓ BedroomsAboveGround / BedroomsBelowGround ARE available in COMPACT.');
+        console.log('  The adapter already maps them — data will populate on next sync.');
+      } else if (foundRoomData > 0) {
+        console.log('✗ No direct above/below grade fields. Room-level data is available.');
+        console.log('  Can derive counts from RoomType + RoomLevel fields.');
+      } else {
+        console.log('✗ Neither above/below grade fields nor room-level data found in this batch.');
+        console.log('  Try a different date range or check a specific listing with ListingKey query.');
       }
     }
   );
