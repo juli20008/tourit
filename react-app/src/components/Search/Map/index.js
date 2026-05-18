@@ -80,6 +80,33 @@ const clusterIcon = (count) => {
 	};
 };
 
+const priceLabel = (price) => {
+	if (price >= 1000000) return `${(price / 1000000).toFixed(1)}M`;
+	return `${Math.round(price / 1000)}K`;
+};
+
+const priceIcon = (price, isOver) => {
+	const label = priceLabel(price || 0);
+	const w = Math.max(40, label.length * 8 + 16);
+	const h = 24;
+	const r = 12;
+	const arrowH = 6;
+	const totalH = h + arrowH;
+	const cx = w / 2;
+	const bg = isOver ? "#1e293b" : "#0f172a";
+	const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${totalH}">
+		<polygon points="${cx - 5},${h} ${cx + 5},${h} ${cx},${totalH}" fill="${bg}"/>
+		<rect x="0" y="0" width="${w}" height="${h}" rx="${r}" ry="${r}" fill="${bg}" stroke="white" stroke-width="2"/>
+		<text x="${cx}" y="${h / 2}" dominant-baseline="middle" text-anchor="middle"
+			fill="white" font-family="Arial,sans-serif" font-weight="700" font-size="12">${label}</text>
+	</svg>`;
+	return {
+		url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
+		scaledSize: new window.google.maps.Size(w, totalH),
+		anchor: new window.google.maps.Point(cx, totalH),
+	};
+};
+
 const MapCore = withGoogleMap((props) => {
 		const history = useHistory();
 		const location = useLocation();
@@ -130,24 +157,6 @@ const MapCore = withGoogleMap((props) => {
 			window.addEventListener("resize", handler);
 			return () => window.removeEventListener("resize", handler);
 		}, []);
-
-		const iconPin = {
-			path: "M256 8C119 8 8 119 8 256s111 248 248 248 248-111 248-248S393 8 256 8z",
-			fillColor: "#0f172a",
-			strokeColor: "#ffffff",
-			strokeWeight: 2.5,
-			fillOpacity: 0.98,
-			scale: 0.032,
-		};
-
-		const iconOver = {
-			path: "M256 8C119 8 8 119 8 256s111 248 248 248 248-111 248-248S393 8 256 8z",
-			fillColor: "#1e293b",
-			strokeColor: "#ffffff",
-			strokeWeight: 2.5,
-			fillOpacity: 1,
-			scale: 0.036,
-		};
 
 		// Build a fresh supercluster index whenever the marker list changes.
 		const supercluster = useMemo(() => {
@@ -327,11 +336,6 @@ const MapCore = withGoogleMap((props) => {
 			});
 		}, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-		const priceLabel = (price) => {
-			if (price > 1000000) return `${(price / 1000000).toFixed(1)}M`;
-			return `${(price / 1000).toFixed(0)}K`;
-		};
-
 		const handlePropertySelect = async (property) => {
 			const detailed = await hydrateMlsListing(property);
 			setPreviewCluster(null);
@@ -456,8 +460,7 @@ const MapCore = withGoogleMap((props) => {
 
 						// Individual property pin
 						const marker = item.properties;
-						const icon =
-							props.over.id === marker.id ? iconOver : iconPin;
+						const icon = priceIcon(marker.price, props.over.id === marker.id);
 						const showInfo =
 							!isMobile &&
 							(isOpen.openInfoWindowMarkerId === marker.id ||
