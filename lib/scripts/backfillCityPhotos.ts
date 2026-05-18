@@ -58,10 +58,9 @@ async function patchImages(mlsNumber: string, urls: string[]): Promise<void> {
 async function loadTargets(): Promise<Array<{ mls_number: string; id: number }>> {
   const targets: Array<{ mls_number: string; id: number }> = [];
 
-  // All non-PK filters run client-side — Supabase free tier times out when filtering
-  // on non-indexed columns (state, photos_timestamp, images) across the full table.
+  // DB-side: standard_status filter reduces rows dramatically (most are inactive).
+  // Remaining filters (state, lat, city) run client-side to avoid JSONB/unindexed timeouts.
   // Keyset pagination on `id` (PK index) keeps every individual query fast.
-  const INACTIVE = new Set(['Inactive', 'Sold', 'Expired', 'Cancelled', 'Withdrawn']);
   const CITY_SET_LC = new Set(CITIES.map(c => c.toLowerCase()));
   // Ontario boards may store state as "Ontario" or "ON"
   const STATE_SET = STATE_ARG === 'Ontario'
@@ -73,7 +72,8 @@ async function loadTargets(): Promise<Array<{ mls_number: string; id: number }>>
 
   while (true) {
     const url = `${SUPABASE_URL}/rest/v1/mls_listings` +
-      `?select=mls_number,id,state,standard_status,lat,photos_count,city` +
+      `?select=mls_number,id,state,standard_status,lat,city` +
+      `&standard_status=not.in.(Inactive,Sold,Expired,Cancelled,Withdrawn)` +
       `&id=gt.${lastId}` +
       `&order=id.asc` +
       `&limit=${BATCH_SIZE}`;
@@ -91,9 +91,7 @@ async function loadTargets(): Promise<Array<{ mls_number: string; id: number }>>
     for (const r of rows) {
       const numId = Number(r.id);
       if (!r.mls_number || !numId || !Number.isInteger(numId) || numId <= 0) continue;
-      if (!r.photos_count || Number(r.photos_count) <= 0) continue; // DDF says no photos
       if (!r.lat) continue;                                   // no coordinates — skip map
-      if (INACTIVE.has(r.standard_status)) continue;          // not active
       if (STATE_SET && !STATE_SET.has(String(r.state ?? ''))) continue; // wrong province
       if (!FETCH_ALL) {
         const cityLc = String(r.city ?? '').replace(/\s*\([^)]*\)\s*$/, '').trim().toLowerCase();
@@ -124,7 +122,7 @@ async function main() {
   }
 
   const scopeLabel = STATE_ARG ? `state=${STATE_ARG}` : (FETCH_ALL ? 'all cities' : CITIES.join(', '));
-  console.log(`[backfill] Finding active listings with photos_count > 0 from Supabase (${scopeLabel})…`);
+  console.log(`[backfill] Finding active Ontario listings with lat/lng from Supabase (${scopeLabel})…`);
 
   const targets = await loadTargets();
   const limited = targets.slice(0, MAX);
