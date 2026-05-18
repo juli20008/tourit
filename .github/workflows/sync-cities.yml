@@ -1,0 +1,42 @@
+name: Sync Cities
+
+on:
+  schedule:
+    - cron: "0 9 * * *"   # Daily 9am UTC (5am EST) — after ddf-sync finishes
+  workflow_dispatch:
+    inputs:
+      cities:
+        description: "Comma-separated city list (leave blank for defaults)"
+        required: false
+        default: ""
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run city sync
+        env:
+          DDF_LOGIN_URL:             ${{ secrets.DDF_LOGIN_URL }}
+          DDF_USERNAME:              ${{ secrets.DDF_USERNAME }}
+          DDF_PASSWORD:              ${{ secrets.DDF_PASSWORD }}
+          SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          CITIES="${{ github.event.inputs.cities }}"
+          if [ -n "$CITIES" ]; then
+            ./node_modules/.bin/ts-node lib/scripts/syncCities.ts --cities="$CITIES"
+          else
+            ./node_modules/.bin/ts-node lib/scripts/syncCities.ts
+          fi
