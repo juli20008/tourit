@@ -71,11 +71,7 @@
       <div class="t-address">${esc(listing.title || listing.address || listing.mls_number)}</div>
       <div class="t-meta">${listing.source === 'desktop' ? '📁 桌面上传' : `${listing.beds ?? '?'}床 · ${listing.baths ?? '?'}卫 · $${fmt(listing.price)}`}</div>
       <div class="t-imgs">${count} 张图片 + 1 张二维码（最多 ${MAX_PHOTOS} 张）</div>
-      <label class="t-crop-label">
-        <input type="checkbox" id="tourit-crop-cover" checked>
-        封面图裁剪为 4:3 竖版
-      </label>
-      <button id="tourit-xhs-upload-btn">上传全部图片</button>
+<button id="tourit-xhs-upload-btn">上传全部图片</button>
       <div id="tourit-xhs-progress"></div>
     `;
     id('tourit-xhs-upload-btn').addEventListener('click', () => runStep1(listing));
@@ -127,16 +123,7 @@
       await sleep(600);
     }
 
-    // ── 2. Crop cover image to 9:16 if checkbox is checked ────────────────────
-    if (id('tourit-crop-cover')?.checked && files.length > 0) {
-      setProgress('正在裁剪封面图为 4:3…');
-      try {
-        const cropped = await cropTo9x16(files[0]);
-        files = [cropped, ...files.slice(1)];
-      } catch (e) {
-        console.warn('[xhs] cover crop failed, using original:', e.message);
-      }
-    }
+
 
     // ── 3. Generate QR code slide and append as last image ────────────────────
     setProgress('正在生成二维码…');
@@ -615,40 +602,6 @@
     return true;
   }
 
-  // ── Cover crop (9:16 centre crop) ─────────────────────────────────────────
-
-  function cropTo9x16(file) {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      const objURL = URL.createObjectURL(file);
-      img.onload = () => {
-        URL.revokeObjectURL(objURL);
-        const sw = img.naturalWidth, sh = img.naturalHeight;
-        const targetRatio = 3 / 4;            // width / height for portrait
-
-        let cw, ch;
-        if (sw / sh > targetRatio) {
-          ch = sh; cw = Math.round(sh * targetRatio); // letterbox: crop sides
-        } else {
-          cw = sw; ch = Math.round(sw / targetRatio); // pillarbox: crop top/bottom
-        }
-        const cx = Math.round((sw - cw) / 2);
-        const cy = Math.round((sh - ch) / 2);
-
-        const canvas = document.createElement('canvas');
-        canvas.width = cw; canvas.height = ch;
-        canvas.getContext('2d').drawImage(img, cx, cy, cw, ch, 0, 0, cw, ch);
-
-        canvas.toBlob(blob => {
-          if (!blob) return reject(new Error('toBlob failed'));
-          resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
-        }, 'image/jpeg', 0.92);
-      };
-      img.onerror = () => { URL.revokeObjectURL(objURL); reject(new Error('image load failed')); };
-      img.src = objURL;
-    });
-  }
-
   // ── Helpers ────────────────────────────────────────────────────────────────
 
   function findFirst(selectors) {
@@ -714,8 +667,6 @@
       #${PANEL_ID} .t-step { font-size:10px; color:#ff2442; font-weight:700; letter-spacing:.08em; text-transform:uppercase; margin-bottom:4px; }
       #${PANEL_ID} .t-address { font-weight:600; font-size:13px; }
       #${PANEL_ID} .t-meta, #${PANEL_ID} .t-imgs { font-size:11px; color:#94a3b8; margin-top:2px; }
-      #${PANEL_ID} .t-crop-label { display:flex; align-items:center; gap:6px; font-size:11px; color:#94a3b8; margin-top:7px; cursor:pointer; }
-      #${PANEL_ID} .t-crop-label input { cursor:pointer; accent-color:#ff2442; }
       #${PANEL_ID} button {
         margin-top:10px; width:100%; padding:8px; border-radius:8px;
         background:#ff2442; color:#fff; border:none; font-size:13px;
