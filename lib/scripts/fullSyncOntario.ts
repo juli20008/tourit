@@ -25,9 +25,10 @@ const PAGE_SIZE    = 100;
 const PAGE_DELAY   = 2000;   // ms between pages — be polite to DDF
 const MAX_PAGES    = 1000;   // safety ceiling (~100k listings)
 
-// DDF DMQL query — all active residential listings in Ontario
-// StateOrProvince=ON covers Ontario; no LastUpdated constraint
-const DMQL_QUERY = '(StateOrProvince=ON),(Status=A)';
+// DDF only accepts timestamp DMQL queries — city/province/status filters all return 20206.
+// Use a far-past date to capture all active listings, then filter by province in TypeScript.
+const DMQL_QUERY = '(LastUpdated=2023-01-01T00:00:00Z)';
+const TARGET_PROVINCES = new Set(['ON', 'Ontario']);
 
 const COLUMNS = new Set([
   'external_id','mls_number','status','standard_status','property_class',
@@ -116,20 +117,26 @@ async function main() {
 
         totalFetched += results.length;
         if (totalCount !== null && page === 1) {
-          console.log(`[fullSync] DDF reports ${totalCount} total matching listings`);
+          console.log(`[fullSync] DDF reports ${totalCount} total matching listings (Canada-wide; filtering to Ontario)`);
         }
 
-        if (!DRY_RUN) {
-          const dbRows = results.map(toDbRow);
+        // Filter to Ontario in TypeScript — DDF rejects StateOrProvince DMQL
+        const ontario = results.filter(r => {
+          const prov = String(r.StateOrProvince ?? r.Province ?? r.state ?? '');
+          return TARGET_PROVINCES.has(prov);
+        });
+
+        process.stdout.write(`\r[fullSync] Page ${page} | fetched ${totalFetched.toLocaleString()} | Ontario ${totalUpserted.toLocaleString()}  `);
+
+        if (!DRY_RUN && ontario.length > 0) {
+          const dbRows = ontario.map(toDbRow);
           try {
             await upsertBatch(dbRows);
             totalUpserted += dbRows.length;
           } catch (e: any) {
-            console.error(`[fullSync] Upsert failed on page ${page}: ${e.message}`);
+            console.error(`\n[fullSync] Upsert failed on page ${page}: ${e.message}`);
           }
         }
-
-        console.log(`[fullSync] Page ${page}: ${results.length} fetched, ${totalUpserted} upserted so far`);
 
         if (results.length < PAGE_SIZE) break;  // last page
 

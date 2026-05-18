@@ -119,8 +119,9 @@ async function main() {
     throw new Error('Missing required env vars');
   }
 
-  // Timestamp for 70 minutes ago in ISO format (DDF expects UTC)
-  const since = new Date(Date.now() - 70 * 60 * 1000).toISOString().replace(/\.\d{3}Z$/, 'Z');
+  // 200-minute lookback: covers the 180-min run interval + 20-min buffer so no listing
+  // falls in the dead zone between consecutive runs.
+  const since = new Date(Date.now() - 200 * 60 * 1000).toISOString().replace(/\.\d{3}Z$/, 'Z');
   console.log(`[hourly] Querying DDF for listings updated since ${since}`);
 
   // ── Step 1: Search ────────────────────────────────────────────────────────
@@ -133,7 +134,11 @@ async function main() {
         { limit: 500, offset: 1, count: 1, format: 'COMPACT', standardNames: 1 }
       );
       const rows = result.results ?? [];
-      console.log(`[hourly] DDF returned ${rows.length} listing(s) (total count: ${result.count ?? '?'})`);
+      const total = result.count ?? '?';
+      console.log(`[hourly] DDF returned ${rows.length} listing(s) (total count: ${total})`);
+      if (rows.length === 500) {
+        console.warn(`[hourly] WARNING: result hit the 500-listing limit — some listings may be missing. Consider reducing run interval.`);
+      }
       return rows;
     }
   );
