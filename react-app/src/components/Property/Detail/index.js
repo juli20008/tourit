@@ -101,8 +101,8 @@ const Detail = ({ property }) => {
 
 			{/* Beds / Baths / Sqft */}
 			<div className="flex items-center gap-1 text-base text-gray-700 mb-3">
-				<span><strong>{property?.beds_above_grade > 0
-					? `${property.beds_above_grade}+${property.basement_beds ?? 0}`
+				<span><strong>{property?.beds_above_grade > 0 && property?.basement_beds > 0
+					? `${property.beds_above_grade}+${property.basement_beds}`
 					: property?.bed}</strong> bd</span>
 				<span className="mx-2 text-stroke">|</span>
 				<span><strong>{property?.bath}</strong> ba</span>
