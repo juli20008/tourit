@@ -58,9 +58,9 @@ async function patchImages(mlsNumber: string, urls: string[]): Promise<void> {
 async function loadTargets(): Promise<Array<{ mls_number: string; id: number }>> {
   const targets: Array<{ mls_number: string; id: number }> = [];
 
-  // DB-side: standard_status filter reduces rows dramatically (most are inactive).
-  // Remaining filters (state, lat, city) run client-side to avoid JSONB/unindexed timeouts.
-  // Keyset pagination on `id` (PK index) keeps every individual query fast.
+  // Pure keyset pagination on id (PK) — only safe query that doesn't timeout.
+  // No WHERE clause beyond id > lastId; all other filtering runs client-side.
+  const INACTIVE = new Set(['Inactive', 'Sold', 'Expired', 'Cancelled', 'Withdrawn']);
   const CITY_SET_LC = new Set(CITIES.map(c => c.toLowerCase()));
   // Ontario boards may store state as "Ontario" or "ON"
   const STATE_SET = STATE_ARG === 'Ontario'
@@ -72,8 +72,7 @@ async function loadTargets(): Promise<Array<{ mls_number: string; id: number }>>
 
   while (true) {
     const url = `${SUPABASE_URL}/rest/v1/mls_listings` +
-      `?select=mls_number,id,state,standard_status,lat,city` +
-      `&standard_status=not.in.(Inactive,Sold,Expired,Cancelled,Withdrawn)` +
+      `?select=mls_number,id,state,standard_status,city` +
       `&id=gt.${lastId}` +
       `&order=id.asc` +
       `&limit=${BATCH_SIZE}`;
@@ -91,6 +90,7 @@ async function loadTargets(): Promise<Array<{ mls_number: string; id: number }>>
     for (const r of rows) {
       const numId = Number(r.id);
       if (!r.mls_number || !numId || !Number.isInteger(numId) || numId <= 0) continue;
+      if (INACTIVE.has(r.standard_status)) continue;
       if (STATE_SET && !STATE_SET.has(String(r.state ?? ''))) continue; // wrong province
       if (!FETCH_ALL) {
         const cityLc = String(r.city ?? '').replace(/\s*\([^)]*\)\s*$/, '').trim().toLowerCase();
