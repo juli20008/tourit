@@ -50,12 +50,15 @@ async function fetchNullGeoListings(): Promise<Listing[]> {
 
   const cityParam = CITY_FILTER.length
     ? `&city=in.(${CITY_FILTER.map(c => encodeURIComponent(c)).join(',')})` : '';
+  // Only apply state filter when no city filter — city alone is precise enough,
+  // and state values vary (e.g. "Ontario" vs "ON") across boards.
+  const stateParam = CITY_FILTER.length ? '' : `&state=eq.${encodeURIComponent(STATE)}`;
   if (CITY_FILTER.length) console.log(`[geocode] City filter: ${CITY_FILTER.join(', ')}`);
 
   while (true) {
     const url = `${SUPABASE_URL}/rest/v1/mls_listings` +
       `?select=mls_number,street_number,street_name,street_suffix,city,zip` +
-      `&state=eq.${encodeURIComponent(STATE)}` +
+      stateParam +
       `&lat=is.null` +
       cityParam +
       `&limit=${pageSize}&offset=${offset}`;
