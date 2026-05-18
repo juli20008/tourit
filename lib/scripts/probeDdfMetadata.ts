@@ -1,6 +1,5 @@
 /**
- * Fetches DDF metadata lookups for RoomType and RoomLevel to get
- * the numeric code → text label mappings.
+ * Fetches DDF metadata to decode RoomType and RoomLevel numeric codes.
  *
  * Run:  npx ts-node lib/scripts/probeDdfMetadata.ts
  */
@@ -18,42 +17,67 @@ async function main() {
     { loginUrl, username, password, version: 'RETS/1.7.2', userAgent: 'Tourit-Meta/1.0' },
     async (rets: any) => {
 
-      for (const lookupName of ['RoomType', 'RoomLevel']) {
-        console.log(`\n=== METADATA-LOOKUP: ${lookupName} ===`);
+      // ── 1. List all lookup names so we can find the right ones ───────────────
+      console.log('=== All lookup names (LookupName + VisibleName) ===');
+      const lookupsResult = await rets.metadata.getLookups('Property', '*');
+      const allLookups: any[] = lookupsResult?.results?.[0]?.metadata ?? [];
+      for (const l of allLookups) {
+        console.log(`  ${l.LookupName} → "${l.VisibleName}"`);
+      }
+
+      // ── 2. Find room-related lookups ─────────────────────────────────────────
+      const roomLookups = allLookups.filter((l: any) =>
+        (l.LookupName ?? '').toLowerCase().includes('room') ||
+        (l.VisibleName ?? '').toLowerCase().includes('room') ||
+        (l.LookupName ?? '').toLowerCase().includes('level') ||
+        (l.VisibleName ?? '').toLowerCase().includes('level') ||
+        (l.LookupName ?? '').toLowerCase().includes('floor') ||
+        (l.VisibleName ?? '').toLowerCase().includes('floor')
+      );
+
+      console.log(`\n=== Room/Level related lookups (${roomLookups.length} found) ===`);
+      for (const l of roomLookups) {
+        console.log(`  ${l.LookupName} → "${l.VisibleName}"`);
+      }
+
+      // ── 3. Get code→label values for each room-related lookup ────────────────
+      for (const lookup of roomLookups) {
+        const name = lookup.LookupName;
+        console.log(`\n=== getLookupTypes: ${name} ===`);
         try {
-          const meta = await rets.metadata.getLookups('Property', lookupName);
-          if (meta && meta.length > 0) {
-            for (const entry of meta) {
-              console.log(`  ${entry.LookupValue || entry.Value || entry.ID} → ${entry.LongValue || entry.ShortValue || entry.MetadataEntryID || JSON.stringify(entry)}`);
+          const typesResult = await rets.metadata.getLookupTypes('Property', name);
+          const types: any[] = typesResult?.results?.[0]?.metadata ?? typesResult?.results ?? [];
+          if (types.length) {
+            for (const t of types) {
+              const id    = t.LookupValue ?? t.Value ?? t.ID ?? t.MetadataEntryID ?? '?';
+              const label = t.LongValue ?? t.ShortValue ?? t.VisibleName ?? t.Name ?? '?';
+              console.log(`  ${id} → "${label}"`);
             }
           } else {
-            console.log('  No entries returned.');
-            console.log('  Raw:', JSON.stringify(meta, null, 2)?.slice(0, 500));
+            console.log('  (empty) raw:', JSON.stringify(typesResult, null, 2)?.slice(0, 300));
           }
-        } catch (err: any) {
-          console.error(`  Failed: ${err?.message ?? err}`);
-
-          // Try alternative metadata approach
-          try {
-            console.log('  Trying getLookupValues...');
-            const meta2 = await rets.metadata.getLookupValues('Property', lookupName);
-            if (meta2 && meta2.length > 0) {
-              for (const entry of meta2) {
-                console.log(`  ${JSON.stringify(entry)}`);
-              }
-            } else {
-              console.log('  Raw:', JSON.stringify(meta2, null, 2)?.slice(0, 500));
-            }
-          } catch (err2: any) {
-            console.error(`  getLookupValues also failed: ${err2?.message ?? err2}`);
-          }
+        } catch (e: any) {
+          console.error(`  Error: ${e.message}`);
         }
       }
 
-      // Also try fetching the full metadata table to see what's available
-      console.log('\n=== Available metadata method names on rets client ===');
-      if (rets.metadata) {
-        console.log(Object.keys(rets.metadata).join(', '));
+      // ── 4. Fallback: also try the exact names from the COMPACT field list ────
+      for (const name of ['RoomType', 'RoomLevel', 'TypeofRoom', 'LevelofRoom', 'Room']) {
+        if (roomLookups.some((l: any) => l.LookupName === name)) continue; // already done
+        console.log(`\n=== getLookupTypes (direct): ${name} ===`);
+        try {
+          const r = await rets.metadata.getLookupTypes('Property', name);
+          const types: any[] = r?.results?.[0]?.metadata ?? r?.results ?? [];
+          if (types.length) {
+            for (const t of types) {
+              console.log(`  ${t.LookupValue ?? t.Value ?? t.ID} → "${t.LongValue ?? t.ShortValue ?? t.VisibleName}"`);
+            }
+          } else {
+            console.log('  Not found or empty.');
+          }
+        } catch (e: any) {
+          console.log(`  Not found: ${e.message}`);
+        }
       }
     }
   );
