@@ -70,8 +70,8 @@ async function loadTargets(): Promise<Array<{ mls_number: string; id: number }>>
   while (true) {
     const url = `${SUPABASE_URL}/rest/v1/mls_listings` +
       `?select=mls_number,id` +
-      // Catch both empty array and NULL — previously only caught []
-      `&or=(images.is.null,images.eq.%5B%5D)` +
+      // Filter by photos_timestamp (scalar, fast) instead of images[] (JSONB, full table scan → timeout)
+      `&photos_timestamp=is.null` +
       stateClause +
       cityClause +
       `&standard_status=not.in.(Inactive,Sold,Expired,Cancelled,Withdrawn)` +
@@ -107,7 +107,7 @@ async function main() {
   }
 
   const scopeLabel = STATE_ARG ? `state=${STATE_ARG}` : (FETCH_ALL ? 'all cities' : CITIES.join(', '));
-  console.log(`[backfill] Loading listings with empty/null images from Supabase (${scopeLabel})…`);
+  console.log(`[backfill] Loading active listings with no photos_timestamp from Supabase (${scopeLabel})…`);
 
   const targets = await loadTargets();
   const limited = targets.slice(0, MAX);
