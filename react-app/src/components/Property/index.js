@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { X, Share2 } from "lucide-react";
+import { X, Share2, QrCode } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 
 import Images from "./Images";
 import Detail from "./Detail";
@@ -50,33 +51,35 @@ const Property = ({ property, onClose, referralAgent = null, isPage = false }) =
 	const user = useSelector((state) => state.session.user);
 	const [showMobileTour, setShowMobileTour] = useState(false);
 	const [copied, setCopied] = useState(false);
+	const [showQR, setShowQR] = useState(false);
 	const copyTimer = useRef(null);
 
 	useFbmpEmbed(property);
 
-	const handleShare = () => {
+	const buildListingUrl = () => {
 		const mlsNum = property?.mls_number || property?.listing_id;
 		const base = window.location.origin;
 		const wlSlug = getWhitelabelSlug();
-		let url;
 		if (wlSlug) {
-			// Already on the agent's subdomain — clean listing URL
-			url = `${base}/listing/${encodeURIComponent(mlsNum)}`;
+			return `${base}/listing/${encodeURIComponent(mlsNum)}`;
 		} else if (user?.agent && !referralAgent) {
-			// Agent on www.tourit.ca — point to their subdomain in prod
 			const slug = (user.username || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
 			const isProd = window.location.hostname.endsWith('tourit.ca');
-			url = (slug && isProd)
+			return (slug && isProd)
 				? `https://${slug}.tourit.ca/listing/${encodeURIComponent(mlsNum)}`
 				: `${base}/a/${user.id}/listing/${encodeURIComponent(mlsNum)}`;
-		} else {
-			url = `${base}/listing/${encodeURIComponent(mlsNum)}`;
 		}
-		navigator.clipboard.writeText(url).catch(() => {});
+		return `${base}/listing/${encodeURIComponent(mlsNum)}`;
+	};
+
+	const handleShare = () => {
+		navigator.clipboard.writeText(buildListingUrl()).catch(() => {});
 		setCopied(true);
 		clearTimeout(copyTimer.current);
 		copyTimer.current = setTimeout(() => setCopied(false), 2000);
 	};
+
+	const handleQR = () => setShowQR(true);
 
 	useEffect(() => {
 		if (!property?.is_mls && property?.id != null) {
@@ -90,7 +93,7 @@ const Property = ({ property, onClose, referralAgent = null, isPage = false }) =
 	return (
 		<div className="relative bg-white w-[96vw] max-w-[1350px] max-h-[92vh] rounded-2xl flex flex-col">
 
-			{/* Close + Share buttons */}
+			{/* Close + Share + QR buttons */}
 			<div className="absolute top-3 right-3 z-30 flex items-center gap-1.5">
 				<button
 					type="button"
@@ -103,6 +106,14 @@ const Property = ({ property, onClose, referralAgent = null, isPage = false }) =
 					) : (
 						<Share2 size={14} strokeWidth={2} />
 					)}
+				</button>
+				<button
+					type="button"
+					className="flex items-center justify-center w-8 h-8 rounded-full bg-white/90 shadow text-gray-500 hover:text-gray-900 transition-colors"
+					onClick={handleQR}
+					title="Generate QR code"
+				>
+					<QrCode size={14} strokeWidth={2} />
 				</button>
 				<button
 					type="button"
@@ -143,6 +154,39 @@ const Property = ({ property, onClose, referralAgent = null, isPage = false }) =
 					>
 						{referralAgent ? `Tour with ${referralAgent.username}` : "Tour with a Buyer's Agent"}
 					</button>
+				</div>
+			)}
+
+			{/* QR code modal */}
+			{showQR && (
+				<div
+					className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+					onClick={() => setShowQR(false)}
+				>
+					<div
+						className="bg-white rounded-2xl shadow-2xl p-6 flex flex-col items-center gap-4 max-w-xs w-full mx-4"
+						onClick={(e) => e.stopPropagation()}
+					>
+						<div className="flex items-center justify-between w-full">
+							<span className="text-sm font-semibold text-[#0f172a]">Scan to view listing</span>
+							<button
+								type="button"
+								onClick={() => setShowQR(false)}
+								className="flex items-center justify-center w-7 h-7 rounded-full bg-[#f1f5f9] text-gray-500 hover:bg-[#e2e8f0]"
+							>
+								<X size={13} strokeWidth={2} />
+							</button>
+						</div>
+						<QRCodeSVG
+							value={buildListingUrl()}
+							size={220}
+							bgColor="#ffffff"
+							fgColor="#0f172a"
+							level="M"
+							includeMargin
+						/>
+						<p className="text-[11px] text-[#94a3b8] text-center break-all">{buildListingUrl()}</p>
+					</div>
 				</div>
 			)}
 
