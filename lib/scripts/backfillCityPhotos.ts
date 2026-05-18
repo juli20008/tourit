@@ -57,44 +57,61 @@ async function patchImages(mlsNumber: string, urls: string[]): Promise<void> {
 
 async function loadTargets(): Promise<Array<{ mls_number: string; id: number }>> {
   const targets: Array<{ mls_number: string; id: number }> = [];
-  let offset = 0;
 
-  // When --state given, always filter by state (works for both --all and --cities modes)
-  const stateClause = STATE_ARG ? `&state=eq.${encodeURIComponent(STATE_ARG)}` : '';
+  // All non-PK filters run client-side — Supabase free tier times out when filtering
+  // on non-indexed columns (state, photos_timestamp, images) across the full table.
+  // Keyset pagination on `id` (PK index) keeps every individual query fast.
+  const INACTIVE = new Set(['Inactive', 'Sold', 'Expired', 'Cancelled', 'Withdrawn']);
+  const CITY_SET_LC = new Set(CITIES.map(c => c.toLowerCase()));
+  // Ontario boards may store state as "Ontario" or "ON"
+  const STATE_SET = STATE_ARG === 'Ontario'
+    ? new Set(['Ontario', 'ON'])
+    : (STATE_ARG ? new Set([STATE_ARG]) : null);
 
-  // When --all, scope is provided by state filter; otherwise filter by CITIES list
-  const cityClause = FETCH_ALL
-    ? ''
-    : `&city=in.(${CITIES.map(c => encodeURIComponent(c)).join(',')})`;
+  let lastId = 0;
+  let scanned = 0;
 
   while (true) {
     const url = `${SUPABASE_URL}/rest/v1/mls_listings` +
-      `?select=mls_number,id` +
-      // Filter by photos_timestamp (scalar, fast) instead of images[] (JSONB, full table scan → timeout)
-      `&photos_timestamp=is.null` +
-      stateClause +
-      cityClause +
-      `&standard_status=not.in.(Inactive,Sold,Expired,Cancelled,Withdrawn)` +
-      `&lat=not.is.null` +
+      `?select=mls_number,id,state,standard_status,lat,photos_timestamp,city` +
+      `&id=gt.${lastId}` +
       `&order=id.asc` +
-      `&limit=${BATCH_SIZE}&offset=${offset}`;
+      `&limit=${BATCH_SIZE}`;
 
     const res = await fetch(url, {
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, Accept: 'application/json' },
     });
     if (!res.ok) throw new Error(`Supabase query failed ${res.status}: ${await res.text()}`);
     const rows: any[] = await res.json();
+    if (rows.length === 0) break;
+
+    scanned += rows.length;
+    lastId = Number(rows[rows.length - 1].id);
+
     for (const r of rows) {
-      // Only include rows where id is a valid positive integer (= DDF numeric ListingKey)
       const numId = Number(r.id);
-      if (r.mls_number && numId > 0 && Number.isInteger(numId)) {
-        targets.push({ mls_number: String(r.mls_number), id: numId });
+      if (!r.mls_number || !numId || !Number.isInteger(numId) || numId <= 0) continue;
+      if (r.photos_timestamp != null) continue;               // already has photos
+      if (!r.lat) continue;                                   // no coordinates — skip map
+      if (INACTIVE.has(r.standard_status)) continue;          // not active
+      if (STATE_SET && !STATE_SET.has(String(r.state ?? ''))) continue; // wrong province
+      if (!FETCH_ALL) {
+        const cityLc = String(r.city ?? '').replace(/\s*\([^)]*\)\s*$/, '').trim().toLowerCase();
+        if (!CITY_SET_LC.has(cityLc)) continue;              // wrong city
       }
+      targets.push({ mls_number: String(r.mls_number), id: numId });
     }
+
+    if (scanned % 10000 < BATCH_SIZE) {
+      process.stdout.write(`\r[backfill] Scanned ${scanned.toLocaleString()} rows, found ${targets.length} targets…`);
+    }
+
     if (rows.length < BATCH_SIZE) break;
-    offset += BATCH_SIZE;
+    if (targets.length >= MAX) break;
   }
-  return targets;
+
+  process.stdout.write('\n');
+  return targets.slice(0, MAX);
 }
 
 async function main() {
