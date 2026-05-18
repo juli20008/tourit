@@ -101,7 +101,9 @@ const Detail = ({ property }) => {
 
 			{/* Beds / Baths / Sqft */}
 			<div className="flex items-center gap-1 text-base text-gray-700 mb-3">
-				<span><strong>{property?.bed}</strong> bd</span>
+				<span><strong>{property?.beds_above_grade > 0
+					? `${property.beds_above_grade}+${property.basement_beds ?? 0}`
+					: property?.bed}</strong> bd</span>
 				<span className="mx-2 text-stroke">|</span>
 				<span><strong>{property?.bath}</strong> ba</span>
 				{property?.sqft && (
@@ -158,9 +160,13 @@ const Detail = ({ property }) => {
 
 			<Section title="Home details">
 				{/* ── Common ── */}
-				{property?.bed          && <Row label="Bedrooms"        value={property.bed} />}
-				{property?.beds_above_grade > 0 && <Row label="Bedrooms above grade" value={property.beds_above_grade} />}
-				{property?.basement_beds > 0    && <Row label="Basement bedrooms"    value={property.basement_beds} />}
+				{property?.bed && (
+					<Row label="Bedrooms" value={
+						property.beds_above_grade > 0
+							? `${property.beds_above_grade}+${property.basement_beds ?? 0}`
+							: property.bed
+					} />
+				)}
 				{property?.bath         && <Row label="Full Bathrooms"  value={property.bath} />}
 				{(isCondo || isTownhouse) && property?.bath_half > 0 && (
 					<Row label="Partial Bathrooms" value={property.bath_half} />
