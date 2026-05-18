@@ -183,6 +183,11 @@ export class DdfPhotoSession {
       return this.fetchPhotoUrls(listingKey);
     }
 
+    // 20403 = No Object Found, 20400 = No Data Found — listing exists but has no photos
+    if (code === '20403' || code === '20400') {
+      return [];
+    }
+
     if (code !== '0') {
       const text = bodyStr.match(/ReplyText="([^"]+)"/)?.[1] ?? 'unknown';
       throw new Error(`RETS error ${code}: ${text} for listing ${listingKey}`);

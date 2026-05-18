@@ -91,7 +91,6 @@ async function loadTargets(): Promise<Array<{ mls_number: string; id: number }>>
     for (const r of rows) {
       const numId = Number(r.id);
       if (!r.mls_number || !numId || !Number.isInteger(numId) || numId <= 0) continue;
-      if (!r.lat) continue;                                   // no coordinates — skip map
       if (STATE_SET && !STATE_SET.has(String(r.state ?? ''))) continue; // wrong province
       if (!FETCH_ALL) {
         const cityLc = String(r.city ?? '').replace(/\s*\([^)]*\)\s*$/, '').trim().toLowerCase();
