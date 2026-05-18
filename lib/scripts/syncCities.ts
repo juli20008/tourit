@@ -57,17 +57,6 @@ const COLUMNS = new Set([
   'last_seen_at','category',
 ]);
 
-const CDN_BASE = 'https://ddfcdn.realtor.ca/listings';
-
-function buildCdnUrls(externalId: string | null, photosTimestamp: string | null, photosCount: number | null): string[] {
-  if (!externalId || !photosTimestamp) return [];
-  const count = Math.max(photosCount || 1, 1);
-  const eid = externalId.toLowerCase();
-  return Array.from({ length: count }, (_, i) =>
-    `${CDN_BASE}/TS${photosTimestamp}/reb82/highres/4/${eid}_${i + 1}.jpg`
-  );
-}
-
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 
 function toDbRow(raw: Record<string, any>): Record<string, any> {
@@ -77,6 +66,8 @@ function toDbRow(raw: Record<string, any>): Record<string, any> {
   // Never overwrite geocoded coordinates with null — omit lat/lng when DDF doesn't provide them
   if (filtered.lat == null) delete filtered.lat;
   if (filtered.lng == null) delete filtered.lng;
+  // Never wipe existing photos — images are managed separately via patchImages()
+  delete filtered.images;
   return filtered;
 }
 
@@ -236,12 +227,6 @@ async function scanAllAndFilter(
               if (urls.length > 0) {
                 await patchImages(mls, urls);
                 counters.photos++;
-              } else {
-                const cdnUrls = buildCdnUrls(row.external_id, row.photos_timestamp, row.photos_count);
-                if (cdnUrls.length > 0) {
-                  await patchImages(mls, cdnUrls);
-                  counters.photos++;
-                }
               }
             } catch (e: any) {
               console.warn(`\n  [photo] ${mls}: ${e.message}`);
