@@ -2,17 +2,21 @@ name: Image Backfill
 
 on:
   schedule:
-    - cron: "0 9 * * 0"   # Weekly, Sunday 9am UTC
+    - cron: "0 3 * * *"   # Daily 3am UTC (after geocoding at 2am)
   workflow_dispatch:
     inputs:
+      state:
+        description: "Province to backfill (e.g. Ontario)"
+        required: false
+        default: "Ontario"
       max_listings:
         description: "Max GetObject calls per run (split large backfills)"
         required: false
-        default: "5000"
-      delay_ms:
-        description: "Delay between GetObject calls in ms (default 2000)"
-        required: false
         default: "2000"
+      delay_ms:
+        description: "Delay between GetObject calls in ms"
+        required: false
+        default: "800"
 
 jobs:
   backfill:
@@ -40,6 +44,11 @@ jobs:
           SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          ./node_modules/.bin/ts-node lib/scripts/imageBackfill.ts \
-            --max=${{ github.event.inputs.max_listings || '500' }} \
-            --delay-ms=${{ github.event.inputs.delay_ms || '2000' }}
+          STATE="${{ github.event.inputs.state || 'Ontario' }}"
+          MAX="${{ github.event.inputs.max_listings || '2000' }}"
+          DELAY="${{ github.event.inputs.delay_ms || '800' }}"
+          ./node_modules/.bin/ts-node lib/scripts/backfillCityPhotos.ts \
+            --all \
+            --state="$STATE" \
+            --max="$MAX" \
+            --delay-ms="$DELAY"

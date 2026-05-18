@@ -2,7 +2,7 @@ name: Geocode Listings
 
 on:
   schedule:
-    - cron: "0 8 * * 0"   # Weekly, Sunday 8am UTC
+    - cron: "0 2 * * *"   # Daily 2am UTC
   workflow_dispatch:
     inputs:
       state:
@@ -35,6 +35,8 @@ jobs:
           SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
+          STATE="${{ github.event.inputs.state || 'Ontario' }}"
+          LIMIT="${{ github.event.inputs.limit || '99999' }}"
           ./node_modules/.bin/ts-node lib/scripts/geocodeListings.ts \
-            --state=${{ github.event.inputs.state }} \
-            --limit=${{ github.event.inputs.limit }}
+            --state="$STATE" \
+            --limit="$LIMIT"

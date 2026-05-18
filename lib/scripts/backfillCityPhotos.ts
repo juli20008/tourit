@@ -7,7 +7,7 @@
  *   npx ts-node lib/scripts/backfillCityPhotos.ts
  *   npx ts-node lib/scripts/backfillCityPhotos.ts --cities="Vaughan,Markham"
  *   npx ts-node lib/scripts/backfillCityPhotos.ts --max=500 --delay-ms=1000
- *   npx ts-node lib/scripts/backfillCityPhotos.ts --all   (all listings with empty images)
+ *   npx ts-node lib/scripts/backfillCityPhotos.ts --all --state=Ontario
  */
 
 import dotenv from 'dotenv';
@@ -34,6 +34,8 @@ const CITIES: string[] = CITIES_ARG
   ? CITIES_ARG.split(',').map(c => c.trim()).filter(Boolean)
   : ['Toronto', 'North York', 'Scarborough', 'Etobicoke', 'East York'];
 
+const STATE_ARG = getArg('state'); // e.g. --state=Ontario
+
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 
 async function patchImages(mlsNumber: string, urls: string[]): Promise<void> {
@@ -57,6 +59,10 @@ async function loadTargets(): Promise<Array<{ mls_number: string; id: number }>>
   const targets: Array<{ mls_number: string; id: number }> = [];
   let offset = 0;
 
+  // When --state given, always filter by state (works for both --all and --cities modes)
+  const stateClause = STATE_ARG ? `&state=eq.${encodeURIComponent(STATE_ARG)}` : '';
+
+  // When --all, scope is provided by state filter; otherwise filter by CITIES list
   const cityClause = FETCH_ALL
     ? ''
     : `&city=in.(${CITIES.map(c => encodeURIComponent(c)).join(',')})`;
@@ -64,7 +70,9 @@ async function loadTargets(): Promise<Array<{ mls_number: string; id: number }>>
   while (true) {
     const url = `${SUPABASE_URL}/rest/v1/mls_listings` +
       `?select=mls_number,id` +
-      `&images=eq.%5B%5D` +       // images = []
+      // Catch both empty array and NULL — previously only caught []
+      `&or=(images.is.null,images.eq.%5B%5D)` +
+      stateClause +
       cityClause +
       `&standard_status=not.in.(Inactive,Sold,Expired,Cancelled,Withdrawn)` +
       `&lat=not.is.null` +
@@ -77,7 +85,11 @@ async function loadTargets(): Promise<Array<{ mls_number: string; id: number }>>
     if (!res.ok) throw new Error(`Supabase query failed ${res.status}: ${await res.text()}`);
     const rows: any[] = await res.json();
     for (const r of rows) {
-      if (r.mls_number && r.id) targets.push({ mls_number: String(r.mls_number), id: Number(r.id) });
+      // Only include rows where id is a valid positive integer (= DDF numeric ListingKey)
+      const numId = Number(r.id);
+      if (r.mls_number && numId > 0 && Number.isInteger(numId)) {
+        targets.push({ mls_number: String(r.mls_number), id: numId });
+      }
     }
     if (rows.length < BATCH_SIZE) break;
     offset += BATCH_SIZE;
@@ -94,12 +106,15 @@ async function main() {
     throw new Error('Missing required env vars');
   }
 
-  const label = FETCH_ALL ? 'all cities' : CITIES.join(', ');
-  console.log(`[backfill] Loading listings with empty images from Supabase (${label})…`);
+  const scopeLabel = STATE_ARG ? `state=${STATE_ARG}` : (FETCH_ALL ? 'all cities' : CITIES.join(', '));
+  console.log(`[backfill] Loading listings with empty/null images from Supabase (${scopeLabel})…`);
 
   const targets = await loadTargets();
   const limited = targets.slice(0, MAX);
   console.log(`[backfill] Found ${targets.length} listings needing photos → processing ${limited.length}`);
+  if (targets.length > 0) {
+    console.log(`[backfill] First 5 targets: ${targets.slice(0, 5).map(t => `${t.mls_number}(id=${t.id})`).join(', ')}`);
+  }
 
   if (!limited.length) {
     console.log('[backfill] Nothing to do.');
