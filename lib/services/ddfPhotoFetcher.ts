@@ -85,7 +85,7 @@ function parseMediaUrls(bodyStr: string, debug = false): string[] {
   // Use raw (unfiltered) split so column indices match DATA row indices exactly.
   // RETS COMPACT lines start and end with the delimiter, so index 0 is always empty.
   const rawCols = colMatch[1].split(delim).map(c => c.trim());
-  console.log('[photo] GetObject columns:', rawCols.filter(Boolean).join(' | '));
+  if (debug) console.log('[photo] GetObject columns:', rawCols.filter(Boolean).join(' | '));
 
   const urlIdx = rawCols.findIndex(c => /mediaurl|location|url|objectdata/i.test(c));
   if (urlIdx === -1) {
