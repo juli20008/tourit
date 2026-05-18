@@ -61,11 +61,18 @@ const Detail = ({ property }) => {
 		return freq ? `${s} / ${freq}` : s;
 	};
 
-	// DDF OwnershipType codes → human label
+	// DDF OwnershipType numeric codes → human label
 	const ownershipLabel = (code) => {
 		if (!code) return null;
-		const map = { '1': 'Freehold', '2': 'Condo/Strata', '3': 'Leasehold', '4': 'Co-op', '5': 'Life Lease' };
-		return map[String(code)] || String(code);
+		const map = {
+			'3':  'Freehold',
+			'1':  'Condo',
+			'13': 'Freehold + POTL',
+			'16': 'Common Elements Condo',
+			'4':  'Leasehold',
+			'6':  'Co-op',
+		};
+		return map[String(code)] || null;
 	};
 
 	return (
@@ -175,7 +182,7 @@ const Detail = ({ property }) => {
 
 				{/* ── Condo-specific ── */}
 				{isCondo && <>
-					{ownershipLabel(property?.ownership_type) && <Row label="Title"           value={ownershipLabel(property.ownership_type)} />}
+					{ownershipLabel(property?.ownership_type) && <Row label="Title Status" value={ownershipLabel(property.ownership_type)} />}
 					{property?.construction_materials          && <Row label="Exterior Finish" value={property.construction_materials} />}
 					{property?.heating                         && <Row label="Heating Type"    value={property.heating} />}
 					{property?.cooling                         && <Row label="Cooling"         value={property.cooling} />}
@@ -184,7 +191,7 @@ const Detail = ({ property }) => {
 
 				{/* ── Townhouse-specific ── */}
 				{isTownhouse && !isCondo && <>
-					{ownershipLabel(property?.ownership_type) && <Row label="Title"           value={ownershipLabel(property.ownership_type)} />}
+					{ownershipLabel(property?.ownership_type) && <Row label="Title Status" value={ownershipLabel(property.ownership_type)} />}
 					{property?.construction_materials          && <Row label="Exterior Finish" value={property.construction_materials} />}
 					{property?.heating                         && <Row label="Heating Type"    value={property.heating} />}
 					{property?.cooling                         && <Row label="Cooling"         value={property.cooling} />}

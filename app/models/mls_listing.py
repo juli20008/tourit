@@ -337,6 +337,7 @@ class MlsListing(db.Model):
             'office':           self.brokerage or '',
             'front_img':        front,
             'image_url':        front,
+            'ownership_type':   self.ownership_type or None,
         }
 
     def to_address_index_dict(self):

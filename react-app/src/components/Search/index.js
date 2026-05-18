@@ -46,15 +46,10 @@ const Search = () => {
 		};
 	}, []);
 
-	const matchesTitle = (ownershipType, slug) => {
-		if (!slug) return true;
-		const t = (ownershipType || "").toLowerCase();
-		if (!t) return false;
-		if (slug === "freehold")  return t.includes("freehold");
-		if (slug === "leasehold") return t.includes("leasehold");
-		if (slug === "strata")    return t.includes("strata") || t.includes("condo");
-		if (slug === "co-op")     return t.includes("co-op") || t.includes("co op") || t.includes("cooperat");
-		return false;
+	const matchesTitle = (ownershipType, code) => {
+		if (!code) return true;
+		if (!ownershipType) return false;
+		return String(ownershipType) === code;
 	};
 
 	const matchesType = (prop, slug) => {
