@@ -168,13 +168,11 @@ const BATH_OPTIONS = [
 ];
 
 const TITLE_OPTIONS = [
-	{ label: "Any",                   value: ""   },
-	{ label: "Freehold",              value: "3"  },
-	{ label: "Condo",                 value: "1"  },
-	{ label: "Freehold + POTL",       value: "13" },
-	{ label: "Common Elements Condo", value: "16" },
-	{ label: "Leasehold",             value: "4"  },
-	{ label: "Co-op",                 value: "6"  },
+	{ label: "Any",             value: ""   },
+	{ label: "Freehold",        value: "3"  },
+	{ label: "Condo",           value: "1"  },
+	{ label: "Freehold + POTL", value: "13" },
+	{ label: "Co-op",           value: "6"  },
 ];
 
 // ── main component ─────────────────────────────────────────────────────────��──
