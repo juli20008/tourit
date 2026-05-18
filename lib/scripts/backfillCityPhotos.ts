@@ -73,7 +73,7 @@ async function loadTargets(): Promise<Array<{ mls_number: string; id: number }>>
 
   while (true) {
     const url = `${SUPABASE_URL}/rest/v1/mls_listings` +
-      `?select=mls_number,id,state,standard_status,lat,photos_timestamp,city` +
+      `?select=mls_number,id,state,standard_status,lat,photos_count,city` +
       `&id=gt.${lastId}` +
       `&order=id.asc` +
       `&limit=${BATCH_SIZE}`;
@@ -91,7 +91,7 @@ async function loadTargets(): Promise<Array<{ mls_number: string; id: number }>>
     for (const r of rows) {
       const numId = Number(r.id);
       if (!r.mls_number || !numId || !Number.isInteger(numId) || numId <= 0) continue;
-      if (r.photos_timestamp != null) continue;               // already has photos
+      if (!r.photos_count || Number(r.photos_count) <= 0) continue; // DDF says no photos
       if (!r.lat) continue;                                   // no coordinates — skip map
       if (INACTIVE.has(r.standard_status)) continue;          // not active
       if (STATE_SET && !STATE_SET.has(String(r.state ?? ''))) continue; // wrong province
@@ -124,7 +124,7 @@ async function main() {
   }
 
   const scopeLabel = STATE_ARG ? `state=${STATE_ARG}` : (FETCH_ALL ? 'all cities' : CITIES.join(', '));
-  console.log(`[backfill] Loading active listings with no photos_timestamp from Supabase (${scopeLabel})…`);
+  console.log(`[backfill] Finding active listings with photos_count > 0 from Supabase (${scopeLabel})…`);
 
   const targets = await loadTargets();
   const limited = targets.slice(0, MAX);
