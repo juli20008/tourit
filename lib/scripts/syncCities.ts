@@ -36,7 +36,7 @@ function getArg(name: string): string | null {
 const CITIES_ARG = getArg('cities');
 const CITIES: string[] = CITIES_ARG
   ? CITIES_ARG.split(',').map(c => c.trim()).filter(Boolean)
-  : ['Toronto', 'North York', 'Scarborough', 'Etobicoke', 'East York'];
+  : ['Toronto', 'North York', 'Scarborough', 'Etobicoke', 'East York', 'Richmond Hill', 'Markham', 'Vaughan'];
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const PAGE_SIZE  = 100;
