@@ -94,9 +94,10 @@ const priceIcon = (price, isOver) => {
 	const totalH = h + arrowH;
 	const cx = w / 2;
 	const bg = isOver ? "#1e293b" : "#0f172a";
+	// Single path: rounded rect + triangle tip — no seam between pill and arrow
+	const d = `M ${r},0 H ${w - r} Q ${w},0 ${w},${r} V ${h - r} Q ${w},${h} ${w - r},${h} H ${cx + 5} L ${cx},${totalH} L ${cx - 5},${h} H ${r} Q 0,${h} 0,${h - r} V ${r} Q 0,0 ${r},0 Z`;
 	const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${totalH}">
-		<polygon points="${cx - 5},${h} ${cx + 5},${h} ${cx},${totalH}" fill="${bg}"/>
-		<rect x="0" y="0" width="${w}" height="${h}" rx="${r}" ry="${r}" fill="${bg}" stroke="white" stroke-width="2"/>
+		<path d="${d}" fill="${bg}" stroke="white" stroke-width="2"/>
 		<text x="${cx}" y="${h / 2}" dominant-baseline="middle" text-anchor="middle"
 			fill="white" font-family="Arial,sans-serif" font-weight="700" font-size="12">${label}</text>
 	</svg>`;
