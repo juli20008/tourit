@@ -164,6 +164,27 @@ function parseSqft(value: any): string | null {
   return firstNumber ? firstNumber[0].replace(/,/g, '') : text;
 }
 
+// DDF RoomType codes (from getLookupTypes) that represent bedrooms
+const BEDROOM_ROOM_TYPES = new Set([7, 8, 9, 10, 11, 12, 15, 33, 103]);
+
+// DDF RoomLevel codes that are below grade
+const BASEMENT_LEVELS = new Set([6, 8, 11]); // Basement, Lower level, Sub-basement
+
+function countRoomBedrooms(raw: any): { above: number; basement: number } | null {
+  let above = 0, basement = 0, found = false;
+  for (let i = 1; i <= 20; i++) {
+    const typeVal = raw[`RoomType${i}`];
+    if (typeVal == null || typeVal === '') continue;
+    const typeCode = parseInt(String(typeVal), 10);
+    if (Number.isNaN(typeCode) || !BEDROOM_ROOM_TYPES.has(typeCode)) continue;
+    found = true;
+    const levelCode = parseInt(String(raw[`RoomLevel${i}`] ?? ''), 10);
+    if (!Number.isNaN(levelCode) && BASEMENT_LEVELS.has(levelCode)) basement++;
+    else above++;
+  }
+  return found ? { above, basement } : null;
+}
+
 function parseBoolean(value: any): boolean | null {
   if (value === null || value === undefined || value === '') return null;
   if (typeof value === 'boolean') return value;
@@ -190,8 +211,6 @@ function standardStatusFromReplyCode(item: DdfRaw): { status: string | null; sta
 }
 
 export function mapDDFToSupabase(item: any): any {
-  console.log('Mapping item:', item?.ListingKey);
-
   const raw = item ?? {};
   const { status, standard_status } = standardStatusFromReplyCode(raw);
 
@@ -208,6 +227,7 @@ export function mapDDFToSupabase(item: any): any {
   const photosCount = parseIntSafe(firstDefined(raw.PhotosCount, raw.PhotoCount, raw.ImageCount));
   const photosTimestamp = firstDefined(raw.PhotosChangeTimestamp, raw.photosChangeTimestamp);
   const propertyCategory = deriveCategory(raw);
+  const roomBeds = countRoomBedrooms(raw);
   return {
     id: listingKey,
     external_id: firstDefined(raw.ListingId, raw.ListingIdFormat, raw.ListingID, raw.MLS_NUM, raw.MlsNumber) !== null
@@ -239,14 +259,14 @@ export function mapDDFToSupabase(item: any): any {
     bath: toInteger(firstDefined(raw.BathroomsTotal, raw.Bath_tot, raw.BathsTotal)),
     bath_half: parseIntSafe(firstDefined(raw.BathroomsHalf, raw.BathroomsPartial, raw.HalfBaths)),
     beds_above_grade: (() => {
-      // COMPACT: may appear as BedroomsAboveGrade (RESO) — usually absent, will be null
-      // STANDARD-XML: nested at PropertyDetails.Building.BedroomsAboveGround
+      // Prefer direct DDF fields (rarely present in COMPACT); fall back to room data
       const v = firstDefined(
         raw.BedroomsAboveGrade,
         raw.BedroomsAboveGround,
         raw?.PropertyDetails?.Building?.BedroomsAboveGround,
       );
-      return v != null ? safeInteger(v) : null;
+      if (v != null) return safeInteger(v);
+      return roomBeds ? roomBeds.above : null;
     })(),
     basement_beds: (() => {
       const v = firstDefined(
@@ -254,7 +274,8 @@ export function mapDDFToSupabase(item: any): any {
         raw.BedroomsBelowGround,
         raw?.PropertyDetails?.Building?.BedroomsBelowGround,
       );
-      return v != null ? safeInteger(v) : null;
+      if (v != null) return safeInteger(v);
+      return roomBeds ? roomBeds.basement : null;
     })(),
     sqft: parseSqft(firstDefined(raw.BuildingAreaTotal, raw.Sqft, raw.TotFlArea, raw.ApproxSqFt)),
     building_area_units: firstDefined(raw.BuildingAreaUnits, raw.AreaUnits) ?? 'sqft',
