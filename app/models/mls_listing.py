@@ -152,8 +152,20 @@ class MlsListing(db.Model):
         )
 
     @classmethod
+    def map_pin_filter(cls):
+        """Filter for map pins: active + has coordinates. No photos required —
+        photos are a display concern, not a visibility gate."""
+        from sqlalchemy import and_
+        return and_(
+            cls.is_active_filter(),
+            cls.lat.isnot(None),
+            cls.lng.isnot(None),
+            cls.list_price.isnot(None),
+        )
+
+    @classmethod
     def visible_filter(cls):
-        """Combined filter for map/list: has photos and is still active."""
+        """Combined filter for list view: has photos and is still active."""
         from sqlalchemy import and_
         return and_(cls.has_photos_filter(), cls.is_active_filter())
     agent_email = db.Column(db.String(255))

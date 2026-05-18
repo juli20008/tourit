@@ -261,8 +261,7 @@ def list_listings_by_bounds():
         q = MlsListing.query.filter(
             MlsListing.lat.between(lat_min, lat_max),
             MlsListing.lng.between(lng_min, lng_max),
-            MlsListing.list_price.isnot(None),
-            MlsListing.visible_filter(),
+            MlsListing.map_pin_filter(),
         )
         if t_type:
             q = q.filter(MlsListing.transaction_type == t_type)
