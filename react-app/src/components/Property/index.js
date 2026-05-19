@@ -168,7 +168,7 @@ const Property = ({ property, onClose, referralAgent = null, isPage = false }) =
 						onClick={(e) => e.stopPropagation()}
 					>
 						<div className="flex items-center justify-between w-full">
-							<span className="text-sm font-semibold text-[#0f172a]">Scan to view listing</span>
+							<span className="text-sm font-semibold text-[#0f172a]">Scan to view property</span>
 							<button
 								type="button"
 								onClick={() => setShowQR(false)}

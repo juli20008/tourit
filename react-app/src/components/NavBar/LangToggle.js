@@ -51,6 +51,9 @@ const ZH_FIXES = [
   ['美元',   '加元'],           // currency: USD → CAD
   ['奶油',   '加拿大地产协会'], // CREA mistranslated as "cream"
   ['旅行',   '看房'],           // "Tour" mistranslated as "travel"
+  ['扫描以查看属性', '扫码查看房源'],  // "Scan to view property" Google mistranslation
+  ['扫描查看属性',  '扫码查看房源'],
+  ['扫描以查看财产', '扫码查看房源'],
 ];
 
 function applyFixes(root) {
