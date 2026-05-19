@@ -157,7 +157,7 @@ function parseSqft(value: any): string | null {
 
   const rangeMatch = text.match(/^(\d[\d,]*)\s*-\s*(\d[\d,]*)$/);
   if (rangeMatch) {
-    return rangeMatch[1].replace(/,/g, '');
+    return `${rangeMatch[1].replace(/,/g, '')}-${rangeMatch[2].replace(/,/g, '')}`;
   }
 
   const firstNumber = text.match(/\d[\d,]*/);

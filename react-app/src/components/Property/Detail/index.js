@@ -21,6 +21,13 @@ const statusLabel = (s) => {
 const fmtPrice = (p) =>
 	"$" + (p ?? 0).toFixed(0).replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,");
 
+const fmtSqft = (s) => {
+	if (!s) return null;
+	const parts = String(s).split('-');
+	const fmt = (n) => Number(n).toLocaleString();
+	return parts.length === 2 ? `${fmt(parts[0])}–${fmt(parts[1])}` : fmt(parts[0]);
+};
+
 const daysOnMarket = (listingDate) => {
 	if (!listingDate) return null;
 	const diff = Math.floor((Date.now() - new Date(listingDate)) / 86400000);
@@ -109,7 +116,7 @@ const Detail = ({ property }) => {
 				{property?.sqft && (
 					<>
 						<span className="mx-2 text-stroke">|</span>
-						<span><strong>{property.sqft.toLocaleString()}</strong> sqft</span>
+						<span><strong>{fmtSqft(property.sqft)}</strong> sqft</span>
 					</>
 				)}
 			</div>
@@ -175,7 +182,7 @@ const Detail = ({ property }) => {
 				{property?.category && (
 					<Row label="Property Type" value={property.category} />
 				)}
-				{property?.sqft         && <Row label="Sqft"       value={Number(property.sqft).toLocaleString()} />}
+				{property?.sqft         && <Row label="Sqft"       value={fmtSqft(property.sqft)} />}
 				{property?.levels       && <Row label="Storeys"     value={property.levels} />}
 
 				{/* ── House-specific ── */}
