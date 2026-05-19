@@ -228,9 +228,14 @@ class MlsListing(db.Model):
         return self.front_img
 
     def _sqft_int(self):
-        """Return sqft as int for price/sqft calc; None if unparseable."""
+        """Return sqft as int for single values, raw string for ranges, None if absent."""
+        if not self.sqft:
+            return None
+        s = str(self.sqft)
+        if '-' in s:
+            return s  # range like "1500-2000" — pass through to frontend
         try:
-            return int(self.sqft) if self.sqft else None
+            return int(s)
         except (ValueError, TypeError):
             return None
 
