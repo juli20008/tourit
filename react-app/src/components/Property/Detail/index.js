@@ -162,8 +162,8 @@ const Detail = ({ property }) => {
 				{/* ── Common ── */}
 				{property?.bed && (
 					<Row label="Bedrooms" value={
-						property.beds_above_grade > 0
-							? `${property.beds_above_grade}+${property.basement_beds ?? 0}`
+						property.beds_above_grade > 0 && property.basement_beds > 0
+							? `${property.beds_above_grade}+${property.basement_beds}`
 							: property.bed
 					} />
 				)}
