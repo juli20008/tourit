@@ -113,6 +113,7 @@ const LangToggle = () => {
     setCookie('/en/zh-CN');
     localStorage.setItem('tourit_lang', 'zh');
     setLang('zh');
+    window.dispatchEvent(new CustomEvent('tourit:lang', { detail: 'zh' }));
     loadGoogleTranslate((combo) => {
       combo.value = 'zh-CN';
       combo.dispatchEvent(new Event('change'));
