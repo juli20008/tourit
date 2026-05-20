@@ -21,7 +21,7 @@ services:
     runtime: docker
     plan: free
     dockerfilePath: ./Dockerfile
-    healthCheckPath: /
+    healthCheckPath: /health
     autoDeploy: true
     envVars:
       # ── Required — set these in the Render dashboard (mark as secret) ──────

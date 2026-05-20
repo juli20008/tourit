@@ -141,6 +141,11 @@ def warmup():
         return jsonify({'status': 'ok', 'db': 'error'})
 
 
+@app.route('/health')
+def health():
+    return jsonify({'status': 'ok'}), 200
+
+
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve(path):
