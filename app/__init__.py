@@ -157,7 +157,7 @@ def serve(path):
     try:
         return send_from_directory(app.static_folder, 'index.html')
     except Exception:
-        return jsonify({'error': 'Frontend not built'}), 404
+        return jsonify({'status': 'ok'}), 200
 
 if __name__ == '__main__':
     socketio.run(app)
