@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 import os
 import sqlite3
+import time
 from sqlalchemy.exc import OperationalError
 
 from ..models.mls_listing import MlsListing, _determine_category, _build_cdn_image_url
@@ -12,6 +13,19 @@ mls_listing_routes.before_request(rate_limit_check)
 
 MAX_RESULTS = 100
 MAX_MAP_RESULTS = 500
+
+# Simple in-memory cache for expensive map queries
+_cache: dict = {}
+_CACHE_TTL = 60  # seconds
+
+def _cache_get(key):
+    entry = _cache.get(key)
+    if entry and time.time() - entry['ts'] < _CACHE_TTL:
+        return entry['data']
+    return None
+
+def _cache_set(key, data):
+    _cache[key] = {'data': data, 'ts': time.time()}
 USE_LOCAL_PROPERTIES = os.environ.get("FORCE_LOCAL_DB", "").strip() == "1"
 LOCAL_DB_PATH = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", "instance", "yillow.db")
@@ -169,8 +183,16 @@ def list_listings():
     min_bed = request.args.get("min_bed", type=int)
     t_type = request.args.get("type", "").strip().lower()
 
+    # Map view: use map_pin_filter (no JSONB scan) + cache result
+    if lightweight and not any([city, status, min_price, max_price, min_bed, t_type]):
+        cache_key = f"map_default_{page}_{per_page}"
+        cached = _cache_get(cache_key)
+        if cached:
+            return jsonify(cached)
+
     try:
-        q = MlsListing.query.filter(MlsListing.visible_filter())
+        base_filter = MlsListing.map_pin_filter() if lightweight else MlsListing.visible_filter()
+        q = MlsListing.query.filter(base_filter)
         if city:
             q = q.filter(MlsListing.city.ilike(f"%{city}%"))
         if status:
@@ -206,21 +228,22 @@ def list_listings():
         if not items:
             return _fetch_local_properties(page, per_page, lightweight=lightweight)
 
-        # Avoid q.count() — it re-runs the full query just for pagination metadata.
-        # Use the hard cap as the reported total; the frontend only needs an approximation.
         cap = MAX_MAP_RESULTS if lightweight else MAX_RESULTS
         total = cap
         pages = (total + per_page - 1) // per_page if per_page > 0 else 0
 
-        return jsonify(
-            {
-                "listings": [_serialize_listing(l, lightweight=lightweight) for l in items],
-                "total": total,
-                "pages": pages,
-                "page": page,
-                "per_page": per_page,
-            }
-        )
+        payload = {
+            "listings": [_serialize_listing(l, lightweight=lightweight) for l in items],
+            "total": total,
+            "pages": pages,
+            "page": page,
+            "per_page": per_page,
+        }
+
+        if lightweight and not any([city, status, min_price, max_price, min_bed, t_type]):
+            _cache_set(f"map_default_{page}_{per_page}", payload)
+
+        return jsonify(payload)
     except OperationalError:
         return _fetch_local_properties(page, per_page, lightweight=lightweight)
 
