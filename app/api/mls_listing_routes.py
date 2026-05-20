@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request
 import os
 import sqlite3
 import time
+from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
 from ..models.mls_listing import MlsListing, _determine_category, _build_cdn_image_url
@@ -281,28 +282,71 @@ def list_listings_by_bounds():
     t_type = (payload.get("transaction_type") or "").strip()
 
     try:
-        q = MlsListing.query.filter(
-            MlsListing.lat.between(lat_min, lat_max),
-            MlsListing.lng.between(lng_min, lng_max),
-            MlsListing.map_pin_filter(),
-        )
+        t_type_filter = "AND transaction_type = :t_type" if t_type else ""
+        sql = text(f"""
+            SELECT id, mls_number, lat, lng, list_price, bed, bath, sqft,
+                   street_number, street_name, street_suffix, unit_number,
+                   city, state, zip, standard_status, status, transaction_type,
+                   brokerage, property_class, external_id, photos_timestamp,
+                   images->>0 AS front_img, ownership_type
+            FROM mls_listings
+            WHERE lat BETWEEN :lat_min AND :lat_max
+              AND lng BETWEEN :lng_min AND :lng_max
+              AND lat IS NOT NULL AND lng IS NOT NULL AND list_price IS NOT NULL
+              AND (standard_status IS NULL OR standard_status NOT IN
+                   ('Inactive','Sold','Expired','Cancelled','Withdrawn'))
+              AND (property_type IS NULL OR property_type NOT IN ('303','304','305'))
+              {t_type_filter}
+            ORDER BY updated_at DESC NULLSLAST, list_price DESC NULLSLAST
+            LIMIT :limit
+        """)
+        params = dict(lat_min=lat_min, lat_max=lat_max, lng_min=lng_min, lng_max=lng_max, limit=limit)
         if t_type:
-            q = q.filter(MlsListing.transaction_type == t_type)
-        q = q.filter(MlsListing.property_type_filter())
-        q = q.order_by(MlsListing.updated_at.desc().nullslast(), MlsListing.list_price.desc().nullslast()).limit(limit)
-        listings = q.all()
-        if not listings:
-            return _fetch_local_bounds(lat_min, lat_max, lng_min, lng_max, limit, lightweight=lightweight or limit > MAX_RESULTS)
-        return jsonify(
-            {
-                "listings": [_serialize_listing(l, lightweight=lightweight or limit > MAX_RESULTS) for l in listings],
-                "total": len(listings),
-                "page": 1,
-                "per_page": limit,
-            }
-        )
+            params['t_type'] = t_type
+        rows = db.session.execute(sql, params).mappings().all()
+        if not rows:
+            return _fetch_local_bounds(lat_min, lat_max, lng_min, lng_max, limit, lightweight=True)
+
+        listings_out = []
+        for r in rows:
+            cat = _determine_category(r['property_class'], r['unit_number'])
+            street = ' '.join(filter(None, [r['street_number'], r['street_name'], r['street_suffix']]))
+            front = r['front_img']
+            if not front and r['external_id'] and r['photos_timestamp']:
+                front = _build_cdn_image_url(r['external_id'], r['photos_timestamp'], 1)
+            sqft_val = r['sqft']
+            if sqft_val and '-' not in str(sqft_val):
+                try: sqft_val = int(sqft_val)
+                except (ValueError, TypeError): pass
+            listings_out.append({
+                'id':               f"mls_{r['id']}",
+                'is_mls':           True,
+                'mls_number':       r['mls_number'],
+                'lat':              float(r['lat']) if r['lat'] is not None else None,
+                'lng':              float(r['lng']) if r['lng'] is not None else None,
+                'price':            r['list_price'] or 0,
+                'bed':              r['bed'] or 0,
+                'bath':             float(r['bath']) if r['bath'] is not None else 0,
+                'sqft':             sqft_val,
+                'street':           street,
+                'unit':             r['unit_number'] or '',
+                'city':             r['city'] or '',
+                'state':            r['state'] or '',
+                'zip':              r['zip'] or '',
+                'status':           r['standard_status'] or r['status'] or 'Active',
+                'category':         cat,
+                'type':             cat,
+                'transaction_type': r['transaction_type'] or 'For Sale',
+                'brokerage':        r['brokerage'] or '',
+                'office':           r['brokerage'] or '',
+                'front_img':        front,
+                'image_url':        front,
+                'ownership_type':   r['ownership_type'],
+            })
+
+        return jsonify({"listings": listings_out, "total": len(listings_out), "page": 1, "per_page": limit})
     except OperationalError:
-        return _fetch_local_bounds(lat_min, lat_max, lng_min, lng_max, limit, lightweight=lightweight or limit > MAX_RESULTS)
+        return _fetch_local_bounds(lat_min, lat_max, lng_min, lng_max, limit, lightweight=True)
 
 
 @mls_listing_routes.route("/suggest", methods=["GET"])
