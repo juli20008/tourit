@@ -8,6 +8,11 @@ const Footer = () => {
 			<NavLink to="/about" className="footer-logo-wrap">
 				<img className="footer-logo" src="/Yollow.png" alt="Yollow" />
 			</NavLink>
+			<div className="text-center mt-2 mb-1">
+				<NavLink to="/career" className="text-xs text-[#9a9a94] hover:text-[#1a1a18] transition-colors">
+					We're Hiring →
+				</NavLink>
+			</div>
 
 			<img src={footer} alt="Footer" />
 
