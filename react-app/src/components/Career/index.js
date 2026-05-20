@@ -81,7 +81,7 @@ const Career = () => (
 							<p className="text-sm font-semibold text-[#1a1a18]">{role.comp}</p>
 						</div>
 						<a
-							href="mailto:mialitoronto@gmail.com"
+							href="mailto:julie.li.realtor@gmail.com"
 							className="inline-flex items-center gap-2 bg-[#1a1a18] text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-[#2d2d2a] transition-colors"
 						>
 							Apply Now
@@ -94,7 +94,7 @@ const Career = () => (
 		{/* Footer note */}
 		<p className="text-center text-xs text-gray-400 pb-12">
 			Questions? Email us at{" "}
-			<a href="mailto:mialitoronto@gmail.com" className="underline">mialitoronto@gmail.com</a>
+			<a href="mailto:julie.li.realtor@gmail.com" className="underline">julie.li.realtor@gmail.com</a>
 		</p>
 	</div>
 );
