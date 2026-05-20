@@ -17,8 +17,8 @@ dotenv.config({ path: '.env.local' });
 const SUPABASE_URL = process.env.SUPABASE_URL!;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const DRY_RUN = process.argv.includes('--dry-run');
-const PAGE_SIZE = 100;
-const PAGE_DELAY = 300;
+const PAGE_SIZE = 500;
+const PAGE_DELAY = 100;
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 
