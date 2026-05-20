@@ -26,21 +26,24 @@ function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 
 async function fetchSupabaseMlsNumbers(): Promise<Set<string>> {
   const all = new Set<string>();
-  let offset = 0;
+  const INACTIVE = new Set(['Inactive', 'Expired', 'Cancelled', 'Withdrawn']);
+  let lastId = 0;
   const limit = 1000;
 
   while (true) {
     const url = `${SUPABASE_URL}/rest/v1/mls_listings` +
-      `?select=mls_number&standard_status=neq.Inactive` +
-      `&limit=${limit}&offset=${offset}`;
+      `?select=id,mls_number,standard_status&id=gt.${lastId}&order=id.asc&limit=${limit}`;
     const res = await fetch(url, {
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, Accept: 'application/json' },
     });
     if (!res.ok) throw new Error(`Supabase fetch failed: ${res.status}`);
     const rows: any[] = await res.json();
-    for (const r of rows) if (r.mls_number) all.add(String(r.mls_number));
+    if (!rows.length) break;
+    lastId = Number(rows[rows.length - 1].id);
+    for (const r of rows) {
+      if (r.mls_number && !INACTIVE.has(r.standard_status)) all.add(String(r.mls_number));
+    }
     if (rows.length < limit) break;
-    offset += limit;
   }
   return all;
 }
