@@ -196,16 +196,21 @@ const TourRecorder = () => {
     recorder.onstop = () => {
       const blob = new Blob(chunksRef.current, { type: "video/webm" });
       setBlobUrl(URL.createObjectURL(blob));
-      setStatus("done");
+      setStatus("done"); // always wins — even if called before onended fires
     };
     recorder.start(500);
     recorderRef.current = recorder;
 
-    // Auto-stop when user ends screen share via browser UI
-    displayStream.getVideoTracks()[0].onended = () => {
-      setStatus("saving");
+    // Use functional updater so we never overwrite "done" back to "saving"
+    // if the browser auto-stops the recorder before onended fires (race condition).
+    // Listen with addEventListener (more reliable than .onended = assignment)
+    // AND on stream 'inactive' so we catch every browser's stop-sharing gesture.
+    const handleShareStopped = () => {
+      setStatus(prev => prev === "recording" ? "saving" : prev);
       stopAll();
     };
+    displayStream.getVideoTracks()[0].addEventListener("ended", handleShareStopped);
+    displayStream.addEventListener("inactive", handleShareStopped);
 
     timerRef.current = setInterval(() => setElapsed(t => t + 1), 1000);
     setStatus("recording");
