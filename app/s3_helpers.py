@@ -5,7 +5,7 @@ import requests
 ALLOWED_EXTENSIONS = {"pdf", "png", "jpg", "jpeg", "gif", "webp"}
 ALLOWED_VIDEO_EXTENSIONS = {"mp4", "mov", "webm", "m4v"}
 VIDEO_BUCKET = "live-tour-videos"
-MAX_VIDEO_BYTES = 100 * 1024 * 1024  # 100 MB
+MAX_VIDEO_BYTES = 60 * 1024 * 1024   # 60 MB server-side cap (client compresses to <50 MB)
 
 
 def allowed_file(filename):
