@@ -33,25 +33,22 @@ function roundRect(ctx, x, y, w, h, r) {
 const TourRecorder = () => {
   const user = useSelector(s => s.session.user);
 
-  const canvasRef       = useRef(null);
-  const displayVidRef   = useRef(null);
-  const camVidRef       = useRef(null);
-  const recorderRef     = useRef(null);
-  const chunksRef       = useRef([]);
-  const animRef         = useRef(null);
+  const canvasRef        = useRef(null);
+  const displayVidRef    = useRef(null);
+  const camVidRef        = useRef(null);
+  const recorderRef      = useRef(null);
+  const chunksRef        = useRef([]);
+  const animRef          = useRef(null);
   const displayStreamRef = useRef(null);
   const cameraStreamRef  = useRef(null);
-  const timerRef        = useRef(null);
-  const stoppedRef      = useRef(false);
+  const timerRef         = useRef(null);
+  const stoppedRef       = useRef(false);
 
   const [status, setStatus]   = useState("idle"); // idle | recording | done
   const [blobUrl, setBlobUrl] = useState(null);
   const [error, setError]     = useState(null);
   const [elapsed, setElapsed] = useState(0);
   const [hasCam, setHasCam]   = useState(true);
-
-  // Redirect non-agents
-  if (!user?.agent) return <Redirect to="/" />;
 
   const drawLoop = useCallback(() => {
     const canvas = canvasRef.current;
@@ -234,6 +231,9 @@ const TourRecorder = () => {
     stopAll();
     if (blobUrl) URL.revokeObjectURL(blobUrl);
   }, []); // eslint-disable-line
+
+  // All hooks must be declared before any conditional return
+  if (!user?.agent) return <Redirect to="/" />;
 
   return (
     <div style={{ minHeight: "100vh", background: "#0f172a", color: "#f8fafc", display: "flex", flexDirection: "column", fontFamily: "sans-serif" }}>
