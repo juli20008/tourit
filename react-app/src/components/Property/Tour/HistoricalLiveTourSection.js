@@ -18,19 +18,20 @@ function getVideoDuration(file) {
   });
 }
 
-// Re-encode using canvas + MediaRecorder. Returns a webm Blob at ~4 Mbps.
-function compressVideo(file, onProgress) {
+// Re-encode via canvas + MediaRecorder. Trims to MAX_DURATION_S if trim=true.
+function processVideo(file, trim, onProgress) {
   return new Promise((resolve, reject) => {
     const objectUrl = URL.createObjectURL(file);
     const videoEl = document.createElement("video");
     videoEl.src = objectUrl;
     videoEl.preload = "auto";
-    videoEl.muted = true; // muted so autoplay works; audio added via AudioContext below
+    videoEl.muted = true;
 
     videoEl.onloadedmetadata = () => {
       const { videoWidth, videoHeight, duration } = videoEl;
+      const effectiveDuration = trim ? Math.min(duration, MAX_DURATION_S) : duration;
 
-      // Scale to max 720px on the longest side, keep even dimensions
+      // Scale to max 720px on longest side, keep even dimensions
       const maxDim = 720;
       let w = videoWidth, h = videoHeight;
       if (w > maxDim || h > maxDim) {
@@ -45,7 +46,6 @@ function compressVideo(file, onProgress) {
       canvas.height = h;
       const ctx = canvas.getContext("2d");
 
-      // Route audio from the video element so the output has sound
       let combinedStream;
       try {
         const audioCtx = new AudioContext();
@@ -68,7 +68,7 @@ function compressVideo(file, onProgress) {
 
       const recorder = new MediaRecorder(combinedStream, {
         mimeType,
-        videoBitsPerSecond: 4_000_000, // 4 Mbps → ~30 MB for 60s
+        videoBitsPerSecond: 4_000_000,
       });
 
       const chunks = [];
@@ -78,18 +78,29 @@ function compressVideo(file, onProgress) {
         resolve(new Blob(chunks, { type: "video/webm" }));
       };
 
+      let stopped = false;
+      const stop = () => {
+        if (stopped) return;
+        stopped = true;
+        videoEl.pause();
+        setTimeout(() => recorder.stop(), 300);
+      };
+
       recorder.start(200);
       videoEl.play();
 
       const draw = () => {
-        if (videoEl.ended || videoEl.paused) return;
+        if (stopped) return;
+        // Cut at MAX_DURATION_S when trimming
+        if (trim && videoEl.currentTime >= MAX_DURATION_S) { stop(); return; }
+        if (videoEl.ended || videoEl.paused) { stop(); return; }
         ctx.drawImage(videoEl, 0, 0, w, h);
-        onProgress(Math.min(99, Math.round((videoEl.currentTime / duration) * 100)));
+        onProgress(Math.min(99, Math.round((videoEl.currentTime / effectiveDuration) * 100)));
         requestAnimationFrame(draw);
       };
       requestAnimationFrame(draw);
 
-      videoEl.onended = () => setTimeout(() => recorder.stop(), 300);
+      videoEl.onended = stop;
       videoEl.onerror = (e) => { URL.revokeObjectURL(objectUrl); reject(e); };
     };
 
@@ -101,47 +112,48 @@ function compressVideo(file, onProgress) {
 
 function UploadForm({ mlsNumber, onDone }) {
   const dispatch = useDispatch();
-  const [file, setFile]                   = useState(null);
-  const [title, setTitle]                 = useState("");
-  const [durationErr, setDurationErr]     = useState(null);
-  const [error, setError]                 = useState(null);
-  const [compressing, setCompressing]     = useState(false);
-  const [compressProgress, setCompressProgress] = useState(0);
-  const [uploading, setUploading]         = useState(false);
+  const [file, setFile]                         = useState(null);
+  const [title, setTitle]                       = useState("");
+  const [error, setError]                       = useState(null);
+  const [processing, setProcessing]             = useState(false);
+  const [processLabel, setProcessLabel]         = useState("");
+  const [processProgress, setProcessProgress]   = useState(0);
+  const [uploading, setUploading]               = useState(false);
   const inputRef = useRef();
 
   const handleFile = async (e) => {
     const f = e.target.files[0];
     if (!f) return;
-    setDurationErr(null);
     setError(null);
     setFile(null);
 
     const dur = await getVideoDuration(f);
-    if (dur > MAX_DURATION_S) {
-      setDurationErr(`Max ${MAX_DURATION_S}s (yours is ${Math.round(dur)}s).`);
-      inputRef.current.value = "";
-      return;
-    }
+    const needsTrim     = dur > MAX_DURATION_S;
+    const needsCompress = f.size > MAX_SIZE_BYTES;
 
-    if (f.size > MAX_SIZE_BYTES) {
-      setCompressing(true);
-      setCompressProgress(0);
+    if (needsTrim || needsCompress) {
+      setProcessLabel(
+        needsTrim && needsCompress ? "Trimming & compressing…"
+        : needsTrim                ? "Trimming to 1 min…"
+        :                           "Compressing…"
+      );
+      setProcessing(true);
+      setProcessProgress(0);
       try {
-        const blob = await compressVideo(f, setCompressProgress);
-        setCompressProgress(100);
+        const blob = await processVideo(f, needsTrim, setProcessProgress);
+        setProcessProgress(100);
         if (blob.size > MAX_SIZE_BYTES) {
-          setError("Could not compress below 50 MB — please trim the clip and try again.");
+          setError("Could not compress below 50 MB — try a shorter clip.");
           inputRef.current.value = "";
-          setCompressing(false);
+          setProcessing(false);
           return;
         }
         setFile(new File([blob], "highlight.webm", { type: "video/webm" }));
       } catch {
-        setError("Compression failed. Please use a smaller or shorter file.");
+        setError("Processing failed. Please use a shorter or smaller file.");
         inputRef.current.value = "";
       }
-      setCompressing(false);
+      setProcessing(false);
     } else {
       setFile(f);
     }
@@ -153,18 +165,15 @@ function UploadForm({ mlsNumber, onDone }) {
     setError(null);
     const res = await dispatch(uploadHistoricalTour(mlsNumber, file, title));
     setUploading(false);
-    if (res.errors) {
-      setError(res.errors[0]);
-    } else {
-      onDone();
-    }
+    if (res.errors) setError(res.errors[0]);
+    else onDone();
   };
 
   return (
     <div className="hist-upload-form">
       <div className="hist-upload-title">Upload Highlight Clip</div>
       <div className="hist-upload-hint">
-        Max {MAX_DURATION_S}s · mp4 / mov / webm · files over 50 MB auto-compressed
+        mp4 / mov / webm · max 50 MB · videos over 1 min auto-trimmed
       </div>
       <input
         ref={inputRef}
@@ -172,13 +181,13 @@ function UploadForm({ mlsNumber, onDone }) {
         type="file"
         accept="video/mp4,video/quicktime,video/webm,video/x-m4v"
         onChange={handleFile}
-        disabled={compressing}
+        disabled={processing}
       />
 
-      {compressing && (
+      {processing && (
         <div className="hist-compress-wrap">
-          <div className="hist-compress-bar" style={{ width: `${compressProgress}%` }} />
-          <span className="hist-compress-label">Compressing… {compressProgress}%</span>
+          <div className="hist-compress-bar" style={{ width: `${processProgress}%` }} />
+          <span className="hist-compress-label">{processLabel} {processProgress}%</span>
         </div>
       )}
 
@@ -188,14 +197,13 @@ function UploadForm({ mlsNumber, onDone }) {
         placeholder="Caption (optional)"
         value={title}
         onChange={e => setTitle(e.target.value)}
-        disabled={compressing || uploading}
+        disabled={processing || uploading}
       />
-      {durationErr && <div className="hist-upload-error">{durationErr}</div>}
-      {error       && <div className="hist-upload-error">{error}</div>}
+      {error && <div className="hist-upload-error">{error}</div>}
       <button
         type="button"
         className="btn btn-w"
-        disabled={!file || uploading || compressing}
+        disabled={!file || uploading || processing}
         onClick={submit}
       >
         {uploading ? "Uploading…" : "Upload"}
