@@ -164,6 +164,12 @@
 	border-bottom: 1px solid #e2e8f0;
 }
 
+.live-tour-header.disabled {
+	color: #cbd5e1;
+	cursor: default;
+	background: #f8fafc;
+}
+
 .live-tour-body {
 	padding: 12px 16px;
 	display: flex;

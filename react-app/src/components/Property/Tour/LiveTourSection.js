@@ -84,19 +84,24 @@ const LiveTourSection = ({ mlsNumber, tours }) => {
   const [showAdd, setShowAdd]   = useState(false);
 
   const upcomingTours = (tours || []).filter(t => new Date(t.scheduled_at) > new Date());
+  const hasContent = upcomingTours.length > 0 || isAgent;
 
   return (
     <div className="live-tour-section">
       {/* ── Header toggle ── */}
       <div
-        className={`live-tour-header${open ? " open" : ""}`}
-        onClick={() => setOpen(o => !o)}
+        className={`live-tour-header${open ? " open" : ""}${!hasContent ? " disabled" : ""}`}
+        onClick={() => hasContent && setOpen(o => !o)}
         role="button"
-        tabIndex={0}
-        onKeyDown={e => e.key === "Enter" && setOpen(o => !o)}
+        tabIndex={hasContent ? 0 : -1}
+        onKeyDown={e => hasContent && e.key === "Enter" && setOpen(o => !o)}
+        title={!hasContent ? "No live tours scheduled" : undefined}
       >
         <span>Live Tour</span>
-        <i className={`fa-solid fa-chevron-${open ? "up" : "down"}`} />
+        {hasContent
+          ? <i className={`fa-solid fa-chevron-${open ? "up" : "down"}`} />
+          : <i className="fa-solid fa-ban" style={{ fontSize: 12 }} />
+        }
       </div>
 
       {/* ── Body ── */}
