@@ -231,6 +231,20 @@ def agent_magic_link():
     return {'message': 'Login link sent. Check your email.'}
 
 
+@auth_routes.route('/agent-signup-request', methods=['POST'])
+def agent_signup_request():
+    """Forward a realtor's signup interest email to Julie."""
+    data = request.get_json(silent=True) or {}
+    email = (data.get('email') or '').strip().lower()
+
+    if not email or '@' not in email:
+        return {'errors': ['A valid email is required']}, 400
+
+    from app.utils.mailer import send_agent_signup_request
+    send_agent_signup_request(email)
+    return {'message': 'Request sent'}
+
+
 @auth_routes.route('/magic-link/<token>')
 def magic_link_login(token):
     """Validate a magic-link token, log the agent in, and redirect to the dashboard."""

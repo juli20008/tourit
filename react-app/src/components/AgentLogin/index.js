@@ -12,8 +12,23 @@ const AgentLogin = () => {
 	const hasError = params.get("error") === "invalid";
 
 	const [email, setEmail] = useState("");
-	const [status, setStatus] = useState(hasError ? "link-error" : "idle"); // idle | loading | sent | error | link-error
+	const [status, setStatus] = useState(hasError ? "link-error" : "idle"); // idle | loading | sent | error | link-error | signup-sent | signup-loading
 	const [errorMsg, setErrorMsg] = useState("");
+
+	const handleSignup = async () => {
+		if (!email.trim()) { setErrorMsg("Enter your email first."); setStatus("error"); return; }
+		setStatus("signup-loading");
+		setErrorMsg("");
+		try {
+			await fetch(`${API_BASE}/api/auth/agent-signup-request`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				credentials: "include",
+				body: JSON.stringify({ email: email.trim().toLowerCase() }),
+			});
+		} catch {}
+		setStatus("signup-sent");
+	};
 
 	const handleSubmit = async (e) => {
 		e.preventDefault();
@@ -114,6 +129,21 @@ const AgentLogin = () => {
 								>
 									{status === "loading" ? "Sending…" : "Send Login Link"}
 								</button>
+
+								{status === "signup-sent" ? (
+									<div className="w-full rounded-lg bg-[#f0fdf4] border border-[#bbf7d0] px-4 py-2.5 text-sm text-[#166534] text-center">
+										Request sent! Julie will set you up shortly.
+									</div>
+								) : (
+									<button
+										type="button"
+										disabled={status === "signup-loading"}
+										onClick={handleSignup}
+										className="w-full rounded-lg bg-[#f1f5f9] px-4 py-2.5 text-sm font-medium text-[#64748b] hover:bg-[#e2e8f0] transition disabled:opacity-60 disabled:cursor-not-allowed"
+									>
+										{status === "signup-loading" ? "Sending…" : "Sign me up"}
+									</button>
+								)}
 							</form>
 
 							<p className="mt-6 text-center text-xs text-[#9ca3af]">
