@@ -22,6 +22,7 @@ import About from "./components/About";
 import Career from "./components/Career";
 import AgentLogin from "./components/AgentLogin";
 import ListingPage from "./components/Property/ListingPage";
+import TourRecorder from "./components/Record";
 import UnreadNotifier from "./components/NavBar/UnreadNotifier";
 
 const DEFAULT_AREA = "/area/neLat=43.855&neLng=-79.12&swLat=43.58&swLng=-79.64&zoom=11";
@@ -141,6 +142,9 @@ function App() {
 				<Route path="/listing/:mlsNumber" exact={true}>
 					<ListingPage />
 				</Route>
+				<ProtectedRoute path="/record" exact={true}>
+					<TourRecorder />
+				</ProtectedRoute>
 				<ProtectedRoute path="/appointments" exact={true}>
 					<Appointments />
 				</ProtectedRoute>
