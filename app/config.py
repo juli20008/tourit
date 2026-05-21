@@ -37,3 +37,4 @@ class Config:
     SUPABASE_URL = os.environ.get('SUPABASE_URL')
     SUPABASE_SERVICE_ROLE_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
     REPLIERS_API_KEY = os.environ.get('REPLIERS_API_KEY')
+    MAX_CONTENT_LENGTH = 100 * 1024 * 1024  # 100 MB — for video uploads

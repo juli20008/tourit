@@ -4,9 +4,11 @@ import { useSelector, useDispatch } from "react-redux";
 import SelectDate from "./SelectDate";
 import Contact from "./Contact";
 import LiveTourSection from "./LiveTourSection";
+import HistoricalLiveTourSection from "./HistoricalLiveTourSection";
 
 import available from "../../Tools/Available";
 import { fetchLiveTours } from "../../../store/liveTours";
+import { fetchHistoricalTours } from "../../../store/historicalLiveTours";
 
 const Tour = ({ property, setShowTour, inline = false, referralAgent = null }) => {
 	const dispatch = useDispatch();
@@ -20,9 +22,13 @@ const Tour = ({ property, setShowTour, inline = false, referralAgent = null }) =
 
 	const mlsNumber = property?.mls_number || (typeof property?.id === "string" && property.id.startsWith("mls_") ? property.id.slice(4) : null);
 	const liveTours = useSelector(s => mlsNumber ? (s.liveTours[mlsNumber] || []) : []);
+	const historicalTours = useSelector(s => mlsNumber ? (s.historicalLiveTours[mlsNumber] || []) : []);
 
 	useEffect(() => {
-		if (mlsNumber) dispatch(fetchLiveTours(mlsNumber));
+		if (mlsNumber) {
+			dispatch(fetchLiveTours(mlsNumber));
+			dispatch(fetchHistoricalTours(mlsNumber));
+		}
 	}, [mlsNumber, dispatch]);
 
 	const [today, setToday] = useState(initialDay);
@@ -109,6 +115,7 @@ const Tour = ({ property, setShowTour, inline = false, referralAgent = null }) =
 						/>
 					)}
 					{mlsNumber && <LiveTourSection mlsNumber={mlsNumber} tours={liveTours} />}
+					{mlsNumber && <HistoricalLiveTourSection mlsNumber={mlsNumber} tours={historicalTours} />}
 				</div>
 			</form>
 		);
@@ -151,6 +158,7 @@ const Tour = ({ property, setShowTour, inline = false, referralAgent = null }) =
 					/>
 				)}
 				{mlsNumber && <LiveTourSection mlsNumber={mlsNumber} tours={liveTours} />}
+				{mlsNumber && <HistoricalLiveTourSection mlsNumber={mlsNumber} tours={historicalTours} />}
 			</div>
 		</form>
 	);
