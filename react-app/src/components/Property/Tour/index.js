@@ -1,12 +1,15 @@
 import { useState, useEffect, useMemo } from "react";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 
 import SelectDate from "./SelectDate";
 import Contact from "./Contact";
+import LiveTourSection from "./LiveTourSection";
 
 import available from "../../Tools/Available";
+import { fetchLiveTours } from "../../../store/liveTours";
 
 const Tour = ({ property, setShowTour, inline = false, referralAgent = null }) => {
+	const dispatch = useDispatch();
 	const user = useSelector((state) => state.session.user);
 	const whitelabelAgent = useSelector((state) => state.whitelabel?.agent);
 	const effectiveAgent = referralAgent || whitelabelAgent || null;
@@ -14,6 +17,13 @@ const Tour = ({ property, setShowTour, inline = false, referralAgent = null }) =
 	const schedule = useMemo(() => available(property), [property?.id, property?.appointments]);
 	const agentLabel = effectiveAgent ? `Tour with ${effectiveAgent.username}` : "Tour with a Buyer’s Agent";
 	const initialDay = Object.keys(schedule)[0] || "";
+
+	const mlsNumber = property?.mls_number || (typeof property?.id === "string" && property.id.startsWith("mls_") ? property.id.slice(4) : null);
+	const liveTours = useSelector(s => mlsNumber ? (s.liveTours[mlsNumber] || []) : []);
+
+	useEffect(() => {
+		if (mlsNumber) dispatch(fetchLiveTours(mlsNumber));
+	}, [mlsNumber, dispatch]);
 
 	const [today, setToday] = useState(initialDay);
 	const [hour, setHour] = useState();
@@ -98,6 +108,7 @@ const Tour = ({ property, setShowTour, inline = false, referralAgent = null }) =
 							whitelabel={isWhitelabel}
 						/>
 					)}
+					{mlsNumber && <LiveTourSection mlsNumber={mlsNumber} tours={liveTours} />}
 				</div>
 			</form>
 		);
@@ -139,6 +150,7 @@ const Tour = ({ property, setShowTour, inline = false, referralAgent = null }) =
 						whitelabel={isWhitelabel}
 					/>
 				)}
+				{mlsNumber && <LiveTourSection mlsNumber={mlsNumber} tours={liveTours} />}
 			</div>
 		</form>
 	);

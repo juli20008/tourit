@@ -356,7 +356,7 @@ const ddfLastUpdated = process.env.DDF_LAST_UPDATED || '2026-04-20T00:00:00Z';
 const DDF_SEARCH_LIMIT = 100;
 const DDF_SEARCH_START_OFFSET = 1;
 const DDF_SEARCH_FORMAT = 'COMPACT';
-const DDF_MAX_PAGE_ATTEMPTS = 100;
+const DDF_MAX_PAGE_ATTEMPTS = 5000;
 
 function normalizeTimestamp(value: any): string | null {
   if (!value) return null;

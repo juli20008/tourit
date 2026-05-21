@@ -24,6 +24,7 @@ from .api.mls_listing_routes import mls_listing_routes
 from .api.sync_routes import sync_routes
 from .api.xhs_routes import xhs_routes
 from .api.fbmp_routes import fbmp_routes
+from .api.live_tour_routes import live_tour_routes
 
 from .seeds import seed_commands
 from .commands import repliers_commands
@@ -74,6 +75,7 @@ app.register_blueprint(mls_listing_routes, url_prefix='/api/listings')
 app.register_blueprint(sync_routes, url_prefix='/api/sync')
 app.register_blueprint(xhs_routes, url_prefix='/api/xhs')
 app.register_blueprint(fbmp_routes, url_prefix='/api/fbmp')
+app.register_blueprint(live_tour_routes, url_prefix='/api/live-tours')
 app.cli.add_command(repliers_commands)
 db.init_app(app)
 Migrate(app, db)

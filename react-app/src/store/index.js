@@ -10,6 +10,7 @@ import channels from "./channel";
 import chats from "./chat";
 import hasUnread from "./unread";
 import whitelabel from "./whitelabel";
+import liveTours from "./liveTours";
 
 const rootReducer = combineReducers({
 	session,
@@ -22,6 +23,7 @@ const rootReducer = combineReducers({
 	chats,
 	hasUnread,
 	whitelabel,
+	liveTours,
 });
 
 let enhancer;

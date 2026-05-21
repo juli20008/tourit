@@ -10,7 +10,9 @@
  *   npx ts-node lib/scripts/syncCities.ts --no-photos     (skip photo fetch)
  *   npx ts-node lib/scripts/syncCities.ts --cities="Vaughan,Aurora"
  *
- * Default cities: Toronto, North York, Scarborough, Etobicoke, East York
+ * Default cities: Toronto, North York, Scarborough, Etobicoke, East York,
+ *   Richmond Hill, Markham, Vaughan, Aurora, Newmarket, King,
+ *   East Gwillimbury, Georgina, Whitchurch-Stouffville
  */
 
 import dotenv from 'dotenv';
@@ -36,7 +38,10 @@ function getArg(name: string): string | null {
 const CITIES_ARG = getArg('cities');
 const CITIES: string[] = CITIES_ARG
   ? CITIES_ARG.split(',').map(c => c.trim()).filter(Boolean)
-  : ['Toronto', 'North York', 'Scarborough', 'Etobicoke', 'East York', 'Richmond Hill', 'Markham', 'Vaughan'];
+  : ['Toronto', 'North York', 'Scarborough', 'Etobicoke', 'East York',
+     'Richmond Hill', 'Markham', 'Vaughan',
+     'Aurora', 'Newmarket', 'King', 'East Gwillimbury',
+     'Georgina', 'Whitchurch-Stouffville'];
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const PAGE_SIZE  = 100;
