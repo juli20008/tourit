@@ -17,17 +17,22 @@ export const fetchLiveTours = (mlsNumber) => async (dispatch) => {
 };
 
 export const createLiveTour = (payload) => async (dispatch) => {
-  const res = await apiFetch('/api/live-tours', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  const data = await res.json();
-  if (res.ok) {
-    dispatch({ type: ADD_LIVE_TOUR, mlsNumber: payload.mls_number, tour: data.live_tour });
-    return { tour: data.live_tour };
+  try {
+    const res = await apiFetch('/api/live-tours', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      dispatch({ type: ADD_LIVE_TOUR, mlsNumber: payload.mls_number, tour: data.live_tour });
+      return { tour: data.live_tour };
+    }
+    return { errors: data.errors || ['Server error'] };
+  } catch (e) {
+    console.error('[createLiveTour]', e);
+    return { errors: ['Network error — check console'] };
   }
-  return { errors: data.errors };
 };
 
 export const deleteLiveTour = (tourId, mlsNumber) => async (dispatch) => {

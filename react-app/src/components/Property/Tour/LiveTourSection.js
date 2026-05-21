@@ -43,7 +43,7 @@ function AddLiveTourForm({ mlsNumber, onAdded }) {
     .toISOString().slice(0, 16);
 
   return (
-    <form className="live-tour-add-form" onSubmit={submit}>
+    <div className="live-tour-add-form">
       <div className="live-tour-add-title">Schedule a Live Tour</div>
       <input
         className="select-input"
@@ -51,7 +51,6 @@ function AddLiveTourForm({ mlsNumber, onAdded }) {
         value={datetime}
         min={minDt}
         onChange={e => setDatetime(e.target.value)}
-        required
       />
       <input
         className="select-input"
@@ -59,7 +58,6 @@ function AddLiveTourForm({ mlsNumber, onAdded }) {
         placeholder="Stream URL (YouTube, Zoom, etc.)"
         value={url}
         onChange={e => setUrl(e.target.value)}
-        required
       />
       <input
         className="select-input"
@@ -69,10 +67,10 @@ function AddLiveTourForm({ mlsNumber, onAdded }) {
         onChange={e => setTitle(e.target.value)}
       />
       {error && <div className="live-tour-error">{error}</div>}
-      <button type="submit" className="btn btn-w" disabled={saving}>
+      <button type="button" className="btn btn-w" disabled={saving} onClick={submit}>
         {saving ? "Saving…" : "Add Live Tour"}
       </button>
-    </form>
+    </div>
   );
 }
 
