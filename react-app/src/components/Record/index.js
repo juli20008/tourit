@@ -202,13 +202,16 @@ const TourRecorder = () => {
     recorderRef.current = recorder;
 
     // Auto-stop when user ends screen share via browser UI
-    displayStream.getVideoTracks()[0].onended = () => stopAll();
+    displayStream.getVideoTracks()[0].onended = () => {
+      setStatus("saving");
+      stopAll();
+    };
 
     timerRef.current = setInterval(() => setElapsed(t => t + 1), 1000);
     setStatus("recording");
   };
 
-  const stopRecording = () => stopAll();
+  const stopRecording = () => { setStatus("saving"); stopAll(); };
 
   const recordAgain = () => {
     if (blobUrl) URL.revokeObjectURL(blobUrl);
@@ -294,12 +297,21 @@ const TourRecorder = () => {
           </div>
         )}
 
+        {/* Saving */}
+        {status === "saving" && (
+          <div style={{ textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+            <div style={{ width: 44, height: 44, border: "3px solid rgba(255,255,255,0.15)", borderTop: "3px solid #3b82f6", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+            <div style={{ fontSize: 16, fontWeight: 600 }}>Saving recording…</div>
+          </div>
+        )}
+
         {/* Done */}
         {status === "done" && blobUrl && (
           <div style={{ width: "100%", maxWidth: 960, display: "flex", flexDirection: "column", gap: 14 }}>
             <video
               src={blobUrl}
               controls
+              controlsList="nodownload"
               style={{ width: "100%", borderRadius: 12, border: "1px solid rgba(255,255,255,0.1)", background: "#000" }}
             />
             <div style={{ display: "flex", gap: 12 }}>
@@ -328,6 +340,9 @@ const TourRecorder = () => {
         @keyframes rec-pulse {
           0%, 100% { opacity: 1; }
           50%       { opacity: 0.15; }
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
         }
       `}</style>
     </div>
