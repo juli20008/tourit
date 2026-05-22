@@ -44,7 +44,7 @@ function AddLiveTourForm({ mlsNumber, onAdded }) {
 
   return (
     <div className="live-tour-add-form">
-      <div className="live-tour-add-title">预约看房直播</div>
+      <div className="live-tour-add-title">Schedule a Live Tour</div>
       <input
         className="select-input"
         type="datetime-local"
@@ -68,7 +68,7 @@ function AddLiveTourForm({ mlsNumber, onAdded }) {
       />
       {error && <div className="live-tour-error">{error}</div>}
       <button type="button" className="btn btn-w" disabled={saving} onClick={submit}>
-        {saving ? "保存中…" : "添加看房直播"}
+        {saving ? "Saving…" : "Add Live Tour"}
       </button>
     </div>
   );
@@ -97,7 +97,7 @@ const LiveTourSection = ({ mlsNumber, tours }) => {
         onKeyDown={e => hasContent && e.key === "Enter" && setOpen(o => !o)}
         title={!hasContent ? "No live tours scheduled" : undefined}
       >
-        <span>看房直播</span>
+        <span>Live Tour</span>
         {hasContent
           ? <i className={`fa-solid fa-chevron-${open ? "up" : "down"}`} />
           : <i className="fa-solid fa-ban" style={{ fontSize: 12 }} />
@@ -151,7 +151,7 @@ const LiveTourSection = ({ mlsNumber, tours }) => {
                   className="live-tour-add-btn"
                   onClick={() => setShowAdd(true)}
                 >
-                  + 预约看房直播
+                  + Schedule a Live Tour
                 </button>
               )
           )}

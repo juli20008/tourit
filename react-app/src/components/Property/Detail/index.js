@@ -187,7 +187,7 @@ const Detail = ({ property }) => {
 
 				{/* ── House-specific ── */}
 				{isHouse && <>
-					{ownershipLabel(property?.ownership_type) && <Row label="产权状态"    value={ownershipLabel(property.ownership_type)} />}
+					{ownershipLabel(property?.ownership_type) && <Row label="Title Status"    value={ownershipLabel(property.ownership_type)} />}
 					{property?.lot_size_area > 0  && <Row label="Lot Size"        value={`${Number(property.lot_size_area).toLocaleString()} ft²`} />}
 					{property?.lot_frontage        && <Row label="Lot Frontage"    value={property.lot_frontage} />}
 					{property?.construction_materials && <Row label="Exterior Finish" value={property.construction_materials} />}
@@ -197,7 +197,7 @@ const Detail = ({ property }) => {
 
 				{/* ── Condo-specific ── */}
 				{isCondo && <>
-					{ownershipLabel(property?.ownership_type) && <Row label="产权状态" value={ownershipLabel(property.ownership_type)} />}
+					{ownershipLabel(property?.ownership_type) && <Row label="Title Status" value={ownershipLabel(property.ownership_type)} />}
 					{property?.construction_materials          && <Row label="Exterior Finish" value={property.construction_materials} />}
 					{property?.heating                         && <Row label="Heating Type"    value={property.heating} />}
 					{property?.cooling                         && <Row label="Cooling"         value={property.cooling} />}
@@ -205,7 +205,7 @@ const Detail = ({ property }) => {
 
 				{/* ── Townhouse-specific ── */}
 				{isTownhouse && !isCondo && <>
-					{ownershipLabel(property?.ownership_type) && <Row label="产权状态" value={ownershipLabel(property.ownership_type)} />}
+					{ownershipLabel(property?.ownership_type) && <Row label="Title Status" value={ownershipLabel(property.ownership_type)} />}
 					{property?.construction_materials          && <Row label="Exterior Finish" value={property.construction_materials} />}
 					{property?.heating                         && <Row label="Heating Type"    value={property.heating} />}
 					{property?.cooling                         && <Row label="Cooling"         value={property.cooling} />}
