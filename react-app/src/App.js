@@ -15,6 +15,7 @@ import NotFound from "./components/NotFound";
 import Profile from "./components/Profile";
 import Reviews from "./components/Reviews";
 import Chats from "./components/Chats";
+import { Link } from "react-router-dom";
 import { authenticate } from "./store/session";
 import { initWhitelabel } from "./store/whitelabel";
 import { areaProperties } from "./store/property";
@@ -151,7 +152,8 @@ function App() {
 				</Route>
 			</Switch>
 			<footer className="app-footer">
-&copy; 2026 Tourit. All rights reserved. &nbsp;&middot;&nbsp; Built by Julie Li, Bay Street Group &nbsp;&middot;&nbsp; 905-909-0101 &nbsp;&middot;&nbsp; <a href="/agent-login" style={{ color: 'inherit', textDecoration: 'underline' }}>Agent Login</a>
+				<span>&copy; 2026 Tourit. All rights reserved. &nbsp;&middot;&nbsp; Built by Julie Li, Bay Street Group &nbsp;&middot;&nbsp; 905-909-0101</span>
+				<Link to="/agent-login" className="app-footer-agent-link">Agent Login</Link>
 			</footer>
 		</BrowserRouter>
 	);
