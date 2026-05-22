@@ -80,6 +80,17 @@ const TourReturnHandler = () => {
 
 const DEFAULT_BOUNDS = { neLat: 43.855, neLng: -79.12, swLat: 43.58, swLng: -79.64 };
 
+// Updates the browser tab title for whitelabel agent sites
+const WhitelabelTitle = () => {
+	const agent = useSelector((state) => state.whitelabel?.agent);
+	useEffect(() => {
+		if (agent?.username) {
+			document.title = `${agent.username} | tourit.ca`;
+		}
+	}, [agent]);
+	return null;
+};
+
 function App() {
 	const dispatch = useDispatch();
 
@@ -94,6 +105,7 @@ function App() {
 	return (
 		<BrowserRouter>
 			<AgentStatusEmbed />
+			<WhitelabelTitle />
 			<TourReturnHandler />
 			<UnreadNotifier />
 			<NavBar />
