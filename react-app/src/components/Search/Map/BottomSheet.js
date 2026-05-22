@@ -47,7 +47,7 @@ const SheetCard = ({ property, onSelect }) => {
 				</div>
 				<div className="text-[11px] text-[#5f6b7a]">
 					{property.bed} bd · {property.bath} ba
-					{property.sqft ? ` · ${Number(property.sqft).toLocaleString()} sqft` : ""}
+					{property.sqft ? ` · ${isNaN(Number(property.sqft)) ? property.sqft : Number(property.sqft).toLocaleString()} sqft` : ""}
 				</div>
 				{(property.brokerage || property.office || property.listing_brokerage) && (
 					<div className="text-[10px] text-[#5f6b7a] truncate">
