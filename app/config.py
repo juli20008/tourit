@@ -27,9 +27,16 @@ class Config:
         # handed back to the app already dead.
         SQLALCHEMY_ENGINE_OPTIONS = {
             'pool_pre_ping': True,
-            'pool_recycle': 240,
+            'pool_recycle': 90,   # recycle before Supabase idle-drops at ~2 min
             'pool_size': 5,
             'max_overflow': 10,
+            'connect_args': {
+                'keepalives': 1,
+                'keepalives_idle': 30,      # probe after 30s idle
+                'keepalives_interval': 10,  # retry every 10s
+                'keepalives_count': 3,      # drop after 3 failures
+                'connect_timeout': 10,
+            },
         }
     else:
         SQLALCHEMY_DATABASE_URI = f"sqlite:///{_local_db}"

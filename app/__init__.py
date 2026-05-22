@@ -144,16 +144,18 @@ def warmup():
 
         db.session.execute(text('SELECT 1'))
 
-        # Pre-populate the default Toronto bounds cache so the first real
+        # Pre-populate the default Toronto viewport cache so the first real
         # map load hits cache instead of running a cold query.
-        GTA = {'lat_min': 43.2, 'lat_max': 44.3, 'lng_min': -80.5, 'lng_max': -78.5}
-        cache_key = f"bounds_{GTA['lat_min']}_{GTA['lat_max']}_{GTA['lng_min']}_{GTA['lng_max']}_"
+        # These bounds match DEFAULT_AREA in react-app/src/App.js exactly.
+        def _r(x): return round(x, 2)
+        DEFAULT = {'lat_min': 43.58, 'lat_max': 43.855, 'lng_min': -79.64, 'lng_max': -79.12}
+        cache_key = f"bounds_{_r(DEFAULT['lat_min'])}_{_r(DEFAULT['lat_max'])}_{_r(DEFAULT['lng_min'])}_{_r(DEFAULT['lng_max'])}_"
         if not _cache_get(cache_key):
             listings = (
                 MlsListing.query
                 .filter(
-                    MlsListing.lat.between(GTA['lat_min'], GTA['lat_max']),
-                    MlsListing.lng.between(GTA['lng_min'], GTA['lng_max']),
+                    MlsListing.lat.between(DEFAULT['lat_min'], DEFAULT['lat_max']),
+                    MlsListing.lng.between(DEFAULT['lng_min'], DEFAULT['lng_max']),
                     MlsListing.map_pin_filter(),
                     MlsListing.property_type_filter(),
                 )
