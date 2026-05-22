@@ -17,7 +17,7 @@ MAX_MAP_RESULTS = 500
 
 # Simple in-memory cache for expensive map queries
 _cache: dict = {}
-_CACHE_TTL = 60  # seconds
+_CACHE_TTL = 300  # seconds
 
 def _cache_get(key):
     entry = _cache.get(key)

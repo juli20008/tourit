@@ -4,8 +4,15 @@ import { Route, Redirect } from "react-router-dom";
 
 const ProtectedRoute = (props) => {
 	const user = useSelector((state) => state.session.user);
+	const authChecked = useSelector((state) => state.session.authChecked);
+
 	return (
-		<Route {...props}>{user ? props.children : <Redirect to="/" />}</Route>
+		<Route {...props}>
+			{!authChecked
+				? null
+				: user ? props.children : <Redirect to="/" />
+			}
+		</Route>
 	);
 };
 

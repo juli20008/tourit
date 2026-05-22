@@ -4,6 +4,9 @@ const SET_USER = "session/SET_USER";
 const REMOVE_USER = "session/REMOVE_USER";
 const UPDATE_USER = "session/UPDATE_USER";
 const UPLOAD_PHOTO = "session/UPLOAD_PHOTO";
+const AUTH_CHECKED = "session/AUTH_CHECKED";
+
+const authCheckedAction = () => ({ type: AUTH_CHECKED });
 
 // Action Creator
 const setUser = (user) => ({
@@ -27,18 +30,16 @@ const removeUser = () => ({
 
 // Thunks
 export const authenticate = () => async (dispatch) => {
-	const response = await apiFetch("/api/auth/", {
-		headers: {
-			"Content-Type": "application/json",
-		},
-	});
-	if (response.ok) {
-		const data = await response.json();
-		if (data.errors) {
-			return;
+	try {
+		const response = await apiFetch("/api/auth/", {
+			headers: { "Content-Type": "application/json" },
+		});
+		if (response.ok) {
+			const data = await response.json();
+			if (!data.errors) dispatch(setUser(data));
 		}
-
-		dispatch(setUser(data));
+	} finally {
+		dispatch(authCheckedAction());
 	}
 };
 
@@ -161,13 +162,15 @@ export const removeServiceArea = (zip) => async (dispatch, getState) => {
 };
 
 // Reducer
-const initialState = { user: null };
+const initialState = { user: null, authChecked: false };
 
 export default function reducer(state = initialState, action) {
 	let newState;
 	switch (action.type) {
+		case AUTH_CHECKED:
+			return { ...state, authChecked: true };
 		case SET_USER:
-			return { user: action.payload };
+			return { ...state, user: action.payload };
 		case UPDATE_USER:
 			newState = JSON.parse(JSON.stringify(state));
 			newState.user = { ...newState.user, ...action.payload };

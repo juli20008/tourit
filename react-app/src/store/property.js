@@ -3,6 +3,23 @@ import apiFetch from "../utils/apiFetch";
 const GET_PROPERTIES = "properties/SEARCH_PROPERTIES";
 const GET_PROPERTY = "properties/GET_PROPERTY";
 
+const _r = (x) => Math.round(x * 100) / 100;
+const LS_TTL = 60 * 60 * 1000; // 1 hour
+
+function _lsGet(key) {
+	try {
+		const raw = localStorage.getItem(key);
+		if (!raw) return null;
+		const { ts, data } = JSON.parse(raw);
+		if (Date.now() - ts > LS_TTL) return null;
+		return data;
+	} catch { return null; }
+}
+
+function _lsSet(key, data) {
+	try { localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data })); } catch {}
+}
+
 // Action Creators
 export const getProperties = (properties) => ({
 	type: GET_PROPERTIES,
@@ -35,14 +52,16 @@ export const searchProperties = (term) => async (dispatch) => {
 
 export const areaProperties = (payload) => async (dispatch) => {
 	try {
-		const latMin =
-			payload?.lat_min ?? payload?.swLat ?? payload?.south ?? payload?.minLat;
-		const latMax =
-			payload?.lat_max ?? payload?.neLat ?? payload?.north ?? payload?.maxLat;
-		const lngMin =
-			payload?.lng_min ?? payload?.swLng ?? payload?.west ?? payload?.minLng;
-		const lngMax =
-			payload?.lng_max ?? payload?.neLng ?? payload?.east ?? payload?.maxLng;
+		const latMin = payload?.lat_min ?? payload?.swLat ?? payload?.south ?? payload?.minLat;
+		const latMax = payload?.lat_max ?? payload?.neLat ?? payload?.north ?? payload?.maxLat;
+		const lngMin = payload?.lng_min ?? payload?.swLng ?? payload?.west ?? payload?.minLng;
+		const lngMax = payload?.lng_max ?? payload?.neLng ?? payload?.east ?? payload?.maxLng;
+
+		// Stale-while-revalidate: show last-known dots instantly while fresh data loads
+		const cacheKey = `map_${_r(latMin)}_${_r(latMax)}_${_r(lngMin)}_${_r(lngMax)}`;
+		const cached = _lsGet(cacheKey);
+		if (cached) dispatch(getProperties(cached));
+
 		const body = {
 			...payload,
 			lat_min: latMin,
@@ -61,6 +80,7 @@ export const areaProperties = (payload) => async (dispatch) => {
 			const arr = Array.isArray(data.listings) ? data.listings : [];
 			console.log("[areaProperties] received", arr.length, "listings");
 			dispatch(getProperties(arr));
+			_lsSet(cacheKey, arr);
 			return data;
 		}
 		const errData = await response.json().catch(() => ({}));

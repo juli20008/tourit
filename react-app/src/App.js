@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
 import { BrowserRouter, Redirect, Route, Switch, useHistory } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import LoginForm from "./components/auth/LoginForm";
@@ -17,6 +17,7 @@ import Reviews from "./components/Reviews";
 import Chats from "./components/Chats";
 import { authenticate } from "./store/session";
 import { initWhitelabel } from "./store/whitelabel";
+import { areaProperties } from "./store/property";
 
 import About from "./components/About";
 import Career from "./components/Career";
@@ -76,31 +77,18 @@ const TourReturnHandler = () => {
 	return null;
 };
 
+const DEFAULT_BOUNDS = { neLat: 43.855, neLng: -79.12, swLat: 43.58, swLng: -79.64 };
+
 function App() {
-	const [loaded, setLoaded] = useState(false);
 	const dispatch = useDispatch();
 
 	useEffect(() => {
-		// Fire-and-forget warmup so Render is awake before the map query lands
+		// Kick off map data + auth in parallel — don't wait for auth before fetching listings
+		dispatch(areaProperties(DEFAULT_BOUNDS));
+		dispatch(authenticate());
+		dispatch(initWhitelabel());
 		fetch(`${process.env.REACT_APP_API_URL || "https://api.tourit.ca"}/warmup`).catch(() => {});
-	}, []);
-
-	useEffect(() => {
-		(async () => {
-			await dispatch(authenticate());
-			setLoaded(true);
-			dispatch(initWhitelabel());
-		})();
 	}, [dispatch]);
-
-	if (!loaded) {
-		return (
-			<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#f8fafc' }}>
-				<div style={{ width: 36, height: 36, border: '3px solid #e2e8f0', borderTop: '3px solid #2563eb', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-				<style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-			</div>
-		);
-	}
 
 	return (
 		<BrowserRouter>
@@ -163,7 +151,7 @@ function App() {
 				</Route>
 			</Switch>
 			<footer className="app-footer">
-&copy; 2026 Tourit. All rights reserved. &nbsp;&middot;&nbsp; Built by Julie Li, Bay Street Group &nbsp;&middot;&nbsp; 905-909-0101
+&copy; 2026 Tourit. All rights reserved. &nbsp;&middot;&nbsp; Built by Julie Li, Bay Street Group &nbsp;&middot;&nbsp; 905-909-0101 &nbsp;&middot;&nbsp; <a href="/agent-login" style={{ color: 'inherit', textDecoration: 'underline' }}>Agent Login</a>
 			</footer>
 		</BrowserRouter>
 	);
