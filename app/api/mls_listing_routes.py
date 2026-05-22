@@ -281,6 +281,13 @@ def list_listings_by_bounds():
 
     t_type = (payload.get("transaction_type") or "").strip()
 
+    # Cache bounds queries — round to ~1 km precision so nearby pans reuse results
+    def _r(x): return round(x, 2)
+    bounds_key = f"bounds_{_r(lat_min)}_{_r(lat_max)}_{_r(lng_min)}_{_r(lng_max)}_{t_type}"
+    cached = _cache_get(bounds_key)
+    if cached:
+        return jsonify(cached)
+
     try:
         q = MlsListing.query.filter(
             MlsListing.lat.between(lat_min, lat_max),
@@ -294,12 +301,14 @@ def list_listings_by_bounds():
         listings = q.all()
         if not listings:
             return _fetch_local_bounds(lat_min, lat_max, lng_min, lng_max, limit, lightweight=lightweight or limit > MAX_RESULTS)
-        return jsonify({
+        result = {
             "listings": [_serialize_listing(l, lightweight=lightweight or limit > MAX_RESULTS) for l in listings],
             "total": len(listings),
             "page": 1,
             "per_page": limit,
-        })
+        }
+        _cache_set(bounds_key, result)
+        return jsonify(result)
     except OperationalError:
         return _fetch_local_bounds(lat_min, lat_max, lng_min, lng_max, limit, lightweight=lightweight or limit > MAX_RESULTS)
 

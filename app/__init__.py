@@ -136,17 +136,41 @@ def health_check():
 
 @app.route('/warmup')
 def warmup():
-    """Pre-warm Flask + the SQLAlchemy connection pool.
-    Called by the keep-alive cron and the page pre-ping so that a cold-start
-    Render container is fully ready before the first real API call arrives.
-    """
+    """Pre-warm Flask + DB connection pool + default GTA map cache."""
     try:
         from sqlalchemy import text
+        from .models.mls_listing import MlsListing
+        from .api.mls_listing_routes import _cache_get, _cache_set, MAX_MAP_RESULTS
+
         db.session.execute(text('SELECT 1'))
+
+        # Pre-populate the default Toronto bounds cache so the first real
+        # map load hits cache instead of running a cold query.
+        GTA = {'lat_min': 43.2, 'lat_max': 44.3, 'lng_min': -80.5, 'lng_max': -78.5}
+        cache_key = f"bounds_{GTA['lat_min']}_{GTA['lat_max']}_{GTA['lng_min']}_{GTA['lng_max']}_"
+        if not _cache_get(cache_key):
+            listings = (
+                MlsListing.query
+                .filter(
+                    MlsListing.lat.between(GTA['lat_min'], GTA['lat_max']),
+                    MlsListing.lng.between(GTA['lng_min'], GTA['lng_max']),
+                    MlsListing.map_pin_filter(),
+                    MlsListing.property_type_filter(),
+                )
+                .order_by(MlsListing.updated_at.desc().nullslast(), MlsListing.list_price.desc().nullslast())
+                .limit(MAX_MAP_RESULTS)
+                .all()
+            )
+            if listings:
+                _cache_set(cache_key, {
+                    'listings': [l.to_map_pin_dict() for l in listings],
+                    'total': len(listings), 'page': 1, 'per_page': MAX_MAP_RESULTS,
+                })
+
         db.session.remove()
         return jsonify({'status': 'ok', 'db': 'ok'})
-    except Exception:
-        return jsonify({'status': 'ok', 'db': 'error'})
+    except Exception as e:
+        return jsonify({'status': 'ok', 'db': 'error', 'detail': str(e)})
 
 
 @app.route('/health')
