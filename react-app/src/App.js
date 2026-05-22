@@ -81,6 +81,11 @@ function App() {
 	const dispatch = useDispatch();
 
 	useEffect(() => {
+		// Fire-and-forget warmup so Render is awake before the map query lands
+		fetch(`${process.env.REACT_APP_API_URL || "https://api.tourit.ca"}/warmup`).catch(() => {});
+	}, []);
+
+	useEffect(() => {
 		(async () => {
 			await dispatch(authenticate());
 			setLoaded(true);
