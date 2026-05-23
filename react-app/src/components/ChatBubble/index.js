@@ -50,9 +50,10 @@ const ChatBubble = () => {
 	const [chatLog, setChatLog]       = useState([]); // { from: "guest"|"agent", text }
 	const [channelId, setChannelId]   = useState(null);
 	const [guestUserId, setGuestUserId] = useState(null);
-	const bottomRef  = useRef(null);
-	const timers     = useRef([]);
-	const socketRef  = useRef(null);
+	const bottomRef        = useRef(null);
+	const timers           = useRef([]);
+	const socketRef        = useRef(null);
+	const lastBookingKey   = useRef(null); // prevents reset on close→reopen
 
 	useEffect(() => () => timers.current.forEach(clearTimeout), []);
 
@@ -72,11 +73,10 @@ const ChatBubble = () => {
 		});
 
 		sock.on("chat", (msg) => {
-			// Only show messages from the agent (Julie), not our own echoes
-			if (msg.user_id !== guestUserIdRef.current) {
-				setChatLog((prev) => [...prev, { from: "agent", text: msg.message }]);
-				setHasUnreadDot(true);
-			}
+			// Block echoes of the guest's own REST-sent messages
+			if (guestUserIdRef.current !== null && msg.user_id === guestUserIdRef.current) return;
+			setChatLog((prev) => [...prev, { from: "agent", text: msg.message }]);
+			setHasUnreadDot(true); // cleared by the open-panel useEffect
 		});
 
 		return () => {
@@ -95,7 +95,13 @@ const ChatBubble = () => {
 	};
 
 	useEffect(() => {
-		if (!booking || !open) return;
+		if (!booking) return;
+
+		// Only reset when it's a genuinely new booking, not just a close→reopen
+		const key = `${booking.property?.id}-${booking.today}-${booking.hour}`;
+		if (key === lastBookingKey.current) return;
+		lastBookingKey.current = key;
+
 		timers.current.forEach(clearTimeout);
 		setPhase(P_CARD);
 		setContact("");
@@ -123,7 +129,7 @@ const ChatBubble = () => {
 			setTimeout(() => setPhase(P_REPLY),  1600),
 			setTimeout(() => setPhase(P_FORM),   2300),
 		];
-	}, [booking, open]); // eslint-disable-line react-hooks/exhaustive-deps
+	}, [booking]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	useEffect(() => {
 		if (!open && booking && phase >= P_REPLY) setHasUnreadDot(true);
