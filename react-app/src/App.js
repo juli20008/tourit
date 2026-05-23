@@ -24,6 +24,8 @@ import Career from "./components/Career";
 import AgentLogin from "./components/AgentLogin";
 import ListingPage from "./components/Property/ListingPage";
 import UnreadNotifier from "./components/NavBar/UnreadNotifier";
+import { ChatBubbleProvider } from "./context/ChatBubble";
+import ChatBubble from "./components/ChatBubble";
 
 const DEFAULT_AREA = "/area/neLat=43.855&neLng=-79.12&swLat=43.58&swLng=-79.64&zoom=11";
 
@@ -98,6 +100,7 @@ function App() {
 	}, [dispatch]);
 
 	return (
+		<ChatBubbleProvider>
 		<BrowserRouter>
 			<AgentStatusEmbed />
 			<WhitelabelTitle />
@@ -162,7 +165,9 @@ function App() {
 				<span>&copy; 2026 Tourit. All rights reserved. &nbsp;&middot;&nbsp; Built by Julie Li, Bay Street Group &nbsp;&middot;&nbsp; 905-909-0101</span>
 				<Link to="/agent-login" className="app-footer-agent-link">Agent Login</Link>
 			</footer>
+			<ChatBubble />
 		</BrowserRouter>
+		</ChatBubbleProvider>
 	);
 }
 

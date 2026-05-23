@@ -10556,3 +10556,836 @@ src\utils\dates.js
 [39m[22m
 
 webpack compiled with [1m[33m1 warning[39m[22m
+Compiling...
+Compiled with warnings.
+
+[eslint] 
+src\components\Appointments\ApptDetail\Client.js
+  Line 120:5:  React Hook useEffect has a missing dependency: 'schedule'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\NavBar\index.js
+  Line 27:9:  'showMenu' is assigned a value but never used      no-unused-vars
+  Line 32:8:  'openMenu' is assigned a value but never used      no-unused-vars
+  Line 46:8:  'onLogin' is assigned a value but never used       no-unused-vars
+  Line 62:8:  'onAgentLogin' is assigned a value but never used  no-unused-vars
+
+src\components\Profile\UploadPhoto\index.js
+  Line 5:8:  'upload' is defined but never used  no-unused-vars
+
+src\components\Property\Detail\index.js
+  Line 52:8:  'agents' is assigned a value but never used  no-unused-vars
+
+src\components\Property\Tour\index.js
+  Line 19:54:  React Hook useMemo has a missing dependency: 'property'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 81:5:   React Hook useEffect has a missing dependency: 'hour'. Either include it or remove the dependency array    react-hooks/exhaustive-deps
+
+src\components\Search\List\FilterPanel.js
+  Line 7:7:   'YEAR_MIN' is assigned a value but never used                                                                  no-unused-vars
+  Line 8:7:   'YEAR_MAX' is assigned a value but never used                                                                  no-unused-vars
+  Line 13:7:  'fmtPrice' is assigned a value but never used                                                                  no-unused-vars
+  Line 21:7:  'fmtSqft' is assigned a value but never used                                                                   no-unused-vars
+  Line 27:7:  'fmtStrata' is assigned a value but never used                                                                 no-unused-vars
+  Line 71:5:  React Hook useEffect has a missing dependency: 'moveHandle'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 91:9:  Elements with the ARIA role "slider" must have the following attributes defined: aria-valuenow                 jsx-a11y/role-has-required-aria-props
+  Line 95:9:  Elements with the ARIA role "slider" must have the following attributes defined: aria-valuenow                 jsx-a11y/role-has-required-aria-props
+
+src\components\Search\Map\index.js
+  Line 285:6:  React Hook useEffect has a missing dependency: 'fitBounds'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 300:6:  React Hook useEffect has a missing dependency: 'areaParam'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\Search\SearchArea.js
+  Line 15:7:   'GTA_BOUNDS_OBJ' is assigned a value but never used         no-unused-vars
+  Line 20:10:  'setToggleNotification' is assigned a value but never used  no-unused-vars
+  Line 20:33:  'setNotificationMsg' is assigned a value but never used     no-unused-vars
+
+src\components\Tools\Available.js
+  Line 2:2:  Date prototype is read only, properties should not be added  no-extend-native
+
+src\components\Tools\EditAvailable.js
+  Line 2:2:  Date prototype is read only, properties should not be added  no-extend-native
+
+src\components\Tools\SplitAppt.js
+  Line 18:4:  Array.prototype.filter() expects a return value from arrow function  array-callback-return
+
+src\utils\addressIndex.js
+  Line 105:26:  Unnecessary escape character: \-  no-useless-escape
+  Line 143:31:  Unnecessary escape character: \-  no-useless-escape
+
+src\utils\dates.js
+  Line 140:2:  Expected a default case  default-case
+
+Search for the keywords to learn more about each warning.
+To ignore, add // eslint-disable-next-line to the line before.
+
+[1m[33mWARNING[39m[22m in [1m[eslint] 
+src\components\Appointments\ApptDetail\Client.js
+  Line 120:5:  React Hook useEffect has a missing dependency: 'schedule'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\NavBar\index.js
+  Line 27:9:  'showMenu' is assigned a value but never used      no-unused-vars
+  Line 32:8:  'openMenu' is assigned a value but never used      no-unused-vars
+  Line 46:8:  'onLogin' is assigned a value but never used       no-unused-vars
+  Line 62:8:  'onAgentLogin' is assigned a value but never used  no-unused-vars
+
+src\components\Profile\UploadPhoto\index.js
+  Line 5:8:  'upload' is defined but never used  no-unused-vars
+
+src\components\Property\Detail\index.js
+  Line 52:8:  'agents' is assigned a value but never used  no-unused-vars
+
+src\components\Property\Tour\index.js
+  Line 19:54:  React Hook useMemo has a missing dependency: 'property'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 81:5:   React Hook useEffect has a missing dependency: 'hour'. Either include it or remove the dependency array    react-hooks/exhaustive-deps
+
+src\components\Search\List\FilterPanel.js
+  Line 7:7:   'YEAR_MIN' is assigned a value but never used                                                                  no-unused-vars
+  Line 8:7:   'YEAR_MAX' is assigned a value but never used                                                                  no-unused-vars
+  Line 13:7:  'fmtPrice' is assigned a value but never used                                                                  no-unused-vars
+  Line 21:7:  'fmtSqft' is assigned a value but never used                                                                   no-unused-vars
+  Line 27:7:  'fmtStrata' is assigned a value but never used                                                                 no-unused-vars
+  Line 71:5:  React Hook useEffect has a missing dependency: 'moveHandle'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 91:9:  Elements with the ARIA role "slider" [1m[33mmust[39m[22m[1m have the following attributes defined: aria-valuenow                 jsx-a11y/role-has-[1m[33mrequired[39m[22m[1m-aria-props
+  Line 95:9:  Elements with the ARIA role "slider" [1m[33mmust[39m[22m[1m have the following attributes defined: aria-valuenow                 jsx-a11y/role-has-[1m[33mrequired[39m[22m[1m-aria-props
+
+src\components\Search\Map\index.js
+  Line 285:6:  React Hook useEffect has a missing dependency: 'fitBounds'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 300:6:  React Hook useEffect has a missing dependency: 'areaParam'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\Search\SearchArea.js
+  Line 15:7:   'GTA_BOUNDS_OBJ' is assigned a value but never used         no-unused-vars
+  Line 20:10:  'setToggleNotification' is assigned a value but never used  no-unused-vars
+  Line 20:33:  'setNotificationMsg' is assigned a value but never used     no-unused-vars
+
+src\components\Tools\Available.js
+  Line 2:2:  Date prototype is read only, properties should not be added  no-extend-native
+
+src\components\Tools\EditAvailable.js
+  Line 2:2:  Date prototype is read only, properties should not be added  no-extend-native
+
+src\components\Tools\SplitAppt.js
+  Line 18:4:  Array.prototype.filter() expects a return value from arrow function  array-callback-return
+
+src\utils\addressIndex.js
+  Line 105:26:  Unnecessary escape character: \-  no-useless-escape
+  Line 143:31:  Unnecessary escape character: \-  no-useless-escape
+
+src\utils\dates.js
+  Line 140:2:  Expected a default case  default-case
+
+[39m[22m
+
+webpack compiled with [1m[33m1 warning[39m[22m
+Compiling...
+Compiled with warnings.
+
+[eslint] 
+src\components\Appointments\ApptDetail\Client.js
+  Line 120:5:  React Hook useEffect has a missing dependency: 'schedule'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\NavBar\index.js
+  Line 27:9:  'showMenu' is assigned a value but never used      no-unused-vars
+  Line 32:8:  'openMenu' is assigned a value but never used      no-unused-vars
+  Line 46:8:  'onLogin' is assigned a value but never used       no-unused-vars
+  Line 62:8:  'onAgentLogin' is assigned a value but never used  no-unused-vars
+
+src\components\Profile\UploadPhoto\index.js
+  Line 5:8:  'upload' is defined but never used  no-unused-vars
+
+src\components\Property\Detail\index.js
+  Line 52:8:  'agents' is assigned a value but never used  no-unused-vars
+
+src\components\Property\Tour\index.js
+  Line 19:54:  React Hook useMemo has a missing dependency: 'property'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 81:5:   React Hook useEffect has a missing dependency: 'hour'. Either include it or remove the dependency array    react-hooks/exhaustive-deps
+
+src\components\Search\List\FilterPanel.js
+  Line 7:7:   'YEAR_MIN' is assigned a value but never used                                                                  no-unused-vars
+  Line 8:7:   'YEAR_MAX' is assigned a value but never used                                                                  no-unused-vars
+  Line 13:7:  'fmtPrice' is assigned a value but never used                                                                  no-unused-vars
+  Line 21:7:  'fmtSqft' is assigned a value but never used                                                                   no-unused-vars
+  Line 27:7:  'fmtStrata' is assigned a value but never used                                                                 no-unused-vars
+  Line 71:5:  React Hook useEffect has a missing dependency: 'moveHandle'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 91:9:  Elements with the ARIA role "slider" must have the following attributes defined: aria-valuenow                 jsx-a11y/role-has-required-aria-props
+  Line 95:9:  Elements with the ARIA role "slider" must have the following attributes defined: aria-valuenow                 jsx-a11y/role-has-required-aria-props
+
+src\components\Search\Map\index.js
+  Line 285:6:  React Hook useEffect has a missing dependency: 'fitBounds'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 300:6:  React Hook useEffect has a missing dependency: 'areaParam'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\Search\SearchArea.js
+  Line 15:7:   'GTA_BOUNDS_OBJ' is assigned a value but never used         no-unused-vars
+  Line 20:10:  'setToggleNotification' is assigned a value but never used  no-unused-vars
+  Line 20:33:  'setNotificationMsg' is assigned a value but never used     no-unused-vars
+
+src\components\Tools\Available.js
+  Line 2:2:  Date prototype is read only, properties should not be added  no-extend-native
+
+src\components\Tools\EditAvailable.js
+  Line 2:2:  Date prototype is read only, properties should not be added  no-extend-native
+
+src\components\Tools\SplitAppt.js
+  Line 18:4:  Array.prototype.filter() expects a return value from arrow function  array-callback-return
+
+src\utils\addressIndex.js
+  Line 105:26:  Unnecessary escape character: \-  no-useless-escape
+  Line 143:31:  Unnecessary escape character: \-  no-useless-escape
+
+src\utils\dates.js
+  Line 140:2:  Expected a default case  default-case
+
+Search for the keywords to learn more about each warning.
+To ignore, add // eslint-disable-next-line to the line before.
+
+[1m[33mWARNING[39m[22m in [1m[eslint] 
+src\components\Appointments\ApptDetail\Client.js
+  Line 120:5:  React Hook useEffect has a missing dependency: 'schedule'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\NavBar\index.js
+  Line 27:9:  'showMenu' is assigned a value but never used      no-unused-vars
+  Line 32:8:  'openMenu' is assigned a value but never used      no-unused-vars
+  Line 46:8:  'onLogin' is assigned a value but never used       no-unused-vars
+  Line 62:8:  'onAgentLogin' is assigned a value but never used  no-unused-vars
+
+src\components\Profile\UploadPhoto\index.js
+  Line 5:8:  'upload' is defined but never used  no-unused-vars
+
+src\components\Property\Detail\index.js
+  Line 52:8:  'agents' is assigned a value but never used  no-unused-vars
+
+src\components\Property\Tour\index.js
+  Line 19:54:  React Hook useMemo has a missing dependency: 'property'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 81:5:   React Hook useEffect has a missing dependency: 'hour'. Either include it or remove the dependency array    react-hooks/exhaustive-deps
+
+src\components\Search\List\FilterPanel.js
+  Line 7:7:   'YEAR_MIN' is assigned a value but never used                                                                  no-unused-vars
+  Line 8:7:   'YEAR_MAX' is assigned a value but never used                                                                  no-unused-vars
+  Line 13:7:  'fmtPrice' is assigned a value but never used                                                                  no-unused-vars
+  Line 21:7:  'fmtSqft' is assigned a value but never used                                                                   no-unused-vars
+  Line 27:7:  'fmtStrata' is assigned a value but never used                                                                 no-unused-vars
+  Line 71:5:  React Hook useEffect has a missing dependency: 'moveHandle'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 91:9:  Elements with the ARIA role "slider" [1m[33mmust[39m[22m[1m have the following attributes defined: aria-valuenow                 jsx-a11y/role-has-[1m[33mrequired[39m[22m[1m-aria-props
+  Line 95:9:  Elements with the ARIA role "slider" [1m[33mmust[39m[22m[1m have the following attributes defined: aria-valuenow                 jsx-a11y/role-has-[1m[33mrequired[39m[22m[1m-aria-props
+
+src\components\Search\Map\index.js
+  Line 285:6:  React Hook useEffect has a missing dependency: 'fitBounds'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 300:6:  React Hook useEffect has a missing dependency: 'areaParam'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\Search\SearchArea.js
+  Line 15:7:   'GTA_BOUNDS_OBJ' is assigned a value but never used         no-unused-vars
+  Line 20:10:  'setToggleNotification' is assigned a value but never used  no-unused-vars
+  Line 20:33:  'setNotificationMsg' is assigned a value but never used     no-unused-vars
+
+src\components\Tools\Available.js
+  Line 2:2:  Date prototype is read only, properties should not be added  no-extend-native
+
+src\components\Tools\EditAvailable.js
+  Line 2:2:  Date prototype is read only, properties should not be added  no-extend-native
+
+src\components\Tools\SplitAppt.js
+  Line 18:4:  Array.prototype.filter() expects a return value from arrow function  array-callback-return
+
+src\utils\addressIndex.js
+  Line 105:26:  Unnecessary escape character: \-  no-useless-escape
+  Line 143:31:  Unnecessary escape character: \-  no-useless-escape
+
+src\utils\dates.js
+  Line 140:2:  Expected a default case  default-case
+
+[39m[22m
+
+webpack compiled with [1m[33m1 warning[39m[22m
+Compiling...
+Compiled with warnings.
+
+[eslint] 
+src\components\Appointments\ApptDetail\Client.js
+  Line 120:5:  React Hook useEffect has a missing dependency: 'schedule'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\NavBar\index.js
+  Line 27:9:  'showMenu' is assigned a value but never used      no-unused-vars
+  Line 32:8:  'openMenu' is assigned a value but never used      no-unused-vars
+  Line 46:8:  'onLogin' is assigned a value but never used       no-unused-vars
+  Line 62:8:  'onAgentLogin' is assigned a value but never used  no-unused-vars
+
+src\components\Profile\UploadPhoto\index.js
+  Line 5:8:  'upload' is defined but never used  no-unused-vars
+
+src\components\Property\Detail\index.js
+  Line 52:8:  'agents' is assigned a value but never used  no-unused-vars
+
+src\components\Property\Tour\index.js
+  Line 19:54:  React Hook useMemo has a missing dependency: 'property'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 81:5:   React Hook useEffect has a missing dependency: 'hour'. Either include it or remove the dependency array    react-hooks/exhaustive-deps
+
+src\components\Search\List\FilterPanel.js
+  Line 7:7:   'YEAR_MIN' is assigned a value but never used                                                                  no-unused-vars
+  Line 8:7:   'YEAR_MAX' is assigned a value but never used                                                                  no-unused-vars
+  Line 13:7:  'fmtPrice' is assigned a value but never used                                                                  no-unused-vars
+  Line 21:7:  'fmtSqft' is assigned a value but never used                                                                   no-unused-vars
+  Line 27:7:  'fmtStrata' is assigned a value but never used                                                                 no-unused-vars
+  Line 71:5:  React Hook useEffect has a missing dependency: 'moveHandle'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 91:9:  Elements with the ARIA role "slider" must have the following attributes defined: aria-valuenow                 jsx-a11y/role-has-required-aria-props
+  Line 95:9:  Elements with the ARIA role "slider" must have the following attributes defined: aria-valuenow                 jsx-a11y/role-has-required-aria-props
+
+src\components\Search\Map\index.js
+  Line 285:6:  React Hook useEffect has a missing dependency: 'fitBounds'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 300:6:  React Hook useEffect has a missing dependency: 'areaParam'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\Search\SearchArea.js
+  Line 15:7:   'GTA_BOUNDS_OBJ' is assigned a value but never used         no-unused-vars
+  Line 20:10:  'setToggleNotification' is assigned a value but never used  no-unused-vars
+  Line 20:33:  'setNotificationMsg' is assigned a value but never used     no-unused-vars
+
+src\components\Tools\Available.js
+  Line 2:2:  Date prototype is read only, properties should not be added  no-extend-native
+
+src\components\Tools\EditAvailable.js
+  Line 2:2:  Date prototype is read only, properties should not be added  no-extend-native
+
+src\components\Tools\SplitAppt.js
+  Line 18:4:  Array.prototype.filter() expects a return value from arrow function  array-callback-return
+
+src\utils\addressIndex.js
+  Line 105:26:  Unnecessary escape character: \-  no-useless-escape
+  Line 143:31:  Unnecessary escape character: \-  no-useless-escape
+
+src\utils\dates.js
+  Line 140:2:  Expected a default case  default-case
+
+Search for the keywords to learn more about each warning.
+To ignore, add // eslint-disable-next-line to the line before.
+
+[1m[33mWARNING[39m[22m in [1m[eslint] 
+src\components\Appointments\ApptDetail\Client.js
+  Line 120:5:  React Hook useEffect has a missing dependency: 'schedule'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\NavBar\index.js
+  Line 27:9:  'showMenu' is assigned a value but never used      no-unused-vars
+  Line 32:8:  'openMenu' is assigned a value but never used      no-unused-vars
+  Line 46:8:  'onLogin' is assigned a value but never used       no-unused-vars
+  Line 62:8:  'onAgentLogin' is assigned a value but never used  no-unused-vars
+
+src\components\Profile\UploadPhoto\index.js
+  Line 5:8:  'upload' is defined but never used  no-unused-vars
+
+src\components\Property\Detail\index.js
+  Line 52:8:  'agents' is assigned a value but never used  no-unused-vars
+
+src\components\Property\Tour\index.js
+  Line 19:54:  React Hook useMemo has a missing dependency: 'property'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 81:5:   React Hook useEffect has a missing dependency: 'hour'. Either include it or remove the dependency array    react-hooks/exhaustive-deps
+
+src\components\Search\List\FilterPanel.js
+  Line 7:7:   'YEAR_MIN' is assigned a value but never used                                                                  no-unused-vars
+  Line 8:7:   'YEAR_MAX' is assigned a value but never used                                                                  no-unused-vars
+  Line 13:7:  'fmtPrice' is assigned a value but never used                                                                  no-unused-vars
+  Line 21:7:  'fmtSqft' is assigned a value but never used                                                                   no-unused-vars
+  Line 27:7:  'fmtStrata' is assigned a value but never used                                                                 no-unused-vars
+  Line 71:5:  React Hook useEffect has a missing dependency: 'moveHandle'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 91:9:  Elements with the ARIA role "slider" [1m[33mmust[39m[22m[1m have the following attributes defined: aria-valuenow                 jsx-a11y/role-has-[1m[33mrequired[39m[22m[1m-aria-props
+  Line 95:9:  Elements with the ARIA role "slider" [1m[33mmust[39m[22m[1m have the following attributes defined: aria-valuenow                 jsx-a11y/role-has-[1m[33mrequired[39m[22m[1m-aria-props
+
+src\components\Search\Map\index.js
+  Line 285:6:  React Hook useEffect has a missing dependency: 'fitBounds'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 300:6:  React Hook useEffect has a missing dependency: 'areaParam'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\Search\SearchArea.js
+  Line 15:7:   'GTA_BOUNDS_OBJ' is assigned a value but never used         no-unused-vars
+  Line 20:10:  'setToggleNotification' is assigned a value but never used  no-unused-vars
+  Line 20:33:  'setNotificationMsg' is assigned a value but never used     no-unused-vars
+
+src\components\Tools\Available.js
+  Line 2:2:  Date prototype is read only, properties should not be added  no-extend-native
+
+src\components\Tools\EditAvailable.js
+  Line 2:2:  Date prototype is read only, properties should not be added  no-extend-native
+
+src\components\Tools\SplitAppt.js
+  Line 18:4:  Array.prototype.filter() expects a return value from arrow function  array-callback-return
+
+src\utils\addressIndex.js
+  Line 105:26:  Unnecessary escape character: \-  no-useless-escape
+  Line 143:31:  Unnecessary escape character: \-  no-useless-escape
+
+src\utils\dates.js
+  Line 140:2:  Expected a default case  default-case
+
+[39m[22m
+
+webpack compiled with [1m[33m1 warning[39m[22m
+Compiling...
+Compiled with warnings.
+
+[eslint] 
+src\components\Appointments\ApptDetail\Client.js
+  Line 120:5:  React Hook useEffect has a missing dependency: 'schedule'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\NavBar\index.js
+  Line 27:9:  'showMenu' is assigned a value but never used      no-unused-vars
+  Line 32:8:  'openMenu' is assigned a value but never used      no-unused-vars
+  Line 46:8:  'onLogin' is assigned a value but never used       no-unused-vars
+  Line 62:8:  'onAgentLogin' is assigned a value but never used  no-unused-vars
+
+src\components\Profile\UploadPhoto\index.js
+  Line 5:8:  'upload' is defined but never used  no-unused-vars
+
+src\components\Property\Detail\index.js
+  Line 52:8:  'agents' is assigned a value but never used  no-unused-vars
+
+src\components\Property\Tour\index.js
+  Line 19:54:  React Hook useMemo has a missing dependency: 'property'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 81:5:   React Hook useEffect has a missing dependency: 'hour'. Either include it or remove the dependency array    react-hooks/exhaustive-deps
+
+src\components\Search\List\FilterPanel.js
+  Line 7:7:   'YEAR_MIN' is assigned a value but never used                                                                  no-unused-vars
+  Line 8:7:   'YEAR_MAX' is assigned a value but never used                                                                  no-unused-vars
+  Line 13:7:  'fmtPrice' is assigned a value but never used                                                                  no-unused-vars
+  Line 21:7:  'fmtSqft' is assigned a value but never used                                                                   no-unused-vars
+  Line 27:7:  'fmtStrata' is assigned a value but never used                                                                 no-unused-vars
+  Line 71:5:  React Hook useEffect has a missing dependency: 'moveHandle'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 91:9:  Elements with the ARIA role "slider" must have the following attributes defined: aria-valuenow                 jsx-a11y/role-has-required-aria-props
+  Line 95:9:  Elements with the ARIA role "slider" must have the following attributes defined: aria-valuenow                 jsx-a11y/role-has-required-aria-props
+
+src\components\Search\Map\index.js
+  Line 285:6:  React Hook useEffect has a missing dependency: 'fitBounds'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 300:6:  React Hook useEffect has a missing dependency: 'areaParam'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\Search\SearchArea.js
+  Line 15:7:   'GTA_BOUNDS_OBJ' is assigned a value but never used         no-unused-vars
+  Line 20:10:  'setToggleNotification' is assigned a value but never used  no-unused-vars
+  Line 20:33:  'setNotificationMsg' is assigned a value but never used     no-unused-vars
+
+src\components\Tools\Available.js
+  Line 2:2:  Date prototype is read only, properties should not be added  no-extend-native
+
+src\components\Tools\EditAvailable.js
+  Line 2:2:  Date prototype is read only, properties should not be added  no-extend-native
+
+src\components\Tools\SplitAppt.js
+  Line 18:4:  Array.prototype.filter() expects a return value from arrow function  array-callback-return
+
+src\utils\addressIndex.js
+  Line 105:26:  Unnecessary escape character: \-  no-useless-escape
+  Line 143:31:  Unnecessary escape character: \-  no-useless-escape
+
+src\utils\dates.js
+  Line 140:2:  Expected a default case  default-case
+
+Search for the keywords to learn more about each warning.
+To ignore, add // eslint-disable-next-line to the line before.
+
+[1m[33mWARNING[39m[22m in [1m[eslint] 
+src\components\Appointments\ApptDetail\Client.js
+  Line 120:5:  React Hook useEffect has a missing dependency: 'schedule'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\NavBar\index.js
+  Line 27:9:  'showMenu' is assigned a value but never used      no-unused-vars
+  Line 32:8:  'openMenu' is assigned a value but never used      no-unused-vars
+  Line 46:8:  'onLogin' is assigned a value but never used       no-unused-vars
+  Line 62:8:  'onAgentLogin' is assigned a value but never used  no-unused-vars
+
+src\components\Profile\UploadPhoto\index.js
+  Line 5:8:  'upload' is defined but never used  no-unused-vars
+
+src\components\Property\Detail\index.js
+  Line 52:8:  'agents' is assigned a value but never used  no-unused-vars
+
+src\components\Property\Tour\index.js
+  Line 19:54:  React Hook useMemo has a missing dependency: 'property'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 81:5:   React Hook useEffect has a missing dependency: 'hour'. Either include it or remove the dependency array    react-hooks/exhaustive-deps
+
+src\components\Search\List\FilterPanel.js
+  Line 7:7:   'YEAR_MIN' is assigned a value but never used                                                                  no-unused-vars
+  Line 8:7:   'YEAR_MAX' is assigned a value but never used                                                                  no-unused-vars
+  Line 13:7:  'fmtPrice' is assigned a value but never used                                                                  no-unused-vars
+  Line 21:7:  'fmtSqft' is assigned a value but never used                                                                   no-unused-vars
+  Line 27:7:  'fmtStrata' is assigned a value but never used                                                                 no-unused-vars
+  Line 71:5:  React Hook useEffect has a missing dependency: 'moveHandle'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 91:9:  Elements with the ARIA role "slider" [1m[33mmust[39m[22m[1m have the following attributes defined: aria-valuenow                 jsx-a11y/role-has-[1m[33mrequired[39m[22m[1m-aria-props
+  Line 95:9:  Elements with the ARIA role "slider" [1m[33mmust[39m[22m[1m have the following attributes defined: aria-valuenow                 jsx-a11y/role-has-[1m[33mrequired[39m[22m[1m-aria-props
+
+src\components\Search\Map\index.js
+  Line 285:6:  React Hook useEffect has a missing dependency: 'fitBounds'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 300:6:  React Hook useEffect has a missing dependency: 'areaParam'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\Search\SearchArea.js
+  Line 15:7:   'GTA_BOUNDS_OBJ' is assigned a value but never used         no-unused-vars
+  Line 20:10:  'setToggleNotification' is assigned a value but never used  no-unused-vars
+  Line 20:33:  'setNotificationMsg' is assigned a value but never used     no-unused-vars
+
+src\components\Tools\Available.js
+  Line 2:2:  Date prototype is read only, properties should not be added  no-extend-native
+
+src\components\Tools\EditAvailable.js
+  Line 2:2:  Date prototype is read only, properties should not be added  no-extend-native
+
+src\components\Tools\SplitAppt.js
+  Line 18:4:  Array.prototype.filter() expects a return value from arrow function  array-callback-return
+
+src\utils\addressIndex.js
+  Line 105:26:  Unnecessary escape character: \-  no-useless-escape
+  Line 143:31:  Unnecessary escape character: \-  no-useless-escape
+
+src\utils\dates.js
+  Line 140:2:  Expected a default case  default-case
+
+[39m[22m
+
+webpack compiled with [1m[33m1 warning[39m[22m
+Compiling...
+Compiled with warnings.
+
+[eslint] 
+src\components\Appointments\ApptDetail\Client.js
+  Line 120:5:  React Hook useEffect has a missing dependency: 'schedule'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\NavBar\index.js
+  Line 27:9:  'showMenu' is assigned a value but never used      no-unused-vars
+  Line 32:8:  'openMenu' is assigned a value but never used      no-unused-vars
+  Line 46:8:  'onLogin' is assigned a value but never used       no-unused-vars
+  Line 62:8:  'onAgentLogin' is assigned a value but never used  no-unused-vars
+
+src\components\Profile\UploadPhoto\index.js
+  Line 5:8:  'upload' is defined but never used  no-unused-vars
+
+src\components\Property\Detail\index.js
+  Line 52:8:  'agents' is assigned a value but never used  no-unused-vars
+
+src\components\Property\Tour\index.js
+  Line 19:54:  React Hook useMemo has a missing dependency: 'property'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 81:5:   React Hook useEffect has a missing dependency: 'hour'. Either include it or remove the dependency array    react-hooks/exhaustive-deps
+
+src\components\Search\List\FilterPanel.js
+  Line 7:7:   'YEAR_MIN' is assigned a value but never used                                                                  no-unused-vars
+  Line 8:7:   'YEAR_MAX' is assigned a value but never used                                                                  no-unused-vars
+  Line 13:7:  'fmtPrice' is assigned a value but never used                                                                  no-unused-vars
+  Line 21:7:  'fmtSqft' is assigned a value but never used                                                                   no-unused-vars
+  Line 27:7:  'fmtStrata' is assigned a value but never used                                                                 no-unused-vars
+  Line 71:5:  React Hook useEffect has a missing dependency: 'moveHandle'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 91:9:  Elements with the ARIA role "slider" must have the following attributes defined: aria-valuenow                 jsx-a11y/role-has-required-aria-props
+  Line 95:9:  Elements with the ARIA role "slider" must have the following attributes defined: aria-valuenow                 jsx-a11y/role-has-required-aria-props
+
+src\components\Search\Map\index.js
+  Line 285:6:  React Hook useEffect has a missing dependency: 'fitBounds'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 300:6:  React Hook useEffect has a missing dependency: 'areaParam'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\Search\SearchArea.js
+  Line 15:7:   'GTA_BOUNDS_OBJ' is assigned a value but never used         no-unused-vars
+  Line 20:10:  'setToggleNotification' is assigned a value but never used  no-unused-vars
+  Line 20:33:  'setNotificationMsg' is assigned a value but never used     no-unused-vars
+
+src\components\Tools\Available.js
+  Line 2:2:  Date prototype is read only, properties should not be added  no-extend-native
+
+src\components\Tools\EditAvailable.js
+  Line 2:2:  Date prototype is read only, properties should not be added  no-extend-native
+
+src\components\Tools\SplitAppt.js
+  Line 18:4:  Array.prototype.filter() expects a return value from arrow function  array-callback-return
+
+src\utils\addressIndex.js
+  Line 105:26:  Unnecessary escape character: \-  no-useless-escape
+  Line 143:31:  Unnecessary escape character: \-  no-useless-escape
+
+src\utils\dates.js
+  Line 140:2:  Expected a default case  default-case
+
+Search for the keywords to learn more about each warning.
+To ignore, add // eslint-disable-next-line to the line before.
+
+[1m[33mWARNING[39m[22m in [1m[eslint] 
+src\components\Appointments\ApptDetail\Client.js
+  Line 120:5:  React Hook useEffect has a missing dependency: 'schedule'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\NavBar\index.js
+  Line 27:9:  'showMenu' is assigned a value but never used      no-unused-vars
+  Line 32:8:  'openMenu' is assigned a value but never used      no-unused-vars
+  Line 46:8:  'onLogin' is assigned a value but never used       no-unused-vars
+  Line 62:8:  'onAgentLogin' is assigned a value but never used  no-unused-vars
+
+src\components\Profile\UploadPhoto\index.js
+  Line 5:8:  'upload' is defined but never used  no-unused-vars
+
+src\components\Property\Detail\index.js
+  Line 52:8:  'agents' is assigned a value but never used  no-unused-vars
+
+src\components\Property\Tour\index.js
+  Line 19:54:  React Hook useMemo has a missing dependency: 'property'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 81:5:   React Hook useEffect has a missing dependency: 'hour'. Either include it or remove the dependency array    react-hooks/exhaustive-deps
+
+src\components\Search\List\FilterPanel.js
+  Line 7:7:   'YEAR_MIN' is assigned a value but never used                                                                  no-unused-vars
+  Line 8:7:   'YEAR_MAX' is assigned a value but never used                                                                  no-unused-vars
+  Line 13:7:  'fmtPrice' is assigned a value but never used                                                                  no-unused-vars
+  Line 21:7:  'fmtSqft' is assigned a value but never used                                                                   no-unused-vars
+  Line 27:7:  'fmtStrata' is assigned a value but never used                                                                 no-unused-vars
+  Line 71:5:  React Hook useEffect has a missing dependency: 'moveHandle'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 91:9:  Elements with the ARIA role "slider" [1m[33mmust[39m[22m[1m have the following attributes defined: aria-valuenow                 jsx-a11y/role-has-[1m[33mrequired[39m[22m[1m-aria-props
+  Line 95:9:  Elements with the ARIA role "slider" [1m[33mmust[39m[22m[1m have the following attributes defined: aria-valuenow                 jsx-a11y/role-has-[1m[33mrequired[39m[22m[1m-aria-props
+
+src\components\Search\Map\index.js
+  Line 285:6:  React Hook useEffect has a missing dependency: 'fitBounds'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 300:6:  React Hook useEffect has a missing dependency: 'areaParam'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\Search\SearchArea.js
+  Line 15:7:   'GTA_BOUNDS_OBJ' is assigned a value but never used         no-unused-vars
+  Line 20:10:  'setToggleNotification' is assigned a value but never used  no-unused-vars
+  Line 20:33:  'setNotificationMsg' is assigned a value but never used     no-unused-vars
+
+src\components\Tools\Available.js
+  Line 2:2:  Date prototype is read only, properties should not be added  no-extend-native
+
+src\components\Tools\EditAvailable.js
+  Line 2:2:  Date prototype is read only, properties should not be added  no-extend-native
+
+src\components\Tools\SplitAppt.js
+  Line 18:4:  Array.prototype.filter() expects a return value from arrow function  array-callback-return
+
+src\utils\addressIndex.js
+  Line 105:26:  Unnecessary escape character: \-  no-useless-escape
+  Line 143:31:  Unnecessary escape character: \-  no-useless-escape
+
+src\utils\dates.js
+  Line 140:2:  Expected a default case  default-case
+
+[39m[22m
+
+webpack compiled with [1m[33m1 warning[39m[22m
+Compiling...
+Compiled with warnings.
+
+[eslint] 
+src\components\Appointments\ApptDetail\Client.js
+  Line 120:5:  React Hook useEffect has a missing dependency: 'schedule'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\NavBar\index.js
+  Line 27:9:  'showMenu' is assigned a value but never used      no-unused-vars
+  Line 32:8:  'openMenu' is assigned a value but never used      no-unused-vars
+  Line 46:8:  'onLogin' is assigned a value but never used       no-unused-vars
+  Line 62:8:  'onAgentLogin' is assigned a value but never used  no-unused-vars
+
+src\components\Profile\UploadPhoto\index.js
+  Line 5:8:  'upload' is defined but never used  no-unused-vars
+
+src\components\Property\Detail\index.js
+  Line 52:8:  'agents' is assigned a value but never used  no-unused-vars
+
+src\components\Property\Tour\index.js
+  Line 19:54:  React Hook useMemo has a missing dependency: 'property'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 81:5:   React Hook useEffect has a missing dependency: 'hour'. Either include it or remove the dependency array    react-hooks/exhaustive-deps
+
+src\components\Search\List\FilterPanel.js
+  Line 7:7:   'YEAR_MIN' is assigned a value but never used                                                                  no-unused-vars
+  Line 8:7:   'YEAR_MAX' is assigned a value but never used                                                                  no-unused-vars
+  Line 13:7:  'fmtPrice' is assigned a value but never used                                                                  no-unused-vars
+  Line 21:7:  'fmtSqft' is assigned a value but never used                                                                   no-unused-vars
+  Line 27:7:  'fmtStrata' is assigned a value but never used                                                                 no-unused-vars
+  Line 71:5:  React Hook useEffect has a missing dependency: 'moveHandle'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 91:9:  Elements with the ARIA role "slider" must have the following attributes defined: aria-valuenow                 jsx-a11y/role-has-required-aria-props
+  Line 95:9:  Elements with the ARIA role "slider" must have the following attributes defined: aria-valuenow                 jsx-a11y/role-has-required-aria-props
+
+src\components\Search\Map\index.js
+  Line 285:6:  React Hook useEffect has a missing dependency: 'fitBounds'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 300:6:  React Hook useEffect has a missing dependency: 'areaParam'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\Search\SearchArea.js
+  Line 15:7:   'GTA_BOUNDS_OBJ' is assigned a value but never used         no-unused-vars
+  Line 20:10:  'setToggleNotification' is assigned a value but never used  no-unused-vars
+  Line 20:33:  'setNotificationMsg' is assigned a value but never used     no-unused-vars
+
+src\components\Tools\Available.js
+  Line 2:2:  Date prototype is read only, properties should not be added  no-extend-native
+
+src\components\Tools\EditAvailable.js
+  Line 2:2:  Date prototype is read only, properties should not be added  no-extend-native
+
+src\components\Tools\SplitAppt.js
+  Line 18:4:  Array.prototype.filter() expects a return value from arrow function  array-callback-return
+
+src\utils\addressIndex.js
+  Line 105:26:  Unnecessary escape character: \-  no-useless-escape
+  Line 143:31:  Unnecessary escape character: \-  no-useless-escape
+
+src\utils\dates.js
+  Line 140:2:  Expected a default case  default-case
+
+Search for the keywords to learn more about each warning.
+To ignore, add // eslint-disable-next-line to the line before.
+
+[1m[33mWARNING[39m[22m in [1m[eslint] 
+src\components\Appointments\ApptDetail\Client.js
+  Line 120:5:  React Hook useEffect has a missing dependency: 'schedule'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\NavBar\index.js
+  Line 27:9:  'showMenu' is assigned a value but never used      no-unused-vars
+  Line 32:8:  'openMenu' is assigned a value but never used      no-unused-vars
+  Line 46:8:  'onLogin' is assigned a value but never used       no-unused-vars
+  Line 62:8:  'onAgentLogin' is assigned a value but never used  no-unused-vars
+
+src\components\Profile\UploadPhoto\index.js
+  Line 5:8:  'upload' is defined but never used  no-unused-vars
+
+src\components\Property\Detail\index.js
+  Line 52:8:  'agents' is assigned a value but never used  no-unused-vars
+
+src\components\Property\Tour\index.js
+  Line 19:54:  React Hook useMemo has a missing dependency: 'property'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 81:5:   React Hook useEffect has a missing dependency: 'hour'. Either include it or remove the dependency array    react-hooks/exhaustive-deps
+
+src\components\Search\List\FilterPanel.js
+  Line 7:7:   'YEAR_MIN' is assigned a value but never used                                                                  no-unused-vars
+  Line 8:7:   'YEAR_MAX' is assigned a value but never used                                                                  no-unused-vars
+  Line 13:7:  'fmtPrice' is assigned a value but never used                                                                  no-unused-vars
+  Line 21:7:  'fmtSqft' is assigned a value but never used                                                                   no-unused-vars
+  Line 27:7:  'fmtStrata' is assigned a value but never used                                                                 no-unused-vars
+  Line 71:5:  React Hook useEffect has a missing dependency: 'moveHandle'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 91:9:  Elements with the ARIA role "slider" [1m[33mmust[39m[22m[1m have the following attributes defined: aria-valuenow                 jsx-a11y/role-has-[1m[33mrequired[39m[22m[1m-aria-props
+  Line 95:9:  Elements with the ARIA role "slider" [1m[33mmust[39m[22m[1m have the following attributes defined: aria-valuenow                 jsx-a11y/role-has-[1m[33mrequired[39m[22m[1m-aria-props
+
+src\components\Search\Map\index.js
+  Line 285:6:  React Hook useEffect has a missing dependency: 'fitBounds'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 300:6:  React Hook useEffect has a missing dependency: 'areaParam'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\Search\SearchArea.js
+  Line 15:7:   'GTA_BOUNDS_OBJ' is assigned a value but never used         no-unused-vars
+  Line 20:10:  'setToggleNotification' is assigned a value but never used  no-unused-vars
+  Line 20:33:  'setNotificationMsg' is assigned a value but never used     no-unused-vars
+
+src\components\Tools\Available.js
+  Line 2:2:  Date prototype is read only, properties should not be added  no-extend-native
+
+src\components\Tools\EditAvailable.js
+  Line 2:2:  Date prototype is read only, properties should not be added  no-extend-native
+
+src\components\Tools\SplitAppt.js
+  Line 18:4:  Array.prototype.filter() expects a return value from arrow function  array-callback-return
+
+src\utils\addressIndex.js
+  Line 105:26:  Unnecessary escape character: \-  no-useless-escape
+  Line 143:31:  Unnecessary escape character: \-  no-useless-escape
+
+src\utils\dates.js
+  Line 140:2:  Expected a default case  default-case
+
+[39m[22m
+
+webpack compiled with [1m[33m1 warning[39m[22m
+Compiling...
+Compiled with warnings.
+
+[eslint] 
+src\components\Appointments\ApptDetail\Client.js
+  Line 120:5:  React Hook useEffect has a missing dependency: 'schedule'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\NavBar\index.js
+  Line 27:9:  'showMenu' is assigned a value but never used      no-unused-vars
+  Line 32:8:  'openMenu' is assigned a value but never used      no-unused-vars
+  Line 46:8:  'onLogin' is assigned a value but never used       no-unused-vars
+  Line 62:8:  'onAgentLogin' is assigned a value but never used  no-unused-vars
+
+src\components\Profile\UploadPhoto\index.js
+  Line 5:8:  'upload' is defined but never used  no-unused-vars
+
+src\components\Property\Detail\index.js
+  Line 52:8:  'agents' is assigned a value but never used  no-unused-vars
+
+src\components\Property\Tour\index.js
+  Line 19:54:  React Hook useMemo has a missing dependency: 'property'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 81:5:   React Hook useEffect has a missing dependency: 'hour'. Either include it or remove the dependency array    react-hooks/exhaustive-deps
+
+src\components\Search\List\FilterPanel.js
+  Line 7:7:   'YEAR_MIN' is assigned a value but never used                                                                  no-unused-vars
+  Line 8:7:   'YEAR_MAX' is assigned a value but never used                                                                  no-unused-vars
+  Line 13:7:  'fmtPrice' is assigned a value but never used                                                                  no-unused-vars
+  Line 21:7:  'fmtSqft' is assigned a value but never used                                                                   no-unused-vars
+  Line 27:7:  'fmtStrata' is assigned a value but never used                                                                 no-unused-vars
+  Line 71:5:  React Hook useEffect has a missing dependency: 'moveHandle'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 91:9:  Elements with the ARIA role "slider" must have the following attributes defined: aria-valuenow                 jsx-a11y/role-has-required-aria-props
+  Line 95:9:  Elements with the ARIA role "slider" must have the following attributes defined: aria-valuenow                 jsx-a11y/role-has-required-aria-props
+
+src\components\Search\Map\index.js
+  Line 285:6:  React Hook useEffect has a missing dependency: 'fitBounds'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 300:6:  React Hook useEffect has a missing dependency: 'areaParam'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\Search\SearchArea.js
+  Line 15:7:   'GTA_BOUNDS_OBJ' is assigned a value but never used         no-unused-vars
+  Line 20:10:  'setToggleNotification' is assigned a value but never used  no-unused-vars
+  Line 20:33:  'setNotificationMsg' is assigned a value but never used     no-unused-vars
+
+src\components\Tools\Available.js
+  Line 2:2:  Date prototype is read only, properties should not be added  no-extend-native
+
+src\components\Tools\EditAvailable.js
+  Line 2:2:  Date prototype is read only, properties should not be added  no-extend-native
+
+src\components\Tools\SplitAppt.js
+  Line 18:4:  Array.prototype.filter() expects a return value from arrow function  array-callback-return
+
+src\utils\addressIndex.js
+  Line 105:26:  Unnecessary escape character: \-  no-useless-escape
+  Line 143:31:  Unnecessary escape character: \-  no-useless-escape
+
+src\utils\dates.js
+  Line 140:2:  Expected a default case  default-case
+
+Search for the keywords to learn more about each warning.
+To ignore, add // eslint-disable-next-line to the line before.
+
+[1m[33mWARNING[39m[22m in [1m[eslint] 
+src\components\Appointments\ApptDetail\Client.js
+  Line 120:5:  React Hook useEffect has a missing dependency: 'schedule'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\NavBar\index.js
+  Line 27:9:  'showMenu' is assigned a value but never used      no-unused-vars
+  Line 32:8:  'openMenu' is assigned a value but never used      no-unused-vars
+  Line 46:8:  'onLogin' is assigned a value but never used       no-unused-vars
+  Line 62:8:  'onAgentLogin' is assigned a value but never used  no-unused-vars
+
+src\components\Profile\UploadPhoto\index.js
+  Line 5:8:  'upload' is defined but never used  no-unused-vars
+
+src\components\Property\Detail\index.js
+  Line 52:8:  'agents' is assigned a value but never used  no-unused-vars
+
+src\components\Property\Tour\index.js
+  Line 19:54:  React Hook useMemo has a missing dependency: 'property'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 81:5:   React Hook useEffect has a missing dependency: 'hour'. Either include it or remove the dependency array    react-hooks/exhaustive-deps
+
+src\components\Search\List\FilterPanel.js
+  Line 7:7:   'YEAR_MIN' is assigned a value but never used                                                                  no-unused-vars
+  Line 8:7:   'YEAR_MAX' is assigned a value but never used                                                                  no-unused-vars
+  Line 13:7:  'fmtPrice' is assigned a value but never used                                                                  no-unused-vars
+  Line 21:7:  'fmtSqft' is assigned a value but never used                                                                   no-unused-vars
+  Line 27:7:  'fmtStrata' is assigned a value but never used                                                                 no-unused-vars
+  Line 71:5:  React Hook useEffect has a missing dependency: 'moveHandle'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 91:9:  Elements with the ARIA role "slider" [1m[33mmust[39m[22m[1m have the following attributes defined: aria-valuenow                 jsx-a11y/role-has-[1m[33mrequired[39m[22m[1m-aria-props
+  Line 95:9:  Elements with the ARIA role "slider" [1m[33mmust[39m[22m[1m have the following attributes defined: aria-valuenow                 jsx-a11y/role-has-[1m[33mrequired[39m[22m[1m-aria-props
+
+src\components\Search\Map\index.js
+  Line 285:6:  React Hook useEffect has a missing dependency: 'fitBounds'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 300:6:  React Hook useEffect has a missing dependency: 'areaParam'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\Search\SearchArea.js
+  Line 15:7:   'GTA_BOUNDS_OBJ' is assigned a value but never used         no-unused-vars
+  Line 20:10:  'setToggleNotification' is assigned a value but never used  no-unused-vars
+  Line 20:33:  'setNotificationMsg' is assigned a value but never used     no-unused-vars
+
+src\components\Tools\Available.js
+  Line 2:2:  Date prototype is read only, properties should not be added  no-extend-native
+
+src\components\Tools\EditAvailable.js
+  Line 2:2:  Date prototype is read only, properties should not be added  no-extend-native
+
+src\components\Tools\SplitAppt.js
+  Line 18:4:  Array.prototype.filter() expects a return value from arrow function  array-callback-return
+
+src\utils\addressIndex.js
+  Line 105:26:  Unnecessary escape character: \-  no-useless-escape
+  Line 143:31:  Unnecessary escape character: \-  no-useless-escape
+
+src\utils\dates.js
+  Line 140:2:  Expected a default case  default-case
+
+[39m[22m
+
+webpack compiled with [1m[33m1 warning[39m[22m

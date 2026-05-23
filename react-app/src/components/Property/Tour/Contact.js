@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
+import { useChatBubble } from "../../../context/ChatBubble";
 
 import LoggedIn from "./ContactForms/LoggedIn";
-import GuestChat from "./GuestChat";
 
 const Contact = ({ property, today, hour, setShowSelectDate, setShowTour, referralAgentId = null, whitelabel = false }) => {
 	const user = useSelector((state) => state.session.user);
+	const { openWithBooking } = useChatBubble();
 
 	const [username, setUsername] = useState("");
 	const [phone, setPhone] = useState("");
@@ -17,6 +18,14 @@ const Contact = ({ property, today, hour, setShowSelectDate, setShowTour, referr
 
 	const appointment = new Date(`${today} ${hour}`);
 
+	// For guests: open the floating chat bubble and close the Tour widget
+	useEffect(() => {
+		if (!user) {
+			openWithBooking(property, today, hour);
+			setShowTour(false);
+		}
+	}, []); // eslint-disable-line react-hooks/exhaustive-deps
+
 	useEffect(() => {
 		if (user) {
 			setUsername(user.username);
@@ -26,16 +35,7 @@ const Contact = ({ property, today, hour, setShowSelectDate, setShowTour, referr
 		}
 	}, [user]);
 
-	if (!user) {
-		return (
-			<GuestChat
-				property={property}
-				today={today}
-				hour={hour}
-				setShowSelectDate={setShowSelectDate}
-			/>
-		);
-	}
+	if (!user) return null;
 
 	return (
 		<>
