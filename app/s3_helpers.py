@@ -5,7 +5,7 @@ import requests
 ALLOWED_EXTENSIONS = {"pdf", "png", "jpg", "jpeg", "gif", "webp"}
 ALLOWED_VIDEO_EXTENSIONS = {"mp4", "mov", "webm", "m4v"}
 VIDEO_BUCKET = "live-tour-videos"
-MAX_VIDEO_BYTES = 95 * 1024 * 1024   # 95 MB — allows direct uploads from iOS (no compression)
+MAX_VIDEO_BYTES = 100 * 1024 * 1024  # 100 MB — matches Supabase storage limit
 
 
 def allowed_file(filename):

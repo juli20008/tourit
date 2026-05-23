@@ -3,8 +3,8 @@ import { useDispatch, useSelector } from "react-redux";
 import { uploadHistoricalTour, deleteHistoricalTour } from "../../../store/historicalLiveTours";
 
 const MAX_DURATION_S = 60;
-const MAX_SIZE_BYTES = 50 * 1024 * 1024;  // 50 MB — triggers compression on desktop
-const MAX_SIZE_DIRECT = 95 * 1024 * 1024; // 95 MB — max direct upload (server limit)
+const MAX_SIZE_BYTES = 50 * 1024 * 1024;   // 50 MB — triggers compression on desktop
+const MAX_SIZE_DIRECT = 100 * 1024 * 1024; // 100 MB — max direct upload (server limit)
 
 // iOS Safari has no MediaRecorder / captureStream — browser compression impossible
 const canCompress =
@@ -218,7 +218,7 @@ function UploadForm({ mlsNumber, onDone }) {
     <div className="hist-upload-form">
       <div className="hist-upload-title">Upload Highlight Clip</div>
       <div className="hist-upload-hint">
-        mp4 / mov / webm · max {canCompress ? "50 MB · videos over 1 min auto-trimmed" : "95 MB · max 1 min · iPhone browser cannot auto-compress, please trim/compress in Photos app first"}
+        mp4 / mov / webm · max {canCompress ? "50 MB · videos over 1 min auto-trimmed" : "100 MB · max 1 min · iPhone browser cannot auto-compress, please trim/compress in Photos app first"}
       </div>
       <input
         ref={inputRef}
