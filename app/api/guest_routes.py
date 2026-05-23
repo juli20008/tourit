@@ -180,3 +180,33 @@ def capture_guest_contact():
     ).start()
 
     return {"ok": True}
+
+
+@guest_routes.route("/message", methods=["POST"])
+def send_guest_message():
+    payload  = request.get_json(silent=True) or {}
+    guest_id = (payload.get("guest_id") or "").strip()
+    text     = (payload.get("text") or "").strip()
+
+    if not guest_id or not text:
+        return {"errors": ["guest_id and text are required"]}, 400
+
+    agent = _get_agent()
+    if not agent:
+        return {"errors": ["No agent configured"]}, 500
+
+    try:
+        guest_user = User.query.filter_by(email=_guest_email(guest_id)).first()
+        if not guest_user:
+            guest_user = _get_or_create_guest_user(guest_id)
+
+        channel = _get_or_create_channel(guest_user.id, agent.id)
+        chat_obj = _insert_chat(channel.id, guest_user.id, text)
+        db.session.commit()
+        socketio.emit("chat", chat_obj.to_dict(), to=str(channel.id))
+    except Exception as e:
+        db.session.rollback()
+        import traceback; traceback.print_exc()
+        return {"errors": [str(e)]}, 500
+
+    return {"ok": True}

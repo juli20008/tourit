@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useChatBubble } from "../../context/ChatBubble";
 import { getGuestId } from "../../utils/guestSession";
-import { createGuestBooking, captureGuestContact } from "../../store/guestBooking";
+import { createGuestBooking, captureGuestContact, sendGuestMessage } from "../../store/guestBooking";
 
 const rawApiBase = process.env.REACT_APP_API_URL || "";
 const API_BASE = rawApiBase
@@ -46,10 +46,20 @@ const ChatBubble = () => {
 	const [submitting, setSubmitting] = useState(false);
 	const [error, setError]           = useState("");
 	const [hasUnreadDot, setHasUnreadDot] = useState(false);
+	const [chatText, setChatText]     = useState("");
+	const [guestMsgs, setGuestMsgs]   = useState([]);
 	const bottomRef = useRef(null);
 	const timers    = useRef([]);
 
 	useEffect(() => () => timers.current.forEach(clearTimeout), []);
+
+	const handleSendChat = async () => {
+		const text = chatText.trim();
+		if (!text) return;
+		setChatText("");
+		setGuestMsgs((prev) => [...prev, text]);
+		dispatch(sendGuestMessage({ guest_id: guestId, text }));
+	};
 
 	useEffect(() => {
 		if (!booking || !open) return;
@@ -58,6 +68,7 @@ const ChatBubble = () => {
 		setPhone("");
 		setEmail("");
 		setError("");
+		setGuestMsgs([]);
 
 		const { property, today, hour } = booking;
 		const address  = [property.street, property.city, property.state, property.zip].filter(Boolean).join(", ");
@@ -289,22 +300,40 @@ const ChatBubble = () => {
 								</button>
 							</div>
 						)}
-					</>
-				)}
 
-				<div ref={bottomRef} />
-			</div>
+					{/* Free-form guest messages (optimistic) */}
+					{guestMsgs.map((msg, i) => (
+						<div key={i} className="cb-guest-bubble cb-fadein">{msg}</div>
+					))}
+				</>
+			)}
 
-			{/* Footer */}
-			<div className="cb-footer">
-				<div className="cb-footer-hint">
-					{booking
-						? `${agentName} typically responds within minutes.`
-						: `Book a showing above and ${agentName} will confirm right away.`
-					}
-				</div>
+			<div ref={bottomRef} />
+		</div>
+
+		{/* Footer — always-open chat input */}
+		<div className="cb-footer">
+			<div className="cb-footer-input-row">
+				<input
+					type="text"
+					className="cb-footer-input"
+					placeholder={`Message ${agentName}…`}
+					value={chatText}
+					onChange={(e) => setChatText(e.target.value)}
+					onKeyDown={(e) => e.key === "Enter" && handleSendChat()}
+				/>
+				<button
+					type="button"
+					className="cb-footer-send"
+					onClick={handleSendChat}
+					disabled={!chatText.trim()}
+					aria-label="Send"
+				>
+					<i className="fa-solid fa-paper-plane" />
+				</button>
 			</div>
 		</div>
+	</div>
 	);
 };
 

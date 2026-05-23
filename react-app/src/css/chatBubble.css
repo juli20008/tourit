@@ -404,21 +404,70 @@
 	line-height: 1.45;
 }
 
+/* Guest bubble (right-aligned free-form messages) */
+.cb-guest-bubble {
+	background: #0f172a;
+	color: white;
+	border-radius: 14px 14px 4px 14px;
+	padding: 9px 12px;
+	font-size: 13px;
+	line-height: 1.45;
+	max-width: 84%;
+	align-self: flex-end;
+	white-space: normal;
+}
+
 /* Footer */
 .cb-footer {
 	border-top: 1px solid #f1f5f9;
-	padding: 9px 12px;
+	padding: 8px 10px;
 	background: white;
 	flex-shrink: 0;
 }
 
-.cb-footer-hint {
-	font-size: 11px;
-	color: #94a3b8;
-	text-align: center;
-	line-height: 1.4;
-	white-space: normal;
+.cb-footer-input-row {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	border: 1px solid #e2e8f0;
+	border-radius: 22px;
+	padding: 7px 10px 7px 14px;
+	background: #f8fafc;
+	transition: border-color 0.15s;
 }
+
+.cb-footer-input-row:focus-within {
+	border-color: #94a3b8;
+	background: white;
+}
+
+.cb-footer-input {
+	flex: 1;
+	border: none;
+	outline: none;
+	font-size: 13px;
+	color: #0f172a;
+	background: transparent;
+	min-width: 0;
+}
+
+.cb-footer-input::placeholder { color: #cbd5e1; }
+
+.cb-footer-send {
+	background: none;
+	border: none;
+	cursor: pointer;
+	color: #94a3b8;
+	font-size: 14px;
+	padding: 2px 4px;
+	display: flex;
+	align-items: center;
+	transition: color 0.12s;
+	flex-shrink: 0;
+}
+
+.cb-footer-send:not(:disabled):hover { color: #0f172a; }
+.cb-footer-send:disabled { opacity: 0.35; cursor: default; }
 
 /* Animations */
 @keyframes cb-slidein {

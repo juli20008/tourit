@@ -25,3 +25,16 @@ export const captureGuestContact = (payload) => async () => {
 		return { errors: ["Network error"] };
 	}
 };
+
+export const sendGuestMessage = (payload) => async () => {
+	try {
+		const res = await apiFetch("/api/guest/message", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(payload),
+		});
+		return res.json();
+	} catch {
+		return { errors: ["Network error"] };
+	}
+};
