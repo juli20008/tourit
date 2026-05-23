@@ -1,0 +1,30 @@
+2026/05/13-11:01:06.148 1836c Reusing MANIFEST C:\Users\Hrana\OneDrive\MiaSoft\tourit\.xhs-session\Default\Local Storage\leveldb/MANIFEST-000001
+2026/05/13-11:01:06.162 1836c Recovering log #3
+2026/05/13-11:01:06.168 1836c Reusing old log C:\Users\Hrana\OneDrive\MiaSoft\tourit\.xhs-session\Default\Local Storage\leveldb/000003.log 
+2026/05/13-11:27:08.737 12270 Level-0 table #5: started
+2026/05/13-11:27:08.760 12270 Level-0 table #5: 27375 bytes OK
+2026/05/13-11:27:08.766 12270 Delete type=0 #3
+2026/05/13-11:56:08.739 12270 Level-0 table #7: started
+2026/05/13-11:56:08.762 12270 Level-0 table #7: 23644 bytes OK
+2026/05/13-11:56:08.768 12270 Delete type=0 #4
+2026/05/13-12:24:08.725 12270 Level-0 table #9: started
+2026/05/13-12:24:08.736 12270 Level-0 table #9: 23523 bytes OK
+2026/05/13-12:24:08.740 12270 Delete type=0 #6
+2026/05/13-12:53:08.719 12270 Level-0 table #11: started
+2026/05/13-12:53:08.730 12270 Level-0 table #11: 23631 bytes OK
+2026/05/13-12:53:08.733 12270 Delete type=0 #8
+2026/05/13-13:22:08.735 12270 Level-0 table #13: started
+2026/05/13-13:22:08.751 12270 Level-0 table #13: 23674 bytes OK
+2026/05/13-13:22:08.754 12270 Delete type=0 #10
+2026/05/13-13:50:08.723 12270 Level-0 table #15: started
+2026/05/13-13:50:08.734 12270 Level-0 table #15: 23534 bytes OK
+2026/05/13-13:50:08.737 12270 Delete type=0 #12
+2026/05/13-13:50:08.739 12270 Compacting 4@0 + 1@1 files
+2026/05/13-13:50:08.760 12270 Generated table #16@0: 6 keys, 3071 bytes
+2026/05/13-13:50:08.760 12270 Compacted 4@0 + 1@1 files => 3071 bytes
+2026/05/13-13:50:08.761 12270 compacted to: files[ 0 1 1 0 0 0 0 ]
+2026/05/13-13:50:08.763 12270 Delete type=2 #7
+2026/05/13-13:50:08.763 12270 Delete type=2 #9
+2026/05/13-13:50:08.763 12270 Delete type=2 #11
+2026/05/13-13:50:08.763 12270 Delete type=2 #13
+2026/05/13-13:50:08.763 12270 Delete type=2 #15

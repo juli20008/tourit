@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tourit → Google Drive</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 13px;
+      color: #0f172a;
+      background: #ffffff;
+      width: 280px;
+      padding: 16px;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    header h1 { font-size: 14px; font-weight: 700; color: #0f172a; }
+    header span { font-size: 11px; color: #94a3b8; margin-left: auto; }
+    #no-listing {
+      color: #64748b;
+      font-size: 12px;
+      line-height: 1.5;
+      text-align: center;
+      padding: 12px 0;
+    }
+    #listing-info { display: none; }
+    .listing-address { font-weight: 700; font-size: 13px; color: #0f172a; margin-bottom: 4px; }
+    .listing-meta { font-size: 11px; color: #64748b; margin-bottom: 2px; }
+    .listing-imgs { font-size: 11px; color: #1a73e8; margin-bottom: 12px; }
+    .btn {
+      display: block; width: 100%; padding: 9px;
+      border-radius: 8px; font-size: 13px; font-weight: 600;
+      cursor: pointer; border: none; margin-bottom: 6px;
+      transition: background 0.15s;
+    }
+    .btn-drive   { background: #1a73e8; color: #fff; }
+    .btn-drive:hover   { background: #1557b0; }
+    .btn-capture { background: #0f172a; color: #fff; }
+    .btn-capture:hover { background: #1e293b; }
+    .btn-ghost   { background: #f1f5f9; color: #475569; }
+    .btn-ghost:hover   { background: #e2e8f0; }
+    .btn:disabled { opacity: 0.5; cursor: default; }
+    #drive-status {
+      font-size: 11px; min-height: 16px; margin-bottom: 6px;
+      text-align: center; line-height: 1.4;
+    }
+    #capture-status {
+      font-size: 11px; color: #16a34a; min-height: 16px;
+      margin-bottom: 6px; text-align: center;
+    }
+    footer {
+      margin-top: 12px; padding-top: 10px;
+      border-top: 1px solid #f1f5f9;
+      font-size: 10px; color: #94a3b8; text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Tourit → Drive</h1>
+    <span>Google Drive Sync</span>
+  </header>
+
+  <div id="no-listing">
+    No listing captured yet.<br />
+    Open a listing on <strong>tourit.ca</strong> — it saves to Drive automatically.
+  </div>
+
+  <button class="btn btn-capture" id="btn-capture">Capture Current Listing</button>
+  <div id="capture-status"></div>
+
+  <div id="listing-info">
+    <div class="listing-address" id="listing-address"></div>
+    <div class="listing-meta" id="listing-meta"></div>
+    <div class="listing-imgs" id="listing-imgs"></div>
+    <button class="btn btn-drive" id="btn-save-drive">Save to Google Drive</button>
+    <div id="drive-status"></div>
+    <button class="btn btn-ghost" id="btn-clear">Clear captured listing</button>
+  </div>
+
+  <footer>Tourit.ca &middot; Julie Li, Bay Street Group</footer>
+
+  <script src="popup.js"></script>
+</body>
+</html>

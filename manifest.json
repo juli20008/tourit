@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Realm Rental Importer",
+  "version": "3.0",
+  "permissions": [
+    "activeTab",
+    "downloads",
+    "scripting",
+    "tabs"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "host_permissions": [
+    "https://*.realmmlp.ca/*",
+    "https://*.stratuscollab.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  }
+}

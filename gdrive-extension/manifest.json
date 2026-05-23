@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "Tourit → Google Drive",
+  "version": "1.0",
+  "description": "Capture Tourit.ca listings and save photos + description to Google Drive",
+  "permissions": ["activeTab", "scripting", "storage", "identity"],
+  "oauth2": {
+    "client_id": "REPLACE_WITH_YOUR_CLIENT_ID.apps.googleusercontent.com",
+    "scopes": ["https://www.googleapis.com/auth/drive.file"]
+  },
+  "host_permissions": [
+    "https://tourit.ca/*",
+    "https://*.supabase.co/*",
+    "https://*.supabase.in/*",
+    "https://www.googleapis.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://tourit.ca/*"],
+      "js": ["content/tourit.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup/popup.html"
+  }
+}

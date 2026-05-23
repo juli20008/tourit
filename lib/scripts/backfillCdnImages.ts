@@ -26,13 +26,18 @@ function buildCdnUrls(externalId: string, photosTimestamp: string, photosCount: 
   return urls;
 }
 
-async function fetchBatch(offset: number, limit: number): Promise<any[]> {
+// Cursor-based pagination — avoids slow OFFSET scans on unindexed images column.
+// Each page fetches rows where mls_number > cursor, ordered by mls_number ASC.
+async function fetchBatch(cursor: string, limit: number): Promise<any[]> {
+  const cursorFilter = cursor ? `&mls_number=gt.${encodeURIComponent(cursor)}` : '';
   const url = `${SUPABASE_URL}/rest/v1/mls_listings` +
     `?select=mls_number,external_id,photos_timestamp,photos_count` +
     `&or=(images.is.null,images.eq.%5B%5D)` +
     `&external_id=not.is.null` +
     `&photos_timestamp=not.is.null` +
-    `&limit=${limit}&offset=${offset}`;
+    cursorFilter +
+    `&order=mls_number.asc` +
+    `&limit=${limit}`;
   const res = await fetch(url, {
     headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, Accept: 'application/json' },
   });
@@ -57,42 +62,54 @@ async function patchImages(mlsNumber: string, urls: string[]): Promise<void> {
   if (!res.ok) throw new Error(`PATCH failed: ${res.status} ${await res.text()}`);
 }
 
+const CONCURRENCY = 20; // parallel PATCHes per batch
+
 async function main() {
   if (!SUPABASE_URL || !SUPABASE_KEY) throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
   if (DRY_RUN) console.log('[backfill-cdn] DRY RUN — no writes');
 
   console.log('[backfill-cdn] Loading listings with empty images but CDN metadata…');
 
-  const PAGE = 1000;
-  let offset = 0;
+  const PAGE = 50;
+  let cursor = '';
   let total = 0;
   let ok = 0;
   let failed = 0;
+  let page = 0;
 
   while (true) {
-    const rows = await fetchBatch(offset, PAGE);
+    const rows = await fetchBatch(cursor, PAGE);
     if (!rows.length) break;
+    page++;
     total += rows.length;
+    cursor = rows[rows.length - 1].mls_number; // advance cursor
 
-    for (const row of rows) {
-      const urls = buildCdnUrls(row.external_id, row.photos_timestamp, row.photos_count ?? 1);
-      if (DRY_RUN) {
+    if (DRY_RUN) {
+      for (const row of rows) {
+        const urls = buildCdnUrls(row.external_id, row.photos_timestamp, row.photos_count ?? 1);
         console.log(`  [dry] ${row.mls_number} → ${urls.length} URLs`);
         ok++;
-        continue;
       }
-      try {
-        await patchImages(row.mls_number, urls);
-        ok++;
-      } catch (e: any) {
-        console.warn(`  ✗ ${row.mls_number}: ${e.message}`);
-        failed++;
+    } else {
+      // Patch CONCURRENCY rows at a time in parallel
+      for (let i = 0; i < rows.length; i += CONCURRENCY) {
+        const chunk = rows.slice(i, i + CONCURRENCY);
+        const results = await Promise.allSettled(
+          chunk.map(row => {
+            const urls = buildCdnUrls(row.external_id, row.photos_timestamp, row.photos_count ?? 1);
+            return patchImages(row.mls_number, urls);
+          })
+        );
+        for (let j = 0; j < results.length; j++) {
+          if (results[j].status === 'fulfilled') ok++;
+          else { console.warn(`  ✗ ${chunk[j].mls_number}: ${(results[j] as any).reason?.message}`); failed++; }
+        }
       }
     }
 
-    process.stdout.write(`\r[backfill-cdn] ${ok + failed}/${total} processed…`);
+    process.stdout.write(`\r[backfill-cdn] page ${page} | ${ok + failed}/${total} done (ok=${ok} fail=${failed}) cursor=${cursor}…`);
     if (rows.length < PAGE) break;
-    offset += PAGE;
+    await new Promise(r => setTimeout(r, 200));
   }
 
   console.log(`\n[backfill-cdn] Done — updated: ${ok} | failed: ${failed}`);

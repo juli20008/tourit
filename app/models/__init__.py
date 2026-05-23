@@ -15,3 +15,4 @@ from .mls_listing import MlsListing
 from .magic_link_token import MagicLinkToken
 from .live_tour import LiveTour
 from .historical_live_tour import HistoricalLiveTour
+from .guest_booking import GuestBooking

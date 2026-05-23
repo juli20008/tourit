@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 
 import LoggedIn from "./ContactForms/LoggedIn";
-import LoginCard from "../../NavBar/Login";
+import GuestChat from "./GuestChat";
 
 const Contact = ({ property, today, hour, setShowSelectDate, setShowTour, referralAgentId = null, whitelabel = false }) => {
 	const user = useSelector((state) => state.session.user);
@@ -28,15 +28,11 @@ const Contact = ({ property, today, hour, setShowSelectDate, setShowTour, referr
 
 	if (!user) {
 		return (
-			<LoginCard
-				inline
-				returnContext={{
-					property,
-					date: today,
-					hour,
-					stage: "contact",
-					path: `${window.location.pathname}${window.location.search}`,
-				}}
+			<GuestChat
+				property={property}
+				today={today}
+				hour={hour}
+				setShowSelectDate={setShowSelectDate}
 			/>
 		);
 	}

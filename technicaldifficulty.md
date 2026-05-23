@@ -64,12 +64,9 @@ PWA -> webapp
 
 Next Steps:
 
-#Marketing:
-1. Bring 8 realtors onboard 
-2. One button to create a listing on FBMP/Kijiji/Xiaohongshu
 
 Absolutely need to be fixed:
-
+1. Total Parking Spot
 
 
 next step
@@ -83,5 +80,65 @@ Nice to have:
 2. Lead Distribution Logic：
 Show confirmed availability for the booked time.
 3. Disclaimer - cookie - map jump to allow track your location - right now do not jump to location
+4. Garage Parking Spot
+5. Agent Side一键发小红书/FB/Kijiji
 
-帮我改点前端的东西，注意不要碰后端的任何file：
+
+#Marketing:
+1. Bring 8 realtors onboard 
+2. One button to create a listing on FBMP/Kijiji/Xiaohongshu
+
+
+Future Development
+1. Connect to Mortgage
+
+npx ts-node lib/scripts/syncCities.ts --dry-run
+npx ts-node lib/scripts/syncCities.ts
+
+npx ts-node lib/scripts/imageBackfill.ts --cities="Richmond Hill,Markham"
+npx ts-node lib/scripts/geocodeListings.ts --cities="Richmond Hill,Markham"
+
+npx ts-node lib/scripts/backfillCityPhotos.ts --all --state=Ontario
+![alt text](image-1.png)
+
+ npx ts-node --project tsconfig.scripts.json scripts/xhs-explore.ts
+
+   在 Claude Code 里直接运行（最方便）：
+  ! python "C:\Users\Hrana\OneDrive\MiaSoft\tourit\photo_to_video.py" "C:\Users\Hrana\OneDrive\MiaSoft\RealmLeadsFull\xhs_exports\yorkhouse\5 Tottenham Crt\images"
+
+
+  ![alt text](image-2.png)
+
+
+  ![alt text](image-3.png)
+
+  ![alt text](image-4.png)
+  ![alt text](image-5.png)
+
+  ![alt text](image-6.png)
+
+  ![alt text](image-7.png)
+
+  ![alt text](image-8.png)
+
+  npx ts-node lib/scripts/probeDdfMetadata.ts
+
+  npx ts-node lib/scripts/backfillCityPhotos.ts --all --state=Ontario
+
+  npx ts-node lib/scripts/syncCities.ts 
+
+
+    你的情况：
+
+  - 现在最大的痛点是 Render build minutes 不够 + Supabase $25 贵
+  - Railway $5/月把 Flask + PostgreSQL 打包解决，没有 build minutes 限制
+  - 唯一代价是放弃 Supabase 的 PostgREST（syncCities 等脚本要改用 pg 直连）
+
+  如果之后换 SimplyRETS 不再大量存 listing，迁移到 Railway 就很合适。
+
+
+![alt text](image-9.png)
+
+python scripts/inject_from_realm_csv.py "C:\Users\Hrana\Downloads\你的文件.csv" --mls=N13106358
+
+  去掉 --mls= 就是把 CSV 里所有房子全灌进去。
