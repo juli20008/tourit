@@ -101,7 +101,7 @@ const NavBar = () => {
 									/>
 								)}
 								<span className="btn-font-lt">
-									{whitelabelAgent.username}{whitelabelAgent.office ? ` | ${whitelabelAgent.office}` : ''}
+									{whitelabelAgent.username}{whitelabelAgent.office ? `, ${whitelabelAgent.office}` : ''}
 								</span>
 							</div>
 						) : (
@@ -185,7 +185,7 @@ const NavBar = () => {
 											style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover", marginRight: 12 }}
 										/>
 									)}
-									<span>{whitelabelAgent.username}{whitelabelAgent.office ? ` | ${whitelabelAgent.office}` : ''}</span>
+									<span>{whitelabelAgent.username}{whitelabelAgent.office ? `, ${whitelabelAgent.office}` : ''}</span>
 								</div>
 							) : (
 								<NavLink

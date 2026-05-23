@@ -60,7 +60,7 @@ const UserBar = () => {
 								/>
 							)}
 							<span className="btn-font-lt">
-							{whitelabelAgent.username}{whitelabelAgent.office ? ` | ${whitelabelAgent.office}` : ''}
+							{whitelabelAgent.username}{whitelabelAgent.office ? `, ${whitelabelAgent.office}` : ''}
 						</span>
 						</div>
 					) : (
