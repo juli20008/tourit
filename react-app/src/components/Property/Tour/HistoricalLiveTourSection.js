@@ -3,7 +3,14 @@ import { useDispatch, useSelector } from "react-redux";
 import { uploadHistoricalTour, deleteHistoricalTour } from "../../../store/historicalLiveTours";
 
 const MAX_DURATION_S = 60;
-const MAX_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
+const MAX_SIZE_BYTES = 50 * 1024 * 1024;  // 50 MB — triggers compression on desktop
+const MAX_SIZE_DIRECT = 95 * 1024 * 1024; // 95 MB — max direct upload (server limit)
+
+// iOS Safari has no MediaRecorder / captureStream — browser compression impossible
+const canCompress =
+  typeof MediaRecorder !== "undefined" &&
+  typeof HTMLCanvasElement.prototype.captureStream === "function" &&
+  MediaRecorder.isTypeSupported("video/webm");
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -151,6 +158,24 @@ function UploadForm({ mlsNumber, onDone }) {
     const needsTrim     = dur > MAX_DURATION_S;
     const needsCompress = f.size > MAX_SIZE_BYTES;
 
+    if ((needsTrim || needsCompress) && !canCompress) {
+      // iOS Safari / browsers without MediaRecorder — can't compress in-browser
+      if (needsTrim && needsCompress) {
+        setError("此浏览器不支持自动压缩。请在相册 App 里把视频剪短到1分钟以内并压缩后再上传，或用电脑操作。");
+      } else if (needsTrim) {
+        setError("视频超过1分钟。请在相册 App 里剪短后再上传。");
+      } else {
+        // Over 50 MB but under direct-upload limit — allow it through
+        if (f.size <= MAX_SIZE_DIRECT) {
+          setFile(f);
+        } else {
+          setError("文件太大（超过95MB）。请在相册 App 里压缩后再上传，或用电脑操作。");
+          inputRef.current.value = "";
+        }
+      }
+      return;
+    }
+
     if (needsTrim || needsCompress) {
       setProcessLabel(
         needsTrim && needsCompress ? "Trimming & compressing…"
@@ -170,7 +195,7 @@ function UploadForm({ mlsNumber, onDone }) {
         }
         setFile(new File([blob], "highlight.webm", { type: "video/webm" }));
       } catch {
-        setError("Processing failed. Please use a shorter or smaller file.");
+        setError("Processing failed — try a shorter or smaller file, or upload from desktop.");
         inputRef.current.value = "";
       }
       setProcessing(false);
