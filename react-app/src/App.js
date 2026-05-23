@@ -18,7 +18,6 @@ import Chats from "./components/Chats";
 import { Link } from "react-router-dom";
 import { authenticate } from "./store/session";
 import { initWhitelabel } from "./store/whitelabel";
-import { areaProperties } from "./store/property";
 
 import About from "./components/About";
 import Career from "./components/Career";
@@ -78,8 +77,6 @@ const TourReturnHandler = () => {
 	return null;
 };
 
-const DEFAULT_BOUNDS = { neLat: 43.855, neLng: -79.12, swLat: 43.58, swLng: -79.64 };
-
 // Updates the browser tab title for whitelabel agent sites
 const WhitelabelTitle = () => {
 	const agent = useSelector((state) => state.whitelabel?.agent);
@@ -95,8 +92,6 @@ function App() {
 	const dispatch = useDispatch();
 
 	useEffect(() => {
-		// Kick off map data + auth in parallel — don't wait for auth before fetching listings
-		dispatch(areaProperties(DEFAULT_BOUNDS));
 		dispatch(authenticate());
 		dispatch(initWhitelabel());
 		fetch(`${process.env.REACT_APP_API_URL || "https://api.tourit.ca"}/warmup`).catch(() => {});
