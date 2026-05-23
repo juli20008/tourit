@@ -54,6 +54,8 @@ const ZH_FIXES = [
   ['直播看房', '看房直播'],     // "Live Tour" word order fix
   ['直播参观', '看房直播'],     // alternate Google output for "Live Tour"
   ['现场参观', '看房直播'],     // another possible Google output for "Live Tour"
+  ['现场巡演', '看房直播'],     // "Live Tour" mistranslated as concert tour
+  ['现场游览', '看房直播'],     // another alternate
   ['标题状态', '产权状态'],     // "Title Status" — Title mistranslated as heading
   ['所有权状态', '产权状态'],   // alternate for Title Status
   ['扫描以查看属性', '扫码查看房源'],  // "Scan to view property" Google mistranslation
