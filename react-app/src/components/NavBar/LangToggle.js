@@ -41,6 +41,20 @@ function waitForCombo(cb, retries = 50) {
   if (retries > 0) setTimeout(() => waitForCombo(cb, retries - 1), 100);
 }
 
+// Remove any Google-injected spinner / progress UI
+function hideGoogleSpinner() {
+  [
+    '.goog-te-spinner',
+    '.VIpgJd-ZVi9od-ORHb-OEVmcd',
+    '.VIpgJd-ZVi9od-l4eHX-hSRGPd',
+    '[id^="goog-gt-"]',
+  ].forEach((sel) => {
+    document.querySelectorAll(sel).forEach((el) => {
+      el.style.setProperty('display', 'none', 'important');
+    });
+  });
+}
+
 // ── Google Translate correction patches ────────────────────────────────────────
 // Google makes specific errors on real-estate and Canadian terminology.
 // Order matters: longer/more-specific patterns before shorter ones.
@@ -114,7 +128,7 @@ const LangToggle = () => {
       loadGoogleTranslate((combo) => {
         combo.value = 'zh-CN';
         combo.dispatchEvent(new Event('change'));
-        setTimeout(() => { applyFixes(document.body); startObserver(); }, 800);
+        setTimeout(() => { applyFixes(document.body); hideGoogleSpinner(); startObserver(); }, 800);
       });
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -127,7 +141,7 @@ const LangToggle = () => {
     loadGoogleTranslate((combo) => {
       combo.value = 'zh-CN';
       combo.dispatchEvent(new Event('change'));
-      setTimeout(() => { applyFixes(document.body); startObserver(); }, 800);
+      setTimeout(() => { applyFixes(document.body); hideGoogleSpinner(); startObserver(); }, 800);
     });
   }, []);
 
