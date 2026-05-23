@@ -42,8 +42,7 @@ const ChatBubble = () => {
 	const guestId    = getGuestId();
 
 	const [phase, setPhase]           = useState(P_CARD);
-	const [phone, setPhone]           = useState("");
-	const [email, setEmail]           = useState("");
+	const [contact, setContact]       = useState("");
 	const [submitting, setSubmitting] = useState(false);
 	const [error, setError]           = useState("");
 	const [hasUnreadDot, setHasUnreadDot] = useState(false);
@@ -99,8 +98,7 @@ const ChatBubble = () => {
 		if (!booking || !open) return;
 		timers.current.forEach(clearTimeout);
 		setPhase(P_CARD);
-		setPhone("");
-		setEmail("");
+		setContact("");
 		setError("");
 		setChatLog([]);
 
@@ -142,10 +140,16 @@ const ChatBubble = () => {
 	}, [phase, chatLog]);
 
 	const handleSubmit = async () => {
-		if (!phone.trim() && !email.trim()) { setError("Please enter your phone or email."); return; }
+		const val = contact.trim();
+		if (!val) { setError("Please enter your phone or email."); return; }
 		setSubmitting(true);
 		setError("");
-		const res = await dispatch(captureGuestContact({ guest_id: guestId, phone: phone.trim(), email: email.trim() }));
+		const isEmail = val.includes("@");
+		const res = await dispatch(captureGuestContact({
+			guest_id: guestId,
+			phone: isEmail ? "" : val,
+			email: isEmail ? val : "",
+		}));
 		setSubmitting(false);
 		if (res?.errors) setError(res.errors[0] || "Something went wrong.");
 		else setPhase(P_SUCCESS);
@@ -187,7 +191,7 @@ const ChatBubble = () => {
 		: booking ? `${today} ${hour}` : "";
 	const rawImage = booking && Array.isArray(property.images) ? property.images[0] : (booking?.property?.cover_photo || null);
 	const image = typeof rawImage === "string" ? rawImage : null;
-	const contactStr = phone.trim() || email.trim();
+	const contactStr = contact.trim();
 
 	// ── Open panel ─────────────────────────────────────────────────────────
 	return (
@@ -270,24 +274,18 @@ const ChatBubble = () => {
 									Where should we send your booking confirmation and entry instructions?
 								</div>
 
-								<div className={`cb-input-row${email.trim() && !phone.trim() ? " cb-input-row--dim" : ""}`}>
-									<i className="fa-solid fa-phone" style={{ color: "#94a3b8", fontSize: 12, flexShrink: 0 }} />
-									<input
-										type="tel"
-										placeholder="Phone number"
-										value={phone}
-										onChange={(e) => setPhone(e.target.value)}
-										onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+								<div className="cb-input-row">
+									<i
+										className={`fa-solid ${contact.includes("@") ? "fa-envelope" : "fa-phone"}`}
+										style={{ color: "#94a3b8", fontSize: 12, flexShrink: 0 }}
 									/>
-								</div>
-								<div className={`cb-input-row${phone.trim() && !email.trim() ? " cb-input-row--dim" : ""}`}>
-									<i className="fa-solid fa-envelope" style={{ color: "#94a3b8", fontSize: 12, flexShrink: 0 }} />
 									<input
-										type="email"
-										placeholder="Email address"
-										value={email}
-										onChange={(e) => setEmail(e.target.value)}
+										type="text"
+										placeholder="Phone or email"
+										value={contact}
+										onChange={(e) => setContact(e.target.value)}
 										onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+										autoComplete="off"
 									/>
 								</div>
 
@@ -298,7 +296,7 @@ const ChatBubble = () => {
 										type="button"
 										className="cb-submit-btn"
 										onClick={handleSubmit}
-										disabled={submitting || (!phone.trim() && !email.trim())}
+										disabled={submitting || !contact.trim()}
 									>
 										{submitting ? "Confirming…" : "Secure My Slot"}
 									</button>
