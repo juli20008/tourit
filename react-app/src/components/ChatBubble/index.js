@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { io } from "socket.io-client";
 import { useChatBubble } from "../../context/ChatBubble";
 import { getGuestId } from "../../utils/guestSession";
 import { createGuestBooking, captureGuestContact, sendGuestMessage } from "../../store/guestBooking";
@@ -47,17 +48,50 @@ const ChatBubble = () => {
 	const [error, setError]           = useState("");
 	const [hasUnreadDot, setHasUnreadDot] = useState(false);
 	const [chatText, setChatText]     = useState("");
-	const [guestMsgs, setGuestMsgs]   = useState([]);
-	const bottomRef = useRef(null);
-	const timers    = useRef([]);
+	const [chatLog, setChatLog]       = useState([]); // { from: "guest"|"agent", text }
+	const [channelId, setChannelId]   = useState(null);
+	const [guestUserId, setGuestUserId] = useState(null);
+	const bottomRef  = useRef(null);
+	const timers     = useRef([]);
+	const socketRef  = useRef(null);
 
 	useEffect(() => () => timers.current.forEach(clearTimeout), []);
+
+	// Keep a stable ref to guestUserId so the socket handler closure doesn't stale
+	const guestUserIdRef = useRef(null);
+	useEffect(() => { guestUserIdRef.current = guestUserId; }, [guestUserId]);
+
+	// Connect to socket room when we have a channel; disconnect on cleanup
+	useEffect(() => {
+		if (!channelId) return;
+
+		const sock = io(API_BASE, { transports: ["websocket", "polling"] });
+		socketRef.current = sock;
+
+		sock.on("connect", () => {
+			sock.emit("join", String(channelId));
+		});
+
+		sock.on("chat", (msg) => {
+			// Only show messages from the agent (Julie), not our own echoes
+			if (msg.user_id !== guestUserIdRef.current) {
+				setChatLog((prev) => [...prev, { from: "agent", text: msg.message }]);
+				setHasUnreadDot(true);
+			}
+		});
+
+		return () => {
+			sock.emit("leave", String(channelId));
+			sock.disconnect();
+			socketRef.current = null;
+		};
+	}, [channelId]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	const handleSendChat = async () => {
 		const text = chatText.trim();
 		if (!text) return;
 		setChatText("");
-		setGuestMsgs((prev) => [...prev, text]);
+		setChatLog((prev) => [...prev, { from: "guest", text }]);
 		dispatch(sendGuestMessage({ guest_id: guestId, text }));
 	};
 
@@ -68,7 +102,7 @@ const ChatBubble = () => {
 		setPhone("");
 		setEmail("");
 		setError("");
-		setGuestMsgs([]);
+		setChatLog([]);
 
 		const { property, today, hour } = booking;
 		const address  = [property.street, property.city, property.state, property.zip].filter(Boolean).join(", ");
@@ -81,7 +115,10 @@ const ChatBubble = () => {
 			address,
 			image:      typeof rawImage === "string" ? rawImage : "",
 			mls_number: property.mls_number || null,
-		}));
+		})).then((res) => {
+			if (res?.channel_id)    setChannelId(res.channel_id);
+			if (res?.guest_user_id) setGuestUserId(res.guest_user_id);
+		});
 
 		timers.current = [
 			setTimeout(() => setPhase(P_TYPING), 600),
@@ -95,9 +132,14 @@ const ChatBubble = () => {
 		if (open) setHasUnreadDot(false);
 	}, [open, phase, booking]);
 
+	// Also clear unread dot as soon as panel opens (agent reply arrived while closed)
+	useEffect(() => {
+		if (open) setHasUnreadDot(false);
+	}, [open]);
+
 	useEffect(() => {
 		bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-	}, [phase]);
+	}, [phase, chatLog]);
 
 	const handleSubmit = async () => {
 		if (!phone.trim() && !email.trim()) { setError("Please enter your phone or email."); return; }
@@ -301,10 +343,17 @@ const ChatBubble = () => {
 							</div>
 						)}
 
-					{/* Free-form guest messages (optimistic) */}
-					{guestMsgs.map((msg, i) => (
-						<div key={i} className="cb-guest-bubble cb-fadein">{msg}</div>
-					))}
+					{/* Live chat log: guest messages + Julie replies interleaved */}
+					{chatLog.map((entry, i) =>
+						entry.from === "guest"
+							? <div key={i} className="cb-guest-bubble cb-fadein">{entry.text}</div>
+							: (
+								<div key={i} className="cb-agent-row cb-fadein">
+									<MsgAvatar photo={agentPhoto} name={agentName} />
+									<div className="cb-agent-bubble">{entry.text}</div>
+								</div>
+							)
+					)}
 				</>
 			)}
 

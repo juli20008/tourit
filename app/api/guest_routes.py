@@ -66,14 +66,16 @@ def create_guest_booking():
     if not agent:
         return {"errors": ["No agent configured"]}, 500
 
-    chat_obj = None
-    channel_id = None
-    is_new = False
+    chat_obj      = None
+    channel_id    = None
+    guest_user_id = None
+    is_new        = False
 
     try:
-        guest_user = _get_or_create_guest_user(guest_id)
-        channel    = _get_or_create_channel(guest_user.id, agent.id)
-        channel_id = channel.id
+        guest_user    = _get_or_create_guest_user(guest_id)
+        guest_user_id = guest_user.id
+        channel       = _get_or_create_channel(guest_user.id, agent.id)
+        channel_id    = channel.id
 
         # Chat message that appears in Julie's dashboard
         msg = f"Hi! I'd like to book a showing.\n\U0001f4cd {address}\n\U0001f4c5 {date} at {time_str}"
@@ -119,7 +121,7 @@ def create_guest_booking():
             daemon=True,
         ).start()
 
-    return {"ok": True, "channel_id": channel_id}
+    return {"ok": True, "channel_id": channel_id, "guest_user_id": guest_user_id}
 
 
 @guest_routes.route("/contact", methods=["POST"])
@@ -139,6 +141,11 @@ def capture_guest_contact():
     try:
         guest_user = User.query.filter_by(email=_guest_email(guest_id)).first()
         if guest_user and agent:
+            # Give the ghost user a recognizable name so Julie's dashboard is readable
+            if guest_user.username == "Guest":
+                display = phone or email
+                guest_user.username = f"Guest ({display})"
+
             channel = Channel.query.filter_by(user_id=guest_user.id, agent_id=agent.id).first()
             if channel:
                 channel_id = channel.id
