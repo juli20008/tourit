@@ -32,9 +32,9 @@ const GoogleIcon = () => (
 
 const ChatBubble = () => {
 	const { open, setOpen, booking } = useChatBubble();
-	const user           = useSelector((s) => s.session.user);
+	const user            = useSelector((s) => s.session.user);
 	const whitelabelAgent = useSelector((s) => s.whitelabel?.agent);
-	const dispatch       = useDispatch();
+	const dispatch        = useDispatch();
 
 	const agentName  = whitelabelAgent?.username || "Julie";
 	const agentPhoto = whitelabelAgent?.photo    || null;
@@ -51,7 +51,6 @@ const ChatBubble = () => {
 
 	useEffect(() => () => timers.current.forEach(clearTimeout), []);
 
-	// Re-run animation sequence whenever a new booking fires while panel is open
 	useEffect(() => {
 		if (!booking || !open) return;
 		timers.current.forEach(clearTimeout);
@@ -80,7 +79,6 @@ const ChatBubble = () => {
 		];
 	}, [booking, open]); // eslint-disable-line react-hooks/exhaustive-deps
 
-	// Show red dot on the button when closed and a reply appeared
 	useEffect(() => {
 		if (!open && booking && phase >= P_REPLY) setHasUnreadDot(true);
 		if (open) setHasUnreadDot(false);
@@ -113,7 +111,6 @@ const ChatBubble = () => {
 		window.location.href = `${API_BASE}/api/auth/google?return_to=${encodeURIComponent(window.location.href)}`;
 	};
 
-	// Guests only
 	if (user) return null;
 
 	// ── Closed button ──────────────────────────────────────────────────────
@@ -166,12 +163,12 @@ const ChatBubble = () => {
 						<div className="cb-agent-row cb-fadein">
 							<MsgAvatar photo={agentPhoto} name={agentName} />
 							<div className="cb-agent-bubble">
-								Hi! I'm {agentName}. Select a date and time above to request a showing — I'll be in touch right away.
+								Hi! I'm {agentName}. Select a date and time above to request a showing — I'll confirm right away.
 							</div>
 						</div>
 						<div style={{ marginTop: "auto", paddingTop: 12 }}>
-							<div className="cb-divider">or sign in for full access</div>
-							<button type="button" className="cb-google-btn" style={{ marginTop: 8 }} onClick={handleGoogleLogin}>
+							<div className="cb-google-hint">⚡ 1-click to sync your tour to Google Calendar</div>
+							<button type="button" className="cb-google-btn" style={{ marginTop: 6 }} onClick={handleGoogleLogin}>
 								<GoogleIcon /> Continue with Google
 							</button>
 						</div>
@@ -212,12 +209,15 @@ const ChatBubble = () => {
 							</div>
 						)}
 
-						{/* Optional lead capture form */}
-						{phase === P_FORM && (
-							<div className="cb-lead-prompt">
-								<div className="cb-lead-title">Want {agentName} to reach out?</div>
-								<div className="cb-lead-sub">Leave your info — completely optional.</div>
-								<div className="cb-input-row">
+						{/* Lead capture form — stays in chat history even after skip */}
+						{phase >= P_FORM && phase !== P_SUCCESS && (
+							<div className="cb-lead-prompt cb-fadein">
+								<div className="cb-lead-title">📅 Lock in your showing?</div>
+								<div className="cb-lead-sub">
+									Where should we send your booking confirmation and entry instructions?
+								</div>
+
+								<div className={`cb-input-row${email.trim() && !phone.trim() ? " cb-input-row--dim" : ""}`}>
 									<i className="fa-solid fa-phone" style={{ color: "#94a3b8", fontSize: 12, flexShrink: 0 }} />
 									<input
 										type="tel"
@@ -227,7 +227,7 @@ const ChatBubble = () => {
 										onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
 									/>
 								</div>
-								<div className="cb-input-row">
+								<div className={`cb-input-row${phone.trim() && !email.trim() ? " cb-input-row--dim" : ""}`}>
 									<i className="fa-solid fa-envelope" style={{ color: "#94a3b8", fontSize: 12, flexShrink: 0 }} />
 									<input
 										type="email"
@@ -237,7 +237,9 @@ const ChatBubble = () => {
 										onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
 									/>
 								</div>
+
 								{error && <div className="cb-error">{error}</div>}
+
 								<div className="cb-lead-actions">
 									<button
 										type="button"
@@ -245,25 +247,29 @@ const ChatBubble = () => {
 										onClick={handleSubmit}
 										disabled={submitting || (!phone.trim() && !email.trim())}
 									>
-										{submitting ? "Sending…" : "Send"}
+										{submitting ? "Confirming…" : "Secure My Slot"}
 									</button>
-									<button type="button" className="cb-skip-btn" onClick={() => setPhase(P_SKIPPED)}>
-										Skip
-									</button>
+									{/* Skip only shows the first time — disappears once skipped */}
+									{phase === P_FORM && (
+										<button type="button" className="cb-skip-btn" onClick={() => setPhase(P_SKIPPED)}>
+											I'll skip for now
+										</button>
+									)}
 								</div>
-								<div className="cb-divider">or</div>
+
+								<div className="cb-google-hint">⚡ 1-click to sync this tour to your Google Calendar</div>
 								<button type="button" className="cb-google-btn" onClick={handleGoogleLogin}>
 									<GoogleIcon /> Continue with Google
 								</button>
 							</div>
 						)}
 
-						{/* Skipped gracefully */}
+						{/* Warm follow-up after skip — form stays above, this appears below */}
 						{phase === P_SKIPPED && (
 							<div className="cb-agent-row cb-fadein">
 								<MsgAvatar photo={agentPhoto} name={agentName} />
 								<div className="cb-agent-bubble">
-									No worries! Feel free to reach out anytime.
+									No problem! You can still lock in this time later. I'm reviewing your request now.
 								</div>
 							</div>
 						)}
@@ -272,10 +278,12 @@ const ChatBubble = () => {
 						{phase === P_SUCCESS && (
 							<div className="cb-success cb-fadein">
 								<i className="fa-solid fa-circle-check" style={{ color: "#16a34a", fontSize: 20 }} />
-								<div className="cb-success-title">We got it!</div>
+								<div className="cb-success-title">You're confirmed!</div>
 								<div className="cb-success-sub">
-									{agentName} will reach out to you{contactStr ? ` at ${contactStr}` : ""} very soon.
+									Your booking confirmation{contactStr ? ` will be sent to ${contactStr}` : " is locked in"}.{" "}
+									{agentName} will follow up shortly.
 								</div>
+								<div className="cb-google-hint" style={{ marginTop: 4 }}>⚡ Sync this tour to your Google Calendar</div>
 								<button type="button" className="cb-google-btn" style={{ marginTop: 4 }} onClick={handleGoogleLogin}>
 									<GoogleIcon /> Continue with Google
 								</button>
@@ -292,7 +300,7 @@ const ChatBubble = () => {
 				<div className="cb-footer-hint">
 					{booking
 						? `${agentName} typically responds within minutes.`
-						: `Book a showing above and ${agentName} will reply right away.`
+						: `Book a showing above and ${agentName} will confirm right away.`
 					}
 				</div>
 			</div>

@@ -290,6 +290,11 @@
 
 .cb-input-row:focus-within { border-color: #94a3b8; }
 
+.cb-input-row--dim {
+	opacity: 0.4;
+	transition: opacity 0.2s;
+}
+
 .cb-input-row input {
 	border: none;
 	outline: none;
@@ -346,6 +351,12 @@
 	text-align: center;
 	font-size: 11px;
 	color: #94a3b8;
+}
+
+.cb-google-hint {
+	font-size: 11px;
+	color: #64748b;
+	text-align: center;
 }
 
 .cb-google-btn {
