@@ -72,41 +72,56 @@ function processVideo(file, trim, onProgress) {
 
       const chunks = [];
       recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
-      recorder.onstop = () => {
-        clearInterval(drawTimer);
-        clearTimeout(failsafe);
-        URL.revokeObjectURL(objectUrl);
-        resolve(new Blob(chunks, { type: "video/webm" }));
-      };
 
       let stopped = false;
+      let hasStarted = false;
+
+      const cleanup = () => {
+        clearInterval(drawTimer);
+        clearTimeout(failsafe);
+        clearTimeout(startTimeout);
+      };
+
       const stop = () => {
         if (stopped) return;
         stopped = true;
-        clearInterval(drawTimer);
-        clearTimeout(failsafe);
+        cleanup();
         videoEl.pause();
         setTimeout(() => { try { recorder.stop(); } catch {} }, 300);
       };
 
+      recorder.onstop = () => {
+        cleanup();
+        URL.revokeObjectURL(objectUrl);
+        resolve(new Blob(chunks, { type: "video/webm" }));
+      };
+
       // setInterval instead of requestAnimationFrame — rAF is throttled in
       // background tabs and causes the progress loop to stall indefinitely.
+      // Skip stop-check until hasStarted so first ticks don't fire before play().
       const drawTimer = setInterval(() => {
         if (stopped) return;
+        if (!hasStarted) return;
         if (trim && videoEl.currentTime >= MAX_DURATION_S) { stop(); return; }
         if (videoEl.ended || videoEl.paused) { stop(); return; }
         ctx.drawImage(videoEl, 0, 0, w, h);
         onProgress(Math.min(99, Math.round((videoEl.currentTime / effectiveDuration) * 100)));
       }, 1000 / 30);
 
-      // Failsafe: force stop if nothing else catches the end
+      // Failsafe: force stop if nothing catches the end
       const failsafe = setTimeout(stop, (effectiveDuration + 5) * 1000);
 
-      recorder.start(200);
-      videoEl.play().catch((e) => { URL.revokeObjectURL(objectUrl); reject(e); });
+      // If play() never fires within 8s, give up cleanly
+      const startTimeout = setTimeout(() => {
+        if (!hasStarted) { cleanup(); URL.revokeObjectURL(objectUrl); reject(new Error("playback blocked")); }
+      }, 8000);
 
+      videoEl.onplay  = () => { hasStarted = true; clearTimeout(startTimeout); };
       videoEl.onended = stop;
-      videoEl.onerror = (e) => { URL.revokeObjectURL(objectUrl); reject(e); };
+      videoEl.onerror = (e) => { cleanup(); URL.revokeObjectURL(objectUrl); reject(e); };
+
+      recorder.start(200);
+      videoEl.play().catch(() => {}); // startTimeout handles the failure
     };
 
     videoEl.onerror = (e) => { URL.revokeObjectURL(objectUrl); reject(e); };
