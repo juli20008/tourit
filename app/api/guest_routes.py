@@ -144,7 +144,8 @@ def capture_guest_contact():
             # Give the ghost user a recognizable name so Julie's dashboard is readable
             if guest_user.username == "Guest":
                 display = phone or email
-                guest_user.username = f"Guest ({display})"
+                # VARCHAR(40): "Guest (" = 7 chars + ")" = 1 char → 32 chars for contact
+                guest_user.username = f"Guest ({display[:32]})"
 
             channel = Channel.query.filter_by(user_id=guest_user.id, agent_id=agent.id).first()
             if channel:
