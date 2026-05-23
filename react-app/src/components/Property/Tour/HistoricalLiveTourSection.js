@@ -218,7 +218,7 @@ function UploadForm({ mlsNumber, onDone }) {
     <div className="hist-upload-form">
       <div className="hist-upload-title">Upload Highlight Clip</div>
       <div className="hist-upload-hint">
-        mp4 / mov / webm · max 50 MB · videos over 1 min auto-trimmed
+        mp4 / mov / webm · max {canCompress ? "50 MB · videos over 1 min auto-trimmed" : "95 MB · max 1 min · iPhone browser cannot auto-compress, please trim/compress in Photos app first"}
       </div>
       <input
         ref={inputRef}
