@@ -133,13 +133,9 @@ def inject_csrf_token(response):
 
 @app.route('/health')
 def health_check():
-    try:
-        from sqlalchemy import text
-        db.session.execute(text('SELECT 1'))
-        db.session.remove()
-        return jsonify({'status': 'ok', 'db': 'ok'}), 200
-    except Exception as e:
-        return jsonify({'status': 'error', 'db': str(e)}), 503
+    # Must always return 200 — Render restarts the service on non-200,
+    # so a transient DB blip must never cause a restart cascade.
+    return jsonify({'status': 'ok'}), 200
 
 
 @app.route('/warmup')
