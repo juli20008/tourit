@@ -45,8 +45,6 @@ function waitForCombo(cb, retries = 50) {
 function hideGoogleSpinner() {
   [
     '.goog-te-spinner',
-    '.VIpgJd-ZVi9od-ORHb-OEVmcd',
-    '.VIpgJd-ZVi9od-l4eHX-hSRGPd',
     '[id^="goog-gt-"]',
   ].forEach((sel) => {
     document.querySelectorAll(sel).forEach((el) => {
