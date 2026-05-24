@@ -1,13 +1,3 @@
-/**
- * Wraps the native fetch() so every /api/... call is prefixed with a secure
- * API base in production (Vercel → Render).
- *
- * In development the value is "" (empty string), so relative paths work
- * unchanged through the CRA proxy ("proxy": "http://localhost:5000").
- *
- * credentials: 'include' is required in production so the browser sends
- * the Flask session cookie on cross-origin requests (Vercel → Render).
- */
 const rawApiBase = process.env.REACT_APP_API_URL || "";
 const API_BASE = (() => {
 	if (rawApiBase) {
@@ -19,11 +9,26 @@ const API_BASE = (() => {
 	return "https://api.tourit.ca";
 })();
 
-const apiFetch = (path, options = {}) => {
+// Retries once after a network failure or 5xx so a cold-start stall
+// doesn't surface as a visible error on the first real request.
+const apiFetch = async (path, options = {}, _retry = true) => {
 	const opts = API_BASE
 		? { credentials: "include", ...options }
 		: options;
-	return fetch(`${API_BASE}${path}`, opts);
+	try {
+		const res = await fetch(`${API_BASE}${path}`, opts);
+		if (_retry && res.status >= 500) {
+			await new Promise((r) => setTimeout(r, 1500));
+			return apiFetch(path, options, false);
+		}
+		return res;
+	} catch (err) {
+		if (_retry) {
+			await new Promise((r) => setTimeout(r, 1500));
+			return apiFetch(path, options, false);
+		}
+		throw err;
+	}
 };
 
 export default apiFetch;

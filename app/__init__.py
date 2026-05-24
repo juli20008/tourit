@@ -133,7 +133,13 @@ def inject_csrf_token(response):
 
 @app.route('/health')
 def health_check():
-    return jsonify({'status': 'ok'})
+    try:
+        from sqlalchemy import text
+        db.session.execute(text('SELECT 1'))
+        db.session.remove()
+        return jsonify({'status': 'ok', 'db': 'ok'}), 200
+    except Exception as e:
+        return jsonify({'status': 'error', 'db': str(e)}), 503
 
 
 @app.route('/warmup')
@@ -176,10 +182,6 @@ def warmup():
     except Exception as e:
         return jsonify({'status': 'ok', 'db': 'error', 'detail': str(e)})
 
-
-@app.route('/health')
-def health():
-    return jsonify({'status': 'ok'}), 200
 
 
 @app.route('/', defaults={'path': ''})
