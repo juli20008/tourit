@@ -289,6 +289,9 @@ def list_listings_by_bounds():
         return jsonify(cached)
 
     try:
+        # Hard timeout: abort to OperationalError fallback before Supabase times us out
+        db.session.execute(text("SET LOCAL statement_timeout = '8000'"))
+
         q = MlsListing.query.filter(
             MlsListing.lat.between(lat_min, lat_max),
             MlsListing.lng.between(lng_min, lng_max),
@@ -301,15 +304,26 @@ def list_listings_by_bounds():
         listings = q.all()
         if not listings:
             return _fetch_local_bounds(lat_min, lat_max, lng_min, lng_max, limit, lightweight=lightweight or limit > MAX_RESULTS)
+
+        lw = lightweight or limit > MAX_RESULTS
+        serialized = []
+        for l in listings:
+            try:
+                serialized.append(_serialize_listing(l, lightweight=lw))
+            except Exception:
+                pass  # skip corrupt listings rather than failing the whole response
+
         result = {
-            "listings": [_serialize_listing(l, lightweight=lightweight or limit > MAX_RESULTS) for l in listings],
-            "total": len(listings),
+            "listings": serialized,
+            "total": len(serialized),
             "page": 1,
             "per_page": limit,
         }
         _cache_set(bounds_key, result)
         return jsonify(result)
     except OperationalError:
+        return _fetch_local_bounds(lat_min, lat_max, lng_min, lng_max, limit, lightweight=lightweight or limit > MAX_RESULTS)
+    except Exception:
         return _fetch_local_bounds(lat_min, lat_max, lng_min, lng_max, limit, lightweight=lightweight or limit > MAX_RESULTS)
 
 
