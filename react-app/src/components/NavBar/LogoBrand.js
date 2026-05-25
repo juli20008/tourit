@@ -17,7 +17,7 @@ const LogoBrand = ({ agentName }) => {
 				<span style={{ ...brandStyle, fontWeight: 300 }} className="text-[22px] md:text-[26px] leading-none text-white opacity-80">
 					tour it with
 				</span>
-				<span style={{ ...brandStyle, fontWeight: 600 }} className="text-[22px] md:text-[26px] leading-none text-white">
+				<span style={{ ...brandStyle, fontWeight: 300 }} className="text-[22px] md:text-[26px] leading-none text-white">
 					{agentName}
 				</span>
 			</div>
