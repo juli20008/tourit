@@ -10,30 +10,21 @@ const LogoBrand = ({ agentName, agentPhoto }) => {
 	}, []);
 
 	const brandStyle = { fontFamily: "'Outfit', 'DM Sans', system-ui, sans-serif", letterSpacing: '0.01em' };
+	const spanCls = "text-[24px] md:text-[30px] leading-none text-white";
 
 	if (agentName) {
 		return (
 			<div className="flex items-center gap-2 notranslate">
 				{lang === 'zh' ? (
 					<>
-						<span style={{ ...brandStyle, fontWeight: 300 }} className="text-[22px] md:text-[26px] leading-none text-white">
-							和
-						</span>
-						<span style={{ ...brandStyle, fontWeight: 300 }} className="text-[22px] md:text-[26px] leading-none text-white">
-							{agentName}
-						</span>
-						<span style={{ ...brandStyle, fontWeight: 300 }} className="text-[22px] md:text-[26px] leading-none text-white">
-							一起看房
-						</span>
+						<span style={{ ...brandStyle, fontWeight: 400 }} className={spanCls}>和</span>
+						<span style={{ ...brandStyle, fontWeight: 400 }} className={spanCls}>{agentName}</span>
+						<span style={{ ...brandStyle, fontWeight: 400 }} className={spanCls}>一起看房</span>
 					</>
 				) : (
 					<>
-						<span style={{ ...brandStyle, fontWeight: 300 }} className="text-[22px] md:text-[26px] leading-none text-white">
-							tour it with
-						</span>
-						<span style={{ ...brandStyle, fontWeight: 300 }} className="text-[22px] md:text-[26px] leading-none text-white">
-							{agentName}
-						</span>
+						<span style={{ ...brandStyle, fontWeight: 400 }} className={spanCls}>tour it with</span>
+						<span style={{ ...brandStyle, fontWeight: 400 }} className={spanCls}>{agentName}</span>
 					</>
 				)}
 				{agentPhoto && (
@@ -52,7 +43,7 @@ const LogoBrand = ({ agentName, agentPhoto }) => {
 			<div className="flex items-center gap-2">
 				<span
 					style={{ ...brandStyle, fontWeight: 400 }}
-					className="text-[24px] md:text-[30px] leading-none text-white"
+					className={spanCls}
 				>
 					tourit.ca
 				</span>
