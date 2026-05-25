@@ -289,8 +289,9 @@ def list_listings_by_bounds():
         return jsonify(cached)
 
     try:
-        # Hard timeout: abort to OperationalError fallback before Supabase times us out
-        db.session.execute(text("SET LOCAL statement_timeout = '8000'"))
+        # Hard timeout: abort before Supabase times us out on a full table scan.
+        # 25 s is generous enough for cold-start connections; indexes will make this <1 s.
+        db.session.execute(text("SET LOCAL statement_timeout = '25000'"))
 
         q = MlsListing.query.filter(
             MlsListing.lat.between(lat_min, lat_max),
@@ -321,10 +322,13 @@ def list_listings_by_bounds():
         }
         _cache_set(bounds_key, result)
         return jsonify(result)
-    except OperationalError:
-        return _fetch_local_bounds(lat_min, lat_max, lng_min, lng_max, limit, lightweight=lightweight or limit > MAX_RESULTS)
-    except Exception:
-        return _fetch_local_bounds(lat_min, lat_max, lng_min, lng_max, limit, lightweight=lightweight or limit > MAX_RESULTS)
+    except (OperationalError, Exception):
+        # SQLite fallback has no GTA data — serve last good cache if available,
+        # otherwise empty so the client can retry rather than showing 0 listings.
+        cached = _cache_get(bounds_key)
+        if cached:
+            return jsonify(cached)
+        return jsonify({"listings": [], "total": 0, "page": 1, "per_page": limit})
 
 
 @mls_listing_routes.route("/suggest", methods=["GET"])
