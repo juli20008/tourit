@@ -41,16 +41,24 @@ function waitForCombo(cb, retries = 50) {
   if (retries > 0) setTimeout(() => waitForCombo(cb, retries - 1), 100);
 }
 
-// Remove any Google-injected spinner / progress UI
+// Remove any Google-injected spinner / progress UI.
+// Injects a persistent <style> tag so re-injected spinners are instantly hidden.
 function hideGoogleSpinner() {
-  [
-    '.goog-te-spinner',
-    '[id^="goog-gt-"]',
-  ].forEach((sel) => {
-    document.querySelectorAll(sel).forEach((el) => {
-      el.style.setProperty('display', 'none', 'important');
-    });
-  });
+  if (!document.getElementById('tourit-no-spinner')) {
+    const style = document.createElement('style');
+    style.id = 'tourit-no-spinner';
+    style.textContent = [
+      '.goog-te-spinner',
+      '.goog-te-spinner-pos',
+      '.goog-te-spinner-wrap',
+      '[id^="goog-gt-"]',
+    ].join(',') + '{ display:none !important; }';
+    document.head.appendChild(style);
+  }
+  // Also imperatively hide anything already in the DOM
+  ['.goog-te-spinner', '.goog-te-spinner-pos', '.goog-te-spinner-wrap', '[id^="goog-gt-"]']
+    .forEach(sel => document.querySelectorAll(sel)
+      .forEach(el => el.style.setProperty('display', 'none', 'important')));
 }
 
 // ── Google Translate correction patches ────────────────────────────────────────
@@ -101,7 +109,7 @@ let _pendingFix = null;
 function startObserver() {
   if (_observer) return;
   _observer = new MutationObserver(() => {
-    // Debounce so rapid DOM updates don't cause repeated full-page walks
+    hideGoogleSpinner();
     clearTimeout(_pendingFix);
     _pendingFix = setTimeout(() => { applyFixes(document.body); _pendingFix = null; }, 120);
   });
