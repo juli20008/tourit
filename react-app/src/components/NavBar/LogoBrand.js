@@ -13,13 +13,29 @@ const LogoBrand = ({ agentName, agentPhoto }) => {
 
 	if (agentName) {
 		return (
-			<div className="flex items-center gap-2">
-				<span style={{ ...brandStyle, fontWeight: 300 }} className="text-[22px] md:text-[26px] leading-none text-white">
-					tour it with
-				</span>
-				<span style={{ ...brandStyle, fontWeight: 300 }} className="text-[22px] md:text-[26px] leading-none text-white">
-					{agentName}
-				</span>
+			<div className="flex items-center gap-2 notranslate">
+				{lang === 'zh' ? (
+					<>
+						<span style={{ ...brandStyle, fontWeight: 300 }} className="text-[22px] md:text-[26px] leading-none text-white">
+							和
+						</span>
+						<span style={{ ...brandStyle, fontWeight: 300 }} className="text-[22px] md:text-[26px] leading-none text-white">
+							{agentName}
+						</span>
+						<span style={{ ...brandStyle, fontWeight: 300 }} className="text-[22px] md:text-[26px] leading-none text-white">
+							一起看房
+						</span>
+					</>
+				) : (
+					<>
+						<span style={{ ...brandStyle, fontWeight: 300 }} className="text-[22px] md:text-[26px] leading-none text-white">
+							tour it with
+						</span>
+						<span style={{ ...brandStyle, fontWeight: 300 }} className="text-[22px] md:text-[26px] leading-none text-white">
+							{agentName}
+						</span>
+					</>
+				)}
 				{agentPhoto && (
 					<img
 						src={agentPhoto}
