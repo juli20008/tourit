@@ -302,21 +302,19 @@ const HistoricalLiveTourSection = ({ mlsNumber, tours }) => {
   const allTours   = myVideo ? [myVideo, ...otherTours] : otherTours;
   const hasContent = allTours.length > 0 || isAgent;
 
+  if (!hasContent) return null;
+
   return (
     <div className="hist-section">
       <div
-        className={`hist-header${open ? " open" : ""}${!hasContent ? " disabled" : ""}`}
-        onClick={() => hasContent && setOpen(o => !o)}
+        className={`hist-header${open ? " open" : ""}`}
+        onClick={() => setOpen(o => !o)}
         role="button"
-        tabIndex={hasContent ? 0 : -1}
-        onKeyDown={e => hasContent && e.key === "Enter" && setOpen(o => !o)}
-        title={!hasContent ? "No highlight clips yet" : undefined}
+        tabIndex={0}
+        onKeyDown={e => e.key === "Enter" && setOpen(o => !o)}
       >
         <span>Highlight Clips</span>
-        {hasContent
-          ? <i className={`fa-solid fa-chevron-${open ? "up" : "down"}`} />
-          : <i className="fa-solid fa-ban" style={{ fontSize: 12 }} />
-        }
+        <i className={`fa-solid fa-chevron-${open ? "up" : "down"}`} />
       </div>
 
       {open && (
