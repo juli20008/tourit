@@ -185,7 +185,7 @@ const NavBar = () => {
 											style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover", marginRight: 12 }}
 										/>
 									)}
-									<span>{whitelabelAgent.office}</span>
+									<span className="text-white">{whitelabelAgent.office}</span>
 								</div>
 							) : (
 								<NavLink

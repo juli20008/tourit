@@ -14,7 +14,7 @@ const LogoBrand = ({ agentName }) => {
 	if (agentName) {
 		return (
 			<div className="flex items-baseline gap-1">
-				<span style={{ ...brandStyle, fontWeight: 300 }} className="text-[22px] md:text-[26px] leading-none text-white opacity-80">
+				<span style={{ ...brandStyle, fontWeight: 300 }} className="text-[22px] md:text-[26px] leading-none text-white">
 					tour it with
 				</span>
 				<span style={{ ...brandStyle, fontWeight: 300 }} className="text-[22px] md:text-[26px] leading-none text-white">
