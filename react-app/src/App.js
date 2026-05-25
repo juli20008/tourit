@@ -79,6 +79,23 @@ const TourReturnHandler = () => {
 	return null;
 };
 
+// Redirects a logged-in agent from the main tourit.ca domain to their own subdomain.
+const AgentWhitelabelRedirect = () => {
+	const user        = useSelector(s => s.session.user);
+	const authChecked = useSelector(s => s.session.authChecked);
+	useEffect(() => {
+		if (!authChecked || !user?.agent) return;
+		const hostname = window.location.hostname;
+		if (hostname === 'localhost' || hostname === '127.0.0.1') return;
+		// Already on a *.tourit.ca subdomain — stay put.
+		if (/^[a-z0-9-]+\.tourit\.ca$/i.test(hostname) && hostname.toLowerCase() !== 'www.tourit.ca') return;
+		const slug = user.username.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+		if (!slug) return;
+		window.location.href = `https://${slug}.tourit.ca`;
+	}, [user, authChecked]);
+	return null;
+};
+
 // Updates the browser tab title for whitelabel agent sites
 const WhitelabelTitle = () => {
 	const agent = useSelector((state) => state.whitelabel?.agent);
@@ -103,6 +120,7 @@ function App() {
 		<ChatBubbleProvider>
 		<BrowserRouter>
 			<AgentStatusEmbed />
+			<AgentWhitelabelRedirect />
 			<WhitelabelTitle />
 			<TourReturnHandler />
 			<UnreadNotifier />

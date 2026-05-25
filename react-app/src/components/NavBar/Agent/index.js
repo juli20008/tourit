@@ -7,7 +7,10 @@ import LangToggle from "../LangToggle";
 
 const AgentBar = () => {
 	const dispatch = useDispatch();
-	const hasUnread = useSelector((state) => state.hasUnread);
+	const hasUnread       = useSelector(s => s.hasUnread);
+	const whitelabelAgent = useSelector(s => s.whitelabel?.agent);
+	const user            = useSelector(s => s.session.user);
+	const brandAgent      = whitelabelAgent || (user?.agent ? user : null);
 	const [showMobileMenu, setShowMobileMenu] = useState(false);
 
 	const onLogout = async () => {
@@ -46,7 +49,7 @@ const AgentBar = () => {
 					</button>
 				</div>
 				<NavLink to="/" exact={true} onClick={() => setShowMobileMenu(false)}>
-					<LogoBrand />
+					<LogoBrand agentName={brandAgent?.username || null} agentPhoto={brandAgent?.photo || null} />
 				</NavLink>
 				<div className="nav-rt">
 					<NavLink to="/chats" exact={true} className="btn-font-lt nav-desktop-only nav-chat-link">
