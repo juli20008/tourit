@@ -37,7 +37,7 @@ const LogoBrand = ({ agentName, agentPhoto }) => {
 					)}
 				</div>
 				{lang === 'zh'
-					? <span className="nav-slogan notranslate">图它 - 就图它看房方便和省心！</span>
+					? <span className="nav-slogan notranslate">轻松看房，省心安家。</span>
 					: <span className="nav-slogan">Home Tour Simplified.</span>
 				}
 			</div>
@@ -55,7 +55,7 @@ const LogoBrand = ({ agentName, agentPhoto }) => {
 				</span>
 			</div>
 			{lang === 'zh'
-				? <span className="nav-slogan notranslate">图它 - 就图它看房方便和省心！</span>
+				? <span className="nav-slogan notranslate">轻松看房，省心安家。</span>
 				: <span className="nav-slogan">Home Tour Simplified.</span>
 			}
 		</div>
