@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-const LogoBrand = () => {
+const LogoBrand = ({ agentName }) => {
 	const [lang, setLang] = useState(() => localStorage.getItem('tourit_lang') || 'en');
 
 	useEffect(() => {
@@ -9,11 +9,26 @@ const LogoBrand = () => {
 		return () => window.removeEventListener('tourit:lang', handler);
 	}, []);
 
+	const brandStyle = { fontFamily: "'Outfit', 'DM Sans', system-ui, sans-serif", letterSpacing: '0.01em' };
+
+	if (agentName) {
+		return (
+			<div className="flex items-baseline gap-1">
+				<span style={{ ...brandStyle, fontWeight: 300 }} className="text-[22px] md:text-[26px] leading-none text-white opacity-80">
+					tour it with
+				</span>
+				<span style={{ ...brandStyle, fontWeight: 600 }} className="text-[22px] md:text-[26px] leading-none text-white">
+					{agentName}
+				</span>
+			</div>
+		);
+	}
+
 	return (
 		<div className="flex flex-col items-center md:flex-row md:items-baseline md:gap-3">
 			<div className="flex items-center gap-2">
 				<span
-					style={{ fontFamily: "'Outfit', 'DM Sans', system-ui, sans-serif", fontWeight: 400, letterSpacing: '0.01em' }}
+					style={{ ...brandStyle, fontWeight: 400 }}
 					className="text-[24px] md:text-[30px] leading-none text-white"
 				>
 					tourit.ca

@@ -130,7 +130,7 @@ const NavBar = () => {
 						</button>
 					</div>
 					<NavLink to="/" exact={true} onClick={() => setShowMobileMenu(false)}>
-						<LogoBrand />
+						<LogoBrand agentName={whitelabelAgent?.username || null} />
 					</NavLink>
 					<div className="nav-rt">
 						<LangToggle />
