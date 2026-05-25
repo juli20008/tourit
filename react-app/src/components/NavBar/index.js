@@ -93,13 +93,6 @@ const NavBar = () => {
 						{/* Desktop */}
 						{whitelabelAgent ? (
 							<div className="flex items-center gap-2 nav-desktop-only">
-								{whitelabelAgent.photo && (
-									<img
-										src={whitelabelAgent.photo}
-										alt={whitelabelAgent.username}
-										style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover" }}
-									/>
-								)}
 								<span className="btn-font-lt">
 									{whitelabelAgent.office}
 								</span>
@@ -130,7 +123,7 @@ const NavBar = () => {
 						</button>
 					</div>
 					<NavLink to="/" exact={true} onClick={() => setShowMobileMenu(false)}>
-						<LogoBrand agentName={whitelabelAgent?.username || null} />
+						<LogoBrand agentName={whitelabelAgent?.username || null} agentPhoto={whitelabelAgent?.photo || null} />
 					</NavLink>
 					<div className="nav-rt">
 						<LangToggle />
@@ -178,13 +171,6 @@ const NavBar = () => {
 						<div className="nav-mobile-menu">
 							{whitelabelAgent ? (
 								<div className="nav-mobile-item flex items-center">
-									{whitelabelAgent.photo && (
-										<img
-											src={whitelabelAgent.photo}
-											alt={whitelabelAgent.username}
-											style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover", marginRight: 12 }}
-										/>
-									)}
 									<span className="text-white">{whitelabelAgent.office}</span>
 								</div>
 							) : (

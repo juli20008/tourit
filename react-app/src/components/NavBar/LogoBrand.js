@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-const LogoBrand = ({ agentName }) => {
+const LogoBrand = ({ agentName, agentPhoto }) => {
 	const [lang, setLang] = useState(() => localStorage.getItem('tourit_lang') || 'en');
 
 	useEffect(() => {
@@ -13,13 +13,20 @@ const LogoBrand = ({ agentName }) => {
 
 	if (agentName) {
 		return (
-			<div className="flex items-baseline gap-1">
+			<div className="flex items-center gap-2">
 				<span style={{ ...brandStyle, fontWeight: 300 }} className="text-[22px] md:text-[26px] leading-none text-white">
 					tour it with
 				</span>
 				<span style={{ ...brandStyle, fontWeight: 300 }} className="text-[22px] md:text-[26px] leading-none text-white">
 					{agentName}
 				</span>
+				{agentPhoto && (
+					<img
+						src={agentPhoto}
+						alt={agentName}
+						style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }}
+					/>
+				)}
 			</div>
 		);
 	}
