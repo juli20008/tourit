@@ -84,9 +84,9 @@ class MlsListing(db.Model):
     country = db.Column(db.String(10))
     neighborhood = db.Column(db.String(100))
 
-    # Geo — NUMERIC for precise range queries
-    lat = db.Column(db.Numeric(10, 7))
-    lng = db.Column(db.Numeric(10, 7))
+    # Geo — NUMERIC for precise range queries; indexed for map bounds queries
+    lat = db.Column(db.Numeric(10, 7), index=True)
+    lng = db.Column(db.Numeric(10, 7), index=True)
 
     # Property details
     bed = db.Column(db.Integer, index=True)
