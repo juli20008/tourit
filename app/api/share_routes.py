@@ -86,8 +86,9 @@ def share_listing(mls_number):
     street = d.get("street") or ""
     city   = d.get("city") or ""
     state  = d.get("state") or ""
-    addr   = ", ".join(p for p in [f"Unit {unit}" if unit else None, street, city] if p)
-    title  = f"{addr} — {price_fmt}" if addr else f"Property — {price_fmt}"
+    addr       = ", ".join(p for p in [f"Unit {unit}" if unit else None, street, city] if p)
+    addr_short = ", ".join(p for p in [street, city] if p)
+    title      = f"{addr_short} — {price_fmt}" if addr_short else f"Property — {price_fmt}"
 
     specs_parts = []
     if d.get("bed"):  specs_parts.append(f"{d['bed']} bd")
@@ -224,6 +225,7 @@ def share_listing(mls_number):
   </style>
 </head>
 <body>
+  <script>window.location.replace("{url_esc}");</script>
   <a class="page-link" href="{url_esc}">
     {"<img class='photo' src='" + photo_esc + "' alt='Property photo' loading='eager' />" if photo_esc else "<div class='photo-placeholder'></div>"}
     <div class="card">
