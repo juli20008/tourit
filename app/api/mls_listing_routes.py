@@ -498,6 +498,35 @@ def nearby_listings():
         return _fetch_local_bounds(lat_min, lat_max, lng_min, lng_max, limit, lightweight=False)
 
 
+@mls_listing_routes.route("/<string:mls_number>/schools", methods=["GET"])
+def get_listing_schools(mls_number):
+    """Return YRDSB school assignment for a York Region listing (cached in school_info column)."""
+    try:
+        listing = MlsListing.query.filter_by(mls_number=mls_number).first_or_404()
+    except OperationalError:
+        return jsonify({"schools": None}), 404
+
+    if listing.school_info:
+        return jsonify({"schools": listing.school_info})
+
+    from app.services.school_lookup import lookup_yrdsb_schools
+    schools = lookup_yrdsb_schools(
+        listing.street_number,
+        listing.street_name,
+        listing.street_suffix,
+        listing.city,
+    )
+
+    if schools:
+        try:
+            listing.school_info = schools
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+    return jsonify({"schools": schools})
+
+
 @mls_listing_routes.route("/<string:mls_number>", methods=["GET"])
 def get_listing(mls_number):
     if USE_LOCAL_PROPERTIES:

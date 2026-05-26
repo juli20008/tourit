@@ -116,6 +116,7 @@ class MlsListing(db.Model):
     levels = db.Column(db.String(20), nullable=True)
     ownership_type = db.Column(db.String(50), nullable=True)
     category = db.Column(db.String(50), nullable=True) # <-- 增加这一行
+    school_info = db.Column(JSONB, nullable=True)
     # Agent / brokerage
     agent_name = db.Column(db.String(100))
 
@@ -301,6 +302,7 @@ class MlsListing(db.Model):
             'construction_materials': self.construction_materials or None,
             'levels': self.levels or None,
             'ownership_type': self.ownership_type or None,
+            'school_info': self.school_info or None,
         }
 
     def to_frontend_dict(self):

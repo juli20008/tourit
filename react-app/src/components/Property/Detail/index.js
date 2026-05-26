@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
+import apiFetch from "../../../utils/apiFetch";
 
 const statusColor = (s) => {
 	if (!s) return "bg-emerald-500";
@@ -48,9 +50,33 @@ const Section = ({ title, children }) => (
 	</div>
 );
 
+const YORK_CITIES = new Set([
+	"aurora", "east gwillimbury", "georgina", "king", "markham",
+	"newmarket", "richmond hill", "vaughan",
+	"whitchurch-stouffville", "stouffville",
+]);
+
 const Detail = ({ property }) => {
 	const agents = useSelector((state) => state.agents);
+	const [schools, setSchools] = useState(null);
+	const [schoolsLoading, setSchoolsLoading] = useState(false);
 
+	useEffect(() => {
+		const mlsNum = property?.mls_number;
+		const city = (property?.city || "").toLowerCase();
+		if (!mlsNum || !YORK_CITIES.has(city)) return;
+		// Use cached value from listing payload if available
+		if (property?.school_info) {
+			setSchools(property.school_info);
+			return;
+		}
+		setSchoolsLoading(true);
+		apiFetch(`/api/listings/${mlsNum}/schools`)
+			.then((r) => r.json())
+			.then((r) => setSchools(r.schools || null))
+			.catch(() => setSchools(null))
+			.finally(() => setSchoolsLoading(false));
+	}, [property?.mls_number, property?.city, property?.school_info]);
 
 	const dom = daysOnMarket(property?.listing_date);
 
@@ -218,6 +244,36 @@ const Detail = ({ property }) => {
 				<Row label="Province / State" value={property?.state || "—"} />
 				<Row label="Postal Code" value={property?.zip || "—"} />
 			</Section>
+
+			{/* Schools — only shown for York Region listings */}
+			{(schoolsLoading || schools) && (
+				<Section title="Schools (YRDSB)">
+					{schoolsLoading && !schools && (
+						<div className="text-sm text-gray-400 py-2">Looking up assigned schools…</div>
+					)}
+					{schools && (
+						<>
+							{schools.elementary && <Row label="Elementary" value={schools.elementary} />}
+							{schools.fi_elementary && <Row label="Elementary (FI)" value={schools.fi_elementary} />}
+							{schools.secondary && <Row label="Secondary" value={schools.secondary} />}
+							{schools.fi_secondary && <Row label="Secondary (FI)" value={schools.fi_secondary} />}
+							{!schools.elementary && !schools.secondary && (
+								<div className="text-sm text-gray-400 py-2">School info not available for this address.</div>
+							)}
+						</>
+					)}
+					<div className="pt-1">
+						<a
+							href="https://schoollocator.yrdsb.ca/"
+							target="_blank"
+							rel="noopener noreferrer"
+							className="text-xs text-blue-500 hover:underline"
+						>
+							Verify on YRDSB School Locator ↗
+						</a>
+					</div>
+				</Section>
+			)}
 
 			<Section title="Brokerage details">
 				<Row label="Brokerage" value={property?.brokerage || property?.office || "—"} />
