@@ -67,6 +67,17 @@ def share_listing(mls_number):
 
     canonical = _canonical_url(mls_number, agent_id, frontend_url, wl_slug)
 
+    # Real WeChat browser users (MicroMessenger UA) and regular browsers go
+    # straight to the listing. Only social crawlers (Sogou, etc.) get the
+    # OG-tagged page — they must NOT be redirected or they lose the tags.
+    ua = request.headers.get("User-Agent", "")
+    _BOTS = ("Sogou", "Baiduspider", "Googlebot", "facebookexternalhit",
+             "Twitterbot", "LinkedInBot", "Slackbot", "TelegramBot", "WhatsApp",
+             "python-requests", "curl", "wget")
+    is_bot = any(b.lower() in ua.lower() for b in _BOTS)
+    if not is_bot:
+        return redirect(canonical, 302)
+
     listing = MlsListing.query.filter_by(mls_number=mls_number).first()
     if not listing:
         return redirect(canonical)
@@ -228,7 +239,6 @@ def share_listing(mls_number):
   </style>
 </head>
 <body>
-  <script>window.location.replace("{url_esc}");</script>
   <a class="page-link" href="{url_esc}">
     {"<img class='photo' src='" + photo_esc + "' alt='Property photo' loading='eager' />" if photo_esc else "<div class='photo-placeholder'></div>"}
     <div class="card">
