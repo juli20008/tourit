@@ -127,14 +127,16 @@ const SearchArea = () => {
 			.filter((p) => sqftMax >= 999999 || (p.sqft != null && p.sqft <= sqftMax));
 	}, [pinIndex, fallbackProps, min, max, type, bed, bath, transactionType, sqftMin, sqftMax]); // eslint-disable-line react-hooks/exhaustive-deps
 
-	// Sidebar list: filteredPins clipped to current viewport — no server limit
+	// Sidebar list: only shown when zoomed in enough to be meaningful.
+	// At zoom < 12 (city/region view) the viewport holds thousands of listings
+	// which would flood the panel; show nothing and let the map pins do the work.
 	const sidebarArr = useMemo(() => {
-		if (!mapBounds) return [];
+		if (!mapBounds || zoom < 12) return [];
 		const { swLat, neLat, swLng, neLng } = mapBounds;
-		return filteredPins.filter(
-			(p) => p.lat >= swLat && p.lat <= neLat && p.lng >= swLng && p.lng <= neLng
-		);
-	}, [filteredPins, mapBounds]);
+		return filteredPins
+			.filter((p) => p.lat >= swLat && p.lat <= neLat && p.lng >= swLng && p.lng <= neLng)
+			.slice(0, 200);
+	}, [filteredPins, mapBounds, zoom]);
 
 	// After a fly-to, highlight the nearest listing to the searched point (if within ~150 m)
 	useEffect(() => {
@@ -157,8 +159,7 @@ const SearchArea = () => {
 	const handleMapBoundsChange = useCallback((bounds) => {
 		if (!bounds) return;
 		setMapBounds(bounds);
-		// Always re-fetch on pan — provides fallback data when pin index hasn't loaded.
-		// When pin index is loaded, fallbackProps is ignored and has no visible effect.
+		if (bounds.zoom) setZoom(Math.round(bounds.zoom));
 		if (mapSyncTimer.current) clearTimeout(mapSyncTimer.current);
 		mapSyncTimer.current = setTimeout(() => {
 			dispatch(propertyActions.areaProperties({
