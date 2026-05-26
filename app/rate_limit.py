@@ -6,7 +6,7 @@ from flask import request, jsonify
 _buckets: dict = defaultdict(lambda: {"count": 0, "window_start": 0.0})
 _lock = Lock()
 
-RATE_LIMIT = 50   # max requests per window
+RATE_LIMIT = 200  # max requests per window
 WINDOW_SECS = 60  # sliding window in seconds
 
 
@@ -19,6 +19,10 @@ def _client_ip() -> str:
 
 def rate_limit_check():
     """Before-request hook — returns 429 response if IP exceeds limit."""
+    # OPTIONS preflight must not be rate-limited — a 429 here fails the CORS check
+    # even when the origin is whitelisted, blocking all subsequent requests.
+    if request.method == "OPTIONS":
+        return None
     ip = _client_ip()
     now = time.monotonic()
     with _lock:

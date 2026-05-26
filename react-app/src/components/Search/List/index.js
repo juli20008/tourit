@@ -101,7 +101,7 @@ const List = ({
 	useEffect(() => {
 		apiFetch("/api/search/terms")
 			.then((res) => res.json())
-			.then((res) => setSearchList(res.terms))
+			.then((res) => setSearchList(res.terms || []))
 			.catch((err) => console.log(err));
 		if (searchParam) {
 			const param = searchParam.split("-").join(" ");
