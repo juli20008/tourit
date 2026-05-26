@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { io } from "socket.io-client";
 import { getGuestId } from "../../../../utils/guestSession";
-import { createGuestBooking, captureGuestContact } from "../../../../store/guestBooking";
+import { createGuestBooking, captureGuestContact, sendGuestMessage } from "../../../../store/guestBooking";
 
 const rawApiBase = process.env.REACT_APP_API_URL || "";
 const API_BASE = rawApiBase
@@ -30,19 +30,28 @@ const GoogleIcon = () => (
 );
 
 const GuestChat = ({ property, today, hour, setShowSelectDate }) => {
-	const dispatch       = useDispatch();
+	const dispatch        = useDispatch();
 	const whitelabelAgent = useSelector((s) => s.whitelabel?.agent);
-	const agentName      = whitelabelAgent?.username || "Julie";
-	const agentPhoto     = whitelabelAgent?.photo || null;
+	const agentName       = whitelabelAgent?.username || "Julie";
+	const agentPhoto      = whitelabelAgent?.photo || null;
 
 	const [phase, setPhase]           = useState(0);
 	const [phone, setPhone]           = useState("");
 	const [email, setEmail]           = useState("");
 	const [submitting, setSubmitting] = useState(false);
 	const [error, setError]           = useState("");
-	const [agentMessages, setAgentMessages] = useState([]);
+
+	// All channel messages (both sides)
+	const [chatMessages, setChatMessages]   = useState([]);
+	const [guestUserId, setGuestUserId]     = useState(null);
+
+	// Post-contact chat input
+	const [inputText, setInputText]   = useState("");
+	const [sending, setSending]       = useState(false);
+
 	const bottomRef  = useRef(null);
 	const socketRef  = useRef(null);
+	const channelRef = useRef(null);  // persist channel_id for sending
 
 	const guestId = getGuestId();
 	const address = [property.street, property.city, property.state, property.zip]
@@ -56,7 +65,7 @@ const GuestChat = ({ property, today, hour, setShowSelectDate }) => {
 	const rawImage = Array.isArray(property.images) ? property.images[0] : (property.cover_photo || null);
 	const image = typeof rawImage === "string" ? rawImage : null;
 
-	// Fire booking immediately, get channel_id, then open socket to receive agent replies
+	// Fire booking immediately, get channel_id + guest_user_id, open socket
 	useEffect(() => {
 		let cancelled = false;
 		dispatch(createGuestBooking({
@@ -68,15 +77,17 @@ const GuestChat = ({ property, today, hour, setShowSelectDate }) => {
 			mls_number: property.mls_number || null,
 		})).then((res) => {
 			if (cancelled || !res?.channel_id) return;
+			channelRef.current = res.channel_id;
+			if (res.guest_user_id) setGuestUserId(res.guest_user_id);
+
 			const sock = io(API_BASE, { transports: ["websocket", "polling"] });
 			socketRef.current = sock;
 			sock.on("connect", () => {
 				sock.emit("join", String(res.channel_id));
 			});
 			sock.on("chat", (msg) => {
-				// Only show messages from the agent (not the guest's own messages)
 				if (msg.channel_id !== res.channel_id) return;
-				setAgentMessages((prev) => {
+				setChatMessages((prev) => {
 					if (prev.find((m) => m.id === msg.id)) return prev;
 					return [...prev, msg];
 				});
@@ -95,7 +106,7 @@ const GuestChat = ({ property, today, hour, setShowSelectDate }) => {
 
 	useEffect(() => {
 		bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-	}, [phase]);
+	}, [phase, chatMessages]);
 
 	const handleSubmit = async () => {
 		if (!phone.trim() && !email.trim()) {
@@ -111,6 +122,15 @@ const GuestChat = ({ property, today, hour, setShowSelectDate }) => {
 		} else {
 			setPhase(PHASE_DONE);
 		}
+	};
+
+	const handleSendMessage = async () => {
+		const text = inputText.trim();
+		if (!text || sending) return;
+		setInputText("");
+		setSending(true);
+		await dispatch(sendGuestMessage({ guest_id: guestId, text }));
+		setSending(false);
 	};
 
 	const handleGoogleLogin = () => {
@@ -154,7 +174,7 @@ const GuestChat = ({ property, today, hour, setShowSelectDate }) => {
 					</div>
 				)}
 
-				{/* Agent reply */}
+				{/* Agent initial reply */}
 				{phase >= PHASE_REPLY && (
 					<div className="gc-agent-row gc-fadein">
 						<AgentAvatar photo={agentPhoto} name={agentName} />
@@ -164,13 +184,23 @@ const GuestChat = ({ property, today, hour, setShowSelectDate }) => {
 					</div>
 				)}
 
-				{/* Real-time agent replies */}
-				{agentMessages.map((msg) => (
-					<div key={msg.id} className="gc-agent-row gc-fadein">
-						<AgentAvatar photo={agentPhoto} name={agentName} />
-						<div className="gc-agent-bubble">{msg.message}</div>
-					</div>
-				))}
+				{/* Real-time channel messages (both sides) */}
+				{chatMessages.map((msg) => {
+					const isGuest = msg.user_id === guestUserId;
+					if (isGuest) {
+						return (
+							<div key={msg.id} className="gc-guest-row gc-fadein">
+								<div className="gc-guest-bubble">{msg.message}</div>
+							</div>
+						);
+					}
+					return (
+						<div key={msg.id} className="gc-agent-row gc-fadein">
+							<AgentAvatar photo={agentPhoto} name={agentName} />
+							<div className="gc-agent-bubble">{msg.message}</div>
+						</div>
+					);
+				})}
 
 				{/* Lead capture form */}
 				{phase === PHASE_FORM && (
@@ -238,8 +268,29 @@ const GuestChat = ({ property, today, hour, setShowSelectDate }) => {
 				<div ref={bottomRef} />
 			</div>
 
+			{/* Persistent chat input — appears after contact submitted */}
+			{phase >= PHASE_DONE && (
+				<div className="gc-chat-bar">
+					<input
+						type="text"
+						placeholder={`Message ${agentName}…`}
+						value={inputText}
+						onChange={(e) => setInputText(e.target.value)}
+						onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+					/>
+					<button
+						type="button"
+						onClick={handleSendMessage}
+						disabled={!inputText.trim() || sending}
+						aria-label="Send"
+					>
+						<i className="fa-solid fa-paper-plane" style={{ fontSize: 13 }} />
+					</button>
+				</div>
+			)}
+
 			{/* T&C */}
-			<div className="tour-tnc" style={{ marginTop: 10 }}>
+			<div className="tour-tnc" style={{ marginTop: 8 }}>
 				By submitting, you agree that Tourit.ca and its affiliates may contact you about your inquiry.
 				Message/data rates may apply.
 			</div>
