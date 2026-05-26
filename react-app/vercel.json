@@ -1,5 +1,6 @@
 {
   "rewrites": [
+    { "source": "/share/:path*", "destination": "https://api.tourit.ca/share/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

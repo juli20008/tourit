@@ -4,14 +4,12 @@ import { X, Download, Link2, Share2 } from "lucide-react";
 const fmtPrice = (p) =>
 	"$" + (p ?? 0).toFixed(0).replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,");
 
-// Try to load an image via CORS-enabled fetch → blob URL so it won't taint the canvas.
-// Falls back to direct <img> load (which may taint) if CORS isn't allowed.
+// Load image via backend proxy to avoid canvas CORS taint.
 const loadImg = (url) =>
 	new Promise((resolve) => {
 		if (!url) return resolve({ img: null, tainted: false });
-
-		// Attempt 1: fetch with CORS (prevents canvas taint)
-		fetch(url, { mode: "cors" })
+		const proxyUrl = `/share/proxy-image?url=${encodeURIComponent(url)}`;
+		fetch(proxyUrl)
 			.then((r) => (r.ok ? r.blob() : Promise.reject()))
 			.then((blob) => {
 				const blobUrl = URL.createObjectURL(blob);
@@ -20,14 +18,7 @@ const loadImg = (url) =>
 				img.onerror = () => { URL.revokeObjectURL(blobUrl); resolve({ img: null, tainted: false }); };
 				img.src = blobUrl;
 			})
-			.catch(() => {
-				// Attempt 2: direct load — canvas may become tainted
-				const img = new Image();
-				img.crossOrigin = "anonymous";
-				img.onload = () => resolve({ img, tainted: false });
-				img.onerror = () => resolve({ img: null, tainted: false });
-				img.src = url;
-			});
+			.catch(() => resolve({ img: null, tainted: false }));
 	});
 
 const drawCard = async (canvas, property) => {
@@ -118,7 +109,7 @@ const drawCard = async (canvas, property) => {
 	const specs = [
 		property.bed  && `${property.bed} bd`,
 		property.bath && `${property.bath} ba`,
-		property.sqft && `${Number(property.sqft).toLocaleString()} sqft`,
+		property.sqft && `${property.sqft} sqft`,
 	].filter(Boolean).join("  ·  ");
 
 	if (specs) {

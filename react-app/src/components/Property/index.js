@@ -74,9 +74,11 @@ const Property = ({ property, onClose, referralAgent = null, isPage = false }) =
 
 	const buildShareUrl = () => {
 		const mlsNum = property?.mls_number || property?.listing_id;
-		const apiBase = (process.env.REACT_APP_API_URL || "https://api.tourit.ca").replace(/\/$/, "");
+		// Use the current domain so the link reads tourit.ca (or slug.tourit.ca for whitelabel).
+		// Vercel rewrites /share/* → api.tourit.ca/share/* so Flask still handles it.
+		const origin = window.location.origin;
 		const agentId = referralAgent?.id || (user?.agent && !referralAgent ? user.id : null);
-		const base = `${apiBase}/share/listing/${encodeURIComponent(mlsNum)}`;
+		const base = `${origin}/share/listing/${encodeURIComponent(mlsNum)}`;
 		return agentId ? `${base}?agent=${agentId}` : base;
 	};
 

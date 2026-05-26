@@ -1,10 +1,57 @@
 import json
 import os
+import re
 from html import escape as html_escape
+from urllib.parse import urlparse
 
-from flask import Blueprint, redirect, request
+from flask import Blueprint, redirect, request, Response
 
 share_routes = Blueprint("share", __name__)
+
+
+def _canonical_url(mls_number, agent_id, frontend_url):
+    """Build the 'View Full Listing' URL, respecting whitelabel subdomains."""
+    if not agent_id:
+        return f"{frontend_url}/listing/{mls_number}"
+
+    # Mirror the frontend's buildListingUrl logic:
+    # in production, agents get https://{slug}.tourit.ca/listing/:mls
+    try:
+        from app.models.user import User
+        agent = User.query.get(int(agent_id))
+        if agent and agent.agent:
+            slug = re.sub(r'[^a-zA-Z0-9]', '', agent.username or '').lower()
+            if slug and 'tourit.ca' in frontend_url:
+                return f"https://{slug}.tourit.ca/listing/{mls_number}"
+    except Exception:
+        pass
+
+    return f"{frontend_url}/a/{agent_id}/listing/{mls_number}"
+
+
+@share_routes.route("/proxy-image")
+def proxy_image():
+    import requests as http_client
+    url = request.args.get("url", "").strip()
+    if not url:
+        return "", 400
+    domain = urlparse(url).netloc.lower()
+    _ALLOWED = ("supabase.co", "realtor.ca", "amazonaws.com", "cdn.realtor.ca")
+    if not any(domain == d or domain.endswith("." + d) for d in _ALLOWED):
+        return "", 403
+    try:
+        r = http_client.get(url, timeout=8, headers={"User-Agent": "Tourit/1.0"})
+        if not r.ok:
+            return "", 502
+        ct = r.headers.get("Content-Type", "image/jpeg")
+        if not ct.startswith("image/"):
+            return "", 403
+        resp = Response(r.content, content_type=ct)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["Cache-Control"] = "public, max-age=3600"
+        return resp
+    except Exception:
+        return "", 502
 
 
 @share_routes.route("/listing/<string:mls_number>")
@@ -14,11 +61,7 @@ def share_listing(mls_number):
     frontend_url = os.environ.get("FRONTEND_URL", "https://tourit.ca")
     agent_id = request.args.get("agent", "").strip()
 
-    canonical = (
-        f"{frontend_url}/a/{agent_id}/listing/{mls_number}"
-        if agent_id
-        else f"{frontend_url}/listing/{mls_number}"
-    )
+    canonical = _canonical_url(mls_number, agent_id, frontend_url)
 
     listing = MlsListing.query.filter_by(mls_number=mls_number).first()
     if not listing:
@@ -159,6 +202,15 @@ def share_listing(mls_number):
       border-radius: 12px;
       letter-spacing: .01em;
     }}
+    .page-link {{
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      text-decoration: none;
+      color: inherit;
+      cursor: pointer;
+    }}
     .brand {{
       margin-top: 20px;
       font-size: .75rem;
@@ -168,15 +220,17 @@ def share_listing(mls_number):
   </style>
 </head>
 <body>
-  {"<img class='photo' src='" + photo_esc + "' alt='Property photo' loading='eager' />" if photo_esc else "<div class='photo-placeholder'></div>"}
-  <div class="card">
-    <div class="price">{html_escape(price_fmt)}</div>
-    {"<div class='addr'>" + html_escape(addr) + "</div>" if addr else ""}
-    {"<div class='loc'>" + html_escape(loc_str) + "</div>" if loc_str else ""}
-    {"<div class='specs'>" + spec_html + "</div>" if spec_html else ""}
-    <a class="btn" href="{url_esc}">View Full Listing →</a>
-    <div class="brand">tourit.ca</div>
-  </div>
+  <a class="page-link" href="{url_esc}">
+    {"<img class='photo' src='" + photo_esc + "' alt='Property photo' loading='eager' />" if photo_esc else "<div class='photo-placeholder'></div>"}
+    <div class="card">
+      <div class="price">{html_escape(price_fmt)}</div>
+      {"<div class='addr'>" + html_escape(addr) + "</div>" if addr else ""}
+      {"<div class='loc'>" + html_escape(loc_str) + "</div>" if loc_str else ""}
+      {"<div class='specs'>" + spec_html + "</div>" if spec_html else ""}
+      <span class="btn">View Full Listing →</span>
+      <div class="brand">tourit.ca</div>
+    </div>
+  </a>
 </body>
 </html>"""
 
