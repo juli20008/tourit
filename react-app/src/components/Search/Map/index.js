@@ -16,7 +16,41 @@ import PropertyPreviewList from "./PropertyPreviewList";
 import BottomSheet from "./BottomSheet";
 import { hydrateMlsListing } from "../../../utils/mlsListingHydrator";
 
-// Compute pixelOffset so the InfoWindow card stays within the visible map area.
+// ── Community boundary overlay (torontomls.net tile layer) ────────────────────
+
+// Bing quadkey ↔ Google Maps tile (x, y, zoom) — same Mercator projection,
+// same origin, so only the key encoding differs.
+function tileToQuadKey(x, y, zoom) {
+  let key = '';
+  for (let i = zoom; i > 0; i--) {
+    let d = 0;
+    const mask = 1 << (i - 1);
+    if (x & mask) d++;
+    if (y & mask) d += 2;
+    key += d;
+  }
+  return key;
+}
+
+// Walk the react-google-maps context to get the native google.maps.Map instance.
+function getNativeMap(gmRef) {
+  const ctx = gmRef.current?.context;
+  if (!ctx) return null;
+  const keys = [...Object.keys(ctx), ...Object.getOwnPropertySymbols(ctx)];
+  for (const k of keys) {
+    const v = ctx[k];
+    if (v && typeof v.overlayMapTypes !== 'undefined') return v;
+  }
+  return null;
+}
+
+const LAYER_CONFIGS = {
+  communities:    'Layer_Communities',
+  municipalities: 'Layer_Municipalities',
+  areas:          'Layer_Areas',
+};
+
+// ── Compute pixelOffset so the InfoWindow card stays within the visible map area.
 const getInfoWindowOptions = (markerLat, markerLng, mapRef) => {
   if (!mapRef?.current) return {};
   const map = mapRef.current;
@@ -138,6 +172,8 @@ const MapCore = withGoogleMap((props) => {
 		// Mobile bottom sheet: array of properties (1 for pin, N for cluster)
 		const [bottomSheet, setBottomSheet] = useState(null);
 		const [isMobile, setIsMobile] = useState(() => window.innerWidth < 650);
+		const [activeLayer, setActiveLayer] = useState(null); // 'communities' | 'municipalities' | 'areas' | null
+		const overlayRef = useRef(null);
 
 		useEffect(() => {
 			if (!isProductionHost || googleReady) return;
@@ -158,6 +194,35 @@ const MapCore = withGoogleMap((props) => {
 			window.addEventListener("resize", handler);
 			return () => window.removeEventListener("resize", handler);
 		}, []);
+
+		// Add / swap / remove the community boundary tile overlay
+		useEffect(() => {
+			if (!window.google?.maps) return;
+			const nativeMap = getNativeMap(mapRef);
+			if (!nativeMap) return;
+
+			// Remove previous overlay
+			if (overlayRef.current) {
+				const types = nativeMap.overlayMapTypes;
+				for (let i = 0; i < types.getLength(); i++) {
+					if (types.getAt(i) === overlayRef.current) { types.removeAt(i); break; }
+				}
+				overlayRef.current = null;
+			}
+
+			if (!activeLayer) return;
+
+			const tileName = LAYER_CONFIGS[activeLayer];
+			const layer = new window.google.maps.ImageMapType({
+				getTileUrl: (coord, zoom) =>
+					`https://www.torontomls.net/BingCommunitiesMap/BingMapData/${tileName}/${tileToQuadKey(coord.x, coord.y, zoom)}.png`,
+				tileSize: new window.google.maps.Size(256, 256),
+				opacity: 0.65,
+				name: tileName,
+			});
+			nativeMap.overlayMapTypes.push(layer);
+			overlayRef.current = layer;
+		}, [activeLayer]);
 
 		// Build a fresh supercluster index whenever the marker list changes.
 		const supercluster = useMemo(() => {
@@ -392,6 +457,25 @@ const MapCore = withGoogleMap((props) => {
 						</select>
 					</div>
 				)}
+				{/* MLS boundary layer toggle — top-right map overlay */}
+				<div className="absolute top-3 right-3 z-10 flex gap-1">
+					{[
+						{ key: 'communities',    label: 'Communities' },
+						{ key: 'municipalities', label: 'Districts' },
+						{ key: 'areas',          label: 'Areas' },
+					].map(({ key, label }) => (
+						<button
+							key={key}
+							onClick={() => setActiveLayer(l => l === key ? null : key)}
+							className={`rounded-md border px-2 py-1 text-[11px] font-semibold shadow-sm transition
+								${activeLayer === key
+									? 'bg-[#1e293b] text-white border-[#1e293b]'
+									: 'bg-white text-[#2d2d2d] border-[#d6d6d0] hover:bg-[#f1f5f9]'}`}
+						>
+							{label}
+						</button>
+					))}
+				</div>
 				<GoogleMap
 					ref={mapRef}
 					defaultZoom={props.zoom || 4}
