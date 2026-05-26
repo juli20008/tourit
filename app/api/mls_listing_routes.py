@@ -301,7 +301,9 @@ def list_listings_by_bounds():
         if t_type:
             q = q.filter(MlsListing.transaction_type == t_type)
         q = q.filter(MlsListing.property_type_filter())
-        q = q.order_by(MlsListing.updated_at.desc().nullslast(), MlsListing.list_price.desc().nullslast()).limit(limit)
+        # No ORDER BY — map pins have no meaningful sort order and sorting
+        # all matching rows before LIMIT is the single most expensive step.
+        q = q.limit(limit)
         listings = q.all()
         if not listings:
             return _fetch_local_bounds(lat_min, lat_max, lng_min, lng_max, limit, lightweight=lightweight or limit > MAX_RESULTS)
