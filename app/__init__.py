@@ -26,6 +26,7 @@ from .api.fbmp_routes import fbmp_routes
 from .api.live_tour_routes import live_tour_routes
 from .api.historical_live_tour_routes import historical_live_tour_routes
 from .api.guest_routes import guest_routes
+from .api.share_routes import share_routes
 
 from .seeds import seed_commands
 
@@ -77,6 +78,7 @@ app.register_blueprint(fbmp_routes, url_prefix='/api/fbmp')
 app.register_blueprint(live_tour_routes, url_prefix='/api/live-tours')
 app.register_blueprint(historical_live_tour_routes, url_prefix='/api/historical-live-tours')
 app.register_blueprint(guest_routes, url_prefix='/api/guest')
+app.register_blueprint(share_routes, url_prefix='/share')
 db.init_app(app)
 Migrate(app, db)
 socketio.init_app(app)

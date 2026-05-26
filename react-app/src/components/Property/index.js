@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { X, Share2, QrCode } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
@@ -6,6 +6,7 @@ import { QRCodeSVG } from "qrcode.react";
 import Images from "./Images";
 import Detail from "./Detail";
 import Tour from "./Tour";
+import ShareModal from "./ShareModal";
 
 import * as propertyImgActions from "../../store/property_img";
 import * as agentActions from "../../store/agent";
@@ -50,9 +51,8 @@ const Property = ({ property, onClose, referralAgent = null, isPage = false }) =
 	const dispatch = useDispatch();
 	const user = useSelector((state) => state.session.user);
 	const [showMobileTour, setShowMobileTour] = useState(false);
-	const [copied, setCopied] = useState(false);
+	const [showShare, setShowShare] = useState(false);
 	const [showQR, setShowQR] = useState(false);
-	const copyTimer = useRef(null);
 
 	useFbmpEmbed(property);
 
@@ -72,11 +72,12 @@ const Property = ({ property, onClose, referralAgent = null, isPage = false }) =
 		return `${base}/listing/${encodeURIComponent(mlsNum)}`;
 	};
 
-	const handleShare = () => {
-		navigator.clipboard.writeText(buildListingUrl()).catch(() => {});
-		setCopied(true);
-		clearTimeout(copyTimer.current);
-		copyTimer.current = setTimeout(() => setCopied(false), 2000);
+	const buildShareUrl = () => {
+		const mlsNum = property?.mls_number || property?.listing_id;
+		const apiBase = (process.env.REACT_APP_API_URL || "https://api.tourit.ca").replace(/\/$/, "");
+		const agentId = referralAgent?.id || (user?.agent && !referralAgent ? user.id : null);
+		const base = `${apiBase}/share/listing/${encodeURIComponent(mlsNum)}`;
+		return agentId ? `${base}?agent=${agentId}` : base;
 	};
 
 	const handleQR = () => setShowQR(true);
@@ -98,14 +99,10 @@ const Property = ({ property, onClose, referralAgent = null, isPage = false }) =
 				<button
 					type="button"
 					className="flex items-center justify-center w-8 h-8 rounded-full bg-white/90 shadow text-gray-500 hover:text-gray-900 transition-colors"
-					onClick={handleShare}
-					title="Copy link"
+					onClick={() => setShowShare(true)}
+					title="Share listing"
 				>
-					{copied ? (
-						<span className="text-[10px] font-semibold text-emerald-600 px-1">Copied!</span>
-					) : (
-						<Share2 size={14} strokeWidth={2} />
-					)}
+					<Share2 size={14} strokeWidth={2} />
 				</button>
 				<button
 					type="button"
@@ -155,6 +152,15 @@ const Property = ({ property, onClose, referralAgent = null, isPage = false }) =
 						{referralAgent ? `Tour with ${referralAgent.username}` : "Tour with a Buyer's Agent"}
 					</button>
 				</div>
+			)}
+
+			{/* Share modal — card preview + save image + copy link */}
+			{showShare && (
+				<ShareModal
+					property={property}
+					shareUrl={buildShareUrl()}
+					onClose={() => setShowShare(false)}
+				/>
 			)}
 
 			{/* QR code modal */}
