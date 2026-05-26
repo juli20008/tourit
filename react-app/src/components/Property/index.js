@@ -74,12 +74,16 @@ const Property = ({ property, onClose, referralAgent = null, isPage = false }) =
 
 	const buildShareUrl = () => {
 		const mlsNum = property?.mls_number || property?.listing_id;
-		// Use the current domain so the link reads tourit.ca (or slug.tourit.ca for whitelabel).
-		// Vercel rewrites /share/* → api.tourit.ca/share/* so Flask still handles it.
 		const origin = window.location.origin;
 		const agentId = referralAgent?.id || (user?.agent && !referralAgent ? user.id : null);
+		const wlSlug = getWhitelabelSlug();
 		const base = `${origin}/share/listing/${encodeURIComponent(mlsNum)}`;
-		return agentId ? `${base}?agent=${agentId}` : base;
+		const params = new URLSearchParams();
+		if (agentId) params.set("agent", String(agentId));
+		// If on a whitelabel and no agent id, still hint Flask so canonical stays on this domain
+		if (wlSlug && !agentId) params.set("wl", wlSlug);
+		const qs = params.toString();
+		return qs ? `${base}?${qs}` : base;
 	};
 
 	const handleQR = () => setShowQR(true);

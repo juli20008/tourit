@@ -9,24 +9,27 @@ from flask import Blueprint, redirect, request, Response
 share_routes = Blueprint("share", __name__)
 
 
-def _canonical_url(mls_number, agent_id, frontend_url):
-    """Build the 'View Full Listing' URL, respecting whitelabel subdomains."""
-    if not agent_id:
-        return f"{frontend_url}/listing/{mls_number}"
+def _canonical_url(mls_number, agent_id, frontend_url, wl_slug=None):
+    """Build the full listing URL, respecting whitelabel subdomains."""
+    if agent_id:
+        # Mirror the frontend's buildListingUrl logic:
+        # in production, agents get https://{slug}.tourit.ca/listing/:mls
+        try:
+            from app.models.user import User
+            agent = User.query.get(int(agent_id))
+            if agent and agent.agent:
+                slug = re.sub(r'[^a-zA-Z0-9]', '', agent.username or '').lower()
+                if slug and 'tourit.ca' in frontend_url:
+                    return f"https://{slug}.tourit.ca/listing/{mls_number}"
+        except Exception:
+            pass
+        return f"{frontend_url}/a/{agent_id}/listing/{mls_number}"
 
-    # Mirror the frontend's buildListingUrl logic:
-    # in production, agents get https://{slug}.tourit.ca/listing/:mls
-    try:
-        from app.models.user import User
-        agent = User.query.get(int(agent_id))
-        if agent and agent.agent:
-            slug = re.sub(r'[^a-zA-Z0-9]', '', agent.username or '').lower()
-            if slug and 'tourit.ca' in frontend_url:
-                return f"https://{slug}.tourit.ca/listing/{mls_number}"
-    except Exception:
-        pass
+    # Non-agent share from a whitelabel subdomain — stay on that domain
+    if wl_slug:
+        return f"https://{wl_slug}.tourit.ca/listing/{mls_number}"
 
-    return f"{frontend_url}/a/{agent_id}/listing/{mls_number}"
+    return f"{frontend_url}/listing/{mls_number}"
 
 
 @share_routes.route("/proxy-image")
@@ -60,8 +63,9 @@ def share_listing(mls_number):
 
     frontend_url = os.environ.get("FRONTEND_URL", "https://tourit.ca")
     agent_id = request.args.get("agent", "").strip()
+    wl_slug = re.sub(r'[^a-z0-9-]', '', request.args.get("wl", "").strip().lower()) or None
 
-    canonical = _canonical_url(mls_number, agent_id, frontend_url)
+    canonical = _canonical_url(mls_number, agent_id, frontend_url, wl_slug)
 
     listing = MlsListing.query.filter_by(mls_number=mls_number).first()
     if not listing:
@@ -120,6 +124,7 @@ def share_listing(mls_number):
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>{t}</title>
   <meta name="description" content="{dsc}" />
+  <meta http-equiv="refresh" content="0; url={url_esc}" />
 
   <!-- ─── Open Graph (WeChat, Slack, iMessage …) ──────────────────────── -->
   <meta property="og:type"        content="website" />
