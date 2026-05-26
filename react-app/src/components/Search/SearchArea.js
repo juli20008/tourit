@@ -48,6 +48,8 @@ const SearchArea = () => {
 	const [mapBounds, setMapBounds] = useState(null);
 	const [over, setOver] = useState({ id: 0 });
 	const [zoom, setZoom] = useState(10);
+	const mapSyncTimer = useRef(null);
+	const transactionTypeRef = useRef("For Sale");
 
 	useEffect(() => {
 		if (!hasConsented()) setShowConsent(true);
@@ -155,7 +157,16 @@ const SearchArea = () => {
 	const handleMapBoundsChange = useCallback((bounds) => {
 		if (!bounds) return;
 		setMapBounds(bounds);
-	}, []);
+		// Always re-fetch on pan — provides fallback data when pin index hasn't loaded.
+		// When pin index is loaded, fallbackProps is ignored and has no visible effect.
+		if (mapSyncTimer.current) clearTimeout(mapSyncTimer.current);
+		mapSyncTimer.current = setTimeout(() => {
+			dispatch(propertyActions.areaProperties({
+				...bounds,
+				transaction_type: transactionTypeRef.current,
+			}));
+		}, 500);
+	}, [dispatch]);
 
 	const handleFlyTo = (lat, lng, bounds) => {
 		if (flyTargetTimerRef.current) clearTimeout(flyTargetTimerRef.current);
@@ -193,7 +204,7 @@ const SearchArea = () => {
 						}}>
 							<button
 								type="button"
-								onClick={() => setTransactionType("For Sale")}
+								onClick={() => { setTransactionType("For Sale"); transactionTypeRef.current = "For Sale"; }}
 								style={{
 									...btnBase,
 									background: transactionType === "For Sale" ? "#0f172a" : "white",
@@ -202,7 +213,7 @@ const SearchArea = () => {
 							>Buy</button>
 							<button
 								type="button"
-								onClick={() => setTransactionType("For Lease")}
+								onClick={() => { setTransactionType("For Lease"); transactionTypeRef.current = "For Lease"; }}
 								style={{
 									...btnBase,
 									background: transactionType === "For Lease" ? "#0f172a" : "white",
