@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { io } from "socket.io-client";
 import { getGuestId } from "../../../../utils/guestSession";
 import { createGuestBooking, captureGuestContact } from "../../../../store/guestBooking";
 
@@ -34,12 +35,14 @@ const GuestChat = ({ property, today, hour, setShowSelectDate }) => {
 	const agentName      = whitelabelAgent?.username || "Julie";
 	const agentPhoto     = whitelabelAgent?.photo || null;
 
-	const [phase, setPhase]         = useState(0);
-	const [phone, setPhone]         = useState("");
-	const [email, setEmail]         = useState("");
+	const [phase, setPhase]           = useState(0);
+	const [phone, setPhone]           = useState("");
+	const [email, setEmail]           = useState("");
 	const [submitting, setSubmitting] = useState(false);
-	const [error, setError]         = useState("");
-	const bottomRef = useRef(null);
+	const [error, setError]           = useState("");
+	const [agentMessages, setAgentMessages] = useState([]);
+	const bottomRef  = useRef(null);
+	const socketRef  = useRef(null);
 
 	const guestId = getGuestId();
 	const address = [property.street, property.city, property.state, property.zip]
@@ -53,8 +56,9 @@ const GuestChat = ({ property, today, hour, setShowSelectDate }) => {
 	const rawImage = Array.isArray(property.images) ? property.images[0] : (property.cover_photo || null);
 	const image = typeof rawImage === "string" ? rawImage : null;
 
-	// Fire booking immediately and sequence the chat animation
+	// Fire booking immediately, get channel_id, then open socket to receive agent replies
 	useEffect(() => {
+		let cancelled = false;
 		dispatch(createGuestBooking({
 			guest_id:   guestId,
 			date:       today,
@@ -62,12 +66,31 @@ const GuestChat = ({ property, today, hour, setShowSelectDate }) => {
 			address,
 			image:      image || "",
 			mls_number: property.mls_number || null,
-		}));
+		})).then((res) => {
+			if (cancelled || !res?.channel_id) return;
+			const sock = io(API_BASE, { transports: ["websocket", "polling"] });
+			socketRef.current = sock;
+			sock.on("connect", () => {
+				sock.emit("join", String(res.channel_id));
+			});
+			sock.on("chat", (msg) => {
+				// Only show messages from the agent (not the guest's own messages)
+				if (msg.channel_id !== res.channel_id) return;
+				setAgentMessages((prev) => {
+					if (prev.find((m) => m.id === msg.id)) return prev;
+					return [...prev, msg];
+				});
+			});
+		});
 
 		const t1 = setTimeout(() => setPhase(PHASE_TYPING), 600);
 		const t2 = setTimeout(() => setPhase(PHASE_REPLY),  1600);
 		const t3 = setTimeout(() => setPhase(PHASE_FORM),   2300);
-		return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+		return () => {
+			cancelled = true;
+			clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
+			if (socketRef.current) { socketRef.current.disconnect(); socketRef.current = null; }
+		};
 	}, []); // eslint-disable-line react-hooks/exhaustive-deps
 
 	useEffect(() => {
@@ -140,6 +163,14 @@ const GuestChat = ({ property, today, hour, setShowSelectDate }) => {
 						</div>
 					</div>
 				)}
+
+				{/* Real-time agent replies */}
+				{agentMessages.map((msg) => (
+					<div key={msg.id} className="gc-agent-row gc-fadein">
+						<AgentAvatar photo={agentPhoto} name={agentName} />
+						<div className="gc-agent-bubble">{msg.message}</div>
+					</div>
+				))}
 
 				{/* Lead capture form */}
 				{phase === PHASE_FORM && (
