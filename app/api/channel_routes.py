@@ -19,22 +19,23 @@ def validation_errors_to_error_messages(validation_errors):
 @login_required
 def channels():
     if request.method == "GET":
+        raw = current_user.agent_channels if current_user.agent else current_user.user_channels
+        channels = []
+        chat_ids = []
+        for ch in raw:
+            try:
+                d = ch.to_dict()
+                channels.append(d)
+                chat_ids.extend(d.get("chat_ids") or [])
+            except Exception:
+                pass
 
-        if current_user.agent:
-            channels = [channel.to_dict() for channel in current_user.agent_channels]
-            chat_ids = [channel.to_dict()["chat_ids"] for channel in current_user.agent_channels]
-        else:
-            channels = [channel.to_dict() for channel in current_user.user_channels]
-            chat_ids = [channel.to_dict()["chat_ids"] for channel in current_user.user_channels]
-
-        chat_ids = [el for lst in chat_ids for el in lst]
-
-        chats = Chat.query.filter(Chat.id.in_(chat_ids)).all()
+        chats = Chat.query.filter(Chat.id.in_(chat_ids)).all() if chat_ids else []
 
         return {
             "channels": channels,
             "chats": [chat.to_dict() for chat in chats],
-            }
+        }
 
     if request.method == "POST":
         form = NewChannelForm()

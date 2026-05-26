@@ -39,14 +39,19 @@ const Chats = () => {
 		setShowChannels(!channelParam);
 	}, [channelParam]);
 
-	useEffect(() => {
+	const refreshChannels = () =>
 		apiFetch("/api/channels/")
-			.then((res) => res.json())
+			.then((res) => (res.ok ? res.json() : null))
 			.then((res) => {
+				if (!res?.channels) return;
 				dispatch(channelActions.getChannels(res.channels));
 				dispatch(chatActions.getChats(res.chats));
-			});
-	}, [dispatch]);
+			})
+			.catch(() => {});
+
+	useEffect(() => {
+		refreshChannels();
+	}, [dispatch]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	// Keep channelsRef current so the socket closure below can read latest state
 	useEffect(() => { channelsRef.current = channels; }, [channels]);
@@ -56,33 +61,30 @@ const Chats = () => {
 		if (!user?.agent) return;
 		const sock = io(process.env.REACT_APP_API_URL || '');
 		const room = `agent_${user.id}`;
-		sock.on("connect", () => sock.emit("join", room));
+		sock.on("connect", () => {
+			sock.emit("join", room);
+			// Re-fetch on connect to catch any bookings that arrived while connecting
+			refreshChannels();
+		});
 		sock.on("chat", (incoming) => {
 			dispatch(chatActions.addEditChat(incoming));
 			dispatch(channelActions.addChat({ channel_id: incoming.channel_id, chat_id: incoming.id }));
 			dispatch(markUnread());
-			// Channel not loaded yet → re-fetch the full list to get the new channel
-			if (!channelsRef.current?.[incoming.channel_id]) {
-				apiFetch("/api/channels/")
-					.then(r => r.json())
-					.then(r => {
-						dispatch(channelActions.getChannels(r.channels));
-						dispatch(chatActions.getChats(r.chats));
-					});
-			}
+			// Always refresh — ensures new guest channels appear in the list
+			refreshChannels();
 		});
 		return () => { sock.emit("leave", room); sock.disconnect(); };
-	}, [dispatch, user]);
+	}, [dispatch, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	useEffect(() => {
 		if (user.agent) {
 			const arr = Object.values(channels).filter((channel) =>
-				channel?.user_name.includes(search)
+				channel?.user_name?.toLowerCase().includes(search.toLowerCase())
 			);
 			setChannelsArr(arr);
 		} else {
 			const arr = Object.values(channels).filter((channel) =>
-				channel?.agent_name.toLowerCase().includes(search.toLowerCase())
+				channel?.agent_name?.toLowerCase().includes(search.toLowerCase())
 			);
 			setChannelsArr(arr);
 		}
