@@ -39,7 +39,7 @@ def proxy_image():
     if not url:
         return "", 400
     domain = urlparse(url).netloc.lower()
-    _ALLOWED = ("supabase.co", "realtor.ca", "amazonaws.com", "cdn.realtor.ca")
+    _ALLOWED = ("supabase.co", "realtor.ca", "amazonaws.com", "cdn.realtor.ca", "googleusercontent.com")
     if not any(domain == d or domain.endswith("." + d) for d in _ALLOWED):
         return "", 403
     try:

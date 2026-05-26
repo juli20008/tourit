@@ -137,6 +137,7 @@ const Property = ({ property, onClose, referralAgent = null, isPage = false }) =
 				<ShareModal
 					property={property}
 					shareUrl={buildShareUrl()}
+					agent={referralAgent || (user?.agent ? user : null)}
 					onClose={() => setShowShare(false)}
 				/>
 			)}

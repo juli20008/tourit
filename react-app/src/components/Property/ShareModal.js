@@ -22,7 +22,7 @@ const loadImg = (url) =>
 			.catch(() => resolve({ img: null, tainted: false }));
 	});
 
-const drawCard = async (canvas, property, qrCanvas = null) => {
+const drawCard = async (canvas, property, qrCanvas = null, agent = null) => {
 	const W = 1080, H = 1440;
 	canvas.width  = W;
 	canvas.height = H;
@@ -33,13 +33,19 @@ const drawCard = async (canvas, property, qrCanvas = null) => {
 	const INFO_H  = H - PHOTO_H;
 	const PAD     = 72;
 
-	// ── Photo section ──────────────────────────────────────────────────────
+	// ── Load images concurrently ───────────────────────────────────────────
 	const photoUrl = (property.images || property.image_urls || [])[0]
 		|| property.front_img || property.image_url;
 	let tainted = false;
 
+	const [photoResult, avatarResult] = await Promise.all([
+		loadImg(photoUrl),
+		agent?.photo ? loadImg(agent.photo) : Promise.resolve({ img: null, tainted: false }),
+	]);
+	const agentAvatarImg = avatarResult.img;
+
 	if (photoUrl) {
-		const { img, tainted: t } = await loadImg(photoUrl);
+		const { img, tainted: t } = photoResult;
 		if (img) {
 			tainted = t;
 			// Object-fit: cover — fill the photo area without stretching
@@ -119,23 +125,82 @@ const drawCard = async (canvas, property, qrCanvas = null) => {
 		ctx.fillText(specs, PAD, ty);
 	}
 
-	// QR code — bottom left
-	if (qrCanvas) {
-		const QR_SIZE = 180;
-		const BG_PAD  = 14;
-		const QR_X    = PAD;
-		const QR_Y    = H - PAD - QR_SIZE;
-		ctx.fillStyle = "#ffffff";
-		ctx.fillRect(QR_X - BG_PAD, QR_Y - BG_PAD, QR_SIZE + BG_PAD * 2, QR_SIZE + BG_PAD * 2);
-		ctx.drawImage(qrCanvas, QR_X, QR_Y, QR_SIZE, QR_SIZE);
-	}
+	// ── Bottom strip: QR code (left) + agent info (right) ─────────────────
+	const QR_SIZE = 180;
+	const BG_PAD  = 14;
+	const QR_X    = PAD;
+	const QR_Y    = H - PAD - QR_SIZE;
+	// White QR background
+	ctx.fillStyle = "#ffffff";
+	ctx.fillRect(QR_X - BG_PAD, QR_Y - BG_PAD, QR_SIZE + BG_PAD * 2, QR_SIZE + BG_PAD * 2);
+	if (qrCanvas) ctx.drawImage(qrCanvas, QR_X, QR_Y, QR_SIZE, QR_SIZE);
 
-	// Brand watermark — bottom right
-	ctx.fillStyle = "#3a3a34";
-	ctx.font = `40px -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif`;
-	ctx.textAlign = "right";
-	ctx.fillText("tourit.ca", W - PAD, H - PAD);
-	ctx.textAlign = "left";
+	// Agent info — to the right of the QR box
+	if (agent) {
+		const AGENT_X   = QR_X - BG_PAD + QR_SIZE + BG_PAD * 2 + 24; // right of white box + gap
+		const STRIP_TOP = QR_Y - BG_PAD;
+		const STRIP_BOT = QR_Y + QR_SIZE + BG_PAD;
+		const MID_Y     = (STRIP_TOP + STRIP_BOT) / 2;
+		const AVATAR_R  = 44;
+		const AV_CX     = AGENT_X + AVATAR_R;
+		const AV_CY     = MID_Y;
+
+		// Avatar circle
+		ctx.save();
+		ctx.beginPath();
+		ctx.arc(AV_CX, AV_CY, AVATAR_R, 0, Math.PI * 2);
+		ctx.clip();
+		if (agentAvatarImg) {
+			const s  = Math.max((AVATAR_R * 2) / agentAvatarImg.naturalWidth, (AVATAR_R * 2) / agentAvatarImg.naturalHeight);
+			const dw = agentAvatarImg.naturalWidth  * s;
+			const dh = agentAvatarImg.naturalHeight * s;
+			ctx.drawImage(agentAvatarImg, AV_CX - dw / 2, AV_CY - dh / 2, dw, dh);
+		} else {
+			ctx.fillStyle = "#2e2e2c";
+			ctx.fillRect(AV_CX - AVATAR_R, AV_CY - AVATAR_R, AVATAR_R * 2, AVATAR_R * 2);
+			ctx.fillStyle = "#9a9a94";
+			ctx.font = `bold ${AVATAR_R}px -apple-system, sans-serif`;
+			ctx.textAlign = "center";
+			ctx.textBaseline = "middle";
+			ctx.fillText((agent.username || "A")[0].toUpperCase(), AV_CX, AV_CY);
+		}
+		ctx.restore();
+
+		// Text to the right of avatar
+		const TX      = AV_CX + AVATAR_R + 20;
+		const MAX_W   = W - PAD - TX;
+		const FONT    = `-apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif`;
+		ctx.textAlign    = "left";
+		ctx.textBaseline = "alphabetic";
+
+		const lines = [
+			agent.username && { text: agent.username, size: 36, weight: "bold", color: "#ffffff" },
+			agent.phone    && { text: agent.phone,    size: 28, weight: "normal", color: "#9a9a94" },
+			agent.email    && { text: agent.email,    size: 26, weight: "normal", color: "#9a9a94" },
+		].filter(Boolean);
+
+		const LINE_H = 40;
+		const totalH = lines.reduce((s, l) => s + l.size, 0) + LINE_H * (lines.length - 1);
+		let ty = MID_Y - totalH / 2 + (lines[0]?.size ?? 0);
+
+		for (const { text, size, weight, color } of lines) {
+			ctx.font      = `${weight} ${size}px ${FONT}`;
+			ctx.fillStyle = color;
+			let t = text;
+			while (ctx.measureText(t).width > MAX_W && t.length > 2) t = t.slice(0, -1);
+			if (t !== text) t = t.trimEnd() + "…";
+			ctx.fillText(t, TX, ty);
+			ty += size + LINE_H;
+		}
+	} else {
+		// No agent — brand watermark bottom right
+		ctx.fillStyle    = "#3a3a34";
+		ctx.font         = `40px -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif`;
+		ctx.textAlign    = "right";
+		ctx.textBaseline = "alphabetic";
+		ctx.fillText("tourit.ca", W - PAD, H - PAD);
+		ctx.textAlign = "left";
+	}
 
 	return { tainted };
 };
@@ -150,21 +215,21 @@ function _drawPhotoPlaceholder(ctx, W, H) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-const ShareModal = ({ property, shareUrl, onClose }) => {
-	const canvasRef  = useRef(null);
+const ShareModal = ({ property, shareUrl, agent = null, onClose }) => {
+	const canvasRef   = useRef(null);
 	const qrCanvasRef = useRef(null);
-	const [status, setStatus]   = useState("generating"); // generating | ready | tainted
-	const [copied, setCopied]   = useState(false);
+	const [status, setStatus] = useState("generating"); // generating | ready | tainted
+	const [copied, setCopied] = useState(false);
 	const copyTimer = useRef(null);
 
 	useEffect(() => {
 		const canvas = canvasRef.current;
 		if (!canvas || !property) return;
 		setStatus("generating");
-		drawCard(canvas, property, qrCanvasRef.current).then(({ tainted }) =>
+		drawCard(canvas, property, qrCanvasRef.current, agent).then(({ tainted }) =>
 			setStatus(tainted ? "tainted" : "ready")
 		);
-	}, [property, shareUrl]);
+	}, [property, shareUrl, agent]);
 
 	const handleSave = useCallback(() => {
 		const canvas = canvasRef.current;
