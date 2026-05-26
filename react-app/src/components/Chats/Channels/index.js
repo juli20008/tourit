@@ -46,7 +46,7 @@ const Channels = ({ channel }) => {
 
 				<div className="agent-detail">
 					<div>{channel?.agent_name}</div>
-					<div className="office">{channel?.agent_office.toUpperCase()}</div>
+					<div className="office">{channel?.agent_office?.toUpperCase()}</div>
 				</div>
 			</div>
 		);
