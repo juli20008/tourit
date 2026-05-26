@@ -183,6 +183,17 @@ def warmup():
 def serve(path):
     if path.startswith('api/'):
         return jsonify({'error': 'Not found'}), 404
+
+    # Share pages — handle here so the catch-all never intercepts them.
+    # The blueprint at /share also registers these routes, but the catch-all
+    # can win over blueprints depending on Werkzeug's sorting.
+    _SHARE_PREFIX = 'share/listing/'
+    if path.startswith(_SHARE_PREFIX):
+        mls_number = path[len(_SHARE_PREFIX):].strip('/')
+        if mls_number:
+            from app.api.share_routes import share_listing
+            return share_listing(mls_number)
+
     file_path = os.path.join(app.static_folder, path) if path else ''
     if path and os.path.exists(file_path):
         return send_from_directory(app.static_folder, path)
