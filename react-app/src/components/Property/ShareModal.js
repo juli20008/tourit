@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect, useCallback } from "react";
 import { X, Download, Link2, Share2 } from "lucide-react";
+import { QRCodeCanvas } from "qrcode.react";
 
 const fmtPrice = (p) =>
 	"$" + (p ?? 0).toFixed(0).replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,");
@@ -21,7 +22,7 @@ const loadImg = (url) =>
 			.catch(() => resolve({ img: null, tainted: false }));
 	});
 
-const drawCard = async (canvas, property) => {
+const drawCard = async (canvas, property, qrCanvas = null) => {
 	const W = 1080, H = 1440;
 	canvas.width  = W;
 	canvas.height = H;
@@ -118,11 +119,22 @@ const drawCard = async (canvas, property) => {
 		ctx.fillText(specs, PAD, ty);
 	}
 
+	// QR code — bottom left
+	if (qrCanvas) {
+		const QR_SIZE = 180;
+		const BG_PAD  = 14;
+		const QR_X    = PAD;
+		const QR_Y    = H - PAD - QR_SIZE;
+		ctx.fillStyle = "#ffffff";
+		ctx.fillRect(QR_X - BG_PAD, QR_Y - BG_PAD, QR_SIZE + BG_PAD * 2, QR_SIZE + BG_PAD * 2);
+		ctx.drawImage(qrCanvas, QR_X, QR_Y, QR_SIZE, QR_SIZE);
+	}
+
 	// Brand watermark — bottom right
 	ctx.fillStyle = "#3a3a34";
 	ctx.font = `40px -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif`;
 	ctx.textAlign = "right";
-	ctx.fillText("tourit.ca", W - PAD, INFO_Y + INFO_H - 56);
+	ctx.fillText("tourit.ca", W - PAD, H - PAD);
 	ctx.textAlign = "left";
 
 	return { tainted };
@@ -140,6 +152,7 @@ function _drawPhotoPlaceholder(ctx, W, H) {
 
 const ShareModal = ({ property, shareUrl, onClose }) => {
 	const canvasRef  = useRef(null);
+	const qrCanvasRef = useRef(null);
 	const [status, setStatus]   = useState("generating"); // generating | ready | tainted
 	const [copied, setCopied]   = useState(false);
 	const copyTimer = useRef(null);
@@ -148,10 +161,10 @@ const ShareModal = ({ property, shareUrl, onClose }) => {
 		const canvas = canvasRef.current;
 		if (!canvas || !property) return;
 		setStatus("generating");
-		drawCard(canvas, property).then(({ tainted }) =>
+		drawCard(canvas, property, qrCanvasRef.current).then(({ tainted }) =>
 			setStatus(tainted ? "tainted" : "ready")
 		);
-	}, [property]);
+	}, [property, shareUrl]);
 
 	const handleSave = useCallback(() => {
 		const canvas = canvasRef.current;
@@ -191,6 +204,17 @@ const ShareModal = ({ property, shareUrl, onClose }) => {
 			className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60"
 			onClick={onClose}
 		>
+			{/* Hidden QR canvas — composited onto the card by drawCard() */}
+			<div style={{ position: "absolute", left: -9999, top: -9999, visibility: "hidden" }}>
+				<QRCodeCanvas
+					ref={qrCanvasRef}
+					value={shareUrl}
+					size={300}
+					bgColor="#ffffff"
+					fgColor="#111110"
+					level="M"
+				/>
+			</div>
 			<div
 				className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-[360px] sm:mx-4"
 				onClick={(e) => e.stopPropagation()}
