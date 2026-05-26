@@ -471,6 +471,88 @@ def address_index():
         return jsonify({"index": []})
 
 
+@mls_listing_routes.route("/pin-index", methods=["GET"])
+def pin_index():
+    """All active listings with coordinates — minimal payload, cached.
+
+    Returned once and cached client-side so the map never needs to
+    re-fetch dots on pan/zoom. Fields match to_map_pin_dict() so the
+    existing Map and PropertyPreviewList components work unchanged.
+    """
+    cached = _cache_get("pin_index_all")
+    if cached:
+        resp = jsonify(cached)
+        resp.headers["Cache-Control"] = "public, max-age=600"
+        return resp
+
+    try:
+        db.session.execute(text("SET LOCAL statement_timeout = '25000'"))
+        rows = (
+            db.session.query(
+                MlsListing.id,
+                MlsListing.mls_number,
+                MlsListing.lat,
+                MlsListing.lng,
+                MlsListing.list_price,
+                MlsListing.property_class,
+                MlsListing.unit_number,
+                MlsListing.transaction_type,
+                MlsListing.bed,
+                MlsListing.bath,
+                MlsListing.sqft,
+                MlsListing.street_number,
+                MlsListing.street_name,
+                MlsListing.street_suffix,
+                MlsListing.city,
+                MlsListing.standard_status,
+                MlsListing.brokerage,
+                MlsListing.external_id,
+                MlsListing.photos_timestamp,
+            )
+            .filter(MlsListing.map_pin_filter())
+            .filter(MlsListing.property_type_filter())
+            .all()
+        )
+
+        pins = []
+        for r in rows:
+            cat    = _determine_category(r.property_class, r.unit_number)
+            street = ' '.join(p for p in [r.street_number, r.street_name, r.street_suffix] if p)
+            front  = _build_cdn_image_url(r.external_id, r.photos_timestamp, 1)
+            sqft   = None
+            if r.sqft:
+                s = str(r.sqft)
+                sqft = s if '-' in s else (int(s) if s.isdigit() else None)
+
+            pins.append({
+                'id':               f'mls_{r.id}',
+                'mls_number':       r.mls_number,
+                'is_mls':           True,
+                'lat':              float(r.lat),
+                'lng':              float(r.lng),
+                'price':            r.list_price or 0,
+                'category':         cat,
+                'type':             cat,
+                'transaction_type': r.transaction_type or 'For Sale',
+                'bed':              r.bed or 0,
+                'bath':             float(r.bath) if r.bath else 0,
+                'sqft':             sqft,
+                'street':           street,
+                'city':             r.city or '',
+                'front_img':        front,
+                'status':           r.standard_status or 'Active',
+                'brokerage':        r.brokerage or '',
+            })
+
+        result = {"pins": pins}
+        _cache_set("pin_index_all", result)
+        resp = jsonify(result)
+        resp.headers["Cache-Control"] = "public, max-age=600"
+        return resp
+    except (OperationalError, Exception):
+        return jsonify({"pins": []})
+
+
 @mls_listing_routes.route("/nearby", methods=["GET"])
 def nearby_listings():
     try:

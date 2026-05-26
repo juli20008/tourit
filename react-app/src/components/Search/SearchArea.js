@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 
@@ -50,6 +50,7 @@ const SearchArea = () => {
 	const [mapIsReady, setMapIsReady] = useState(false);
 	const [showConsent, setShowConsent] = useState(false);
 	const [propArr, setPropArr] = useState([]);
+	const [pinIndex, setPinIndex] = useState([]);
 	const [over, setOver] = useState({ id: 0 });
 	const [zoom, setZoom] = useState(10);
 	const [isMapSyncing, setIsMapSyncing] = useState(false);
@@ -79,6 +80,13 @@ const SearchArea = () => {
 			setZoom(Math.round(zoomVal));
 		}
 	}, [dispatch, areaParam]);
+
+	// Load the full pin index once — drives all map dots without per-pan fetches
+	useEffect(() => {
+		dispatch(propertyActions.fetchPinIndex()).then((pins) => {
+			if (Array.isArray(pins) && pins.length) setPinIndex(pins);
+		});
+	}, [dispatch]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	useEffect(() => {
 		document.documentElement.classList.add("search-page-lock");
@@ -136,6 +144,30 @@ const SearchArea = () => {
 
 	const sidebarArr = propArr.slice(0, 100);
 
+	// Map markers: use full pin index (all GTA listings, client-filtered).
+	// Falls back to propArr while pin index is still loading.
+	const filteredPins = useMemo(() => {
+		const src = pinIndex.length ? pinIndex : propArr;
+		return src
+			.filter((p) => p.price > min && p.price < max)
+			.filter((p) => matchesType(p, type))
+			.filter((p) => {
+				if (bed === 0) return true;
+				const b = parseInt(p.bed, 10) || 0;
+				if (bed === -1) return b === 0;
+				if (bed >= 5)   return b >= 5;
+				return b === bed;
+			})
+			.filter((p) => bath === 0 || p.bath >= bath || p.bath + 0.5 >= bath)
+			.filter((p) => {
+				const tt = (p.transaction_type || "").toLowerCase();
+				if (transactionType === "For Lease") return tt.includes("lease");
+				return !tt.includes("lease");
+			})
+			.filter((p) => sqftMin === 0 || (p.sqft != null && p.sqft >= sqftMin))
+			.filter((p) => sqftMax >= 999999 || (p.sqft != null && p.sqft <= sqftMax));
+	}, [pinIndex, propArr, min, max, type, bed, bath, transactionType, sqftMin, sqftMax]); // eslint-disable-line react-hooks/exhaustive-deps
+
 	useEffect(() => {
 		return () => { if (mapSyncTimer.current) clearTimeout(mapSyncTimer.current); };
 	}, []);
@@ -173,14 +205,14 @@ const SearchArea = () => {
 		}, 6000);
 	};
 
-	// After a fly-to, when propArr loads new listings for the area, highlight
-	// the nearest listing to the searched point (if within ~150 m).
+	// After a fly-to, highlight the nearest listing to the searched point (if within ~150 m).
+	// Uses filteredPins (full index) so it works even when the viewport bounds haven't loaded yet.
 	useEffect(() => {
-		if (!flyTargetRef.current || !propArr.length) return;
+		if (!flyTargetRef.current || !filteredPins.length) return;
 		const { lat, lng } = flyTargetRef.current;
 		let nearest = null;
 		let minDist = Infinity;
-		for (const p of propArr) {
+		for (const p of filteredPins) {
 			if (p.lat == null || p.lng == null) continue;
 			const d = Math.sqrt((p.lat - lat) ** 2 + (p.lng - lng) ** 2);
 			if (d < minDist) { minDist = d; nearest = p; }
@@ -190,7 +222,7 @@ const SearchArea = () => {
 			flyTargetRef.current = null;
 			if (flyTargetTimerRef.current) clearTimeout(flyTargetTimerRef.current);
 		}
-	}, [propArr]);
+	}, [filteredPins]);
 
 	const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
 	const googleMapURL = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&v=weekly&libraries=geometry,drawing,places`;
@@ -266,7 +298,7 @@ const SearchArea = () => {
 							loadingElement={<div style={{ height: "100%" }} />}
 							containerElement={<div className="map-ctnr relative overflow-hidden border-r border-[#dcdcd7]" />}
 							mapElement={<div style={{ height: "100%" }} />}
-							markers={propArr}
+							markers={filteredPins}
 							center={center}
 							over={over}
 							zoom={zoom}

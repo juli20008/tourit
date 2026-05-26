@@ -92,6 +92,21 @@ export const areaProperties = (payload) => async (dispatch) => {
 	}
 };
 
+export const fetchPinIndex = () => async () => {
+	const cached = _lsGet("pin_index");
+	if (cached) return cached;
+	try {
+		const response = await apiFetch("/api/listings/pin-index");
+		if (!response.ok) return [];
+		const data = await response.json();
+		const pins = Array.isArray(data.pins) ? data.pins : [];
+		_lsSet("pin_index", pins);
+		return pins;
+	} catch {
+		return [];
+	}
+};
+
 export const getMlsListing = async (mlsNumber) => {
 	try {
 		const response = await apiFetch(`/api/listings/${encodeURIComponent(mlsNumber)}`);
