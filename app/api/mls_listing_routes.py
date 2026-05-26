@@ -1,4 +1,5 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, Response
+import json
 import os
 import sqlite3
 import time
@@ -27,6 +28,11 @@ def _cache_get(key):
 
 def _cache_set(key, data):
     _cache[key] = {'data': data, 'ts': time.time()}
+
+# Pin-index cache stores the serialized JSON string (not Python dicts) so only
+# ~2 MB stays in memory instead of ~20 MB worth of Python dict objects.
+_pin_index_cache: dict = {'json': None, 'ts': 0.0}
+_PIN_INDEX_TTL = 300  # seconds
 USE_LOCAL_PROPERTIES = os.environ.get("FORCE_LOCAL_DB", "").strip() == "1"
 LOCAL_DB_PATH = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", "instance", "yillow.db")
@@ -475,15 +481,16 @@ def address_index():
 def pin_index():
     """All active listings with coordinates — minimal payload, cached.
 
-    Returned once and cached client-side so the map never needs to
-    re-fetch dots on pan/zoom. Fields match to_map_pin_dict() so the
-    existing Map and PropertyPreviewList components work unchanged.
+    Cache stores the serialized JSON string (not Python dicts) so only
+    ~2 MB stays resident instead of ~20 MB of Python dict objects.
     """
-    cached = _cache_get("pin_index_all")
-    if cached:
-        resp = jsonify(cached)
-        resp.headers["Cache-Control"] = "public, max-age=600"
-        return resp
+    now = time.time()
+    if _pin_index_cache['json'] and now - _pin_index_cache['ts'] < _PIN_INDEX_TTL:
+        return Response(
+            _pin_index_cache['json'],
+            content_type='application/json',
+            headers={"Cache-Control": "public, max-age=600"},
+        )
 
     try:
         db.session.execute(text("SET LOCAL statement_timeout = '25000'"))
@@ -511,6 +518,7 @@ def pin_index():
             )
             .filter(MlsListing.map_pin_filter())
             .filter(MlsListing.property_type_filter())
+            .limit(10000)
             .all()
         )
 
@@ -544,13 +552,19 @@ def pin_index():
                 'brokerage':        r.brokerage or '',
             })
 
-        result = {"pins": pins}
-        _cache_set("pin_index_all", result)
-        resp = jsonify(result)
-        resp.headers["Cache-Control"] = "public, max-age=600"
-        return resp
+        # Serialize to a compact JSON string, then discard the Python list.
+        # Keeping the string (~2 MB) is 10× cheaper than keeping the dicts (~20 MB).
+        json_str = json.dumps({"pins": pins})
+        _pin_index_cache['json'] = json_str
+        _pin_index_cache['ts']   = now
+
+        return Response(
+            json_str,
+            content_type='application/json',
+            headers={"Cache-Control": "public, max-age=600"},
+        )
     except (OperationalError, Exception):
-        return jsonify({"pins": []})
+        return Response('{"pins":[]}', content_type='application/json')
 
 
 @mls_listing_routes.route("/nearby", methods=["GET"])
