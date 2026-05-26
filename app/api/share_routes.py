@@ -101,10 +101,13 @@ def share_listing(mls_number):
     photo    = images[0] if images else ""
     og_image = photo or f"{frontend_url}/logo512.png"
 
-    t        = html_escape(title)
-    dsc      = html_escape(description)
-    img_esc  = html_escape(og_image)
-    url_esc  = html_escape(canonical)
+    t         = html_escape(title)
+    dsc       = html_escape(description)
+    img_esc   = html_escape(og_image)
+    url_esc   = html_escape(canonical)
+    # og:url must point to THIS page (not the React listing page) so WeChat
+    # reads OG tags from here. The JS redirect handles click-through.
+    og_url    = html_escape(request.url)
     photo_esc = html_escape(photo)
     loc_str  = ", ".join(p for p in [city, state] if p)
 
@@ -128,7 +131,7 @@ def share_listing(mls_number):
 
   <!-- ─── Open Graph (WeChat, Slack, iMessage …) ──────────────────────── -->
   <meta property="og:type"        content="website" />
-  <meta property="og:url"         content="{url_esc}" />
+  <meta property="og:url"         content="{og_url}" />
   <meta property="og:title"       content="{t}" />
   <meta property="og:description" content="{dsc}" />
   <meta property="og:image"       content="{img_esc}" />
