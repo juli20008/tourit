@@ -96,7 +96,7 @@ def share_listing(mls_number):
     state  = d.get("state") or ""
     addr       = ", ".join(p for p in [f"Unit {unit}" if unit else None, street, city] if p)
     addr_short = ", ".join(p for p in [street, city] if p)
-    title      = f"{addr_short} — {price_fmt}" if addr_short else f"Property — {price_fmt}"
+    title      = f"{addr_short} - {price_fmt}" if addr_short else f"Property - {price_fmt}"
 
     specs_parts = []
     if d.get("bed"):  specs_parts.append(f"{d['bed']} bd")
