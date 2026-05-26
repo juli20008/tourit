@@ -124,7 +124,6 @@ def share_listing(mls_number):
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>{t}</title>
   <meta name="description" content="{dsc}" />
-  <meta http-equiv="refresh" content="0; url={url_esc}" />
 
   <!-- ─── Open Graph (WeChat, Slack, iMessage …) ──────────────────────── -->
   <meta property="og:type"        content="website" />
