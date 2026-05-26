@@ -21,7 +21,6 @@ from .api.service_area_routes import service_area_routes
 from .api.channel_routes import channel_routes
 from .api.mls_agent_routes import mls_agent_routes
 from .api.mls_listing_routes import mls_listing_routes
-from .api.sync_routes import sync_routes
 from .api.xhs_routes import xhs_routes
 from .api.fbmp_routes import fbmp_routes
 from .api.live_tour_routes import live_tour_routes
@@ -29,7 +28,6 @@ from .api.historical_live_tour_routes import historical_live_tour_routes
 from .api.guest_routes import guest_routes
 
 from .seeds import seed_commands
-from .commands import repliers_commands
 
 from .config import Config
 
@@ -74,13 +72,11 @@ app.register_blueprint(service_area_routes, url_prefix='/api/service_areas')
 app.register_blueprint(channel_routes, url_prefix='/api/channels')
 app.register_blueprint(mls_agent_routes, url_prefix='/api/mls-agents')
 app.register_blueprint(mls_listing_routes, url_prefix='/api/listings')
-app.register_blueprint(sync_routes, url_prefix='/api/sync')
 app.register_blueprint(xhs_routes, url_prefix='/api/xhs')
 app.register_blueprint(fbmp_routes, url_prefix='/api/fbmp')
 app.register_blueprint(live_tour_routes, url_prefix='/api/live-tours')
 app.register_blueprint(historical_live_tour_routes, url_prefix='/api/historical-live-tours')
 app.register_blueprint(guest_routes, url_prefix='/api/guest')
-app.cli.add_command(repliers_commands)
 db.init_app(app)
 Migrate(app, db)
 socketio.init_app(app)
