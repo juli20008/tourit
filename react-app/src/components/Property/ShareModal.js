@@ -174,9 +174,9 @@ const drawCard = async (canvas, property, qrCanvas = null, agent = null) => {
 		ctx.textBaseline = "alphabetic";
 
 		const lines = [
-			agent.username && { text: agent.username, size: 36, weight: "bold", color: "#ffffff" },
-			agent.phone    && { text: agent.phone,    size: 28, weight: "normal", color: "#9a9a94" },
-			agent.email    && { text: agent.email,    size: 26, weight: "normal", color: "#9a9a94" },
+			agent.username && { text: `Tour it with ${agent.username}`, size: 30, weight: "bold",   color: "#ffffff" },
+			agent.phone    && { text: agent.phone,                       size: 28, weight: "normal", color: "#9a9a94" },
+			agent.email    && { text: agent.email,                       size: 26, weight: "normal", color: "#9a9a94" },
 		].filter(Boolean);
 
 		const LINE_H = 40;
