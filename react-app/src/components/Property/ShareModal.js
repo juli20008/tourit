@@ -153,7 +153,7 @@ const drawCard = async (canvas, property, shareUrl, agent = null) => {
 		const STRIP_TOP = QR_Y - BG_PAD;
 		const STRIP_BOT = QR_Y + QR_SIZE + BG_PAD;
 		const MID_Y     = (STRIP_TOP + STRIP_BOT) / 2;
-		const AVATAR_R  = 44;
+		const AVATAR_R  = 72;
 		const AV_CX     = AGENT_X + AVATAR_R;
 		const AV_CY     = MID_Y;
 
@@ -184,12 +184,12 @@ const drawCard = async (canvas, property, shareUrl, agent = null) => {
 		ctx.textBaseline = "alphabetic";
 
 		const lines = [
-			agent.username && { text: `Tour it with ${agent.username}`, size: 30, weight: "bold",   color: "#ffffff" },
-			agent.phone    && { text: agent.phone,                       size: 28, weight: "normal", color: "#9a9a94" },
-			agent.email    && { text: agent.email,                       size: 26, weight: "normal", color: "#9a9a94" },
+			agent.username && { text: `Tour it with ${agent.username}`, size: 46, weight: "bold",   color: "#ffffff" },
+			agent.phone    && { text: agent.phone,                       size: 38, weight: "normal", color: "#9a9a94" },
+			agent.email    && { text: agent.email,                       size: 34, weight: "normal", color: "#9a9a94" },
 		].filter(Boolean);
 
-		const LINE_H = 40;
+		const LINE_H = 20;
 		const totalH = lines.reduce((s, l) => s + l.size, 0) + LINE_H * (lines.length - 1);
 		let aty = MID_Y - totalH / 2 + (lines[0]?.size ?? 0);
 
