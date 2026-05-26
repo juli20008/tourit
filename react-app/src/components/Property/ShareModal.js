@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect, useCallback } from "react";
 import { X, Download, Link2, Share2 } from "lucide-react";
-import { QRCodeCanvas } from "qrcode.react";
+import QRCode from "qrcode";
 
 const fmtPrice = (p) =>
 	"$" + (p ?? 0).toFixed(0).replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,");
@@ -22,7 +22,16 @@ const loadImg = (url) =>
 			.catch(() => resolve({ img: null, tainted: false }));
 	});
 
-const drawCard = async (canvas, property, qrCanvas = null, agent = null) => {
+const loadImgFromUrl = (src) =>
+	new Promise((resolve) => {
+		if (!src) return resolve(null);
+		const img = new Image();
+		img.onload = () => resolve(img);
+		img.onerror = () => resolve(null);
+		img.src = src;
+	});
+
+const drawCard = async (canvas, property, shareUrl, agent = null) => {
 	const W = 1080, H = 1440;
 	canvas.width  = W;
 	canvas.height = H;
@@ -33,22 +42,32 @@ const drawCard = async (canvas, property, qrCanvas = null, agent = null) => {
 	const INFO_H  = H - PHOTO_H;
 	const PAD     = 72;
 
-	// ── Load images concurrently ───────────────────────────────────────────
+	// ── Load all images concurrently ──────────────────────────────────────
 	const photoUrl = (property.images || property.image_urls || [])[0]
 		|| property.front_img || property.image_url;
 	let tainted = false;
 
-	const [photoResult, avatarResult] = await Promise.all([
+	// Generate QR code as data URL (no React timing issues)
+	let qrDataUrl = null;
+	try {
+		qrDataUrl = await QRCode.toDataURL(shareUrl, {
+			width: 300, margin: 1,
+			color: { dark: "#111110", light: "#ffffff" },
+		});
+	} catch {}
+
+	const [photoResult, avatarResult, qrImg] = await Promise.all([
 		loadImg(photoUrl),
 		agent?.photo ? loadImg(agent.photo) : Promise.resolve({ img: null, tainted: false }),
+		loadImgFromUrl(qrDataUrl),
 	]);
 	const agentAvatarImg = avatarResult.img;
 
+	// ── Photo ──────────────────────────────────────────────────────────────
 	if (photoUrl) {
 		const { img, tainted: t } = photoResult;
 		if (img) {
 			tainted = t;
-			// Object-fit: cover — fill the photo area without stretching
 			const scale = Math.max(W / img.naturalWidth, PHOTO_H / img.naturalHeight);
 			const dw = img.naturalWidth  * scale;
 			const dh = img.naturalHeight * scale;
@@ -66,7 +85,7 @@ const drawCard = async (canvas, property, qrCanvas = null, agent = null) => {
 		_drawPhotoPlaceholder(ctx, W, PHOTO_H);
 	}
 
-	// Gradient fade at the bottom of the photo
+	// Gradient fade
 	const fade = ctx.createLinearGradient(0, PHOTO_H - 300, 0, PHOTO_H);
 	fade.addColorStop(0, "rgba(0,0,0,0)");
 	fade.addColorStop(1, "rgba(0,0,0,0.7)");
@@ -77,7 +96,6 @@ const drawCard = async (canvas, property, qrCanvas = null, agent = null) => {
 	ctx.fillStyle = "#1a1a18";
 	ctx.fillRect(0, INFO_Y, W, INFO_H);
 
-	// Hairline separator
 	ctx.strokeStyle = "rgba(255,255,255,0.07)";
 	ctx.lineWidth = 1;
 	ctx.beginPath();
@@ -87,13 +105,11 @@ const drawCard = async (canvas, property, qrCanvas = null, agent = null) => {
 	let ty = INFO_Y + 90;
 	ctx.textBaseline = "alphabetic";
 
-	// Price
 	ctx.fillStyle = "#ffffff";
 	ctx.font = `bold 90px -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif`;
 	ctx.fillText(fmtPrice(property.price), PAD, ty);
 	ty += 108;
 
-	// Address (truncate if too long)
 	const addr = [
 		property.unit && `Unit ${property.unit}`,
 		property.street,
@@ -105,14 +121,11 @@ const drawCard = async (canvas, property, qrCanvas = null, agent = null) => {
 		ctx.font = `50px -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif`;
 		const maxW = W - PAD * 2;
 		let text = addr;
-		while (ctx.measureText(text).width > maxW && text.length > 10) {
-			text = text.slice(0, -1);
-		}
+		while (ctx.measureText(text).width > maxW && text.length > 10) text = text.slice(0, -1);
 		ctx.fillText(text !== addr ? text.trimEnd() + "…" : text, PAD, ty);
 		ty += 72;
 	}
 
-	// Beds · baths · sqft
 	const specs = [
 		property.bed  && `${property.bed} bd`,
 		property.bath && `${property.bath} ba`,
@@ -125,19 +138,18 @@ const drawCard = async (canvas, property, qrCanvas = null, agent = null) => {
 		ctx.fillText(specs, PAD, ty);
 	}
 
-	// ── Bottom strip: QR code (left) + agent info (right) ─────────────────
+	// ── Bottom strip: QR (left) + agent info (right) ───────────────────────
 	const QR_SIZE = 180;
 	const BG_PAD  = 14;
 	const QR_X    = PAD;
 	const QR_Y    = H - PAD - QR_SIZE;
-	// White QR background
+
 	ctx.fillStyle = "#ffffff";
 	ctx.fillRect(QR_X - BG_PAD, QR_Y - BG_PAD, QR_SIZE + BG_PAD * 2, QR_SIZE + BG_PAD * 2);
-	if (qrCanvas) ctx.drawImage(qrCanvas, QR_X, QR_Y, QR_SIZE, QR_SIZE);
+	if (qrImg) ctx.drawImage(qrImg, QR_X, QR_Y, QR_SIZE, QR_SIZE);
 
-	// Agent info — to the right of the QR box
 	if (agent) {
-		const AGENT_X   = QR_X - BG_PAD + QR_SIZE + BG_PAD * 2 + 24; // right of white box + gap
+		const AGENT_X   = QR_X - BG_PAD + QR_SIZE + BG_PAD * 2 + 24;
 		const STRIP_TOP = QR_Y - BG_PAD;
 		const STRIP_BOT = QR_Y + QR_SIZE + BG_PAD;
 		const MID_Y     = (STRIP_TOP + STRIP_BOT) / 2;
@@ -145,7 +157,6 @@ const drawCard = async (canvas, property, qrCanvas = null, agent = null) => {
 		const AV_CX     = AGENT_X + AVATAR_R;
 		const AV_CY     = MID_Y;
 
-		// Avatar circle
 		ctx.save();
 		ctx.beginPath();
 		ctx.arc(AV_CX, AV_CY, AVATAR_R, 0, Math.PI * 2);
@@ -166,10 +177,9 @@ const drawCard = async (canvas, property, qrCanvas = null, agent = null) => {
 		}
 		ctx.restore();
 
-		// Text to the right of avatar
-		const TX      = AV_CX + AVATAR_R + 20;
-		const MAX_W   = W - PAD - TX;
-		const FONT    = `-apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif`;
+		const TX    = AV_CX + AVATAR_R + 20;
+		const MAX_W = W - PAD - TX;
+		const FONT  = `-apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif`;
 		ctx.textAlign    = "left";
 		ctx.textBaseline = "alphabetic";
 
@@ -181,7 +191,7 @@ const drawCard = async (canvas, property, qrCanvas = null, agent = null) => {
 
 		const LINE_H = 40;
 		const totalH = lines.reduce((s, l) => s + l.size, 0) + LINE_H * (lines.length - 1);
-		let ty = MID_Y - totalH / 2 + (lines[0]?.size ?? 0);
+		let aty = MID_Y - totalH / 2 + (lines[0]?.size ?? 0);
 
 		for (const { text, size, weight, color } of lines) {
 			ctx.font      = `${weight} ${size}px ${FONT}`;
@@ -189,17 +199,16 @@ const drawCard = async (canvas, property, qrCanvas = null, agent = null) => {
 			let t = text;
 			while (ctx.measureText(t).width > MAX_W && t.length > 2) t = t.slice(0, -1);
 			if (t !== text) t = t.trimEnd() + "…";
-			ctx.fillText(t, TX, ty);
-			ty += size + LINE_H;
+			ctx.fillText(t, TX, aty);
+			aty += size + LINE_H;
 		}
 	} else {
-		// No agent — brand watermark bottom right
 		ctx.fillStyle    = "#3a3a34";
 		ctx.font         = `40px -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif`;
 		ctx.textAlign    = "right";
 		ctx.textBaseline = "alphabetic";
 		ctx.fillText("tourit.ca", W - PAD, H - PAD);
-		ctx.textAlign = "left";
+		ctx.textAlign    = "left";
 	}
 
 	return { tainted };
@@ -216,8 +225,7 @@ function _drawPhotoPlaceholder(ctx, W, H) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const ShareModal = ({ property, shareUrl, agent = null, onClose }) => {
-	const canvasRef   = useRef(null);
-	const qrCanvasRef = useRef(null);
+	const canvasRef = useRef(null);
 	const [status, setStatus] = useState("generating"); // generating | ready | tainted
 	const [copied, setCopied] = useState(false);
 	const copyTimer = useRef(null);
@@ -226,7 +234,7 @@ const ShareModal = ({ property, shareUrl, agent = null, onClose }) => {
 		const canvas = canvasRef.current;
 		if (!canvas || !property) return;
 		setStatus("generating");
-		drawCard(canvas, property, qrCanvasRef.current, agent).then(({ tainted }) =>
+		drawCard(canvas, property, shareUrl, agent).then(({ tainted }) =>
 			setStatus(tainted ? "tainted" : "ready")
 		);
 	}, [property, shareUrl, agent]);
@@ -240,7 +248,6 @@ const ShareModal = ({ property, shareUrl, agent = null, onClose }) => {
 			link.href = canvas.toDataURL("image/jpeg", 0.92);
 			link.click();
 		} catch {
-			// Canvas tainted — ask user to long-press
 			setStatus("tainted");
 		}
 	}, [property]);
@@ -269,17 +276,6 @@ const ShareModal = ({ property, shareUrl, agent = null, onClose }) => {
 			className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60"
 			onClick={onClose}
 		>
-			{/* Hidden QR canvas — composited onto the card by drawCard() */}
-			<div style={{ position: "absolute", left: -9999, top: -9999, visibility: "hidden" }}>
-				<QRCodeCanvas
-					ref={qrCanvasRef}
-					value={shareUrl}
-					size={300}
-					bgColor="#ffffff"
-					fgColor="#111110"
-					level="M"
-				/>
-			</div>
 			<div
 				className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-[360px] sm:mx-4"
 				onClick={(e) => e.stopPropagation()}
@@ -303,7 +299,6 @@ const ShareModal = ({ property, shareUrl, agent = null, onClose }) => {
 								生成中…
 							</div>
 						)}
-						{/* Full-res canvas displayed at CSS size */}
 						<canvas
 							ref={canvasRef}
 							className="w-full h-auto block"
@@ -315,7 +310,6 @@ const ShareModal = ({ property, shareUrl, agent = null, onClose }) => {
 							</div>
 						)}
 					</div>
-
 					<p className="text-[11px] text-[#94a3b8] mt-2 text-center leading-snug">
 						保存图片 → 发至小红书 &nbsp;·&nbsp; 复制链接 → 转发微信
 					</p>
