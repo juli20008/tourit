@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import List from "./List";
 import MyMap from "./Map";
@@ -15,6 +15,8 @@ const TORONTO = { lat: 43.6532, lng: -79.3832 };
 const SearchArea = () => {
 	const dispatch = useDispatch();
 	const { areaParam } = useParams();
+	// Fallback listings while pin index is loading
+	const fallbackProps = useSelector((state) => state.properties?.properties ?? []);
 
 	const [min, setMin] = useState(0);
 	const [max, setMax] = useState(99999999999);
@@ -66,10 +68,12 @@ const SearchArea = () => {
 	useEffect(() => {
 		if (areaParam) {
 			const parts = areaParam.split("&").map((each) => parseFloat(each.split("=")[1]));
-			const [,,,, zoomVal] = parts;
+			const [neLat, neLng, swLat, swLng, zoomVal] = parts;
+			// Fetch initial viewport data as a fallback shown before pin index arrives
+			dispatch(propertyActions.areaProperties({ neLat, neLng, swLat, swLng }));
 			setZoom(Math.round(zoomVal));
 		}
-	}, [areaParam]);
+	}, [dispatch, areaParam]);
 
 	// Load the full pin index once — drives all map dots AND the list panel
 	useEffect(() => {
@@ -97,9 +101,11 @@ const SearchArea = () => {
 		return false;
 	};
 
-	// All GTA listings matching current filters — fed to Map for pin rendering
+	// All GTA listings matching current filters — fed to Map for pin rendering.
+	// Falls back to the initial bounds query results while pin index is loading.
 	const filteredPins = useMemo(() => {
-		return pinIndex
+		const src = pinIndex.length ? pinIndex : fallbackProps;
+		return src
 			.filter((p) => p.price > min && p.price < max)
 			.filter((p) => matchesType(p, type))
 			.filter((p) => {
@@ -117,7 +123,7 @@ const SearchArea = () => {
 			})
 			.filter((p) => sqftMin === 0 || (p.sqft != null && p.sqft >= sqftMin))
 			.filter((p) => sqftMax >= 999999 || (p.sqft != null && p.sqft <= sqftMax));
-	}, [pinIndex, min, max, type, bed, bath, transactionType, sqftMin, sqftMax]); // eslint-disable-line react-hooks/exhaustive-deps
+	}, [pinIndex, fallbackProps, min, max, type, bed, bath, transactionType, sqftMin, sqftMax]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	// Sidebar list: filteredPins clipped to current viewport — no server limit
 	const sidebarArr = useMemo(() => {

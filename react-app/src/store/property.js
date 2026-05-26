@@ -93,14 +93,15 @@ export const areaProperties = (payload) => async (dispatch) => {
 };
 
 export const fetchPinIndex = () => async () => {
+	// Only use cache if it has actual data — empty arrays from failed requests are ignored
 	const cached = _lsGet("pin_index");
-	if (cached) return cached;
+	if (cached && cached.length > 0) return cached;
 	try {
 		const response = await apiFetch("/api/listings/pin-index");
 		if (!response.ok) return [];
 		const data = await response.json();
 		const pins = Array.isArray(data.pins) ? data.pins : [];
-		_lsSet("pin_index", pins);
+		if (pins.length > 0) _lsSet("pin_index", pins); // never cache an empty result
 		return pins;
 	} catch {
 		return [];
