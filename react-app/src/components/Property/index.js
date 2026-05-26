@@ -49,6 +49,9 @@ function useFbmpEmbed(property) {
 const Property = ({ property, onClose, referralAgent = null, isPage = false }) => {
 	const dispatch = useDispatch();
 	const user = useSelector((state) => state.session.user);
+	const listingAgent = useSelector((state) =>
+		property?.listing_agent_id ? state.agent[property.listing_agent_id] : null
+	);
 	const [showMobileTour, setShowMobileTour] = useState(false);
 	const [showShare, setShowShare] = useState(false);
 
@@ -137,7 +140,7 @@ const Property = ({ property, onClose, referralAgent = null, isPage = false }) =
 				<ShareModal
 					property={property}
 					shareUrl={buildShareUrl()}
-					agent={referralAgent || (user?.agent ? user : null)}
+					agent={referralAgent || (user?.agent ? user : null) || listingAgent || null}
 					onClose={() => setShowShare(false)}
 				/>
 			)}
