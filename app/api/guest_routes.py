@@ -106,8 +106,10 @@ def create_guest_booking():
 
         db.session.commit()
 
-        # Emit to Julie's channel room AFTER commit so data is durable
-        socketio.emit("chat", chat_obj.to_dict(), to=str(channel.id))
+        # Emit to whoever is viewing this channel AND to the agent's personal room
+        payload = chat_obj.to_dict()
+        socketio.emit("chat", payload, to=str(channel.id))
+        socketio.emit("chat", payload, to=f"agent_{agent.id}")
 
     except Exception as e:
         db.session.rollback()
@@ -169,7 +171,9 @@ def capture_guest_contact():
         db.session.commit()
 
         if chat_obj and channel_id:
-            socketio.emit("chat", chat_obj.to_dict(), to=str(channel_id))
+            payload = chat_obj.to_dict()
+            socketio.emit("chat", payload, to=str(channel_id))
+            socketio.emit("chat", payload, to=f"agent_{agent.id}")
 
     except Exception as e:
         db.session.rollback()
@@ -211,7 +215,9 @@ def send_guest_message():
         channel = _get_or_create_channel(guest_user.id, agent.id)
         chat_obj = _insert_chat(channel.id, guest_user.id, text)
         db.session.commit()
-        socketio.emit("chat", chat_obj.to_dict(), to=str(channel.id))
+        payload = chat_obj.to_dict()
+        socketio.emit("chat", payload, to=str(channel.id))
+        socketio.emit("chat", payload, to=f"agent_{agent.id}")
     except Exception as e:
         db.session.rollback()
         import traceback; traceback.print_exc()

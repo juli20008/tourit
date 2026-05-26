@@ -73,7 +73,9 @@ export default function reducer(state = initialState, action) {
 			return newState;
 		case ADD_CHAT:
 			newState = JSON.parse(JSON.stringify(state));
-			newState[action.payload.channel_id].chat_ids.push(action.payload.chat_id);
+			if (!newState[action.payload.channel_id]) return newState;
+			if (!newState[action.payload.channel_id].chat_ids.includes(action.payload.chat_id))
+				newState[action.payload.channel_id].chat_ids.push(action.payload.chat_id);
 			return newState;
 		case DELETE_CHAT:
 			newState = JSON.parse(JSON.stringify(state));

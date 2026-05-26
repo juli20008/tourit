@@ -1,7 +1,8 @@
 import apiFetch from "../../utils/apiFetch";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useParams } from "react-router-dom";
+import { io } from "socket.io-client";
 
 import Channels from "./Channels";
 import Chat from "./Chat";
@@ -10,13 +11,14 @@ import find_agent from "../../assets/find_agent.svg";
 
 import * as channelActions from "../../store/channel";
 import * as chatActions from "../../store/chat";
-import { clearUnread } from "../../store/unread";
+import { clearUnread, markUnread } from "../../store/unread";
 
 const Chats = () => {
 	const dispatch = useDispatch();
 	const { channelId: channelParam } = useParams();
 	const user = useSelector((state) => state.session.user);
 	const channels = useSelector((state) => state.channels);
+	const channelsRef = useRef(channels);
 	const [channelsArr, setChannelsArr] = useState([]);
 	const [search, setSearch] = useState("");
 	const [showChannels, setShowChannels] = useState(!channelParam);
@@ -45,6 +47,32 @@ const Chats = () => {
 				dispatch(chatActions.getChats(res.chats));
 			});
 	}, [dispatch]);
+
+	// Keep channelsRef current so the socket closure below can read latest state
+	useEffect(() => { channelsRef.current = channels; }, [channels]);
+
+	// Agent: join personal room so guest messages arrive even before opening a channel
+	useEffect(() => {
+		if (!user?.agent) return;
+		const sock = io(process.env.REACT_APP_API_URL || '');
+		const room = `agent_${user.id}`;
+		sock.on("connect", () => sock.emit("join", room));
+		sock.on("chat", (incoming) => {
+			dispatch(chatActions.addEditChat(incoming));
+			dispatch(channelActions.addChat({ channel_id: incoming.channel_id, chat_id: incoming.id }));
+			dispatch(markUnread());
+			// Channel not loaded yet → re-fetch the full list to get the new channel
+			if (!channelsRef.current?.[incoming.channel_id]) {
+				apiFetch("/api/channels/")
+					.then(r => r.json())
+					.then(r => {
+						dispatch(channelActions.getChannels(r.channels));
+						dispatch(chatActions.getChats(r.chats));
+					});
+			}
+		});
+		return () => { sock.emit("leave", room); sock.disconnect(); };
+	}, [dispatch, user]);
 
 	useEffect(() => {
 		if (user.agent) {
