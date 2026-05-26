@@ -227,7 +227,7 @@ def list_listings():
 
         items = q.offset(offset).limit(per_page).all()
         if not items:
-            return _fetch_local_properties(page, per_page, lightweight=lightweight)
+            return jsonify({"listings": [], "total": 0, "pages": 1, "page": page, "per_page": per_page})
 
         cap = MAX_MAP_RESULTS if lightweight else MAX_RESULTS
         total = cap
@@ -245,8 +245,8 @@ def list_listings():
             _cache_set(f"map_default_{page}_{per_page}", payload)
 
         return jsonify(payload)
-    except OperationalError:
-        return _fetch_local_properties(page, per_page, lightweight=lightweight)
+    except (OperationalError, Exception):
+        return jsonify({"listings": [], "total": 0, "pages": 1, "page": page, "per_page": per_page})
 
 
 @mls_listing_routes.route("/", methods=["POST"])
@@ -414,6 +414,8 @@ def address_index():
     was exceeding the 512 MB Render limit.
     """
     try:
+        # No images/JSONB column — that caused full-table-scan timeouts on 20k rows.
+        db.session.execute(text("SET LOCAL statement_timeout = '20000'"))
         rows = (
             db.session.query(
                 MlsListing.id,
@@ -427,9 +429,6 @@ def address_index():
                 MlsListing.bed,
                 MlsListing.bath,
                 MlsListing.property_class,
-                MlsListing.external_id,
-                MlsListing.photos_timestamp,
-                MlsListing.images,
                 MlsListing.lat,
                 MlsListing.lng,
                 MlsListing.transaction_type,
@@ -447,16 +446,6 @@ def address_index():
         for r in rows:
             street = ' '.join(filter(None, [r.street_number, r.street_name, r.street_suffix]))
             cat    = _determine_category(r.property_class, r.unit_number)
-
-            front = None
-            for img in (r.images or []):
-                s = str(img)
-                if img and not s.startswith('sample/') and 'unsplash.com' not in s:
-                    front = img
-                    break
-            if not front:
-                front = _build_cdn_image_url(r.external_id, r.photos_timestamp, 1)
-
             index.append({
                 'id':               f'mls_{r.id}',
                 'mls_number':       r.mls_number,
@@ -467,7 +456,7 @@ def address_index():
                 'bed':              r.bed or 0,
                 'bath':             float(r.bath) if r.bath is not None else 0,
                 'category':         cat,
-                'front_img':        front,
+                'front_img':        None,
                 'lat':              float(r.lat) if r.lat is not None else None,
                 'lng':              float(r.lng) if r.lng is not None else None,
                 'transaction_type': r.transaction_type or 'For Sale',
@@ -476,7 +465,7 @@ def address_index():
         resp = jsonify({"index": index})
         resp.headers["Cache-Control"] = "public, max-age=3600"
         return resp
-    except OperationalError:
+    except (OperationalError, Exception):
         return jsonify({"index": []})
 
 
