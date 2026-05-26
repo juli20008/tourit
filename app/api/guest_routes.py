@@ -106,10 +106,17 @@ def create_guest_booking():
 
         db.session.commit()
 
-        # Emit to whoever is viewing this channel AND to the agent's personal room
-        payload = chat_obj.to_dict()
-        socketio.emit("chat", payload, to=str(channel.id))
-        socketio.emit("chat", payload, to=f"agent_{agent.id}")
+        # Emit to whoever is viewing this channel AND to the agent's personal room.
+        # The agent-room payload includes _channel so the frontend can add the
+        # channel to Redux immediately without a separate HTTP round-trip.
+        chat_payload = chat_obj.to_dict()
+        socketio.emit("chat", chat_payload, to=str(channel.id))
+        try:
+            channel_dict = channel.to_dict()
+        except Exception:
+            channel_dict = None
+        agent_payload = {**chat_payload, **({"_channel": channel_dict} if channel_dict else {})}
+        socketio.emit("chat", agent_payload, to=f"agent_{agent.id}")
 
     except Exception as e:
         db.session.rollback()

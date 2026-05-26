@@ -13,7 +13,7 @@ export const getChannels = (channels) => {
 	};
 };
 
-const addChannel = (channel) => {
+export const addChannel = (channel) => {
 	return {
 		type: ADD_CHANNEL,
 		channel,

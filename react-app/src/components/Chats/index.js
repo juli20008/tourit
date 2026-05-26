@@ -67,10 +67,17 @@ const Chats = () => {
 			refreshChannels();
 		});
 		sock.on("chat", (incoming) => {
-			dispatch(chatActions.addEditChat(incoming));
-			dispatch(channelActions.addChat({ channel_id: incoming.channel_id, chat_id: incoming.id }));
+			// Strip _channel from the chat payload before storing the chat
+			const { _channel: channelData, ...chatData } = incoming;
+			dispatch(chatActions.addEditChat(chatData));
+			// If the event carries channel info (new guest booking), add it immediately
+			// so the channel list updates without waiting for refreshChannels()
+			if (channelData) {
+				dispatch(channelActions.addChannel(channelData));
+			}
+			dispatch(channelActions.addChat({ channel_id: chatData.channel_id, chat_id: chatData.id }));
 			dispatch(markUnread());
-			// Always refresh — ensures new guest channels appear in the list
+			// Also refresh to catch any edge-cases (e.g. socket missed while disconnected)
 			refreshChannels();
 		});
 		return () => { sock.emit("leave", room); sock.disconnect(); };
