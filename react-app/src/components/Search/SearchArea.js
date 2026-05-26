@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 
 import List from "./List";
 import MyMap from "./Map";
@@ -9,17 +9,12 @@ import LocationConsent from "../LocationConsent";
 
 import * as propertyActions from "../../store/property";
 import { hasConsented, saveConsent } from "../../utils/locationConsent";
-import { useNotification } from "../../context/Notification";
 
 const TORONTO = { lat: 43.6532, lng: -79.3832 };
-const GTA_BOUNDS_OBJ = { south: 43.2, west: -80.5, north: 44.3, east: -78.5 };
 
 const SearchArea = () => {
 	const dispatch = useDispatch();
 	const { areaParam } = useParams();
-	const { setToggleNotification, setNotificationMsg } = useNotification();
-
-	const properties = useSelector((state) => state.properties?.properties ?? []);
 
 	const [min, setMin] = useState(0);
 	const [max, setMax] = useState(99999999999);
@@ -32,8 +27,6 @@ const SearchArea = () => {
 	const [strataMax, setStrataMax] = useState(999999);
 	const [titleStatus, setTitleStatus] = useState("");
 	const [transactionType, setTransactionType] = useState("For Sale");
-	const transactionTypeRef = useRef("For Sale");
-	const boundsRef = useRef(null);
 	const [showFilters, setShowFilters] = useState(false);
 
 	const getInitialCenter = (param) => {
@@ -49,16 +42,17 @@ const SearchArea = () => {
 	const flyTargetTimerRef = useRef(null);
 	const [mapIsReady, setMapIsReady] = useState(false);
 	const [showConsent, setShowConsent] = useState(false);
-	const [propArr, setPropArr] = useState([]);
 	const [pinIndex, setPinIndex] = useState([]);
+	const [mapBounds, setMapBounds] = useState(null);
 	const [over, setOver] = useState({ id: 0 });
 	const [zoom, setZoom] = useState(10);
-	const [isMapSyncing, setIsMapSyncing] = useState(false);
-	const mapSyncTimer = useRef(null);
 
 	useEffect(() => {
 		if (!hasConsented()) setShowConsent(true);
 	}, []);
+
+	const handleAccept = () => { saveConsent(); setShowConsent(false); requestLocation(); };
+	const handleDecline = () => setShowConsent(false);
 
 	const requestLocation = () => {
 		if (!navigator.geolocation) return;
@@ -69,19 +63,15 @@ const SearchArea = () => {
 		);
 	};
 
-	const handleAccept = () => { saveConsent(); setShowConsent(false); requestLocation(); };
-	const handleDecline = () => setShowConsent(false);
-
 	useEffect(() => {
 		if (areaParam) {
 			const parts = areaParam.split("&").map((each) => parseFloat(each.split("=")[1]));
-			const [neLat, neLng, swLat, swLng, zoomVal] = parts;
-			dispatch(propertyActions.areaProperties({ neLat, neLng, swLat, swLng }));
+			const [,,,, zoomVal] = parts;
 			setZoom(Math.round(zoomVal));
 		}
-	}, [dispatch, areaParam]);
+	}, [areaParam]);
 
-	// Load the full pin index once — drives all map dots without per-pan fetches
+	// Load the full pin index once — drives all map dots AND the list panel
 	useEffect(() => {
 		dispatch(propertyActions.fetchPinIndex()).then((pins) => {
 			if (Array.isArray(pins) && pins.length) setPinIndex(pins);
@@ -97,12 +87,6 @@ const SearchArea = () => {
 		};
 	}, []);
 
-	const matchesTitle = (ownershipType, code) => {
-		if (!code) return true;
-		if (!ownershipType) return false;
-		return String(ownershipType) === code;
-	};
-
 	const matchesType = (prop, slug) => {
 		if (!slug) return true;
 		if (prop?.category) return prop.category === slug;
@@ -113,42 +97,9 @@ const SearchArea = () => {
 		return false;
 	};
 
-	useEffect(() => {
-		const arr = (Array.isArray(properties) ? properties : [])
-			.filter((prop) => prop?.price > min)
-			.filter((prop) => prop?.price < max)
-			.filter((prop) => matchesType(prop, type))
-			.filter((prop) => {
-				if (bed === 0)  return true;
-				const propBed = parseInt(prop?.bed, 10) || 0;
-				if (bed === -1) return propBed === 0;
-				if (bed >= 5)   return propBed >= 5;
-				return propBed === bed;
-			})
-			.filter((prop) => {
-				if (bath === 0) return true;
-				return prop?.bath >= bath || prop?.bath + 0.5 >= bath;
-			})
-			.filter((prop) => {
-				const tt = (prop?.transaction_type || "").toLowerCase();
-				if (transactionType === "For Lease") return tt.includes("lease");
-				return !tt.includes("lease");
-			})
-			.filter((prop) => sqftMin === 0 || (prop?.sqft != null && prop.sqft >= sqftMin))
-			.filter((prop) => sqftMax >= 999999 || (prop?.sqft != null && prop.sqft <= sqftMax))
-			.filter((prop) => strataMin === 0 || (prop?.association_fee != null && prop.association_fee >= strataMin))
-			.filter((prop) => strataMax >= 999999 || prop?.association_fee == null || prop.association_fee <= strataMax)
-			.filter((prop) => matchesTitle(prop?.ownership_type, titleStatus));
-		setPropArr(arr);
-	}, [min, max, type, bed, bath, transactionType, sqftMin, sqftMax, strataMin, strataMax, titleStatus, properties]); // eslint-disable-line react-hooks/exhaustive-deps
-
-	const sidebarArr = propArr.slice(0, 100);
-
-	// Map markers: use full pin index (all GTA listings, client-filtered).
-	// Falls back to propArr while pin index is still loading.
+	// All GTA listings matching current filters — fed to Map for pin rendering
 	const filteredPins = useMemo(() => {
-		const src = pinIndex.length ? pinIndex : propArr;
-		return src
+		return pinIndex
 			.filter((p) => p.price > min && p.price < max)
 			.filter((p) => matchesType(p, type))
 			.filter((p) => {
@@ -166,47 +117,18 @@ const SearchArea = () => {
 			})
 			.filter((p) => sqftMin === 0 || (p.sqft != null && p.sqft >= sqftMin))
 			.filter((p) => sqftMax >= 999999 || (p.sqft != null && p.sqft <= sqftMax));
-	}, [pinIndex, propArr, min, max, type, bed, bath, transactionType, sqftMin, sqftMax]); // eslint-disable-line react-hooks/exhaustive-deps
+	}, [pinIndex, min, max, type, bed, bath, transactionType, sqftMin, sqftMax]); // eslint-disable-line react-hooks/exhaustive-deps
 
-	useEffect(() => {
-		return () => { if (mapSyncTimer.current) clearTimeout(mapSyncTimer.current); };
-	}, []);
+	// Sidebar list: filteredPins clipped to current viewport — no server limit
+	const sidebarArr = useMemo(() => {
+		if (!mapBounds) return [];
+		const { swLat, neLat, swLng, neLng } = mapBounds;
+		return filteredPins.filter(
+			(p) => p.lat >= swLat && p.lat <= neLat && p.lng >= swLng && p.lng <= neLng
+		);
+	}, [filteredPins, mapBounds]);
 
-	const fetchFromMap = useCallback((bounds, tType) => {
-		if (!bounds) return;
-		if (mapSyncTimer.current) clearTimeout(mapSyncTimer.current);
-		mapSyncTimer.current = setTimeout(async () => {
-			setIsMapSyncing(true);
-			await dispatch(propertyActions.areaProperties({ ...bounds, transaction_type: tType }));
-			setIsMapSyncing(false);
-		}, 500);
-	}, [dispatch]);
-
-	const handleMapBoundsChange = useCallback((bounds) => {
-		if (!bounds) return;
-		boundsRef.current = bounds;
-		fetchFromMap(bounds, transactionTypeRef.current);
-	}, [fetchFromMap]);
-
-	const handleTransactionTypeChange = (newType) => {
-		setTransactionType(newType);
-		transactionTypeRef.current = newType;
-		fetchFromMap(boundsRef.current, newType);
-	};
-
-	const handleFlyTo = (lat, lng, bounds) => {
-		if (flyTargetTimerRef.current) clearTimeout(flyTargetTimerRef.current);
-		flyTargetRef.current = { lat, lng };
-		setOver({ id: 0 });
-		mapFlyToRef.current?.(lat, lng, bounds);
-		// Expire the target if no nearby listing is found within 6 seconds
-		flyTargetTimerRef.current = setTimeout(() => {
-			flyTargetRef.current = null;
-		}, 6000);
-	};
-
-	// After a fly-to, highlight the nearest listing to the searched point (if within ~150 m).
-	// Uses filteredPins (full index) so it works even when the viewport bounds haven't loaded yet.
+	// After a fly-to, highlight the nearest listing to the searched point (if within ~150 m)
 	useEffect(() => {
 		if (!flyTargetRef.current || !filteredPins.length) return;
 		const { lat, lng } = flyTargetRef.current;
@@ -224,6 +146,19 @@ const SearchArea = () => {
 		}
 	}, [filteredPins]);
 
+	const handleMapBoundsChange = useCallback((bounds) => {
+		if (!bounds) return;
+		setMapBounds(bounds);
+	}, []);
+
+	const handleFlyTo = (lat, lng, bounds) => {
+		if (flyTargetTimerRef.current) clearTimeout(flyTargetTimerRef.current);
+		flyTargetRef.current = { lat, lng };
+		setOver({ id: 0 });
+		mapFlyToRef.current?.(lat, lng, bounds);
+		flyTargetTimerRef.current = setTimeout(() => { flyTargetRef.current = null; }, 6000);
+	};
+
 	const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
 	const googleMapURL = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&v=weekly&libraries=geometry,drawing,places`;
 
@@ -237,9 +172,8 @@ const SearchArea = () => {
 			<main className="search-pg-ctrl bg-[#f3f3f1]">
 				{/* Map column */}
 				<div style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
-					{/* Search bar row — stacks on smallest screens */}
+					{/* Search bar row */}
 					<div className="flex flex-wrap sm:flex-nowrap items-center gap-2 shrink-0 relative z-20 bg-white border-b border-[#e5e5e0]" style={{ padding: "8px 10px" }}>
-						{/* Search bar — full-width row 1 on mobile, flex-1 row on desktop */}
 						<div className="order-1 sm:order-2 w-full sm:w-auto sm:flex-1 relative z-30">
 							<MapSearchBar
 								onPlaceSelect={handleFlyTo}
@@ -247,14 +181,13 @@ const SearchArea = () => {
 							/>
 						</div>
 
-						{/* Buy / Rent toggle — row 2 on mobile, left side on desktop */}
 						<div className="order-2 sm:order-1" style={{
 							display: "flex", borderRadius: 8, overflow: "hidden",
 							border: "1px solid #d6d6d0", flexShrink: 0, height: 36,
 						}}>
 							<button
 								type="button"
-								onClick={() => handleTransactionTypeChange("For Sale")}
+								onClick={() => setTransactionType("For Sale")}
 								style={{
 									...btnBase,
 									background: transactionType === "For Sale" ? "#0f172a" : "white",
@@ -263,7 +196,7 @@ const SearchArea = () => {
 							>Buy</button>
 							<button
 								type="button"
-								onClick={() => handleTransactionTypeChange("For Lease")}
+								onClick={() => setTransactionType("For Lease")}
 								style={{
 									...btnBase,
 									background: transactionType === "For Lease" ? "#0f172a" : "white",
@@ -273,7 +206,6 @@ const SearchArea = () => {
 							>Rent</button>
 						</div>
 
-						{/* Filter button — row 2 (right of Buy/Rent) on mobile, right side on desktop */}
 						<button
 							type="button"
 							className="order-3 sm:order-3"
@@ -326,7 +258,7 @@ const SearchArea = () => {
 					propArr={sidebarArr}
 					setOver={setOver}
 					showMapAreaButton={false}
-					isMapSyncing={isMapSyncing}
+					isMapSyncing={false}
 					hideSearch={true}
 					showFilters={showFilters}
 					setShowFilters={setShowFilters}
