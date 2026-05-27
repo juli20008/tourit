@@ -26,7 +26,7 @@ function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 
 async function fetchSupabaseMlsNumbers(): Promise<Set<string>> {
   const all = new Set<string>();
-  const INACTIVE = new Set(['Inactive', 'Expired', 'Cancelled', 'Withdrawn']);
+  const INACTIVE = new Set(['Inactive', 'Sold', 'Expired', 'Cancelled', 'Withdrawn']);
   let lastId = 0;
   const limit = 1000;
 

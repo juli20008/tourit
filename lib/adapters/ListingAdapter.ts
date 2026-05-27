@@ -196,15 +196,11 @@ function parseBoolean(value: any): boolean | null {
 }
 
 function standardStatusFromReplyCode(item: DdfRaw): { status: string | null; standard_status: string | null } {
-  const replyCode = String(firstDefined(item.replyCode, item.ReplyCode) ?? '');
-  if (replyCode === '0') {
-    return { status: 'A', standard_status: 'Active' };
-  }
-
   const status = firstDefined(item.Status, item.status);
   const standardStatus = firstDefined(item.StandardStatus, item.standard_status);
   return {
-    // DDF search results only include active listings — default to Active when fields are absent
+    // Default to Active only when DDF omits the field entirely — never override a real value.
+    // replyCode=0 check was removed: it forced Active on every result, hiding Sold/Pending status.
     status: status !== null ? String(status) : 'A',
     standard_status: standardStatus !== null ? String(standardStatus) : 'Active',
   };
