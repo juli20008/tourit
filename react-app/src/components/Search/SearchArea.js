@@ -169,6 +169,7 @@ const SearchArea = () => {
 		if (bounds.zoom) setZoom(Math.round(bounds.zoom));
 		if (mapSyncTimer.current) clearTimeout(mapSyncTimer.current);
 		mapSyncTimer.current = setTimeout(() => {
+			if (Math.round(bounds.zoom ?? zoom) < 10) return;
 			dispatch(propertyActions.areaProperties({
 				...bounds,
 				transaction_type: transactionTypeRef.current,
