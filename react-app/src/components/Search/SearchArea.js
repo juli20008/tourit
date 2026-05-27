@@ -80,12 +80,11 @@ const SearchArea = () => {
 		}
 	}, [areaParam]);
 
-	// Fetch GTA-wide listings once into isolated state — never overwritten by viewport queries.
-	// Queries 4 quadrants in parallel (125 each) to guarantee geographic spread across the
-	// whole GTA. A single LIMIT-500 query returns index-scan order (south-biased) which clusters.
-	// Result is cached in localStorage (1hr) so cold-start failures don't wipe the data on reload.
+	// Fetch 500 geographically-spread GTA listings — single request, server does the
+	// 4-quadrant distribution internally so cold-start can't kill all 4 parallel calls.
+	// Cached in localStorage (1hr) so repeated visits are instant.
 	useEffect(() => {
-		const LS_KEY = 'gta_fallback_v1';
+		const LS_KEY = 'gta_fallback_v2';
 		const LS_TTL = 60 * 60 * 1000;
 		try {
 			const raw = localStorage.getItem(LS_KEY);
@@ -98,28 +97,16 @@ const SearchArea = () => {
 			}
 		} catch {}
 
-		const quadrants = [
-			{ lat_min: 43.2,  lat_max: 43.85, lng_min: -80.5,  lng_max: -79.35 },
-			{ lat_min: 43.2,  lat_max: 43.85, lng_min: -79.35, lng_max: -78.2  },
-			{ lat_min: 43.85, lat_max: 44.5,  lng_min: -80.5,  lng_max: -79.35 },
-			{ lat_min: 43.85, lat_max: 44.5,  lng_min: -79.35, lng_max: -78.2  },
-		];
-		Promise.all(quadrants.map((bounds) =>
-			apiFetch("/api/listings?view=map", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ ...bounds, limit: 125 }),
+		apiFetch("/api/listings/gta-spread")
+			.then((r) => r.json())
+			.then((data) => {
+				const listings = Array.isArray(data.listings) ? data.listings : [];
+				if (listings.length > 0) {
+					setGtaFallback(listings);
+					try { localStorage.setItem(LS_KEY, JSON.stringify({ ts: Date.now(), data: listings })); } catch {}
+				}
 			})
-				.then((r) => r.json())
-				.then((data) => (Array.isArray(data.listings) ? data.listings : []))
-				.catch(() => [])
-		)).then((results) => {
-			const combined = results.flat();
-			if (combined.length > 0) {
-				setGtaFallback(combined);
-				try { localStorage.setItem(LS_KEY, JSON.stringify({ ts: Date.now(), data: combined })); } catch {}
-			}
-		});
+			.catch(() => {});
 	}, []);
 
 	// Load the full pin index once — bonus: 8000 distributed listings replace both fallbacks.

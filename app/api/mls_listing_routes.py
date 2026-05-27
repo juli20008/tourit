@@ -345,6 +345,53 @@ def list_listings_by_bounds():
         return jsonify({"listings": [], "total": 0, "page": 1, "per_page": limit})
 
 
+@mls_listing_routes.route("/gta-spread", methods=["GET"])
+def gta_spread():
+    """500 geographically-spread GTA listings for initial map load.
+
+    Runs 4 quadrant queries (125 each) server-side so the client only makes
+    one request instead of four parallel ones — far more reliable on cold start.
+    Cached server-side for 5 minutes.
+    """
+    cached = _cache_get("gta_spread")
+    if cached:
+        return jsonify(cached)
+
+    quadrants = [
+        (43.2,  43.85, -80.5,  -79.35),  # SW — Mississauga / Brampton
+        (43.2,  43.85, -79.35, -78.2),   # SE — Toronto / Scarborough
+        (43.85, 44.5,  -80.5,  -79.35),  # NW — Vaughan / Caledon
+        (43.85, 44.5,  -79.35, -78.2),   # NE — Markham / Richmond Hill
+    ]
+    listings = []
+    try:
+        db.session.execute(text("SET LOCAL statement_timeout = '25000'"))
+        for (lat_min, lat_max, lng_min, lng_max) in quadrants:
+            rows = (
+                MlsListing.query
+                .filter(
+                    MlsListing.lat.between(lat_min, lat_max),
+                    MlsListing.lng.between(lng_min, lng_max),
+                    MlsListing.map_pin_filter(),
+                    MlsListing.property_type_filter(),
+                )
+                .limit(125)
+                .all()
+            )
+            for r in rows:
+                try:
+                    listings.append(r.to_map_pin_dict())
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+    result = {"listings": listings}
+    if listings:
+        _cache_set("gta_spread", result)
+    return jsonify(result)
+
+
 @mls_listing_routes.route("/suggest", methods=["GET"])
 def suggest_listings():
     """Real-time street-name autocomplete — fallback when client index has no match."""
