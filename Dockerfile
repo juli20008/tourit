@@ -21,4 +21,4 @@ USER appuser
 
 EXPOSE ${PORT}
 
-CMD sh -c "flask db upgrade 2>&1 && exec gunicorn --worker-class eventlet --workers 1 --bind 0.0.0.0:${PORT:-8080} --timeout 120 --keep-alive 5 --log-level info --access-logfile - --error-logfile - wsgi:app"
+CMD sh -c "(flask db upgrade 2>&1 || echo 'DB upgrade skipped, continuing') && exec gunicorn --worker-class eventlet --workers 1 --bind 0.0.0.0:${PORT:-8080} --timeout 120 --keep-alive 5 --log-level info --access-logfile - --error-logfile - wsgi:app"

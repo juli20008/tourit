@@ -2,7 +2,7 @@ services:
   - type: web
     name: yillow-api
     runtime: docker
-    plan: free
+    plan: starter
     dockerfilePath: ./Dockerfile
     healthCheckPath: /health
     autoDeploy: true
