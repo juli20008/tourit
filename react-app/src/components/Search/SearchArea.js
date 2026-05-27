@@ -131,7 +131,7 @@ const SearchArea = () => {
 	// At zoom < 12 (city/region view) the viewport holds thousands of listings
 	// which would flood the panel; show nothing and let the map pins do the work.
 	const sidebarArr = useMemo(() => {
-		if (!mapBounds || zoom < 12) return [];
+		if (!mapBounds || zoom < 9) return [];
 		const { swLat, neLat, swLng, neLng } = mapBounds;
 		return filteredPins
 			.filter((p) => p.lat >= swLat && p.lat <= neLat && p.lng >= swLng && p.lng <= neLng)
