@@ -14,7 +14,7 @@ mls_listing_routes = Blueprint("mls_listings", __name__)
 mls_listing_routes.before_request(rate_limit_check)
 
 MAX_RESULTS = 100
-MAX_MAP_RESULTS = 500
+MAX_MAP_RESULTS = 1000
 
 # Simple in-memory cache for expensive map queries
 _cache: dict = {}
@@ -528,7 +528,7 @@ def pin_index():
                 MlsListing.lng.between(GTA_LNG_MIN, GTA_LNG_MAX),
                 MlsListing.map_pin_filter(),
             )
-            .limit(10000)
+            .limit(8000)
             .all()
         )
 
