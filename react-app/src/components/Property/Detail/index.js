@@ -118,6 +118,9 @@ const Detail = ({ property }) => {
 					{property?.transaction_type
 						? property.transaction_type
 						: statusLabel(property?.status)}
+					{property?.neighborhood && (
+						<span className="ml-2 normal-case font-normal text-gray-400">· {property.neighborhood}</span>
+					)}
 					{(property?.status?.toLowerCase() === "u" || property?.status?.toLowerCase() === "pending") && (
 						<span className="ml-2 text-amber-500 normal-case font-normal">· Pending</span>
 					)}
