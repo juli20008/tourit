@@ -83,12 +83,26 @@ const SearchArea = () => {
 	// Fetch GTA-wide listings once into isolated state — never overwritten by viewport queries.
 	// Queries 4 quadrants in parallel (125 each) to guarantee geographic spread across the
 	// whole GTA. A single LIMIT-500 query returns index-scan order (south-biased) which clusters.
+	// Result is cached in localStorage (1hr) so cold-start failures don't wipe the data on reload.
 	useEffect(() => {
+		const LS_KEY = 'gta_fallback_v1';
+		const LS_TTL = 60 * 60 * 1000;
+		try {
+			const raw = localStorage.getItem(LS_KEY);
+			if (raw) {
+				const { ts, data } = JSON.parse(raw);
+				if (Date.now() - ts < LS_TTL && Array.isArray(data) && data.length > 0) {
+					setGtaFallback(data);
+					return;
+				}
+			}
+		} catch {}
+
 		const quadrants = [
-			{ lat_min: 43.2,  lat_max: 43.85, lng_min: -80.5,  lng_max: -79.35 }, // SW (Mississauga/Brampton)
-			{ lat_min: 43.2,  lat_max: 43.85, lng_min: -79.35, lng_max: -78.2  }, // SE (Toronto/Scarborough)
-			{ lat_min: 43.85, lat_max: 44.5,  lng_min: -80.5,  lng_max: -79.35 }, // NW (Vaughan/Caledon)
-			{ lat_min: 43.85, lat_max: 44.5,  lng_min: -79.35, lng_max: -78.2  }, // NE (Markham/Richmond Hill)
+			{ lat_min: 43.2,  lat_max: 43.85, lng_min: -80.5,  lng_max: -79.35 },
+			{ lat_min: 43.2,  lat_max: 43.85, lng_min: -79.35, lng_max: -78.2  },
+			{ lat_min: 43.85, lat_max: 44.5,  lng_min: -80.5,  lng_max: -79.35 },
+			{ lat_min: 43.85, lat_max: 44.5,  lng_min: -79.35, lng_max: -78.2  },
 		];
 		Promise.all(quadrants.map((bounds) =>
 			apiFetch("/api/listings?view=map", {
@@ -101,7 +115,10 @@ const SearchArea = () => {
 				.catch(() => [])
 		)).then((results) => {
 			const combined = results.flat();
-			if (combined.length > 0) setGtaFallback(combined);
+			if (combined.length > 0) {
+				setGtaFallback(combined);
+				try { localStorage.setItem(LS_KEY, JSON.stringify({ ts: Date.now(), data: combined })); } catch {}
+			}
 		});
 	}, []);
 
@@ -140,7 +157,7 @@ const SearchArea = () => {
 	// while zoomed-in view shows locally relevant listings.
 	const filteredPins = useMemo(() => {
 		const src = pinIndex.length ? pinIndex
-			: (zoom < 10 && gtaFallback.length) ? gtaFallback
+			: (zoom < 12 && gtaFallback.length) ? gtaFallback
 			: fallbackProps;
 		return src
 			.filter((p) => p.lat >= GTA_BOUNDS.latMin && p.lat <= GTA_BOUNDS.latMax && p.lng >= GTA_BOUNDS.lngMin && p.lng <= GTA_BOUNDS.lngMax)
