@@ -6,6 +6,14 @@ services:
     dockerfilePath: ./Dockerfile
     healthCheckPath: /health
     autoDeploy: true
+    buildFilter:
+      paths:
+        - app/**
+        - migrations/**
+        - wsgi.py
+        - requirements.txt
+        - Dockerfile
+        - render.yaml
     envVars:
       - key: SECRET_KEY
         sync: false

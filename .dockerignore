@@ -1,6 +1,15 @@
-react-app/node_modules
+react-app/
+.git/
 .venv
 Pipfile
 Pipfile.lock
 .env
+.env.local
 .DS_Store
+*.md
+*.csv
+*.xlsx
+*.png
+*.log
+__pycache__/
+node_modules/
