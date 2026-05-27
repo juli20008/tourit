@@ -51,6 +51,7 @@ const SearchArea = () => {
 	const [zoom, setZoom] = useState(10);
 	const mapSyncTimer = useRef(null);
 	const transactionTypeRef = useRef("For Sale");
+	const pinIndexReadyRef = useRef(false);
 
 	useEffect(() => {
 		if (!hasConsented()) setShowConsent(true);
@@ -81,11 +82,17 @@ const SearchArea = () => {
 		}
 	}, [dispatch, areaParam]);
 
-	// Load the full pin index once — drives all map dots AND the list panel
+	// Load the full pin index once — drives all map dots AND the list panel.
+	// Once loaded (or after 8s timeout), unblock viewport dispatches in handleMapBoundsChange.
 	useEffect(() => {
+		const unlock = () => { pinIndexReadyRef.current = true; };
+		const timer = setTimeout(unlock, 8000); // failsafe: unblock if pin-index never loads
 		dispatch(propertyActions.fetchPinIndex()).then((pins) => {
 			if (Array.isArray(pins) && pins.length) setPinIndex(pins);
+			unlock();
+			clearTimeout(timer);
 		});
+		return () => clearTimeout(timer);
 	}, [dispatch]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	useEffect(() => {
@@ -169,7 +176,7 @@ const SearchArea = () => {
 		if (bounds.zoom) setZoom(Math.round(bounds.zoom));
 		if (mapSyncTimer.current) clearTimeout(mapSyncTimer.current);
 		mapSyncTimer.current = setTimeout(() => {
-			if (Math.round(bounds.zoom ?? zoom) < 10) return;
+			if (!pinIndexReadyRef.current) return; // keep GTA-wide seed until pin-index loads
 			dispatch(propertyActions.areaProperties({
 				...bounds,
 				transaction_type: transactionTypeRef.current,
