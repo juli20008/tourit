@@ -11,6 +11,7 @@ import * as propertyActions from "../../store/property";
 import { hasConsented, saveConsent } from "../../utils/locationConsent";
 
 const TORONTO = { lat: 43.6532, lng: -79.3832 };
+const GTA_BOUNDS = { latMin: 43.2, latMax: 44.5, lngMin: -80.5, lngMax: -78.2 };
 
 const SearchArea = () => {
 	const dispatch = useDispatch();
@@ -108,6 +109,7 @@ const SearchArea = () => {
 	const filteredPins = useMemo(() => {
 		const src = pinIndex.length ? pinIndex : fallbackProps;
 		return src
+			.filter((p) => p.lat >= GTA_BOUNDS.latMin && p.lat <= GTA_BOUNDS.latMax && p.lng >= GTA_BOUNDS.lngMin && p.lng <= GTA_BOUNDS.lngMax)
 			.filter((p) => p.price > min && p.price < max)
 			.filter((p) => matchesType(p, type))
 			.filter((p) => {
