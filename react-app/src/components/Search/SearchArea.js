@@ -226,7 +226,7 @@ const SearchArea = () => {
 	};
 
 	const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
-	const googleMapURL = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&v=weekly&libraries=geometry,drawing,places`;
+	const googleMapURL = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&v=weekly&libraries=geometry,places`;
 
 	const btnBase = {
 		padding: "0 16px", fontSize: 13, fontWeight: 600,

@@ -61,10 +61,13 @@ def get_all_agents():
 
 @agent_routes.route("/slug/<slug>")
 def get_agent_by_slug(slug):
-    agent = User.query.filter(
-        User.agent == True,
-        func.lower(func.regexp_replace(User.username, r'[^a-zA-Z0-9]', '', 'g')) == slug.lower()
-    ).first()
+    try:
+        agent = User.query.filter(
+            User.agent == True,
+            func.lower(func.regexp_replace(User.username, r'[^a-zA-Z0-9]', '', 'g')) == slug.lower()
+        ).first()
+    except Exception:
+        return {"errors": ["Agent not found"]}, 404
     if not agent:
         return {"errors": ["Agent not found"]}, 404
     return {

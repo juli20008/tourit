@@ -93,7 +93,7 @@ const Splash = () => {
 	useEffect(() => {
 		const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
 		if (!apiKey) return;
-		const loader = new Loader({ apiKey, version: "weekly", libraries: ["geometry", "drawing", "places"] });
+		const loader = new Loader({ apiKey, version: "weekly", libraries: ["geometry", "places"] });
 		loader.load().then(() => {
 			autocompleteRef.current = new window.google.maps.places.AutocompleteService();
 			const div = document.createElement("div");

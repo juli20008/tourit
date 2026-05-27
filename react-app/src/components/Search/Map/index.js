@@ -664,7 +664,7 @@ const ProductionMapLoader = (props) => {
 		const loader = new Loader({
 			apiKey,
 			version: "weekly",
-			libraries: ["geometry", "drawing", "places"],
+			libraries: ["geometry", "places"],
 		});
 
 		loader
