@@ -8,7 +8,6 @@ import MapSearchBar from "./Map/MapSearchBar";
 import LocationConsent from "../LocationConsent";
 
 import * as propertyActions from "../../store/property";
-import apiFetch from "../../utils/apiFetch";
 import { hasConsented, saveConsent } from "../../utils/locationConsent";
 
 const TORONTO = { lat: 43.6532, lng: -79.3832 };
@@ -32,7 +31,6 @@ const SearchArea = () => {
 	const [titleStatus, setTitleStatus] = useState("");
 	const [transactionType, setTransactionType] = useState("For Sale");
 	const [showFilters, setShowFilters] = useState(false);
-	const [gtaFallback, setGtaFallback] = useState([]);
 
 	const getInitialCenter = (param) => {
 		if (!param) return TORONTO;
@@ -71,25 +69,17 @@ const SearchArea = () => {
 	};
 
 	useEffect(() => {
+		// Always seed the fallback with GTA-wide data so pins are distributed
+		// across the whole region before pin-index finishes loading.
+		dispatch(propertyActions.areaProperties({
+			neLat: 44.5, neLng: -78.2, swLat: 43.2, swLng: -80.5,
+		}));
 		if (areaParam) {
 			const parts = areaParam.split("&").map((each) => parseFloat(each.split("=")[1]));
 			const [, , , , zoomVal] = parts;
 			if (!isNaN(zoomVal)) setZoom(Math.round(zoomVal));
 		}
-	}, [areaParam]);
-
-	// Fetch GTA-wide listings into isolated state — never overwritten by viewport queries.
-	// This is the stable fallback used while pin-index loads.
-	useEffect(() => {
-		apiFetch("/api/listings?view=map", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ lat_min: 43.2, lat_max: 44.5, lng_min: -80.5, lng_max: -78.2 }),
-		})
-			.then((r) => r.json())
-			.then((data) => { if (Array.isArray(data.listings) && data.listings.length) setGtaFallback(data.listings); })
-			.catch(() => {});
-	}, []);
+	}, [dispatch, areaParam]);
 
 	// Load the full pin index once — drives all map dots AND the list panel
 	useEffect(() => {
@@ -118,9 +108,9 @@ const SearchArea = () => {
 	};
 
 	// All GTA listings matching current filters — fed to Map for pin rendering.
-	// Priority: full pin-index > GTA-wide stable fallback > Redux fallback.
+	// Falls back to the initial bounds query results while pin index is loading.
 	const filteredPins = useMemo(() => {
-		const src = pinIndex.length ? pinIndex : (gtaFallback.length ? gtaFallback : fallbackProps);
+		const src = pinIndex.length ? pinIndex : fallbackProps;
 		return src
 			.filter((p) => p.lat >= GTA_BOUNDS.latMin && p.lat <= GTA_BOUNDS.latMax && p.lng >= GTA_BOUNDS.lngMin && p.lng <= GTA_BOUNDS.lngMax)
 			.filter((p) => p.price > min && p.price < max)
@@ -140,7 +130,7 @@ const SearchArea = () => {
 			})
 			.filter((p) => sqftMin === 0 || (p.sqft != null && p.sqft >= sqftMin))
 			.filter((p) => sqftMax >= 999999 || (p.sqft != null && p.sqft <= sqftMax));
-	}, [pinIndex, gtaFallback, fallbackProps, min, max, type, bed, bath, transactionType, sqftMin, sqftMax]); // eslint-disable-line react-hooks/exhaustive-deps
+	}, [pinIndex, fallbackProps, min, max, type, bed, bath, transactionType, sqftMin, sqftMax]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	// Sidebar list: only shown when zoomed in enough to be meaningful.
 	// At zoom < 12 (city/region view) the viewport holds thousands of listings
