@@ -131,13 +131,13 @@ const SearchArea = () => {
 	// At zoom < 12 (city/region view) the viewport holds thousands of listings
 	// which would flood the panel; show nothing and let the map pins do the work.
 	const sidebarArr = useMemo(() => {
-		if (!mapBounds) return [];
-		// Zoomed out: show top GTA listings regardless of viewport
-		if (zoom < 9) return filteredPins.slice(0, 100);
+		const top100 = filteredPins.slice(0, 100);
+		if (!mapBounds || zoom < 9) return top100;
 		const { swLat, neLat, swLng, neLng } = mapBounds;
-		return filteredPins
+		const inView = filteredPins
 			.filter((p) => p.lat >= swLat && p.lat <= neLat && p.lng >= swLng && p.lng <= neLng)
 			.slice(0, 100);
+		return inView.length > 0 ? inView : top100;
 	}, [filteredPins, mapBounds, zoom]);
 
 	// After a fly-to, highlight the nearest listing to the searched point (if within ~150 m)
