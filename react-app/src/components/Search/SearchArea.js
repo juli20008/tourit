@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 
 import List from "./List";
 import MyMap from "./Map";
@@ -17,8 +17,6 @@ const GTA_BOUNDS = { latMin: 43.2, latMax: 44.5, lngMin: -80.5, lngMax: -78.2 };
 const SearchArea = () => {
 	const dispatch = useDispatch();
 	const { areaParam } = useParams();
-	// Fallback listings while pin index is loading
-	const fallbackProps = useSelector((state) => state.properties?.properties ?? []);
 
 	const [min, setMin] = useState(0);
 	const [max, setMax] = useState(99999999999);
@@ -32,9 +30,11 @@ const SearchArea = () => {
 	const [titleStatus, setTitleStatus] = useState("");
 	const [transactionType, setTransactionType] = useState("For Sale");
 	const [showFilters, setShowFilters] = useState(false);
-	// GTA-wide listings fetched once — never overwritten by viewport dispatches.
-	// Used as the map source when zoomed out so pins spread across the whole region.
-	const [gtaFallback, setGtaFallback] = useState([]);
+
+	// Accumulated map pins — never cleared on pan, only grows.
+	// Seeded from gtaFallback / pinIndex; viewport pans merge in incrementally.
+	const mapPinsRef = useRef(new Map()); // id → pin
+	const [mapPins, setMapPins] = useState([]);
 
 	const getInitialCenter = (param) => {
 		if (!param) return TORONTO;
@@ -49,12 +49,10 @@ const SearchArea = () => {
 	const flyTargetTimerRef = useRef(null);
 	const [mapIsReady, setMapIsReady] = useState(false);
 	const [showConsent, setShowConsent] = useState(false);
-	const [pinIndex, setPinIndex] = useState([]);
 	const [mapBounds, setMapBounds] = useState(null);
 	const [over, setOver] = useState({ id: 0 });
 	const [zoom, setZoom] = useState(10);
 	const mapSyncTimer = useRef(null);
-	const transactionTypeRef = useRef("For Sale");
 
 	useEffect(() => {
 		if (!hasConsented()) setShowConsent(true);
@@ -80,9 +78,20 @@ const SearchArea = () => {
 		}
 	}, [areaParam]);
 
-	// Fetch 500 geographically-spread GTA listings — single request, server does the
-	// 4-quadrant distribution internally so cold-start can't kill all 4 parallel calls.
-	// Cached in localStorage (1hr) so repeated visits are instant.
+	// Merge an array of pins into the accumulated map, return new array.
+	const mergeIntoMap = (pins) => {
+		let changed = false;
+		for (const p of pins) {
+			if (p?.id && !mapPinsRef.current.has(p.id)) {
+				mapPinsRef.current.set(p.id, p);
+				changed = true;
+			}
+		}
+		if (changed) setMapPins([...mapPinsRef.current.values()]);
+	};
+
+	// Seed: 500 geographically-spread GTA listings from single endpoint.
+	// Cached in localStorage (1hr) so cold-start failures don't wipe the seed.
 	useEffect(() => {
 		const LS_KEY = 'gta_fallback_v2';
 		const LS_TTL = 60 * 60 * 1000;
@@ -91,7 +100,7 @@ const SearchArea = () => {
 			if (raw) {
 				const { ts, data } = JSON.parse(raw);
 				if (Date.now() - ts < LS_TTL && Array.isArray(data) && data.length > 0) {
-					setGtaFallback(data);
+					mergeIntoMap(data);
 					return;
 				}
 			}
@@ -102,17 +111,21 @@ const SearchArea = () => {
 			.then((data) => {
 				const listings = Array.isArray(data.listings) ? data.listings : [];
 				if (listings.length > 0) {
-					setGtaFallback(listings);
+					mergeIntoMap(listings);
 					try { localStorage.setItem(LS_KEY, JSON.stringify({ ts: Date.now(), data: listings })); } catch {}
 				}
 			})
 			.catch(() => {});
-	}, []);
+	}, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-	// Load the full pin index once — bonus: 8000 distributed listings replace both fallbacks.
+	// Seed: full pin index (8000 listings) — supersedes everything if it loads.
 	useEffect(() => {
 		dispatch(propertyActions.fetchPinIndex()).then((pins) => {
-			if (Array.isArray(pins) && pins.length) setPinIndex(pins);
+			if (Array.isArray(pins) && pins.length) {
+				// Pin index is authoritative — replace accumulated map entirely.
+				mapPinsRef.current = new Map(pins.map((p) => [p.id, p]));
+				setMapPins(pins);
+			}
 		});
 	}, [dispatch]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -135,18 +148,10 @@ const SearchArea = () => {
 		return false;
 	};
 
-	// All GTA listings matching current filters — fed to Map for pin rendering.
-	// Source priority:
-	//   1. pinIndex (8000 GTA-wide, if it ever loads)
-	//   2. zoom < 10: gtaFallback — GTA-wide 500, fetched once, never overwritten by panning
-	//   3. zoom >= 10: fallbackProps — viewport-specific, updated as user pans
-	// This ensures zoomed-out view always shows spread-across-GTA pins,
-	// while zoomed-in view shows locally relevant listings.
+	// Client-side filter applied to accumulated pins.
+	// No zoom-based source switching — mapPins is the single source of truth.
 	const filteredPins = useMemo(() => {
-		const src = pinIndex.length ? pinIndex
-			: (zoom < 12 && gtaFallback.length) ? gtaFallback
-			: fallbackProps;
-		return src
+		return mapPins
 			.filter((p) => p.lat >= GTA_BOUNDS.latMin && p.lat <= GTA_BOUNDS.latMax && p.lng >= GTA_BOUNDS.lngMin && p.lng <= GTA_BOUNDS.lngMax)
 			.filter((p) => p.price > min && p.price < max)
 			.filter((p) => matchesType(p, type))
@@ -165,11 +170,9 @@ const SearchArea = () => {
 			})
 			.filter((p) => sqftMin === 0 || (p.sqft != null && p.sqft >= sqftMin))
 			.filter((p) => sqftMax >= 999999 || (p.sqft != null && p.sqft <= sqftMax));
-	}, [pinIndex, gtaFallback, fallbackProps, zoom, min, max, type, bed, bath, transactionType, sqftMin, sqftMax]); // eslint-disable-line react-hooks/exhaustive-deps
+	}, [mapPins, min, max, type, bed, bath, transactionType, sqftMin, sqftMax]); // eslint-disable-line react-hooks/exhaustive-deps
 
-	// Sidebar list: only shown when zoomed in enough to be meaningful.
-	// At zoom < 12 (city/region view) the viewport holds thousands of listings
-	// which would flood the panel; show nothing and let the map pins do the work.
+	// Sidebar: viewport-filtered slice of accumulated pins.
 	const sidebarArr = useMemo(() => {
 		const top100 = filteredPins.slice(0, 100);
 		if (!mapBounds || zoom < 9) return top100;
@@ -203,13 +206,15 @@ const SearchArea = () => {
 		setMapBounds(bounds);
 		if (bounds.zoom) setZoom(Math.round(bounds.zoom));
 		if (mapSyncTimer.current) clearTimeout(mapSyncTimer.current);
-		mapSyncTimer.current = setTimeout(() => {
-			dispatch(propertyActions.areaProperties({
-				...bounds,
-				transaction_type: transactionTypeRef.current,
-			}));
+		mapSyncTimer.current = setTimeout(async () => {
+			// No transaction_type — server returns all types, client filters.
+			// This keeps accumulated pins valid across Buy/Rent toggle.
+			const result = await dispatch(propertyActions.areaProperties(bounds));
+			if (Array.isArray(result?.listings) && result.listings.length > 0) {
+				mergeIntoMap(result.listings);
+			}
 		}, 500);
-	}, [dispatch]);
+	}, [dispatch]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	const handleFlyTo = (lat, lng, bounds) => {
 		if (flyTargetTimerRef.current) clearTimeout(flyTargetTimerRef.current);
@@ -247,7 +252,7 @@ const SearchArea = () => {
 						}}>
 							<button
 								type="button"
-								onClick={() => { setTransactionType("For Sale"); transactionTypeRef.current = "For Sale"; }}
+								onClick={() => setTransactionType("For Sale")}
 								style={{
 									...btnBase,
 									background: transactionType === "For Sale" ? "#0f172a" : "white",
@@ -256,7 +261,7 @@ const SearchArea = () => {
 							>Buy</button>
 							<button
 								type="button"
-								onClick={() => { setTransactionType("For Lease"); transactionTypeRef.current = "For Lease"; }}
+								onClick={() => setTransactionType("For Lease")}
 								style={{
 									...btnBase,
 									background: transactionType === "For Lease" ? "#0f172a" : "white",
