@@ -226,7 +226,7 @@ const ChatBubble = () => {
 						<div className="cb-agent-row cb-fadein">
 							<MsgAvatar photo={agentPhoto} name={agentName} />
 							<div className="cb-agent-bubble">
-								Hi! I'm {agentName}. Select a date and time above to request a showing — I'll confirm right away.
+								Hi! I'm {agentName}. Select a date and time above to request a showing <span translate="no">—</span> I'll confirm right away.
 							</div>
 						</div>
 						<div style={{ marginTop: "auto", paddingTop: 12 }}>
