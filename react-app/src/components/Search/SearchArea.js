@@ -131,7 +131,9 @@ const SearchArea = () => {
 	// At zoom < 12 (city/region view) the viewport holds thousands of listings
 	// which would flood the panel; show nothing and let the map pins do the work.
 	const sidebarArr = useMemo(() => {
-		if (!mapBounds || zoom < 9) return [];
+		if (!mapBounds) return [];
+		// Zoomed out: show top GTA listings regardless of viewport
+		if (zoom < 9) return filteredPins.slice(0, 100);
 		const { swLat, neLat, swLng, neLng } = mapBounds;
 		return filteredPins
 			.filter((p) => p.lat >= swLat && p.lat <= neLat && p.lng >= swLng && p.lng <= neLng)
