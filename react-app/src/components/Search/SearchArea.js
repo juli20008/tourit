@@ -51,7 +51,7 @@ const SearchArea = () => {
 	const [showConsent, setShowConsent] = useState(false);
 	const [mapBounds, setMapBounds] = useState(null);
 	const [over, setOver] = useState({ id: 0 });
-	const [zoom, setZoom] = useState(10);
+	const [zoom, setZoom] = useState(6);
 	const mapSyncTimer = useRef(null);
 
 	useEffect(() => {
