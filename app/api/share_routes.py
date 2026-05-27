@@ -98,10 +98,16 @@ def share_listing(mls_number):
     addr_short = ", ".join(p for p in [street, city] if p)
     title      = f"{addr_short} - {price_fmt}" if addr_short else f"Property - {price_fmt}"
 
+    if d.get("beds_above_grade") and d.get("basement_beds"):
+        bed_label = f"{d['beds_above_grade']}+{d['basement_beds']} bd"
+    elif d.get("bed"):
+        bed_label = f"{d['bed']} bd"
+    else:
+        bed_label = None
     specs_parts = []
-    if d.get("bed"):  specs_parts.append(f"{d['bed']} bd")
-    if d.get("bath"): specs_parts.append(f"{d['bath']} ba")
-    if d.get("sqft"): specs_parts.append(f"{d['sqft']} sqft")
+    if bed_label:      specs_parts.append(bed_label)
+    if d.get("bath"):  specs_parts.append(f"{d['bath']} ba")
+    if d.get("sqft"):  specs_parts.append(f"{d['sqft']} sqft")
     specs = " · ".join(specs_parts) if specs_parts else ""
     description = specs if specs else "View this property on Tourit"
 
@@ -121,8 +127,8 @@ def share_listing(mls_number):
 
     # Build specs row with icons
     spec_html_parts = []
-    if d.get("bed"):
-        spec_html_parts.append(f'<span>{d["bed"]} bd</span>')
+    if bed_label:
+        spec_html_parts.append(f'<span>{html_escape(bed_label)}</span>')
     if d.get("bath"):
         spec_html_parts.append(f'<span>{d["bath"]} ba</span>')
     if d.get("sqft"):

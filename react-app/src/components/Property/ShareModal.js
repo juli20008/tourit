@@ -126,8 +126,11 @@ const drawCard = async (canvas, property, shareUrl, agent = null) => {
 		ty += 72;
 	}
 
+	const bedLabel = property.beds_above_grade > 0 && property.basement_beds > 0
+		? `${property.beds_above_grade}+${property.basement_beds} bd`
+		: property.bed ? `${property.bed} bd` : null;
 	const specs = [
-		property.bed  && `${property.bed} bd`,
+		bedLabel,
 		property.bath && `${property.bath} ba`,
 		property.sqft && `${property.sqft} sqft`,
 	].filter(Boolean).join("  ·  ");

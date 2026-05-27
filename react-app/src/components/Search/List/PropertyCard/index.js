@@ -51,7 +51,9 @@ const PropertyCard = ({ property, setOver }) => {
 						property?.price.toFixed().replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,")}
 				</div>
 				<div className="card-desc text-[14px] text-[#55585f]">
-					{property?.bed} bd{property?.bed > 1 && <span>s</span>}{" "}
+					{property?.beds_above_grade > 0 && property?.basement_beds > 0
+						? `${property.beds_above_grade}+${property.basement_beds} bd`
+						: `${property?.bed ?? ""} bd`}{" "}
 					{property?.bath} ba {property?.sqft} sqft
 				</div>
 				<div className="card-address text-[16px] font-medium leading-snug text-[#676a71]">
