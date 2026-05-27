@@ -393,11 +393,8 @@ const MapCore = withGoogleMap((props) => {
 				if (bounds) {
 					mapRef.current.fitBounds(bounds);
 				} else {
-					const d = 0.005; // ~500 m radius → roughly zoom 14
-					mapRef.current.fitBounds({
-						north: lat + d, south: lat - d,
-						east: lng + d, west: lng - d,
-					});
+					mapRef.current.setCenter({ lat, lng });
+					mapRef.current.setZoom(6);
 				}
 			});
 		}, []); // eslint-disable-line react-hooks/exhaustive-deps
