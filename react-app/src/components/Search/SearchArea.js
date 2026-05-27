@@ -248,7 +248,7 @@ const SearchArea = () => {
 							loadingElement={<div style={{ height: "100%" }} />}
 							containerElement={<div className="map-ctnr relative overflow-hidden border-r border-[#dcdcd7]" />}
 							mapElement={<div style={{ height: "100%" }} />}
-							markers={zoom >= 9 ? filteredPins : []}
+							markers={filteredPins}
 							center={center}
 							over={over}
 							zoom={zoom}
