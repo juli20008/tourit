@@ -205,10 +205,11 @@ const SearchArea = () => {
 		if (!bounds) return;
 		setMapBounds(bounds);
 		if (bounds.zoom) setZoom(Math.round(bounds.zoom));
+		// At city/region zoom, gtaFallback already covers the whole GTA — no API call needed.
+		// Only fetch local detail when zoomed in enough to see individual streets.
+		if (!bounds.zoom || Math.round(bounds.zoom) < 12) return;
 		if (mapSyncTimer.current) clearTimeout(mapSyncTimer.current);
 		mapSyncTimer.current = setTimeout(async () => {
-			// No transaction_type — server returns all types, client filters.
-			// This keeps accumulated pins valid across Buy/Rent toggle.
 			const result = await dispatch(propertyActions.areaProperties(bounds));
 			if (Array.isArray(result?.listings) && result.listings.length > 0) {
 				mergeIntoMap(result.listings);
