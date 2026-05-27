@@ -493,6 +493,13 @@ def pin_index():
         )
 
     try:
+        # GTA + surrounding area bounding box — wide enough to cover all Ontario
+        # listings we care about. Using lat/lng range lets PostgreSQL use the
+        # ix_mls_listings_lat / ix_mls_listings_lng indexes instead of a full
+        # table scan, which is what made the old query slow / time-out.
+        GTA_LAT_MIN, GTA_LAT_MAX = 43.2, 44.5
+        GTA_LNG_MIN, GTA_LNG_MAX = -80.5, -78.2
+
         db.session.execute(text("SET LOCAL statement_timeout = '25000'"))
         rows = (
             db.session.query(
@@ -516,7 +523,11 @@ def pin_index():
                 MlsListing.external_id,
                 MlsListing.photos_timestamp,
             )
-            .filter(MlsListing.map_pin_filter())
+            .filter(
+                MlsListing.lat.between(GTA_LAT_MIN, GTA_LAT_MAX),
+                MlsListing.lng.between(GTA_LNG_MIN, GTA_LNG_MAX),
+                MlsListing.map_pin_filter(),
+            )
             .limit(10000)
             .all()
         )
