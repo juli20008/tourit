@@ -493,17 +493,7 @@ def pin_index():
         )
 
     try:
-        from sqlalchemy import or_
         db.session.execute(text("SET LOCAL statement_timeout = '25000'"))
-        # property_type_filter() uses ILIKE '%Residential%' (leading wildcard → seq-scan).
-        # Use equality / IN checks instead so PostgreSQL can use any available index.
-        _pt_filter = or_(
-            MlsListing.property_type.is_(None),
-            MlsListing.property_type.in_([
-                '300', '301', '302',
-                'Residential', 'ResidentialCondo', 'Recreational',
-            ]),
-        )
         rows = (
             db.session.query(
                 MlsListing.id,
@@ -527,7 +517,6 @@ def pin_index():
                 MlsListing.photos_timestamp,
             )
             .filter(MlsListing.map_pin_filter())
-            .filter(_pt_filter)
             .limit(10000)
             .all()
         )
