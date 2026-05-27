@@ -3,7 +3,7 @@ import json
 import os
 import sqlite3
 import time
-from sqlalchemy import text
+from sqlalchemy import text, func
 from sqlalchemy.exc import OperationalError
 
 from ..models.mls_listing import MlsListing, _determine_category, _build_cdn_image_url
@@ -313,9 +313,7 @@ def list_listings_by_bounds():
             else:
                 q = q.filter(~MlsListing.transaction_type.ilike('%lease%') | MlsListing.transaction_type.is_(None))
         q = q.filter(MlsListing.property_type_filter())
-        # No ORDER BY — map pins have no meaningful sort order and sorting
-        # all matching rows before LIMIT is the single most expensive step.
-        q = q.limit(limit)
+        q = q.order_by(func.random()).limit(limit)
         listings = q.all()
         if not listings:
             return _fetch_local_bounds(lat_min, lat_max, lng_min, lng_max, limit, lightweight=lightweight or limit > MAX_RESULTS)
@@ -375,6 +373,7 @@ def gta_spread():
                     MlsListing.map_pin_filter(),
                     MlsListing.property_type_filter(),
                 )
+                .order_by(func.random())
                 .limit(125)
                 .all()
             )
