@@ -16,6 +16,16 @@ function _lsGet(key) {
 	} catch { return null; }
 }
 
+// Like _lsGet but returns stale data even after TTL expires (for stale-while-revalidate).
+function _lsGetStale(key) {
+	try {
+		const raw = localStorage.getItem(key);
+		if (!raw) return null;
+		const { data } = JSON.parse(raw);
+		return data ?? null;
+	} catch { return null; }
+}
+
 function _lsSet(key, data) {
 	try { localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data })); } catch {}
 }
@@ -92,19 +102,31 @@ export const areaProperties = (payload) => async (dispatch) => {
 };
 
 export const fetchPinIndex = () => async () => {
-	// Only use cache if it has actual data — empty arrays from failed requests are ignored
-	const cached = _lsGet("pin_index");
-	if (cached && cached.length > 0) return cached;
-	try {
-		const response = await apiFetch("/api/listings/pin-index");
-		if (!response.ok) return [];
-		const data = await response.json();
-		const pins = Array.isArray(data.pins) ? data.pins : [];
-		if (pins.length > 0) _lsSet("pin_index", pins); // never cache an empty result
-		return pins;
-	} catch {
-		return [];
+	const stale = _lsGetStale("pin_index");
+	const fresh = _lsGet("pin_index"); // null if expired or absent
+
+	const fetchFresh = async () => {
+		try {
+			const response = await apiFetch("/api/listings/pin-index");
+			if (!response.ok) return null;
+			const data = await response.json();
+			const pins = Array.isArray(data.pins) ? data.pins : [];
+			if (pins.length > 0) _lsSet("pin_index", pins);
+			return pins;
+		} catch {
+			return null;
+		}
+	};
+
+	// Stale-while-revalidate: return cached data instantly (even if expired),
+	// fire a background refresh so the next load gets fresh data.
+	if (stale && stale.length > 0) {
+		if (!fresh) fetchFresh(); // cache expired — refresh quietly in background
+		return stale;
 	}
+
+	// No cache at all (first ever visit) — must wait for the API.
+	return (await fetchFresh()) ?? [];
 };
 
 export const getMlsListing = async (mlsNumber) => {

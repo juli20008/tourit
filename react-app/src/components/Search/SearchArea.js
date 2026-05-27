@@ -91,20 +91,28 @@ const SearchArea = () => {
 	};
 
 	// Seed: 500 geographically-spread GTA listings from single endpoint.
-	// Cached in localStorage (1hr) so cold-start failures don't wipe the seed.
+	// Stale-while-revalidate: show cached pins instantly (even if >1hr old),
+	// then refresh quietly in background so next load is fresh.
 	useEffect(() => {
 		const LS_KEY = 'gta_fallback_v3';
 		const LS_TTL = 60 * 60 * 1000;
+
+		let stale = null, isFresh = false;
 		try {
 			const raw = localStorage.getItem(LS_KEY);
 			if (raw) {
 				const { ts, data } = JSON.parse(raw);
-				if (Date.now() - ts < LS_TTL && Array.isArray(data) && data.length > 0) {
-					mergeIntoMap(data);
-					return;
+				if (Array.isArray(data) && data.length > 0) {
+					stale = data;
+					isFresh = Date.now() - ts < LS_TTL;
 				}
 			}
 		} catch {}
+
+		if (stale) mergeIntoMap(stale);
+
+		// Only fetch from API if cache is absent or stale.
+		if (isFresh) return;
 
 		apiFetch("/api/listings/gta-spread")
 			.then((r) => r.json())
