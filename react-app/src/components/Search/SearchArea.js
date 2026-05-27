@@ -135,7 +135,7 @@ const SearchArea = () => {
 		const { swLat, neLat, swLng, neLng } = mapBounds;
 		return filteredPins
 			.filter((p) => p.lat >= swLat && p.lat <= neLat && p.lng >= swLng && p.lng <= neLng)
-			.slice(0, 200);
+			.slice(0, 100);
 	}, [filteredPins, mapBounds, zoom]);
 
 	// After a fly-to, highlight the nearest listing to the searched point (if within ~150 m)
