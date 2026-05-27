@@ -226,7 +226,7 @@ const MapCore = withGoogleMap((props) => {
 
 		// Build a fresh supercluster index whenever the marker list changes.
 		const supercluster = useMemo(() => {
-			const index = new Supercluster({ radius: 40, maxZoom: 16 });
+			const index = new Supercluster({ radius: 60, minPoints: 3, maxZoom: 16 });
 			const features = (props.markers || [])
 				.filter((m) => m.lat != null && m.lng != null)
 				.map((m) => ({
