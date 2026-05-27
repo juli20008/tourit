@@ -41,23 +41,26 @@ def authenticate():
     Authenticates a user.
     """
     if request.method == 'GET':
-        if current_user.is_authenticated:
-            if current_user.agent:
-                # Eager-load review.user so to_dict() doesn't fire N+1 queries.
-                from sqlalchemy.orm import joinedload
-                from app.models.review import Review
-                user = (
-                    User.query
-                    .options(
-                        joinedload(User.agent_reviews).joinedload(Review.user),
-                        joinedload(User.areas),
-                        joinedload(User.availabilities),
+        try:
+            if current_user.is_authenticated:
+                if current_user.agent:
+                    # Eager-load review.user so to_dict() doesn't fire N+1 queries.
+                    from sqlalchemy.orm import joinedload
+                    from app.models.review import Review
+                    user = (
+                        User.query
+                        .options(
+                            joinedload(User.agent_reviews).joinedload(Review.user),
+                            joinedload(User.areas),
+                            joinedload(User.availabilities),
+                        )
+                        .filter(User.id == current_user.id)
+                        .first()
                     )
-                    .filter(User.id == current_user.id)
-                    .first()
-                )
-                return user.to_dict()
-            return current_user.to_dict()
+                    return user.to_dict()
+                return current_user.to_dict()
+        except Exception:
+            pass
         return {'errors': ['Unauthorized']}
 
     if request.method == "PUT":

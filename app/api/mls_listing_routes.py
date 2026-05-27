@@ -304,8 +304,14 @@ def list_listings_by_bounds():
             MlsListing.lng.between(lng_min, lng_max),
             MlsListing.map_pin_filter(),
         )
+        # Mirror client-side logic: "For Lease" means lease, everything else means
+        # not-lease. DDF stores varied sale values ("Resale", "New", etc.) so an
+        # exact match on "For Sale" would silently drop most listings.
         if t_type:
-            q = q.filter(MlsListing.transaction_type == t_type)
+            if 'lease' in t_type.lower():
+                q = q.filter(MlsListing.transaction_type.ilike('%lease%'))
+            else:
+                q = q.filter(~MlsListing.transaction_type.ilike('%lease%') | MlsListing.transaction_type.is_(None))
         q = q.filter(MlsListing.property_type_filter())
         # No ORDER BY — map pins have no meaningful sort order and sorting
         # all matching rows before LIMIT is the single most expensive step.
