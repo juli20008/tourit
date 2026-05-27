@@ -69,12 +69,15 @@ const SearchArea = () => {
 	};
 
 	useEffect(() => {
+		// Always seed the fallback with GTA-wide data so pins are distributed
+		// across the whole region before pin-index finishes loading.
+		dispatch(propertyActions.areaProperties({
+			neLat: 44.5, neLng: -78.2, swLat: 43.2, swLng: -80.5,
+		}));
 		if (areaParam) {
 			const parts = areaParam.split("&").map((each) => parseFloat(each.split("=")[1]));
-			const [neLat, neLng, swLat, swLng, zoomVal] = parts;
-			// Fetch initial viewport data as a fallback shown before pin index arrives
-			dispatch(propertyActions.areaProperties({ neLat, neLng, swLat, swLng }));
-			setZoom(Math.round(zoomVal));
+			const [, , , , zoomVal] = parts;
+			if (!isNaN(zoomVal)) setZoom(Math.round(zoomVal));
 		}
 	}, [dispatch, areaParam]);
 
