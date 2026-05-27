@@ -41,24 +41,41 @@ function waitForCombo(cb, retries = 50) {
   if (retries > 0) setTimeout(() => waitForCombo(cb, retries - 1), 100);
 }
 
+const _SPINNER_SELS = [
+  '.goog-te-spinner',
+  '.goog-te-spinner-pos',
+  '.goog-te-spinner-wrap',
+  '.goog-te-progress-wrap',
+  '#goog-gt-vt',
+  '[id^="goog-gt-"]',
+];
+
 // Remove any Google-injected spinner / progress UI.
 // Injects a persistent <style> tag so re-injected spinners are instantly hidden.
 function hideGoogleSpinner() {
   if (!document.getElementById('tourit-no-spinner')) {
     const style = document.createElement('style');
     style.id = 'tourit-no-spinner';
-    style.textContent = [
-      '.goog-te-spinner',
-      '.goog-te-spinner-pos',
-      '.goog-te-spinner-wrap',
-      '[id^="goog-gt-"]',
-    ].join(',') + '{ display:none !important; }';
+    style.textContent = _SPINNER_SELS.join(',') + '{ display:none !important; }';
     document.head.appendChild(style);
   }
-  // Also imperatively hide anything already in the DOM
-  ['.goog-te-spinner', '.goog-te-spinner-pos', '.goog-te-spinner-wrap', '[id^="goog-gt-"]']
-    .forEach(sel => document.querySelectorAll(sel)
-      .forEach(el => el.style.setProperty('display', 'none', 'important')));
+  _SPINNER_SELS.forEach(sel =>
+    document.querySelectorAll(sel)
+      .forEach(el => el.style.setProperty('display', 'none', 'important'))
+  );
+}
+
+let _spinnerInterval = null;
+
+function startSpinnerSweep() {
+  if (_spinnerInterval) return;
+  // Sweep every 300 ms — catches anything the MutationObserver misses mid-transition.
+  _spinnerInterval = setInterval(hideGoogleSpinner, 300);
+}
+
+function stopSpinnerSweep() {
+  clearInterval(_spinnerInterval);
+  _spinnerInterval = null;
 }
 
 // ── Google Translate correction patches ────────────────────────────────────────
@@ -131,6 +148,7 @@ const LangToggle = () => {
   useEffect(() => {
     if (lang === 'zh') {
       setCookie('/en/zh-CN');
+      startSpinnerSweep();
       loadGoogleTranslate((combo) => {
         combo.value = 'zh-CN';
         combo.dispatchEvent(new Event('change'));
@@ -144,6 +162,7 @@ const LangToggle = () => {
     localStorage.setItem('tourit_lang', 'zh');
     setLang('zh');
     window.dispatchEvent(new CustomEvent('tourit:lang', { detail: 'zh' }));
+    startSpinnerSweep();
     loadGoogleTranslate((combo) => {
       combo.value = 'zh-CN';
       combo.dispatchEvent(new Event('change'));
@@ -152,13 +171,11 @@ const LangToggle = () => {
   }, []);
 
   const deactivate = useCallback(() => {
-    // Clear all Google state, then do a clean navigation.
-    // The page reloads WITHOUT the Google script (it's not in index.html),
-    // so there is nothing left to re-translate.
     stopObserver();
+    stopSpinnerSweep();
     clearCookies();
     localStorage.setItem('tourit_lang', 'en');
-    window.__gtLoaded = false; // allow re-load if user switches back to zh
+    window.__gtLoaded = false;
     window.location.href = window.location.pathname + window.location.search;
   }, []);
 
