@@ -68,7 +68,6 @@ export const areaProperties = (payload) => async (dispatch) => {
 			lat_max: latMax,
 			lng_min: lngMin,
 			lng_max: lngMax,
-			limit: 200,
 		};
 		const response = await apiFetch("/api/listings?view=map", {
 			method: "POST",

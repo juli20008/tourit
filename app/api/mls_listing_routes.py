@@ -32,7 +32,7 @@ def _cache_set(key, data):
 # Pin-index cache stores the serialized JSON string (not Python dicts) so only
 # ~2 MB stays in memory instead of ~20 MB worth of Python dict objects.
 _pin_index_cache: dict = {'json': None, 'ts': 0.0}
-_PIN_INDEX_TTL = 300  # seconds
+_PIN_INDEX_TTL = 1800  # 30 minutes — cold query is expensive; keep cached as long as safe
 USE_LOCAL_PROPERTIES = os.environ.get("FORCE_LOCAL_DB", "").strip() == "1"
 LOCAL_DB_PATH = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", "instance", "yillow.db")
@@ -493,7 +493,17 @@ def pin_index():
         )
 
     try:
+        from sqlalchemy import or_
         db.session.execute(text("SET LOCAL statement_timeout = '25000'"))
+        # property_type_filter() uses ILIKE '%Residential%' (leading wildcard → seq-scan).
+        # Use equality / IN checks instead so PostgreSQL can use any available index.
+        _pt_filter = or_(
+            MlsListing.property_type.is_(None),
+            MlsListing.property_type.in_([
+                '300', '301', '302',
+                'Residential', 'ResidentialCondo', 'Recreational',
+            ]),
+        )
         rows = (
             db.session.query(
                 MlsListing.id,
@@ -517,7 +527,7 @@ def pin_index():
                 MlsListing.photos_timestamp,
             )
             .filter(MlsListing.map_pin_filter())
-            .filter(MlsListing.property_type_filter())
+            .filter(_pt_filter)
             .limit(10000)
             .all()
         )

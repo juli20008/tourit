@@ -16,7 +16,7 @@ _ALLOWED_ORIGINS = re.compile(
 
 # Endpoints that return cached data and never stress the DB.
 # Exempting them means page-load bursts don't eat the rate-limit budget.
-_EXEMPT_PATHS = {"/api/listings/pin-index", "/api/search/terms"}
+_EXEMPT_PATHS = {"/api/listings/pin-index", "/api/listings/address-index", "/api/search/terms"}
 
 
 def _client_ip() -> str:
