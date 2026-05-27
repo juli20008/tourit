@@ -347,41 +347,53 @@ def list_listings_by_bounds():
 def gta_spread():
     """500 geographically-spread GTA listings for initial map load.
 
-    Runs 4 quadrant queries (125 each) server-side so the client only makes
-    one request instead of four parallel ones — far more reliable on cold start.
+    4 quadrants × 5 lat bands × 25 listings = 500 total.
+    Slicing each quadrant into lat bands guarantees N-S spread, not just
+    E-W — a single quadrant query with LIMIT 125 still returns a lat band
+    because the index scans lat in order even with ORDER BY RANDOM().
     Cached server-side for 5 minutes.
     """
     cached = _cache_get("gta_spread")
     if cached:
         return jsonify(cached)
 
+    # 4 quadrants, each split into 5 equal lat bands → 25 per band → 125 per quadrant
     quadrants = [
-        (43.2,  43.85, -80.5,  -79.35),  # SW — Mississauga / Brampton
-        (43.2,  43.85, -79.35, -78.2),   # SE — Toronto / Scarborough
-        (43.85, 44.5,  -80.5,  -79.35),  # NW — Vaughan / Caledon
-        (43.85, 44.5,  -79.35, -78.2),   # NE — Markham / Richmond Hill
+        {'lat': (43.2,  43.85), 'lng': (-80.5,  -79.35)},  # SW
+        {'lat': (43.2,  43.85), 'lng': (-79.35, -78.2)},   # SE
+        {'lat': (43.85, 44.5),  'lng': (-80.5,  -79.35)},  # NW
+        {'lat': (43.85, 44.5),  'lng': (-79.35, -78.2)},   # NE
     ]
+    BANDS = 5
+    PER_BAND = 25
+
     listings = []
     try:
         db.session.execute(text("SET LOCAL statement_timeout = '25000'"))
-        for (lat_min, lat_max, lng_min, lng_max) in quadrants:
-            rows = (
-                MlsListing.query
-                .filter(
-                    MlsListing.lat.between(lat_min, lat_max),
-                    MlsListing.lng.between(lng_min, lng_max),
-                    MlsListing.map_pin_filter(),
-                    MlsListing.property_type_filter(),
+        for q in quadrants:
+            lat_min, lat_max = q['lat']
+            lng_min, lng_max = q['lng']
+            step = (lat_max - lat_min) / BANDS
+            for i in range(BANDS):
+                band_min = lat_min + i * step
+                band_max = lat_min + (i + 1) * step
+                rows = (
+                    MlsListing.query
+                    .filter(
+                        MlsListing.lat.between(band_min, band_max),
+                        MlsListing.lng.between(lng_min, lng_max),
+                        MlsListing.map_pin_filter(),
+                        MlsListing.property_type_filter(),
+                    )
+                    .order_by(func.random())
+                    .limit(PER_BAND)
+                    .all()
                 )
-                .order_by(func.random())
-                .limit(125)
-                .all()
-            )
-            for r in rows:
-                try:
-                    listings.append(r.to_map_pin_dict())
-                except Exception:
-                    pass
+                for r in rows:
+                    try:
+                        listings.append(r.to_map_pin_dict())
+                    except Exception:
+                        pass
     except Exception:
         pass
 

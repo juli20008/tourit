@@ -93,7 +93,7 @@ const SearchArea = () => {
 	// Seed: 500 geographically-spread GTA listings from single endpoint.
 	// Cached in localStorage (1hr) so cold-start failures don't wipe the seed.
 	useEffect(() => {
-		const LS_KEY = 'gta_fallback_v2';
+		const LS_KEY = 'gta_fallback_v3';
 		const LS_TTL = 60 * 60 * 1000;
 		try {
 			const raw = localStorage.getItem(LS_KEY);
