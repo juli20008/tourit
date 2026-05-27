@@ -14,7 +14,7 @@ mls_listing_routes = Blueprint("mls_listings", __name__)
 mls_listing_routes.before_request(rate_limit_check)
 
 MAX_RESULTS = 100
-MAX_MAP_RESULTS = 1000
+MAX_MAP_RESULTS = 500
 
 # Simple in-memory cache for expensive map queries
 _cache: dict = {}

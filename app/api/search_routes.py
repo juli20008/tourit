@@ -108,30 +108,33 @@ def _mls_by_term(parsed: str, suggest: bool = False) -> list:
 
 @search_routes.route("/terms", methods=["GET"])
 def search_terms():
-    props = Property.query.all()
-    prop_terms = (
-        [p.street for p in props]
-        + [p.city for p in props]
-        + [p.zip for p in props]
-    )
+    try:
+        props = Property.query.all()
+        prop_terms = (
+            [p.street for p in props]
+            + [p.city for p in props]
+            + [p.zip for p in props]
+        )
 
-    mls_cities = [
-        r[0] for r in
-        MlsListing.query.with_entities(MlsListing.city)
-        .filter(MlsListing.city.isnot(None), MlsListing.city != '')
-        .distinct()
-        .limit(300)
-        .all()
-    ]
+        mls_cities = [
+            r[0] for r in
+            MlsListing.query.with_entities(MlsListing.city)
+            .filter(MlsListing.city.isnot(None), MlsListing.city != '')
+            .distinct()
+            .limit(300)
+            .all()
+        ]
 
-    mls_neighborhoods = [
-        r[0] for r in
-        MlsListing.query.with_entities(MlsListing.neighborhood)
-        .filter(MlsListing.neighborhood.isnot(None), MlsListing.neighborhood != '')
-        .distinct()
-        .limit(500)
-        .all()
-    ]
+        mls_neighborhoods = [
+            r[0] for r in
+            MlsListing.query.with_entities(MlsListing.neighborhood)
+            .filter(MlsListing.neighborhood.isnot(None), MlsListing.neighborhood != '')
+            .distinct()
+            .limit(500)
+            .all()
+        ]
 
-    terms = sorted(set(prop_terms + mls_cities + mls_neighborhoods), key=str.casefold)
-    return {"terms": terms}
+        terms = sorted(set(prop_terms + mls_cities + mls_neighborhoods), key=str.casefold)
+        return {"terms": terms}
+    except Exception:
+        return {"terms": []}
