@@ -313,7 +313,7 @@ def list_listings_by_bounds():
             else:
                 q = q.filter(~MlsListing.transaction_type.ilike('%lease%') | MlsListing.transaction_type.is_(None))
         q = q.filter(MlsListing.property_type_filter())
-        q = q.order_by(func.random()).limit(limit)
+        q = q.order_by(MlsListing.updated_at.desc().nullslast()).limit(limit)
         listings = q.all()
         if not listings:
             return _fetch_local_bounds(lat_min, lat_max, lng_min, lng_max, limit, lightweight=lightweight or limit > MAX_RESULTS)
