@@ -172,7 +172,7 @@ const MapCore = withGoogleMap((props) => {
 		// Mobile bottom sheet: array of properties (1 for pin, N for cluster)
 		const [bottomSheet, setBottomSheet] = useState(null);
 		const [isMobile, setIsMobile] = useState(() => window.innerWidth < 650);
-		const [activeLayer, setActiveLayer] = useState(null); // 'communities' | 'municipalities' | 'areas' | null
+		const [activeLayer, setActiveLayer] = useState('communities');
 		const overlayRef = useRef(null);
 
 		useEffect(() => {
