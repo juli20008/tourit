@@ -9,8 +9,19 @@ FALLBACK_AGENT_EMAIL = os.environ.get("FALLBACK_AGENT_EMAIL", "julie.li.realtor@
 
 
 def _fallback_agent():
-    """Return the designated fallback agent regardless of availability schedule."""
-    return User.query.filter_by(email=FALLBACK_AGENT_EMAIL, agent=True).first()
+    """Return the designated fallback agent. Auto-promotes to agent=True if needed."""
+    user = User.query.filter_by(email=FALLBACK_AGENT_EMAIL).first()
+    if user is None:
+        return None
+    if not user.agent:
+        user.agent = True
+        try:
+            from app.models import db as _db
+            _db.session.commit()
+        except Exception:
+            _db.session.rollback()
+            return None
+    return user
 
 DEFAULT_START_MINUTES = 9 * 60
 DEFAULT_END_MINUTES = 17 * 60
