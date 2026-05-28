@@ -18,7 +18,7 @@ MAX_MAP_RESULTS = 500
 
 # Simple in-memory cache for expensive map queries
 _cache: dict = {}
-_CACHE_TTL = 300  # seconds
+_CACHE_TTL = 1800  # seconds (30 min)
 
 def _cache_get(key):
     entry = _cache.get(key)
@@ -32,7 +32,7 @@ def _cache_set(key, data):
 # Pin-index cache stores the serialized JSON string (not Python dicts) so only
 # ~2 MB stays in memory instead of ~20 MB worth of Python dict objects.
 _pin_index_cache: dict = {'json': None, 'ts': 0.0}
-_PIN_INDEX_TTL = 1800  # 30 minutes — cold query is expensive; keep cached as long as safe
+_PIN_INDEX_TTL = 7200  # 2 hours — cold query is expensive; refreshed by background SWR on client
 USE_LOCAL_PROPERTIES = os.environ.get("FORCE_LOCAL_DB", "").strip() == "1"
 LOCAL_DB_PATH = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", "instance", "yillow.db")
@@ -368,6 +368,7 @@ def gta_spread():
     PER_BAND = 25
 
     listings = []
+    seen_ids = set()
     try:
         db.session.execute(text("SET LOCAL statement_timeout = '25000'"))
         for q in quadrants:
@@ -377,6 +378,8 @@ def gta_spread():
             for i in range(BANDS):
                 band_min = lat_min + i * step
                 band_max = lat_min + (i + 1) * step
+                # No ORDER BY: index scan on lat is O(PER_BAND), not O(all matching rows).
+                # The band + quadrant structure already ensures geographic spread.
                 rows = (
                     MlsListing.query
                     .filter(
@@ -385,11 +388,13 @@ def gta_spread():
                         MlsListing.map_pin_filter(),
                         MlsListing.property_type_filter(),
                     )
-                    .order_by(func.random())
                     .limit(PER_BAND)
                     .all()
                 )
                 for r in rows:
+                    if r.id in seen_ids:
+                        continue
+                    seen_ids.add(r.id)
                     try:
                         listings.append(r.to_map_pin_dict())
                     except Exception:

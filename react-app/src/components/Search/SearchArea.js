@@ -95,7 +95,7 @@ const SearchArea = () => {
 	// then refresh quietly in background so next load is fresh.
 	useEffect(() => {
 		const LS_KEY = 'gta_fallback_v3';
-		const LS_TTL = 60 * 60 * 1000;
+		const LS_TTL = 4 * 60 * 60 * 1000;
 
 		let stale = null, isFresh = false;
 		try {

@@ -4,7 +4,7 @@ const GET_PROPERTIES = "properties/SEARCH_PROPERTIES";
 const GET_PROPERTY = "properties/GET_PROPERTY";
 
 const _r = (x) => Math.round(x * 100) / 100;
-const LS_TTL = 60 * 60 * 1000; // 1 hour
+const LS_TTL = 4 * 60 * 60 * 1000; // 4 hours
 
 function _lsGet(key) {
 	try {
