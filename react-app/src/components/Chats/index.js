@@ -18,6 +18,7 @@ const Chats = () => {
 	const { channelId: channelParam } = useParams();
 	const user = useSelector((state) => state.session.user);
 	const channels = useSelector((state) => state.channels);
+	const chats    = useSelector((state) => state.chats);
 	const channelsRef = useRef(channels);
 	const [channelsArr, setChannelsArr] = useState([]);
 	const [search, setSearch] = useState("");
@@ -83,19 +84,19 @@ const Chats = () => {
 		return () => { sock.emit("leave", room); sock.disconnect(); };
 	}, [dispatch, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
+	const lastMsgTime = (channel) => {
+		const lastId = channel?.chat_ids?.[channel.chat_ids.length - 1];
+		const chat = lastId != null ? chats[lastId] : null;
+		return chat?.created_at ? new Date(chat.created_at).getTime() : 0;
+	};
+
 	useEffect(() => {
-		if (user.agent) {
-			const arr = Object.values(channels).filter((channel) =>
-				channel?.user_name?.toLowerCase().includes(search.toLowerCase())
-			);
-			setChannelsArr(arr);
-		} else {
-			const arr = Object.values(channels).filter((channel) =>
-				channel?.agent_name?.toLowerCase().includes(search.toLowerCase())
-			);
-			setChannelsArr(arr);
-		}
-	}, [search, channels, user]);
+		const nameKey = user.agent ? "user_name" : "agent_name";
+		const arr = Object.values(channels)
+			.filter((ch) => ch?.[nameKey]?.toLowerCase().includes(search.toLowerCase()))
+			.sort((a, b) => lastMsgTime(b) - lastMsgTime(a));
+		setChannelsArr(arr);
+	}, [search, channels, chats, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	return (
 		<div className={`chat-ctrl${showChannels ? " channels-open" : ""}`}>
