@@ -454,6 +454,27 @@ const MapCore = withGoogleMap((props) => {
 						</select>
 					</div>
 				)}
+				{/* No-pins hint */}
+				{mapBounds !== null && clusters.length === 0 && (
+					<div style={{
+						position: 'absolute',
+						bottom: 72,
+						left: '50%',
+						transform: 'translateX(-50%)',
+						zIndex: 10,
+						background: 'rgba(15,23,42,0.80)',
+						color: '#fff',
+						borderRadius: 8,
+						padding: '8px 18px',
+						fontSize: 13,
+						fontWeight: 500,
+						pointerEvents: 'none',
+						whiteSpace: 'nowrap',
+						letterSpacing: '0.01em',
+					}}>
+						Zoom in to see properties
+					</div>
+				)}
 				{/* MLS boundary layer toggle — top-right map overlay */}
 				<div className="absolute top-3 right-3 z-10 flex gap-1">
 					{[
