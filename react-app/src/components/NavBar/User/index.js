@@ -89,7 +89,7 @@ const UserBar = () => {
 					</button>
 				</div>
 				<NavLink to="/" exact={true} onClick={() => setShowMobileMenu(false)}>
-					<LogoBrand />
+					<LogoBrand agentName={whitelabelAgent?.username || null} agentPhoto={whitelabelAgent?.photo || null} />
 				</NavLink>
 				<div className="nav-rt">
 					<NavLink className="btn-font-lt nav-desktop-only nav-chat-link" to="/chats" exact={true}>
@@ -135,6 +135,20 @@ const UserBar = () => {
 						onClick={() => setShowMobileMenu(false)}
 					/>
 					<div className="nav-mobile-menu">
+						{whitelabelAgent && (
+							<div className="nav-mobile-item nav-mobile-agent-header" style={{ pointerEvents: 'none', cursor: 'default' }}>
+								{whitelabelAgent.photo && (
+									<img
+										src={whitelabelAgent.photo}
+										alt={whitelabelAgent.username}
+										style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', marginRight: 10 }}
+									/>
+								)}
+								<span className="btn-font-lt">
+									{whitelabelAgent.username}{whitelabelAgent.office ? `, ${whitelabelAgent.office}` : ''}
+								</span>
+							</div>
+						)}
 						<NavLink
 							to="/chats"
 							className="nav-mobile-item"
