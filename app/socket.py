@@ -19,19 +19,18 @@ def on_leave(channel_id):
 
 @socketio.on("chat")
 def handle_chat(data):
-    channel_id = data['channel_id']
-    user_id = data['user_id']
-    message = data["message"]
-    created_at = data["created_at"]
+    try:
+        channel_id = data['channel_id']
+        user_id = data['user_id']
+        message = data["message"]
+        created_at = data["created_at"]
 
-    new_chat = Chat(channel_id=channel_id, user_id=user_id, message=message, created_at=created_at)
-    db.session.add(new_chat)
-    db.session.commit()
-
-
-    emit("chat", new_chat.to_dict(),\
-     to=str(channel_id),
-      broadcast=True)
+        new_chat = Chat(channel_id=channel_id, user_id=user_id, message=message, created_at=created_at)
+        db.session.add(new_chat)
+        db.session.commit()
+        emit("chat", new_chat.to_dict(), to=str(channel_id), broadcast=True)
+    except Exception:
+        db.session.rollback()
 
 @socketio.on("edit")
 def handle_edit(data):

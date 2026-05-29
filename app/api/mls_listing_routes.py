@@ -3,7 +3,7 @@ import json
 import os
 import sqlite3
 import time
-from sqlalchemy import text, func
+from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
 from ..models.mls_listing import MlsListing, _determine_category, _build_cdn_image_url
@@ -22,8 +22,11 @@ _CACHE_TTL = 1800  # seconds (30 min)
 
 def _cache_get(key):
     entry = _cache.get(key)
-    if entry and time.time() - entry['ts'] < _CACHE_TTL:
+    if not entry:
+        return None
+    if time.time() - entry['ts'] < _CACHE_TTL:
         return entry['data']
+    _cache.pop(key, None)  # evict expired entry so it doesn't accumulate
     return None
 
 def _cache_set(key, data):

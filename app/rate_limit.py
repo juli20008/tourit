@@ -6,6 +6,8 @@ from flask import request, jsonify
 
 _buckets: dict = defaultdict(lambda: {"count": 0, "window_start": 0.0})
 _lock = Lock()
+_last_cleanup: float = 0.0
+_CLEANUP_INTERVAL = 300  # prune dead buckets every 5 minutes
 
 RATE_LIMIT = 200  # max requests per window
 WINDOW_SECS = 60  # sliding window in seconds
@@ -41,6 +43,8 @@ def _cors_headers():
 
 def rate_limit_check():
     """Before-request hook — returns 429 response if IP exceeds limit."""
+    global _last_cleanup
+
     # OPTIONS preflight must never be rate-limited: a non-2xx preflight response
     # fails the CORS check even when the origin is whitelisted.
     if request.method == "OPTIONS":
@@ -52,6 +56,16 @@ def rate_limit_check():
 
     ip = _client_ip()
     now = time.monotonic()
+
+    # Periodically evict buckets that haven't been touched in >2 windows.
+    if now - _last_cleanup > _CLEANUP_INTERVAL:
+        cutoff = now - WINDOW_SECS * 2
+        with _lock:
+            stale = [k for k, b in _buckets.items() if b["window_start"] < cutoff]
+            for k in stale:
+                del _buckets[k]
+        _last_cleanup = now
+
     with _lock:
         bucket = _buckets[ip]
         if now - bucket["window_start"] >= WINDOW_SECS:
