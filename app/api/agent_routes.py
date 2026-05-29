@@ -61,13 +61,30 @@ def get_all_agents():
 
 @agent_routes.route("/slug/<slug>")
 def get_agent_by_slug(slug):
+    import re as _re
+    target = slug.lower()
+    agent = None
+
+    # Try DB-level regexp_replace first (fast, uses index).
     try:
         agent = User.query.filter(
             User.agent == True,
-            func.lower(func.regexp_replace(User.username, r'[^a-zA-Z0-9]', '', 'g')) == slug.lower()
+            func.lower(func.regexp_replace(User.username, r'[^a-zA-Z0-9]', '', 'g')) == target
         ).first()
     except Exception:
-        return {"errors": ["Agent not found"]}, 404
+        pass
+
+    # Fallback: Python-side matching in case regexp_replace threw.
+    if agent is None:
+        try:
+            candidates = User.query.filter(User.agent == True).all()
+            for c in candidates:
+                if _re.sub(r'[^a-zA-Z0-9]', '', c.username or '').lower() == target:
+                    agent = c
+                    break
+        except Exception:
+            pass
+
     if not agent:
         return {"errors": ["Agent not found"]}, 404
     return {
