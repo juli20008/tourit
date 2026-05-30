@@ -34,24 +34,27 @@ def handle_chat(data):
 
 @socketio.on("edit")
 def handle_edit(data):
-    chat_id = data["id"]
-    message = data["message"]
-
-    chat = Chat.query.get(chat_id)
-    chat.message = message
-
-    db.session.commit()
-
-    emit("edit", chat.to_dict(), to=str(chat.channel_id), broadcast=True)
+    try:
+        chat_id = data["id"]
+        message = data["message"]
+        chat = Chat.query.get(chat_id)
+        if not chat:
+            return
+        chat.message = message
+        db.session.commit()
+        emit("edit", chat.to_dict(), to=str(chat.channel_id), broadcast=True)
+    except Exception:
+        db.session.rollback()
 
 @socketio.on("delete")
 def handle_delete(chat_id):
-    chat = Chat.query.get(chat_id)
-    channel_id = str(chat.channel_id)
-
-    db.session.delete(chat)
-    db.session.commit()
-
-    data = {"chat_id": chat_id, "channel_id": int(channel_id)}
-
-    emit("delete", data, to=channel_id, broadcast=True)
+    try:
+        chat = Chat.query.get(chat_id)
+        if not chat:
+            return
+        channel_id = str(chat.channel_id)
+        db.session.delete(chat)
+        db.session.commit()
+        emit("delete", {"chat_id": chat_id, "channel_id": int(channel_id)}, to=channel_id, broadcast=True)
+    except Exception:
+        db.session.rollback()

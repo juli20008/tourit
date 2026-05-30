@@ -19,6 +19,7 @@ MAX_MAP_RESULTS = 500
 # Simple in-memory cache for expensive map queries
 _cache: dict = {}
 _CACHE_TTL = 1800  # seconds (30 min)
+_MAX_CACHE_ENTRIES = 120  # ~60 MB ceiling (120 × 500 listings × ~1 KB each)
 
 def _cache_get(key):
     entry = _cache.get(key)
@@ -26,10 +27,14 @@ def _cache_get(key):
         return None
     if time.time() - entry['ts'] < _CACHE_TTL:
         return entry['data']
-    _cache.pop(key, None)  # evict expired entry so it doesn't accumulate
+    _cache.pop(key, None)
     return None
 
 def _cache_set(key, data):
+    if len(_cache) >= _MAX_CACHE_ENTRIES:
+        # Evict the single oldest entry to stay under the cap
+        oldest = min(_cache, key=lambda k: _cache[k]['ts'])
+        _cache.pop(oldest, None)
     _cache[key] = {'data': data, 'ts': time.time()}
 
 # Pin-index cache stores the serialized JSON string (not Python dicts) so only

@@ -133,6 +133,7 @@ def add_appointment():
                 .all()
             )
         except Exception:
+            db.session.rollback()
             # Fallback if archived column hasn't been migrated yet
             appts = (
                 Appointment.query

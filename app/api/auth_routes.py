@@ -186,9 +186,12 @@ def google_callback():
             # New user — derive a unique username from their Google name
             base = (user_info.get('name') or email.split('@')[0]).replace(' ', '')
             username, suffix = base, 1
-            while User.query.filter_by(username=username).first():
+            while suffix <= 20 and User.query.filter_by(username=username).first():
                 username = f'{base}{suffix}'
                 suffix += 1
+            if suffix > 20:
+                import uuid
+                username = f'{base}{uuid.uuid4().hex[:6]}'
 
             user = User(
                 username=username,
