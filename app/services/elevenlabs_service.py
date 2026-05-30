@@ -2,7 +2,6 @@
 Voice clone via Fish Audio (https://fish.audio).
 TTS: Fish Audio if balance available, else edge-tts (Microsoft neural, free).
 """
-import asyncio
 import io
 import os
 import ormsgpack
@@ -54,19 +53,13 @@ def delete_voice(voice_id):
         pass
 
 
-def _edge_tts_sync(text, voice="zh-CN-XiaoxiaoNeural"):
-    """Fallback TTS using Microsoft edge-tts (free, no API key)."""
-    import edge_tts
-
-    async def _run():
-        communicate = edge_tts.Communicate(text, voice)
-        buf = io.BytesIO()
-        async for chunk in communicate.stream():
-            if chunk["type"] == "audio":
-                buf.write(chunk["data"])
-        return buf.getvalue()
-
-    return asyncio.run(_run())
+def _gtts_fallback(text):
+    """Fallback TTS using gTTS (Google Translate TTS, free, no API key)."""
+    from gtts import gTTS
+    buf = io.BytesIO()
+    gTTS(text=text, lang="zh-TW").write_to_fp(buf)
+    buf.seek(0)
+    return buf.read()
 
 
 def generate_speech(voice_id, text):
@@ -95,6 +88,6 @@ def generate_speech(voice_id, text):
             return resp.content
         if resp.status_code != 402:
             raise RuntimeError(f"Fish Audio TTS failed ({resp.status_code}): {resp.text[:300]}")
-        # 402 = no balance → fall through to edge-tts
+        # 402 = no balance → fall through to gTTS
 
-    return _edge_tts_sync(text)
+    return _gtts_fallback(text)

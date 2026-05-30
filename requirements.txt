@@ -31,4 +31,4 @@ email-validator==2.3.0
 Flask-Compress==1.17
 Pillow==11.2.1
 ormsgpack==1.12.2
-edge-tts==6.1.12
+gTTS==2.5.3
