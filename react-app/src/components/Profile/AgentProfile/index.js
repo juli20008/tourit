@@ -160,6 +160,7 @@ const AgentProfile = () => {
 								</div>
 							</div>
 						</div>
+						<VoiceRecorder hasVoice={!!agent?.has_voice} voiceSampleUrl={agent?.voice_sample_url} />
 					</div>
 					<div className="agent-profile gap40">
 						<div className="btn-wrap-rt">
@@ -200,7 +201,6 @@ const AgentProfile = () => {
 					</div>
 				</div>
 			</form>
-			<VoiceRecorder hasVoice={!!agent?.has_voice} voiceSampleUrl={agent?.voice_sample_url} />
 			<form className="bio-wrap agent-sa" onSubmit={addServiceAreas}>
 				<div className="gap15">
 					<div className="about">

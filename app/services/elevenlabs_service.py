@@ -26,6 +26,7 @@ def create_voice_clone(name, audio_bytes, content_type="audio/webm"):
             "title": name,
             "visibility": "private",
             "type": "tts",
+            "train_mode": "fast",
             "enhance_audio_quality": "true",
         },
         files={"voices": ("voice_sample.webm", audio_bytes, content_type)},

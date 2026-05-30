@@ -109,7 +109,7 @@ const VoiceRecorder = ({ hasVoice, voiceSampleUrl }) => {
 	};
 
 	return (
-		<div className="bio-wrap agent-sa" style={{ borderLeft: "4px solid #3b82f6", paddingLeft: 16 }}>
+		<div style={{ borderLeft: "4px solid #3b82f6", paddingLeft: 16, marginTop: 20 }}>
 			<div className="gap15">
 				<div className="about" style={{ color: "#1d4ed8" }}>🎙️ AI 声音样本 / Voice Sample</div>
 				<p style={{ color: "#64748b", fontSize: "0.875rem", margin: 0 }}>
