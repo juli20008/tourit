@@ -109,9 +109,9 @@ const VoiceRecorder = ({ hasVoice, voiceSampleUrl }) => {
 	};
 
 	return (
-		<div className="bio-wrap agent-sa">
+		<div className="bio-wrap agent-sa" style={{ borderLeft: "4px solid #3b82f6", paddingLeft: 16 }}>
 			<div className="gap15">
-				<div className="about">AI 声音样本 / Voice Sample</div>
+				<div className="about" style={{ color: "#1d4ed8" }}>🎙️ AI 声音样本 / Voice Sample</div>
 				<p style={{ color: "#64748b", fontSize: "0.875rem", margin: 0 }}>
 					录制一段最多 30 秒的语音，用于生成小红书看房视频的 AI 口播。
 					<br />
