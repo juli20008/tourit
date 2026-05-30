@@ -204,7 +204,7 @@ const AgentProfile = () => {
 			<form className="bio-wrap agent-sa" onSubmit={addServiceAreas}>
 				<div className="gap15">
 					<div className="about">
-						Service Areas{" "}
+						Service Areas 🔔{" "}
 						<span style={{ fontWeight: 400, fontSize: "0.85em", color: "#64748b" }}>
 							({areaCount}/{MAX_SERVICE_AREAS})
 						</span>
