@@ -152,6 +152,46 @@ def send_agent_signup_request(applicant_email):
         return False
 
 
+def send_xhs_video_ready(to_email, agent_name, listing_address, video_url):
+    api_key = os.environ.get('RESEND_API_KEY', '').strip()
+    if not api_key:
+        print(f'[DEV] XHS video ready for {to_email}: {video_url}')
+        return
+    from_addr = os.environ.get('MAIL_FROM', 'Tourit <NoReply@tourit.ca>').strip()
+    html_body = f"""<!DOCTYPE html>
+<html>
+<body style="font-family:sans-serif;background:#f3f3f1;margin:0;padding:40px 0">
+  <div style="max-width:480px;margin:0 auto;background:white;border-radius:16px;padding:40px;box-shadow:0 1px 6px rgba(0,0,0,.08)">
+    <div style="font-size:22px;font-weight:700;color:#0f172a;margin-bottom:8px">🎬 小红书视频已生成</div>
+    <p style="color:#475569;font-size:15px;line-height:1.6">
+      Hi {agent_name}，你的看房视频已经生成完成！<br/>
+      <strong>{listing_address}</strong>
+    </p>
+    <a href="{video_url}"
+       style="display:inline-block;margin:20px 0;padding:13px 28px;background:#0f172a;color:white;
+              text-decoration:none;border-radius:10px;font-weight:600;font-size:15px">
+      下载视频 Download Video
+    </a>
+    <p style="color:#94a3b8;font-size:12px">此链接有效期 7 天。This link expires in 7 days.</p>
+  </div>
+</body>
+</html>"""
+    try:
+        requests.post(
+            'https://api.resend.com/emails',
+            headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
+            json={
+                'from': from_addr,
+                'to': [to_email],
+                'subject': f'🎬 看房视频已就绪 — {listing_address}',
+                'html': html_body,
+            },
+            timeout=10,
+        )
+    except Exception as e:
+        print(f'[MAIL ERROR] xhs video notify: {e}')
+
+
 def send_magic_link(to_email, magic_url):
     api_key = os.environ.get('RESEND_API_KEY', '').strip()
 

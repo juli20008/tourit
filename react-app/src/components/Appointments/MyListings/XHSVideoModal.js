@@ -169,9 +169,13 @@ const XHSVideoModal = ({ listing, onClose, onGenerated }) => {
 				}} />
 						<p style={{ color: "#334155", fontWeight: 600 }}>正在生成视频，请稍候...</p>
 						<p style={{ color: "#64748b", fontSize: "0.85rem" }}>{step}</p>
-						<p style={{ color: "#94a3b8", fontSize: "0.78rem", marginTop: 8 }}>
-							通常需要 30–90 秒，请不要关闭此窗口。
-						</p>
+						<div style={{ background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 8, padding: "10px 14px", marginTop: 12, fontSize: "0.82rem", color: "#0369a1" }}>
+							可以关闭此窗口，完成后会发邮件通知您下载。<br/>
+							You can close this window — we'll email you when it's ready.
+						</div>
+						<button className="btn btn-bl" style={{ marginTop: 14 }} onClick={onClose}>
+							关闭 Close
+						</button>
 					</div>
 				)}
 

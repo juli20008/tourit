@@ -458,6 +458,16 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app):
 
             _job_set(job_id, {"status": "done", "url": video_url, "expires_at": expires_at})
 
+            # Email notification (best-effort)
+            try:
+                from app.utils.mailer import send_xhs_video_ready
+                address = listing.street or mls_number
+                if listing.city:
+                    address += f", {listing.city}"
+                send_xhs_video_ready(agent.email, agent.username or agent.email, address, video_url)
+            except Exception as mail_err:
+                print(f"[XHS] Email notify failed (non-fatal): {mail_err}")
+
         except Exception as e:
             _job_set(job_id, {"status": "error", "message": str(e)})
         finally:
