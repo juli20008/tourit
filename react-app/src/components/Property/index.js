@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { X, Share2 } from "lucide-react";
+import { X, Share2, Video } from "lucide-react";
 
 import Images from "./Images";
 import Detail from "./Detail";
 import Tour from "./Tour";
 import ShareModal from "./ShareModal";
+import XHSVideoModal from "../Appointments/MyListings/XHSVideoModal";
 
 import * as propertyImgActions from "../../store/property_img";
 import * as agentActions from "../../store/agent";
@@ -54,6 +55,7 @@ const Property = ({ property, onClose, referralAgent = null, isPage = false }) =
 	);
 	const [showMobileTour, setShowMobileTour] = useState(false);
 	const [showShare, setShowShare] = useState(false);
+	const [showXhsModal, setShowXhsModal] = useState(false);
 
 	useFbmpEmbed(property);
 
@@ -83,8 +85,19 @@ const Property = ({ property, onClose, referralAgent = null, isPage = false }) =
 	return (
 		<div className="relative bg-white w-[96vw] max-w-[1350px] max-h-[92vh] rounded-2xl flex flex-col">
 
-			{/* Close + Share + QR buttons */}
+			{/* Close + Share + XHS Video buttons */}
 			<div className="absolute top-3 right-3 z-30 flex items-center gap-1.5">
+				{user?.agent && property?.is_mls && (
+					<button
+						type="button"
+						className="flex items-center gap-1 px-2 h-8 rounded-full bg-white/90 shadow text-gray-500 hover:text-red-500 transition-colors text-xs font-medium"
+						onClick={() => setShowXhsModal(true)}
+						title="生成小红书看房视频"
+					>
+						<Video size={13} strokeWidth={2} />
+						<span className="hidden sm:inline">小红书视频</span>
+					</button>
+				)}
 				<button
 					type="button"
 					className="flex items-center justify-center w-8 h-8 rounded-full bg-white/90 shadow text-gray-500 hover:text-gray-900 transition-colors"
@@ -133,6 +146,14 @@ const Property = ({ property, onClose, referralAgent = null, isPage = false }) =
 						{referralAgent ? `Tour with ${referralAgent.username}` : "Tour with a Buyer's Agent"}
 					</button>
 				</div>
+			)}
+
+			{/* XHS video generation modal — agents only */}
+			{showXhsModal && (
+				<XHSVideoModal
+					listing={property}
+					onClose={() => setShowXhsModal(false)}
+				/>
 			)}
 
 			{/* Share modal — card preview + save image + copy link */}

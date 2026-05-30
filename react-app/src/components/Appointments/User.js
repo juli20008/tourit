@@ -5,7 +5,6 @@ import SplitAppt from "../Tools/SplitAppt";
 
 import Upcoming from "./Upcoming";
 import Past from "./Past";
-import MyListings from "./MyListings";
 
 import Basic from "./Calendar";
 import Availability from "./Availability";
@@ -15,7 +14,7 @@ const User = () => {
 	const dispatch = useDispatch();
 	const appointments = useSelector((state) => state.appointments);
 	const user = useSelector((state) => state.session.user);
-	const [activeTab, setActiveTab] = useState("upcoming"); // "upcoming" | "past" | "listings"
+	const [activeTab, setActiveTab] = useState("upcoming"); // "upcoming" | "past"
 	const [newAppt, setNewAppt] = useState([]);
 	const [pastAppt, setPastAppt] = useState([]);
 	const [archiving, setArchiving] = useState(false);
@@ -28,12 +27,10 @@ const User = () => {
 
 	const upcomingRef = useRef();
 	const pastRef = useRef();
-	const listingsRef = useRef();
 
 	useEffect(() => {
 		if (upcomingRef.current) upcomingRef.current.classList.toggle("appt-active", activeTab === "upcoming");
 		if (pastRef.current) pastRef.current.classList.toggle("appt-active", activeTab === "past");
-		if (listingsRef.current) listingsRef.current.classList.toggle("appt-active", activeTab === "listings");
 	}, [activeTab]);
 
 	useEffect(() => {
@@ -63,15 +60,6 @@ const User = () => {
 					>
 						Past Appointments
 					</div>
-					{user?.agent && (
-						<div
-							className="app-btn"
-							ref={listingsRef}
-							onClick={() => setActiveTab("listings")}
-						>
-							小红书视频
-						</div>
-					)}
 				</div>
 				<div className="appt-card-list">
 					{activeTab === "upcoming" && <Upcoming newAppt={newAppt} />}
@@ -91,7 +79,6 @@ const User = () => {
 							<Past pastAppt={pastAppt} />
 						</>
 					)}
-					{activeTab === "listings" && user?.agent && <MyListings />}
 				</div>
 			</div>
 		</div>
