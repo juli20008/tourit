@@ -56,6 +56,15 @@ def _build_cdn_image_url(external_id, photos_timestamp, index=1):
     return f"{_CDN_BASE}/TS{ts}/reb82/highres/4/{eid}_{index}.jpg"
 
 
+def _safe_float(v):
+    if v is None:
+        return None
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
 class MlsListing(db.Model):
     __tablename__ = 'mls_listings'
 
@@ -266,7 +275,7 @@ class MlsListing(db.Model):
             'sold_price': self.sold_price,
             'original_price': self.original_price,
             'bed': self.bed or 0,
-            'bath': float(self.bath) if self.bath is not None else 0,
+            'bath': _safe_float(self.bath) or 0,
             'bath_half': self.bath_half or 0,
             'beds_above_grade': self.beds_above_grade,
             'basement_beds': self.basement_beds,
@@ -293,12 +302,12 @@ class MlsListing(db.Model):
             'image_url': imgs[0] if imgs else None,
             'images': imgs,
             'image_urls': imgs,
-            'lat': float(self.lat) if self.lat is not None else None,
-            'lng': float(self.lng) if self.lng is not None else None,
-            'association_fee': float(self.association_fee) if self.association_fee is not None else None,
+            'lat': _safe_float(self.lat),
+            'lng': _safe_float(self.lng),
+            'association_fee': _safe_float(self.association_fee),
             'association_fee_frequency': self.association_fee_frequency or None,
             'lot_frontage': self.lot_frontage or None,
-            'lot_size_area': float(self.lot_size_area) if self.lot_size_area is not None else None,
+            'lot_size_area': _safe_float(self.lot_size_area),
             'construction_materials': self.construction_materials or None,
             'levels': self.levels or None,
             'ownership_type': self.ownership_type or None,
@@ -343,11 +352,11 @@ class MlsListing(db.Model):
             'id':               f'mls_{self.id}',
             'is_mls':           True,
             'mls_number':       self.mls_number,
-            'lat':              float(self.lat) if self.lat is not None else None,
-            'lng':              float(self.lng) if self.lng is not None else None,
+            'lat':              _safe_float(self.lat),
+            'lng':              _safe_float(self.lng),
             'price':            self.list_price or 0,
             'bed':              self.bed or 0,
-            'bath':             float(self.bath) if self.bath is not None else 0,
+            'bath':             _safe_float(self.bath) or 0,
             'sqft':             self._sqft_int(),
             'street':           self.street,
             'unit':             self.unit_number or '',

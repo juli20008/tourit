@@ -735,5 +735,6 @@ def get_listing(mls_number):
     try:
         listing = MlsListing.query.filter_by(mls_number=mls_number).first_or_404()
         return jsonify({"listing": listing.to_frontend_dict()})
-    except OperationalError:
+    except Exception:
+        db.session.rollback()
         return jsonify({"listing": None}), 404
