@@ -13,15 +13,15 @@ import uuid
 
 import requests
 
-OUTPUT_W = 1080
-OUTPUT_H = 1440
+OUTPUT_W = 720
+OUTPUT_H = 960
 PHOTO_DURATION = 3.5
-FPS = 30
-CRF = 20
+FPS = 24
+CRF = 26
 PRESET = "fast"
 ZOOM_START = 1.0
-ZOOM_END = 1.30
-MAX_PHOTOS = 15
+ZOOM_END = 1.25
+MAX_PHOTOS = 8
 
 _JOBS: dict = {}
 _JOB_TTL = 600  # 10 minutes
@@ -246,6 +246,7 @@ def _make_clip(ffmpeg, ffprobe, img_path, out_path, reverse=False):
             "-r", str(FPS),
             "-c:v", "libx264", "-crf", str(CRF), "-preset", PRESET,
             "-pix_fmt", "yuv420p",
+            "-threads", "1",
             out_path,
         ],
         check=True,
@@ -410,19 +411,19 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app):
             _ensure_bucket(supabase_url, service_key, bucket)
 
             filename = f"{uuid.uuid4().hex}.mp4"
+            file_size = os.path.getsize(final_path)
             with open(final_path, "rb") as f:
-                video_data = f.read()
-
-            resp = requests.post(
-                f"{supabase_url}/storage/v1/object/{bucket}/{filename}",
-                headers={
-                    "Authorization": f"Bearer {service_key}",
-                    "Content-Type": "video/mp4",
-                    "x-upsert": "true",
-                },
-                data=video_data,
-                timeout=180,
-            )
+                resp = requests.post(
+                    f"{supabase_url}/storage/v1/object/{bucket}/{filename}",
+                    headers={
+                        "Authorization": f"Bearer {service_key}",
+                        "Content-Type": "video/mp4",
+                        "Content-Length": str(file_size),
+                        "x-upsert": "true",
+                    },
+                    data=f,
+                    timeout=180,
+                )
             if resp.status_code not in (200, 201):
                 _job_set(job_id, {"status": "error", "message": f"Upload failed: {resp.status_code}"})
                 return
