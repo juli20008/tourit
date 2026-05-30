@@ -20,6 +20,8 @@ class User(db.Model, UserMixin):
     photo = db.Column(db.String)
     broker_license = db.Column(db.String(40))
     office = db.Column(db.String(100))
+    voice_sample_url = db.Column(db.String(500), nullable=True)
+    elevenlabs_voice_id = db.Column(db.String(100), nullable=True)
 
     properties = db.relationship("Property", back_populates="listing_agent")
     areas = db.relationship("AgentArea", back_populates="agent")
@@ -133,6 +135,8 @@ class User(db.Model, UserMixin):
                 "rating": round(avg, 1),
                 "areas": areas,
                 "availability": availability,
+                "voice_sample_url": self.voice_sample_url,
+                "has_voice": bool(self.elevenlabs_voice_id),
             }
         else:
             return {

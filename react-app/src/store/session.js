@@ -148,6 +148,28 @@ export const addServiceArea = (zip) => async (dispatch, getState) => {
 	return data?.errors ? data : { errors: ["An error occurred. Please try again."] };
 };
 
+export const uploadVoiceSample = (audioBlob) => async (dispatch, getState) => {
+	const formData = new FormData();
+	formData.append("audio", audioBlob, "voice_sample.webm");
+	const response = await apiFetch("/api/xhs/agent/voice", {
+		method: "POST",
+		body: formData,
+	});
+	const data = await response.json();
+	if (response.ok) {
+		dispatch(updateUser({ has_voice: true, voice_sample_url: data.voice_sample_url }));
+		return data;
+	}
+	return { error: data.error || "Upload failed" };
+};
+
+export const deleteVoiceSample = () => async (dispatch) => {
+	const response = await apiFetch("/api/xhs/agent/voice", { method: "DELETE" });
+	if (response.ok) {
+		dispatch(updateUser({ has_voice: false, voice_sample_url: null }));
+	}
+};
+
 export const removeServiceArea = (zip) => async (dispatch, getState) => {
 	const response = await apiFetch(`/api/service_areas/${zip}`, {
 		method: "DELETE",

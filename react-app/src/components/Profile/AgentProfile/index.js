@@ -5,6 +5,7 @@ import { useHistory } from "react-router-dom";
 import { useNotification } from "../../../context/Notification";
 
 import UploadPhoto from "../UploadPhoto";
+import VoiceRecorder from "./VoiceRecorder";
 
 import * as sessionActions from "../../../store/session";
 
@@ -199,6 +200,7 @@ const AgentProfile = () => {
 					</div>
 				</div>
 			</form>
+			<VoiceRecorder hasVoice={!!agent?.has_voice} voiceSampleUrl={agent?.voice_sample_url} />
 			<form className="bio-wrap agent-sa" onSubmit={addServiceAreas}>
 				<div className="gap15">
 					<div className="about">

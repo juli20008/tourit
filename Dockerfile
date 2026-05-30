@@ -6,6 +6,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     FLASK_ENV=production \
     PORT=8080
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    fonts-noto-cjk \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /var/www
 
 COPY requirements.txt ./
@@ -21,4 +26,4 @@ USER appuser
 
 EXPOSE ${PORT}
 
-CMD exec gunicorn --worker-class eventlet --workers 1 --bind 0.0.0.0:${PORT:-8080} --timeout 120 --keep-alive 5 --log-level info --access-logfile - --error-logfile - wsgi:app
+CMD exec gunicorn --worker-class eventlet --workers 1 --bind 0.0.0.0:${PORT:-8080} --timeout 300 --keep-alive 5 --log-level info --access-logfile - --error-logfile - wsgi:app

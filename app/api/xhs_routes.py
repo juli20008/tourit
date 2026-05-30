@@ -273,6 +273,167 @@ def checkout_cancel():
     return _html_page('付款已取消', '您已取消付款。关闭此标签页后，可在插件弹窗中重新发起充值。')
 
 
+# ── Agent voice + video routes (login required) ────────────────────────────────
+
+@xhs_routes.route('/agent/voice', methods=['POST'])
+def upload_agent_voice():
+    """Upload a voice sample and create an ElevenLabs voice clone."""
+    from flask_login import current_user, login_required
+    from app.models import User, db
+    from app.s3_helpers import _supabase_config, _ensure_bucket
+    from app.services.elevenlabs_service import create_voice_clone, delete_voice
+
+    if not current_user.is_authenticated:
+        return jsonify({'error': 'Unauthorized'}), 401
+    if not current_user.agent:
+        return jsonify({'error': 'Agent account required'}), 403
+
+    if 'audio' not in request.files:
+        return jsonify({'error': 'audio file required'}), 400
+
+    audio_file = request.files['audio']
+    audio_bytes = audio_file.read()
+    if len(audio_bytes) < 1000:
+        return jsonify({'error': 'Audio too short'}), 400
+
+    content_type = audio_file.content_type or 'audio/webm'
+
+    # 1. Store voice sample in Supabase
+    supabase_url, service_key, _ = _supabase_config()
+    bucket = 'voice-samples'
+    _ensure_bucket(supabase_url, service_key, bucket)
+
+    import uuid
+    filename = f"{uuid.uuid4().hex}.webm"
+    resp = requests.post(
+        f"{supabase_url}/storage/v1/object/{bucket}/{filename}",
+        headers={
+            "Authorization": f"Bearer {service_key}",
+            "Content-Type": content_type,
+            "x-upsert": "true",
+        },
+        data=audio_bytes,
+        timeout=30,
+    )
+    voice_sample_url = None
+    if resp.status_code in (200, 201):
+        voice_sample_url = f"{supabase_url}/storage/v1/object/public/{bucket}/{filename}"
+
+    # 2. Delete old voice clone if exists
+    user = User.query.get(current_user.id)
+    if user.elevenlabs_voice_id:
+        delete_voice(user.elevenlabs_voice_id)
+
+    # 3. Create new voice clone
+    try:
+        voice_id = create_voice_clone(
+            name=f"tourit_{user.id}_{user.username[:20]}",
+            audio_bytes=audio_bytes,
+            content_type=content_type,
+        )
+    except RuntimeError as e:
+        return jsonify({'error': str(e)}), 502
+
+    user.elevenlabs_voice_id = voice_id
+    if voice_sample_url:
+        user.voice_sample_url = voice_sample_url
+    db.session.commit()
+
+    return jsonify({'has_voice': True, 'voice_sample_url': voice_sample_url})
+
+
+@xhs_routes.route('/agent/voice', methods=['DELETE'])
+def delete_agent_voice():
+    """Remove the agent's voice clone."""
+    from flask_login import current_user
+    from app.models import User, db
+    from app.services.elevenlabs_service import delete_voice
+
+    if not current_user.is_authenticated:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    user = User.query.get(current_user.id)
+    if user.elevenlabs_voice_id:
+        delete_voice(user.elevenlabs_voice_id)
+        user.elevenlabs_voice_id = None
+        user.voice_sample_url = None
+        db.session.commit()
+
+    return jsonify({'has_voice': False})
+
+
+@xhs_routes.route('/agent/videos', methods=['GET'])
+def get_agent_videos():
+    """Return all non-expired XHS videos for the current agent."""
+    from flask_login import current_user
+    import datetime
+
+    if not current_user.is_authenticated:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    supabase_url = os.environ.get('SUPABASE_URL', '').rstrip('/')
+    service_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '')
+    now = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
+
+    try:
+        r = requests.get(
+            f"{supabase_url}/rest/v1/xhs_videos",
+            headers={
+                'apikey': service_key,
+                'Authorization': f'Bearer {service_key}',
+            },
+            params={
+                'agent_id': f'eq.{current_user.id}',
+                'expires_at': f'gt.{now}',
+                'select': 'id,mls_number,video_url,cover1,cover2,cover3,created_at,expires_at',
+                'order': 'created_at.desc',
+            },
+            timeout=10,
+        )
+        return jsonify(r.json() if r.ok else [])
+    except Exception:
+        return jsonify([])
+
+
+@xhs_routes.route('/agent/video/<mls_number>', methods=['POST'])
+def generate_agent_video(mls_number):
+    """Start XHS video generation for a listing. Returns job_id."""
+    from flask_login import current_user
+    from flask import current_app
+    from app.services.xhs_video_service import start_video_job
+
+    if not current_user.is_authenticated:
+        return jsonify({'error': 'Unauthorized'}), 401
+    if not current_user.agent:
+        return jsonify({'error': 'Agent account required'}), 403
+
+    data = request.get_json(silent=True) or {}
+    cover_lines = [
+        str(data.get('cover1', '') or '')[:40],
+        str(data.get('cover2', '') or '')[:40],
+        str(data.get('cover3', '') or '')[:40],
+    ]
+
+    job_id = start_video_job(mls_number, current_user.id, cover_lines, current_app._get_current_object())
+    return jsonify({'job_id': job_id, 'status': 'processing'})
+
+
+@xhs_routes.route('/agent/video/status/<job_id>', methods=['GET'])
+def get_video_status(job_id):
+    """Poll video generation job status."""
+    from flask_login import current_user
+    from app.services.xhs_video_service import get_job
+
+    if not current_user.is_authenticated:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    job = get_job(job_id)
+    if not job:
+        return jsonify({'status': 'not_found'}), 404
+
+    return jsonify({k: v for k, v in job.items() if k != 'ts'})
+
+
 @xhs_routes.route('/rewrite', methods=['POST', 'OPTIONS'])
 @cross_origin(origins='*')
 def rewrite_for_xhs():
