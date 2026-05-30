@@ -1,7 +1,9 @@
 """
-Voice clone + TTS via Fish Audio (https://fish.audio).
-Keeps the same function signatures as the original ElevenLabs version.
+Voice clone via Fish Audio (https://fish.audio).
+TTS: Fish Audio if balance available, else edge-tts (Microsoft neural, free).
 """
+import asyncio
+import io
 import os
 import ormsgpack
 import requests
@@ -52,30 +54,47 @@ def delete_voice(voice_id):
         pass
 
 
+def _edge_tts_sync(text, voice="zh-CN-XiaoxiaoNeural"):
+    """Fallback TTS using Microsoft edge-tts (free, no API key)."""
+    import edge_tts
+
+    async def _run():
+        communicate = edge_tts.Communicate(text, voice)
+        buf = io.BytesIO()
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                buf.write(chunk["data"])
+        return buf.getvalue()
+
+    return asyncio.run(_run())
+
+
 def generate_speech(voice_id, text):
-    """Generate Chinese speech from text using the cloned voice. Returns MP3 bytes."""
+    """Generate Chinese speech. Uses Fish Audio cloned voice if available/funded, else edge-tts."""
     api_key = _key()
-    if not api_key:
-        raise RuntimeError("FISH_AUDIO_API_KEY not configured")
 
-    payload = ormsgpack.packb({
-        "text": text,
-        "reference_id": voice_id,
-        "format": "mp3",
-        "mp3_bitrate": 128,
-        "normalize": True,
-        "latency": "normal",
-    })
+    if api_key and voice_id:
+        payload = ormsgpack.packb({
+            "text": text,
+            "reference_id": voice_id,
+            "format": "mp3",
+            "mp3_bitrate": 128,
+            "normalize": True,
+            "latency": "normal",
+        })
+        resp = requests.post(
+            f"{_BASE}/v1/tts",
+            data=payload,
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/msgpack",
+            },
+            timeout=120,
+        )
+        if resp.ok:
+            return resp.content
+        if resp.status_code != 402:
+            raise RuntimeError(f"Fish Audio TTS failed ({resp.status_code}): {resp.text[:300]}")
+        # 402 = no balance → fall through to edge-tts
 
-    resp = requests.post(
-        f"{_BASE}/v1/tts",
-        data=payload,
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/msgpack",
-        },
-        timeout=120,
-    )
-    if not resp.ok:
-        raise RuntimeError(f"Fish Audio TTS failed ({resp.status_code}): {resp.text[:300]}")
-    return resp.content
+    return _edge_tts_sync(text)
