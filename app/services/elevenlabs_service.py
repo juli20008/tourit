@@ -53,20 +53,41 @@ def delete_voice(voice_id):
         pass
 
 
-def _gtts_fallback(text):
-    """Fallback TTS using gTTS (Google Translate TTS, free, no API key)."""
-    from gtts import gTTS
-    buf = io.BytesIO()
-    gTTS(text=text, lang="zh-TW").write_to_fp(buf)
-    buf.seek(0)
-    return buf.read()
+def _cosyvoice_tts(text, voice="longxiaochun"):
+    """CosyVoice 2.0 via Aliyun DashScope — free quota, high-quality Mandarin."""
+    api_key = os.environ.get("DASHSCOPE_API_KEY", "")
+    if not api_key:
+        raise RuntimeError("DASHSCOPE_API_KEY not configured")
+    resp = requests.post(
+        "https://dashscope.aliyuncs.com/api/v1/services/aigc/text2audiox/generation",
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "X-DashScope-SSE": "disable",
+        },
+        json={
+            "model": "cosyvoice-v2",
+            "input": {"text": text},
+            "parameters": {"voice": voice, "format": "mp3", "sample_rate": 22050},
+        },
+        timeout=60,
+    )
+    if not resp.ok:
+        raise RuntimeError(f"CosyVoice TTS failed ({resp.status_code}): {resp.text[:300]}")
+    # Response is binary MP3 when SSE disabled
+    if resp.headers.get("Content-Type", "").startswith("audio/"):
+        return resp.content
+    import base64
+    return base64.b64decode(resp.json()["output"]["audio"])
 
 
 def generate_speech(voice_id, text):
-    """Generate Chinese speech. Uses Fish Audio cloned voice if available/funded, else edge-tts."""
-    api_key = _key()
+    """Generate Chinese speech.
+    Uses Fish Audio cloned voice if funded, else CosyVoice 2.0 preset voice.
+    """
+    fish_key = _key()
 
-    if api_key and voice_id:
+    if fish_key and voice_id:
         payload = ormsgpack.packb({
             "text": text,
             "reference_id": voice_id,
@@ -79,7 +100,7 @@ def generate_speech(voice_id, text):
             f"{_BASE}/v1/tts",
             data=payload,
             headers={
-                "Authorization": f"Bearer {api_key}",
+                "Authorization": f"Bearer {fish_key}",
                 "Content-Type": "application/msgpack",
             },
             timeout=120,
@@ -88,6 +109,6 @@ def generate_speech(voice_id, text):
             return resp.content
         if resp.status_code != 402:
             raise RuntimeError(f"Fish Audio TTS failed ({resp.status_code}): {resp.text[:300]}")
-        # 402 = no balance → fall through to gTTS
+        # 402 = no balance → fall through to CosyVoice
 
-    return _gtts_fallback(text)
+    return _cosyvoice_tts(text)
