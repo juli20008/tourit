@@ -75,7 +75,7 @@ def _cosyvoice_tts(text, voice_sample_path=None, preset_voice="longxiaochun"):
         params["voice"] = preset_voice
 
     resp = requests.post(
-        "https://dashscope.aliyuncs.com/api/v1/services/aigc/text2audiox/generation",
+        "https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/text2audiox/generation",
         headers={
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
