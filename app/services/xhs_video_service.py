@@ -288,11 +288,11 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app):
                 return
 
             agent = User.query.get(agent_id)
-            if not agent or not agent.elevenlabs_voice_id:
-                _job_set(job_id, {"status": "error", "message": "Please record your voice sample first"})
+            if not agent or (not agent.voice_sample_url and not agent.elevenlabs_voice_id):
+                _job_set(job_id, {"status": "error", "message": "Please record your voice sample first in My Profile"})
                 return
 
-            voice_id = agent.elevenlabs_voice_id
+            fish_voice_id = agent.elevenlabs_voice_id
             tmpdir = tempfile.mkdtemp(prefix="xhsvid_")
 
             # ── Step 1: Download photos ────────────────────────────────────────
@@ -356,7 +356,31 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app):
             # ── Step 4: Voice narration ───────────────────────────────────────
             _job_set(job_id, {"status": "processing", "step": "Generating voiceover..."})
             from app.services.elevenlabs_service import generate_speech
-            audio_bytes = generate_speech(voice_id, narration)
+
+            # Download + convert agent's voice sample for zero-shot cloning
+            voice_sample_path = None
+            if agent.voice_sample_url:
+                try:
+                    r = requests.get(agent.voice_sample_url, timeout=30)
+                    if r.ok:
+                        raw_path = os.path.join(tmpdir, "voice_raw")
+                        mp3_path = os.path.join(tmpdir, "voice_ref.mp3")
+                        with open(raw_path, "wb") as vf:
+                            vf.write(r.content)
+                        ffmpeg, _ = _find_ffmpeg()
+                        subprocess.run(
+                            [ffmpeg, "-y", "-i", raw_path, "-ar", "22050", "-ac", "1", mp3_path],
+                            check=True, capture_output=True,
+                        )
+                        voice_sample_path = mp3_path
+                except Exception as ve:
+                    print(f"[XHS] Voice sample prep failed (non-fatal): {ve}")
+
+            audio_bytes = generate_speech(
+                narration,
+                voice_sample_path=voice_sample_path,
+                fish_voice_id=fish_voice_id,
+            )
             audio_path = os.path.join(tmpdir, "narration.mp3")
             with open(audio_path, "wb") as f:
                 f.write(audio_bytes)
