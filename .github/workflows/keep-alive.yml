@@ -2,7 +2,7 @@ name: Keep Render Alive
 
 on:
   schedule:
-    - cron: '*/10 * * * *'   # every 10 min — enough to beat Render's 15-min sleep timer
+    - cron: '0 8 * * *'   # once daily at 8am UTC — Render Starter doesn't sleep
   workflow_dispatch:
 
 jobs:
