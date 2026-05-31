@@ -434,6 +434,37 @@ def get_video_status(job_id):
     return jsonify({k: v for k, v in job.items() if k != 'ts'})
 
 
+@xhs_routes.route('/test-tts', methods=['GET'])
+def test_tts_models():
+    """Dev helper: probe which DashScope TTS models are available on this account."""
+    api_key = os.environ.get('DASHSCOPE_API_KEY', '')
+    if not api_key:
+        return jsonify({'error': 'DASHSCOPE_API_KEY not set'}), 500
+
+    base = 'https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/text2audiox/generation'
+    results = {}
+    for model in ['cosyvoice-v2', 'cosyvoice-v1', 'sambert-zhichu-v1', 'sambert-zhijia-v1']:
+        try:
+            r = requests.post(
+                base,
+                headers={
+                    'Authorization': f'Bearer {api_key}',
+                    'Content-Type': 'application/json',
+                    'X-DashScope-SSE': 'disable',
+                },
+                json={
+                    'model': model,
+                    'input': {'text': '你好'},
+                    'parameters': {'voice': 'longxiaochun', 'format': 'mp3'},
+                },
+                timeout=15,
+            )
+            results[model] = 'OK ✓' if r.ok else f'{r.status_code} — {r.text[:120]}'
+        except Exception as e:
+            results[model] = f'error: {e}'
+    return jsonify(results)
+
+
 @xhs_routes.route('/rewrite', methods=['POST', 'OPTIONS'])
 @cross_origin(origins='*')
 def rewrite_for_xhs():
