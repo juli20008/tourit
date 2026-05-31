@@ -81,7 +81,7 @@ def _cosyvoice_tts(text, voice_sample_path=None, preset_voice="longxiaochun"):
             "Content-Type": "application/json",
             "X-DashScope-SSE": "disable",
         },
-        json={"model": "cosyvoice-v2", "input": input_data, "parameters": params},
+        json={"model": os.environ.get("DASHSCOPE_TTS_MODEL", "cosyvoice-v1"), "input": input_data, "parameters": params},
         timeout=60,
     )
     if not resp.ok:
