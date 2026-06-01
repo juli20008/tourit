@@ -132,7 +132,7 @@ class MlsListing(db.Model):
     @classmethod
     def has_photos_filter(cls):
         """Filter: listing has stored photos OR CDN metadata to construct URLs."""
-        has_stored = (cls.images.isnot(None)) & (func.jsonb_array_length(cls.images) > 0)
+        has_stored = (cls.images.isnot(None)) & (func.jsonb_typeof(cls.images) == 'array') & (func.jsonb_array_length(cls.images) > 0)
         has_cdn    = (cls.external_id.isnot(None)) & (cls.photos_timestamp.isnot(None))
         return has_stored | has_cdn
 
