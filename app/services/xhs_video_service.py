@@ -173,15 +173,15 @@ def _generate_narration(listing_data):
     prompt = f"""你是一位加拿大华人房产经纪，请用普通话为以下房源录制一段看房视频口播文案，时长大约60秒（约440-480字）。
 
 房源信息：
-地址：{address}
+社区：{listing_data.get('neighborhood') or listing_data.get('city', '')}
 房型：{style}，{beds}卧{baths}卫
 面积：{f'{sqft}平方英尺' if sqft else '未知'}
-售价：${price} 加元
 描述：{desc if desc else '暂无'}
 
 写作要求：
 - 语言自然，像真人在视频里直接说话，无需标题或解释
-- 开头简短问候，介绍房源地址和基本情况
+- 开头简短问候，提到社区名称，不要说出具体地址和门牌号
+- 不要提及价格或售价
 - 中间详细介绍3-4个亮点（根据描述），语气真实平实
 - 结尾一句邀请预约看房
 - 不要夸大，不要使用"顶级""超值""绝对"等夸张词
