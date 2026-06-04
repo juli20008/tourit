@@ -331,57 +331,6 @@ def delete_agent_voice():
     return jsonify({'has_voice': False})
 
 
-@xhs_routes.route('/agent/intro', methods=['POST'])
-def upload_agent_intro():
-    """Upload agent's intro selfie video (max 10s vertical). Stored in R2."""
-    from flask_login import current_user
-    from app.models import User, db
-
-    if not current_user.is_authenticated:
-        return jsonify({'error': 'Unauthorized'}), 401
-    if not current_user.agent:
-        return jsonify({'error': 'Agent account required'}), 403
-
-    if 'video' not in request.files:
-        return jsonify({'error': 'video file required'}), 400
-
-    video_file = request.files['video']
-    video_bytes = video_file.read()
-    if len(video_bytes) < 5000:
-        return jsonify({'error': 'Video too short or empty'}), 400
-
-    content_type = video_file.content_type or 'video/webm'
-
-    import uuid
-    from app.s3_helpers import _upload_bytes
-    ext = 'webm' if 'webm' in content_type else 'mp4'
-    filename = f"agent-intros/{uuid.uuid4().hex}.{ext}"
-    try:
-        intro_video_url = _upload_bytes(video_bytes, filename, content_type)
-    except Exception as e:
-        return jsonify({'error': f'Storage upload failed: {e}'}), 502
-
-    user = User.query.get(current_user.id)
-    user.intro_video_url = intro_video_url
-    db.session.commit()
-
-    return jsonify({'has_intro_video': True, 'intro_video_url': intro_video_url})
-
-
-@xhs_routes.route('/agent/intro', methods=['DELETE'])
-def delete_agent_intro():
-    """Remove the agent's intro video."""
-    from flask_login import current_user
-    from app.models import User, db
-
-    if not current_user.is_authenticated:
-        return jsonify({'error': 'Unauthorized'}), 401
-
-    user = User.query.get(current_user.id)
-    user.intro_video_url = None
-    db.session.commit()
-
-    return jsonify({'has_intro_video': False})
 
 
 @xhs_routes.route('/agent/videos', methods=['GET'])
@@ -415,7 +364,7 @@ def get_agent_videos():
 
 @xhs_routes.route('/agent/video/<mls_number>', methods=['POST'])
 def generate_agent_video(mls_number):
-    """Start XHS video generation for a listing. Returns job_id."""
+    """Start XHS video generation. Accepts multipart/form-data with optional intro video."""
     from flask_login import current_user
     from flask import current_app
     from app.services.xhs_video_service import start_video_job
@@ -425,14 +374,29 @@ def generate_agent_video(mls_number):
     if not current_user.agent:
         return jsonify({'error': 'Agent account required'}), 403
 
-    data = request.get_json(silent=True) or {}
-    cover_lines = [
-        str(data.get('cover1', '') or '')[:40],
-        str(data.get('cover2', '') or '')[:40],
-        str(data.get('cover3', '') or '')[:40],
-    ]
+    # Accept both JSON and multipart/form-data
+    if request.content_type and 'multipart' in request.content_type:
+        cover_lines = [
+            str(request.form.get('cover1', '') or '')[:40],
+            str(request.form.get('cover2', '') or '')[:40],
+            str(request.form.get('cover3', '') or '')[:40],
+        ]
+        intro_file = request.files.get('intro_video')
+        intro_bytes = intro_file.read() if intro_file and intro_file.filename else None
+    else:
+        data = request.get_json(silent=True) or {}
+        cover_lines = [
+            str(data.get('cover1', '') or '')[:40],
+            str(data.get('cover2', '') or '')[:40],
+            str(data.get('cover3', '') or '')[:40],
+        ]
+        intro_bytes = None
 
-    job_id = start_video_job(mls_number, current_user.id, cover_lines, current_app._get_current_object())
+    job_id = start_video_job(
+        mls_number, current_user.id, cover_lines,
+        current_app._get_current_object(),
+        intro_bytes=intro_bytes,
+    )
     return jsonify({'job_id': job_id, 'status': 'processing'})
 
 

@@ -481,7 +481,7 @@ def get_job(job_id):
 
 # ── Main pipeline (runs in background thread) ──────────────────────────────────
 
-def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app):
+def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_bytes=None):
     with flask_app.app_context():
         tmpdir = None
         try:
@@ -536,25 +536,23 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app):
             os.makedirs(clips_dir, exist_ok=True)
 
             intro_clip_path = None
-            if agent.intro_video_url:
+            if intro_bytes and len(intro_bytes) > 1000:
                 try:
-                    intro_resp = requests.get(agent.intro_video_url, timeout=30)
-                    if intro_resp.ok:
-                        raw_intro = os.path.join(tmpdir, "intro_raw.webm")
-                        with open(raw_intro, "wb") as f:
-                            f.write(intro_resp.content)
+                    raw_intro = os.path.join(tmpdir, "intro_raw.webm")
+                    with open(raw_intro, "wb") as f:
+                        f.write(intro_bytes)
 
-                        transcoded_intro = os.path.join(tmpdir, "intro_base.mp4")
-                        _transcode_intro(ffmpeg, raw_intro, transcoded_intro)
+                    transcoded_intro = os.path.join(tmpdir, "intro_base.mp4")
+                    _transcode_intro(ffmpeg, raw_intro, transcoded_intro)
 
-                        overlay_png = os.path.join(tmpdir, "intro_overlay.png")
-                        _generate_intro_overlay(cover_lines[0], cover_lines[1], cover_lines[2], overlay_png)
+                    overlay_png = os.path.join(tmpdir, "intro_overlay.png")
+                    _generate_intro_overlay(cover_lines[0], cover_lines[1], cover_lines[2], overlay_png)
 
-                        intro_clip_path = os.path.join(clips_dir, "clip_intro.mp4")
-                        if os.path.exists(overlay_png):
-                            _composite_overlay(ffmpeg, transcoded_intro, overlay_png, intro_clip_path)
-                        else:
-                            os.rename(transcoded_intro, intro_clip_path)
+                    intro_clip_path = os.path.join(clips_dir, "clip_intro.mp4")
+                    if os.path.exists(overlay_png):
+                        _composite_overlay(ffmpeg, transcoded_intro, overlay_png, intro_clip_path)
+                    else:
+                        os.rename(transcoded_intro, intro_clip_path)
                 except Exception:
                     intro_clip_path = None  # intro failed — fall back to cover slide
 
@@ -719,14 +717,14 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app):
                 shutil.rmtree(tmpdir, ignore_errors=True)
 
 
-def start_video_job(mls_number, agent_id, cover_lines, flask_app):
+def start_video_job(mls_number, agent_id, cover_lines, flask_app, intro_bytes=None):
     """Start background video generation. Returns job_id."""
     _job_clean()
     job_id = uuid.uuid4().hex
     _job_set(job_id, {"status": "processing", "step": "Starting..."})
     t = threading.Thread(
         target=_run_pipeline,
-        args=(job_id, mls_number, agent_id, cover_lines, flask_app),
+        args=(job_id, mls_number, agent_id, cover_lines, flask_app, intro_bytes),
         daemon=True,
     )
     t.start()

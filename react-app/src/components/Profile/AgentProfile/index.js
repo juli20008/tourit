@@ -6,7 +6,6 @@ import { useNotification } from "../../../context/Notification";
 
 import UploadPhoto from "../UploadPhoto";
 import VoiceRecorder from "./VoiceRecorder";
-import IntroVideoRecorder from "./IntroVideoRecorder";
 
 import * as sessionActions from "../../../store/session";
 
@@ -162,7 +161,6 @@ const AgentProfile = () => {
 							</div>
 						</div>
 						<VoiceRecorder hasVoice={!!agent?.has_voice} voiceSampleUrl={agent?.voice_sample_url} />
-						<IntroVideoRecorder hasIntroVideo={!!agent?.has_intro_video} introVideoUrl={agent?.intro_video_url} />
 					</div>
 					<div className="agent-profile gap40">
 						<div className="btn-wrap-rt">
