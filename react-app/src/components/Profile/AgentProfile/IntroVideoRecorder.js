@@ -3,6 +3,7 @@ import { useDispatch } from "react-redux";
 import * as sessionActions from "../../../store/session";
 
 const MAX_SECONDS = 10;
+const MAX_VIDEO_MB = 50;
 
 const IntroVideoRecorder = ({ hasIntroVideo, introVideoUrl }) => {
 	const dispatch = useDispatch();
@@ -13,6 +14,7 @@ const IntroVideoRecorder = ({ hasIntroVideo, introVideoUrl }) => {
 	const [timeLeft, setTimeLeft] = useState(MAX_SECONDS);
 	const [uploading, setUploading] = useState(false);
 	const [status, setStatus] = useState(null); // "saved" | "error"
+	const fileInputRef = useRef(null);
 	const [errorMsg, setErrorMsg] = useState("");
 
 	const mediaRef = useRef(null);
@@ -122,6 +124,22 @@ const IntroVideoRecorder = ({ hasIntroVideo, introVideoUrl }) => {
 		}
 	};
 
+	const pickFile = (e) => {
+		const file = e.target.files?.[0];
+		if (!file) return;
+		if (file.size > MAX_VIDEO_MB * 1024 * 1024) {
+			setErrorMsg(`视频过大，请控制在 ${MAX_VIDEO_MB}MB 以内 / Video must be under ${MAX_VIDEO_MB}MB`);
+			setStatus("error");
+			e.target.value = "";
+			return;
+		}
+		setStatus(null);
+		setErrorMsg("");
+		if (previewUrl) URL.revokeObjectURL(previewUrl);
+		setVideoBlob(file);
+		setPreviewUrl(URL.createObjectURL(file));
+	};
+
 	const deleteVideo = async () => {
 		setUploading(true);
 		await dispatch(sessionActions.deleteIntroVideo());
@@ -140,9 +158,9 @@ const IntroVideoRecorder = ({ hasIntroVideo, introVideoUrl }) => {
 					🎬 小红书开场视频 / Intro Video
 				</div>
 				<p style={{ color: "#64748b", fontSize: "0.875rem", margin: 0 }}>
-					录制最多 10 秒竖屏自拍，将作为视频开场，封面文字会自动叠加。
+					录制最多 10 秒竖屏自拍，将作为视频开场，封面文字会自动叠加。也可用美颜相机录好后从相册上传。
 					<br />
-					Record a 10-second portrait selfie. Cover text will be overlaid automatically.
+					Record a 10s portrait selfie, or record with a beauty camera app and upload from gallery.
 				</p>
 
 				{recording && (
@@ -202,6 +220,15 @@ const IntroVideoRecorder = ({ hasIntroVideo, introVideoUrl }) => {
 				)}
 
 				<div className="service-area-btn-wrap" style={{ flexWrap: "wrap", gap: "8px" }}>
+					{/* Hidden file input — accepts video from gallery / file system */}
+					<input
+						ref={fileInputRef}
+						type="file"
+						accept="video/*"
+						style={{ display: "none" }}
+						onChange={pickFile}
+					/>
+
 					{!recording ? (
 						<button
 							type="button"
@@ -218,6 +245,18 @@ const IntroVideoRecorder = ({ hasIntroVideo, introVideoUrl }) => {
 							onClick={stopRecording}
 						>
 							■ 停止 Stop ({timeLeft}s)
+						</button>
+					)}
+
+					{!recording && (
+						<button
+							type="button"
+							className="btn"
+							style={{ background: "#7c3aed", borderColor: "#7c3aed" }}
+							onClick={() => fileInputRef.current?.click()}
+							disabled={uploading}
+						>
+							📷 从相册上传 Upload
 						</button>
 					)}
 
