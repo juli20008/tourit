@@ -16,11 +16,11 @@ import requests
 OUTPUT_W = 720
 OUTPUT_H = 960
 PHOTO_DURATION = 2.0
-FPS = 24
-CRF = 26
-PRESET = "fast"
+FPS = 20
+CRF = 28
+PRESET = "ultrafast"
 ZOOM_START = 1.0
-ZOOM_END = 1.2
+ZOOM_END = 1.15
 MAX_PHOTOS = 30
 
 _JOBS: dict = {}
@@ -250,7 +250,7 @@ def _make_clip(ffmpeg, ffprobe, img_path, out_path, reverse=False):
             out_path,
         ],
         check=True,
-        capture_output=True,
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
 
 
