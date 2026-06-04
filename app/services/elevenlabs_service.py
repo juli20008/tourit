@@ -8,10 +8,35 @@ Voice clone creation is a 2-step process:
   b) POST /v1/voice_clone with file_id → voice_id (stored in users.elevenlabs_voice_id)
 """
 import os
+import subprocess
+import tempfile
 import uuid
 import requests
 
 _MINIMAX_BASE = os.environ.get("MINIMAX_BASE_URL", "https://api.minimax.io")
+
+_MINIMAX_SUPPORTED_EXTS = {"mp3", "wav", "m4a"}
+
+
+def _to_mp3(audio_bytes):
+    """Convert audio bytes to mp3 using ffmpeg (handles webm/ogg/etc)."""
+    import shutil
+    ffmpeg = shutil.which("ffmpeg") or "ffmpeg"
+    with tempfile.NamedTemporaryFile(suffix=".input", delete=False) as src:
+        src.write(audio_bytes)
+        src_path = src.name
+    dst_path = src_path + ".mp3"
+    try:
+        subprocess.run(
+            [ffmpeg, "-y", "-i", src_path, "-ar", "22050", "-ac", "1", "-b:a", "128k", dst_path],
+            check=True, capture_output=True,
+        )
+        with open(dst_path, "rb") as f:
+            return f.read()
+    finally:
+        os.unlink(src_path)
+        if os.path.exists(dst_path):
+            os.unlink(dst_path)
 
 
 def _auth_headers(json_body=False):
@@ -34,12 +59,17 @@ def create_voice_clone(name, audio_bytes, content_type="audio/webm"):
         raise RuntimeError("MINIMAX_API_KEY not configured")
 
     ext_map = {
-        "audio/webm": "webm", "audio/ogg": "ogg",
-        "audio/mp3": "mp3",  "audio/mpeg": "mp3",
-        "audio/wav": "wav",  "audio/x-wav": "wav",
-        "audio/m4a": "m4a",  "audio/mp4": "m4a",
+        "audio/mp3": "mp3", "audio/mpeg": "mp3",
+        "audio/wav": "wav", "audio/x-wav": "wav",
+        "audio/m4a": "m4a", "audio/mp4": "m4a",
     }
-    ext = ext_map.get(content_type.split(";")[0].strip(), "webm")
+    ext = ext_map.get(content_type.split(";")[0].strip())
+
+    # MiniMax only accepts mp3/wav/m4a — convert anything else (webm, ogg, etc.)
+    if ext not in _MINIMAX_SUPPORTED_EXTS:
+        audio_bytes = _to_mp3(audio_bytes)
+        ext = "mp3"
+        content_type = "audio/mpeg"
 
     # Step 1 — upload audio
     upload_resp = requests.post(
