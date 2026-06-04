@@ -110,10 +110,10 @@ def _get_chinese_font():
     return None
 
 
-# ── Cover slide ────────────────────────────────────────────────────────────────
+# ── Cover slide (plain — used when no intro video) ─────────────────────────────
 
 def _generate_cover(line1, line2, line3, out_path):
-    """Render a 1080×1440 cover image with 3 lines of Chinese text."""
+    """Render a 720×960 cover image with 3 lines of Chinese text."""
     try:
         from PIL import Image, ImageDraw, ImageFont
 
@@ -132,7 +132,6 @@ def _generate_cover(line1, line2, line3, out_path):
 
         f1, f2, f3 = _load(88), _load(64), _load(52)
 
-        # Subtle horizontal rule
         draw.rectangle([(120, 360), (OUTPUT_W - 120, 364)], fill="#3b82f6")
 
         y = 420
@@ -146,8 +145,217 @@ def _generate_cover(line1, line2, line3, out_path):
 
         img.save(out_path, "PNG")
     except ImportError:
-        # Pillow not installed — generate a plain-color placeholder via ffmpeg
         pass
+
+
+# ── 小红书-style cover overlay for intro video ──────────────────────────────────
+
+def _generate_intro_overlay(line1, line2, line3, out_path):
+    """
+    Render a transparent 720×960 PNG overlay with 小红书-style pill text boxes.
+    Three lines sit in the lower third with gradient fade, drop shadows, rounded pills.
+    """
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+        import math
+
+        W, H = OUTPUT_W, OUTPUT_H
+        img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(img)
+
+        font_path = _get_chinese_font()
+
+        def _load(size):
+            if font_path:
+                try:
+                    return ImageFont.truetype(font_path, size)
+                except Exception:
+                    pass
+            return ImageFont.load_default()
+
+        # Gradient overlay — bottom 45% of frame fades from transparent to near-black
+        grad_top = int(H * 0.55)
+        for y in range(grad_top, H):
+            alpha = int(200 * ((y - grad_top) / (H - grad_top)) ** 1.4)
+            draw.line([(0, y), (W, y)], fill=(0, 0, 0, alpha))
+
+        lines = [
+            (line1, _load(52), (255, 255, 255)),
+            (line2, _load(42), (253, 224, 71)),   # warm yellow accent
+            (line3, _load(36), (203, 213, 225)),   # muted blue-grey
+        ]
+
+        pad_x, pad_y, radius = 24, 12, 22
+        pill_colors = [
+            (30, 64, 175, 200),   # deep blue
+            (146, 64, 14, 200),   # warm amber
+            (15, 118, 110, 200),  # teal
+        ]
+
+        # Measure all lines, stack from bottom up
+        rendered = []
+        for text, font, color in lines:
+            if not text:
+                rendered.append(None)
+                continue
+            bbox = draw.textbbox((0, 0), text, font=font)
+            tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+            rendered.append((text, font, color, tw, th))
+
+        spacing = 18
+        total_h = sum((r[4] + pad_y * 2 + spacing) for r in rendered if r) - spacing
+        start_y = H - 80 - total_h
+
+        shadow_layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        sdraw = ImageDraw.Draw(shadow_layer)
+
+        y_cursor = start_y
+        for i, r in enumerate(rendered):
+            if not r:
+                continue
+            text, font, color, tw, th = r
+            pill_w = tw + pad_x * 2
+            pill_h = th + pad_y * 2
+            x = (W - pill_w) // 2
+
+            # Drop shadow (offset 3px)
+            sx, sy = x + 3, y_cursor + 3
+            sdraw.rounded_rectangle([sx, sy, sx + pill_w, sy + pill_h], radius=radius, fill=(0, 0, 0, 120))
+
+            # Pill background
+            draw.rounded_rectangle([x, y_cursor, x + pill_w, y_cursor + pill_h],
+                                    radius=radius, fill=pill_colors[i])
+
+            # Text centered in pill
+            tx = x + pad_x
+            ty = y_cursor + pad_y
+            draw.text((tx, ty), text, font=font, fill=color)
+
+            y_cursor += pill_h + spacing
+
+        # Merge shadow beneath main layer
+        base = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        base = Image.alpha_composite(base, shadow_layer)
+        base = Image.alpha_composite(base, img)
+        base.save(out_path, "PNG")
+
+    except ImportError:
+        pass
+
+
+# ── Intro video transcoder ─────────────────────────────────────────────────────
+
+def _transcode_intro(ffmpeg, src_path, out_path):
+    """
+    Trim intro to 10s, resize/pad to 720×960 (portrait), re-encode.
+    Audio is stripped — narration track replaces it later.
+    Input may be vertical (good) or landscape (pad with blurred background).
+    """
+    vf = (
+        f"[0:v]scale={OUTPUT_W}:{OUTPUT_H}:force_original_aspect_ratio=decrease,"
+        f"pad={OUTPUT_W}:{OUTPUT_H}:(ow-iw)/2:(oh-ih)/2:color=black[fg];"
+        f"[0:v]scale={OUTPUT_W}:{OUTPUT_H}:force_original_aspect_ratio=increase,"
+        f"crop={OUTPUT_W}:{OUTPUT_H},boxblur=20:5[bg];"
+        f"[bg][fg]overlay=(W-w)/2:(H-h)/2"
+    )
+    subprocess.run(
+        [
+            ffmpeg, "-y",
+            "-i", src_path,
+            "-t", "10",
+            "-filter_complex", vf,
+            "-an",
+            "-r", str(FPS),
+            "-c:v", "libx264", "-crf", str(CRF), "-preset", PRESET,
+            "-pix_fmt", "yuv420p",
+            "-threads", "1",
+            out_path,
+        ],
+        check=True,
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+
+
+def _composite_overlay(ffmpeg, video_path, overlay_png, out_path):
+    """Composite a transparent PNG overlay onto a video."""
+    subprocess.run(
+        [
+            ffmpeg, "-y",
+            "-i", video_path,
+            "-i", overlay_png,
+            "-filter_complex", "[0:v][1:v]overlay=0:0",
+            "-c:v", "libx264", "-crf", str(CRF), "-preset", PRESET,
+            "-c:a", "copy",
+            "-pix_fmt", "yuv420p",
+            "-threads", "1",
+            out_path,
+        ],
+        check=True,
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+
+
+# ── Subtitle generation ────────────────────────────────────────────────────────
+
+def _build_ass(narration: str, audio_duration_secs: float, font_path: str | None, out_path: str):
+    """
+    Build an ASS subtitle file from narration text.
+    Segments text into ~20-char lines, estimates per-line timing from total duration.
+    """
+    import re
+
+    # Split at sentence boundaries and punctuation
+    raw = re.split(r'(?<=[，。！？、；：\n])', narration)
+    segments = []
+    for chunk in raw:
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+        # Further split long chunks into ≤20 char pieces
+        while len(chunk) > 20:
+            segments.append(chunk[:20])
+            chunk = chunk[20:]
+        if chunk:
+            segments.append(chunk)
+
+    total_chars = max(sum(len(s) for s in segments), 1)
+
+    def _ts(secs):
+        h = int(secs // 3600)
+        m = int((secs % 3600) // 60)
+        s = secs % 60
+        return f"{h}:{m:02d}:{s:05.2f}"
+
+    font_name = "Noto Sans SC"
+    if font_path:
+        import os as _os
+        font_name = _os.path.splitext(_os.path.basename(font_path))[0].replace("-Regular", "").replace("-", " ")
+
+    header = f"""[Script Info]
+ScriptType: v4.00+
+PlayResX: 720
+PlayResY: 960
+WrapStyle: 1
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,{font_name},38,&H00FFFFFF,&H000000FF,&H00000000,&H99000000,-1,0,0,0,100,100,0,0,1,2.5,1,2,20,20,40,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+"""
+
+    lines = []
+    t = 0.0
+    for seg in segments:
+        duration = audio_duration_secs * (len(seg) / total_chars)
+        duration = max(duration, 0.5)
+        lines.append(f"Dialogue: 0,{_ts(t)},{_ts(t + duration)},Default,,0,0,0,,{seg}")
+        t += duration
+
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(header)
+        f.write("\n".join(lines))
 
 
 # ── Narration text ─────────────────────────────────────────────────────────────
@@ -321,12 +529,45 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app):
                 _job_set(job_id, {"status": "error", "message": "No photos available for this listing"})
                 return
 
-            # ── Step 2: Cover slide ────────────────────────────────────────────
-            _job_set(job_id, {"status": "processing", "step": "Creating cover slide..."})
-            cover_path = os.path.join(tmpdir, "cover.png")
-            _generate_cover(cover_lines[0], cover_lines[1], cover_lines[2], cover_path)
+            # ── Step 2: Cover / intro clip ─────────────────────────────────────
+            _job_set(job_id, {"status": "processing", "step": "Creating cover..."})
+            ffmpeg, ffprobe = _find_ffmpeg()
+            clips_dir = os.path.join(tmpdir, "clips")
+            os.makedirs(clips_dir, exist_ok=True)
 
-            all_images = ([cover_path] if os.path.exists(cover_path) else []) + downloaded
+            intro_clip_path = None
+            if agent.intro_video_url:
+                try:
+                    intro_resp = requests.get(agent.intro_video_url, timeout=30)
+                    if intro_resp.ok:
+                        raw_intro = os.path.join(tmpdir, "intro_raw.webm")
+                        with open(raw_intro, "wb") as f:
+                            f.write(intro_resp.content)
+
+                        transcoded_intro = os.path.join(tmpdir, "intro_base.mp4")
+                        _transcode_intro(ffmpeg, raw_intro, transcoded_intro)
+
+                        overlay_png = os.path.join(tmpdir, "intro_overlay.png")
+                        _generate_intro_overlay(cover_lines[0], cover_lines[1], cover_lines[2], overlay_png)
+
+                        intro_clip_path = os.path.join(clips_dir, "clip_intro.mp4")
+                        if os.path.exists(overlay_png):
+                            _composite_overlay(ffmpeg, transcoded_intro, overlay_png, intro_clip_path)
+                        else:
+                            os.rename(transcoded_intro, intro_clip_path)
+                except Exception:
+                    intro_clip_path = None  # intro failed — fall back to cover slide
+
+            if not intro_clip_path:
+                # Fall back to static cover slide
+                cover_path = os.path.join(tmpdir, "cover.png")
+                _generate_cover(cover_lines[0], cover_lines[1], cover_lines[2], cover_path)
+                if os.path.exists(cover_path):
+                    cover_clip_path = os.path.join(clips_dir, "clip_cover.mp4")
+                    _make_clip(ffmpeg, ffprobe, cover_path, cover_clip_path)
+                    intro_clip_path = cover_clip_path
+
+            all_images = downloaded
 
             # ── Step 3: Narration text ────────────────────────────────────────
             _job_set(job_id, {"status": "processing", "step": "Writing narration..."})
@@ -369,11 +610,10 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app):
 
             # ── Step 5: Render video ──────────────────────────────────────────
             _job_set(job_id, {"status": "processing", "step": "Rendering video..."})
-            ffmpeg, ffprobe = _find_ffmpeg()
 
-            clips_dir = os.path.join(tmpdir, "clips")
-            os.makedirs(clips_dir, exist_ok=True)
             clip_paths = []
+            if intro_clip_path and os.path.exists(intro_clip_path):
+                clip_paths.append(intro_clip_path)
             for i, img_path in enumerate(all_images):
                 clip_path = os.path.join(clips_dir, f"clip_{i:04d}.mp4")
                 _make_clip(ffmpeg, ffprobe, img_path, clip_path, reverse=(i % 2 == 1))
@@ -387,12 +627,34 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app):
             silent_path = os.path.join(tmpdir, "silent.mp4")
             subprocess.run(
                 [ffmpeg, "-y", "-f", "concat", "-safe", "0", "-i", list_file, "-c", "copy", silent_path],
-                check=True, capture_output=True,
+                check=True,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )
 
-            # ── Step 6: Mix audio ─────────────────────────────────────────────
-            _job_set(job_id, {"status": "processing", "step": "Mixing audio..."})
+            # ── Step 6: Mix audio + burn subtitles ───────────────────────────
+            _job_set(job_id, {"status": "processing", "step": "Mixing audio & subtitles..."})
+
+            # Estimate audio duration from file size (mp3 ~128kbps)
+            audio_size = os.path.getsize(audio_path)
+            audio_duration = audio_size / 16000  # 128kbps = 16000 bytes/sec
+
+            ass_path = os.path.join(tmpdir, "subs.ass")
+            font_path = _get_chinese_font()
+            _build_ass(narration, audio_duration, font_path, ass_path)
+
             final_path = os.path.join(tmpdir, "final.mp4")
+
+            # Build subtitle filter — include font dir if we have a font
+            if font_path and os.path.exists(ass_path):
+                font_dir = os.path.dirname(font_path).replace("\\", "/").replace(":", "\\:")
+                ass_escaped = ass_path.replace("\\", "/").replace(":", "\\:")
+                sub_filter = f"subtitles='{ass_escaped}':fontsdir='{font_dir}'"
+                vf_args = ["-vf", sub_filter]
+                vc_args = ["-c:v", "libx264", "-crf", str(CRF), "-preset", PRESET, "-pix_fmt", "yuv420p", "-threads", "1"]
+            else:
+                vf_args = []
+                vc_args = ["-c:v", "copy"]
+
             subprocess.run(
                 [
                     ffmpeg, "-y",
@@ -400,41 +662,23 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app):
                     "-i", audio_path,
                     "-map", "0:v:0",
                     "-map", "1:a:0",
-                    "-c:v", "copy",
+                    *vf_args,
+                    *vc_args,
                     "-c:a", "aac",
                     "-shortest",
                     final_path,
                 ],
-                check=True, capture_output=True,
+                check=True,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )
 
             # ── Step 7: Upload ────────────────────────────────────────────────
             _job_set(job_id, {"status": "processing", "step": "Uploading..."})
-            from app.s3_helpers import _supabase_config, _ensure_bucket
+            from app.s3_helpers import _upload_file_obj
 
-            supabase_url, service_key, _ = _supabase_config()
-            bucket = "xhs-videos"
-            _ensure_bucket(supabase_url, service_key, bucket)
-
-            filename = f"{uuid.uuid4().hex}.mp4"
-            file_size = os.path.getsize(final_path)
+            r2_key = f"xhs-videos/{uuid.uuid4().hex}.mp4"
             with open(final_path, "rb") as f:
-                resp = requests.post(
-                    f"{supabase_url}/storage/v1/object/{bucket}/{filename}",
-                    headers={
-                        "Authorization": f"Bearer {service_key}",
-                        "Content-Type": "video/mp4",
-                        "Content-Length": str(file_size),
-                        "x-upsert": "true",
-                    },
-                    data=f,
-                    timeout=180,
-                )
-            if resp.status_code not in (200, 201):
-                _job_set(job_id, {"status": "error", "message": f"Upload failed: {resp.status_code}"})
-                return
-
-            video_url = f"{supabase_url}/storage/v1/object/public/{bucket}/{filename}"
+                video_url = _upload_file_obj(f, r2_key, "video/mp4")
 
             # ── Step 8: Save record (7-day expiry) ───────────────────────────
             from datetime import datetime, timedelta
@@ -448,7 +692,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app):
                             VALUES (:aid, :mls, :url, :sp, :c1, :c2, :c3, :exp)"""),
                     {
                         'aid': agent_id, 'mls': mls_number, 'url': video_url,
-                        'sp': filename, 'c1': cover_lines[0], 'c2': cover_lines[1],
+                        'sp': r2_key, 'c1': cover_lines[0], 'c2': cover_lines[1],
                         'c3': cover_lines[2], 'exp': expires_at,
                     }
                 )

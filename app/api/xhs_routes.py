@@ -261,7 +261,6 @@ def upload_agent_voice():
     """Upload a voice sample and create a MiniMax voice clone (one-time per agent)."""
     from flask_login import current_user, login_required
     from app.models import User, db
-    from app.s3_helpers import _supabase_config, _ensure_bucket
     from app.services.elevenlabs_service import create_voice_clone, delete_voice
 
     if not current_user.is_authenticated:
@@ -279,26 +278,15 @@ def upload_agent_voice():
 
     content_type = audio_file.content_type or 'audio/webm'
 
-    # 1. Store voice sample in Supabase
-    supabase_url, service_key, _ = _supabase_config()
-    bucket = 'voice-samples'
-    _ensure_bucket(supabase_url, service_key, bucket)
-
+    # 1. Store voice sample in R2
     import uuid
-    filename = f"{uuid.uuid4().hex}.webm"
-    resp = requests.post(
-        f"{supabase_url}/storage/v1/object/{bucket}/{filename}",
-        headers={
-            "Authorization": f"Bearer {service_key}",
-            "Content-Type": content_type,
-            "x-upsert": "true",
-        },
-        data=audio_bytes,
-        timeout=30,
-    )
+    from app.s3_helpers import _upload_bytes
+    filename = f"voice-samples/{uuid.uuid4().hex}.webm"
     voice_sample_url = None
-    if resp.status_code in (200, 201):
-        voice_sample_url = f"{supabase_url}/storage/v1/object/public/{bucket}/{filename}"
+    try:
+        voice_sample_url = _upload_bytes(audio_bytes, filename, content_type)
+    except Exception:
+        pass
 
     # 2. Delete old voice clone if exists
     user = User.query.get(current_user.id)
@@ -341,6 +329,59 @@ def delete_agent_voice():
         db.session.commit()
 
     return jsonify({'has_voice': False})
+
+
+@xhs_routes.route('/agent/intro', methods=['POST'])
+def upload_agent_intro():
+    """Upload agent's intro selfie video (max 10s vertical). Stored in R2."""
+    from flask_login import current_user
+    from app.models import User, db
+
+    if not current_user.is_authenticated:
+        return jsonify({'error': 'Unauthorized'}), 401
+    if not current_user.agent:
+        return jsonify({'error': 'Agent account required'}), 403
+
+    if 'video' not in request.files:
+        return jsonify({'error': 'video file required'}), 400
+
+    video_file = request.files['video']
+    video_bytes = video_file.read()
+    if len(video_bytes) < 5000:
+        return jsonify({'error': 'Video too short or empty'}), 400
+
+    content_type = video_file.content_type or 'video/webm'
+
+    import uuid
+    from app.s3_helpers import _upload_bytes
+    ext = 'webm' if 'webm' in content_type else 'mp4'
+    filename = f"agent-intros/{uuid.uuid4().hex}.{ext}"
+    try:
+        intro_video_url = _upload_bytes(video_bytes, filename, content_type)
+    except Exception as e:
+        return jsonify({'error': f'Storage upload failed: {e}'}), 502
+
+    user = User.query.get(current_user.id)
+    user.intro_video_url = intro_video_url
+    db.session.commit()
+
+    return jsonify({'has_intro_video': True, 'intro_video_url': intro_video_url})
+
+
+@xhs_routes.route('/agent/intro', methods=['DELETE'])
+def delete_agent_intro():
+    """Remove the agent's intro video."""
+    from flask_login import current_user
+    from app.models import User, db
+
+    if not current_user.is_authenticated:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    user = User.query.get(current_user.id)
+    user.intro_video_url = None
+    db.session.commit()
+
+    return jsonify({'has_intro_video': False})
 
 
 @xhs_routes.route('/agent/videos', methods=['GET'])

@@ -1,16 +1,31 @@
+"""
+File storage helpers — Cloudflare R2 (S3-compatible via boto3).
+
+Required env vars:
+  R2_ENDPOINT        full endpoint URL, e.g. https://<account_id>.r2.cloudflarestorage.com
+  S3_KEY             R2 Access Key ID
+  S3_SECRET          R2 Secret Access Key
+  S3_BUCKET          default bucket name (e.g. "tourit-media")
+  R2_PUBLIC_URL      public base URL, e.g. https://media.tourit.ca  (no trailing slash)
+                     Falls back to https://pub-<bucket>.r2.dev if not set.
+"""
 import os
 import uuid
-import requests
+import boto3
+from botocore.config import Config
 
 ALLOWED_EXTENSIONS = {"pdf", "png", "jpg", "jpeg", "gif", "webp"}
 ALLOWED_VIDEO_EXTENSIONS = {"mp4", "mov", "webm", "m4v"}
 VIDEO_BUCKET = "live-tour-videos"
-MAX_VIDEO_BYTES = 100 * 1024 * 1024  # 100 MB — matches Supabase storage limit
+MAX_VIDEO_BYTES = 100 * 1024 * 1024  # 100 MB
 
 
 def allowed_file(filename):
-    return "." in filename and \
-           filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def allowed_video(filename):
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_VIDEO_EXTENSIONS
 
 
 def get_unique_filename(filename):
@@ -18,134 +33,101 @@ def get_unique_filename(filename):
     return f"{uuid.uuid4().hex}.{ext}"
 
 
-def _supabase_config():
-    # Prefer Flask app config (populated by Config class via load_dotenv);
-    # fall back to raw os.environ for contexts outside a request.
-    try:
-        from flask import current_app
-        cfg = current_app.config
-        url = cfg.get("SUPABASE_URL") or os.environ.get("SUPABASE_URL", "")
-        key = cfg.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
-    except RuntimeError:
-        url = os.environ.get("SUPABASE_URL", "")
-        key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
-    bucket = os.environ.get("SUPABASE_STORAGE_BUCKET", "photos")
-    return url.rstrip("/"), key, bucket
+def _r2_client():
+    endpoint = os.environ.get("R2_ENDPOINT", "")
+    key      = os.environ.get("S3_KEY", "")
+    secret   = os.environ.get("S3_SECRET", "")
+    if not endpoint or not key or not secret:
+        raise RuntimeError("R2 not configured (R2_ENDPOINT / S3_KEY / S3_SECRET missing)")
+    return boto3.client(
+        "s3",
+        endpoint_url=endpoint,
+        aws_access_key_id=key,
+        aws_secret_access_key=secret,
+        region_name="auto",
+        config=Config(signature_version="s3v4"),
+    )
 
 
-def _ensure_bucket(url, key, bucket):
-    """Create the bucket if it doesn't exist yet (idempotent)."""
+def _r2_public_url(bucket, key):
+    base = os.environ.get("R2_PUBLIC_URL", "").rstrip("/")
+    if not base:
+        base = f"https://pub-{bucket}.r2.dev"
+    return f"{base}/{key}"
+
+
+def _default_bucket():
+    return os.environ.get("S3_BUCKET", "tourit-media")
+
+
+def _upload_bytes(data: bytes, key: str, content_type: str, bucket: str | None = None) -> str:
+    """Upload raw bytes to R2. Returns the public URL."""
+    bucket = bucket or _default_bucket()
+    client = _r2_client()
+    client.put_object(Bucket=bucket, Key=key, Body=data, ContentType=content_type)
+    return _r2_public_url(bucket, key)
+
+
+def _upload_file_obj(file_obj, key: str, content_type: str, bucket: str | None = None) -> str:
+    """Upload a file-like object to R2. Returns the public URL."""
+    bucket = bucket or _default_bucket()
+    client = _r2_client()
+    client.upload_fileobj(file_obj, bucket, key, ExtraArgs={"ContentType": content_type})
+    return _r2_public_url(bucket, key)
+
+
+def _delete_object(public_url: str):
+    """Delete an R2 object given its public URL (best-effort)."""
+    base = os.environ.get("R2_PUBLIC_URL", "").rstrip("/")
+    bucket = _default_bucket()
     try:
-        resp = requests.post(
-            f"{url}/storage/v1/bucket",
-            headers={
-                "Authorization": f"Bearer {key}",
-                "Content-Type": "application/json",
-            },
-            json={"id": bucket, "name": bucket, "public": True},
-            timeout=10,
-        )
-        # 200/201 = created, 409 = already exists — both are fine
-        return resp.status_code in (200, 201, 409)
+        if base and public_url.startswith(base + "/"):
+            key = public_url[len(base) + 1:]
+        else:
+            key = public_url.rsplit("/", 1)[-1]
+        _r2_client().delete_object(Bucket=bucket, Key=key)
     except Exception:
-        return False
+        pass
 
 
-def allowed_video(filename):
-    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_VIDEO_EXTENSIONS
+# ── Legacy-compatible helpers (used by old routes) ─────────────────────────────
+
+def upload_file_to_s3(file, acl="public-read"):
+    """Upload a Flask FileStorage to R2. Returns {url} or {errors: [...]}."""
+    try:
+        data = file.read()
+        filename = get_unique_filename(file.filename)
+        content_type = getattr(file, "content_type", None) or "image/jpeg"
+        url = _upload_bytes(data, filename, content_type)
+        return {"url": url}
+    except Exception as e:
+        return {"errors": [str(e)]}
 
 
 def upload_video_to_supabase(file):
-    """Upload video to Supabase Storage live-tour-videos bucket."""
-    supabase_url, service_key, _ = _supabase_config()
-    if not supabase_url or not service_key:
-        return {"errors": ["Storage not configured"]}
-
-    _ensure_bucket(supabase_url, service_key, VIDEO_BUCKET)
-
-    filename = get_unique_filename(file.filename)
-    content_type = getattr(file, "content_type", None) or "video/mp4"
-
+    """Upload a video file to R2 (was Supabase Storage). Returns {url} or {errors}."""
     try:
         data = file.read()
         if len(data) > MAX_VIDEO_BYTES:
             return {"errors": ["Video too large (max 100 MB)"]}
-
-        resp = requests.post(
-            f"{supabase_url}/storage/v1/object/{VIDEO_BUCKET}/{filename}",
-            headers={
-                "Authorization": f"Bearer {service_key}",
-                "Content-Type": content_type,
-                "x-upsert": "true",
-            },
-            data=data,
-            timeout=120,
-        )
-        if resp.status_code not in (200, 201):
-            return {"errors": [f"Upload failed ({resp.status_code}): {resp.text[:300]}"]}
-
-        public_url = f"{supabase_url}/storage/v1/object/public/{VIDEO_BUCKET}/{filename}"
-        return {"url": public_url}
+        filename = get_unique_filename(file.filename or "video.mp4")
+        content_type = getattr(file, "content_type", None) or "video/mp4"
+        url = _upload_bytes(data, filename, content_type)
+        return {"url": url}
     except Exception as e:
         return {"errors": [str(e)]}
 
 
 def delete_from_supabase(url):
-    """Delete a file from Supabase Storage given its public URL."""
-    supabase_url, service_key, _ = _supabase_config()
-    if not supabase_url or not service_key or not url:
-        return False
-
-    prefix = f"{supabase_url}/storage/v1/object/public/"
-    if not url.startswith(prefix):
-        return False
-
-    path = url[len(prefix):]  # e.g. "live-tour-videos/abc123.mp4"
-    bucket = path.split("/")[0]
-    object_path = "/".join(path.split("/")[1:])
-
-    try:
-        resp = requests.delete(
-            f"{supabase_url}/storage/v1/object/{bucket}/{object_path}",
-            headers={"Authorization": f"Bearer {service_key}"},
-            timeout=10,
-        )
-        return resp.status_code in (200, 204)
-    except Exception:
-        return False
+    """Delete a file from R2 given its public URL (was Supabase Storage)."""
+    _delete_object(url)
+    return True
 
 
-def upload_file_to_s3(file, acl="public-read"):
-    """Upload to Supabase Storage. Keeps the same signature as the old S3 version."""
-    supabase_url, service_key, bucket = _supabase_config()
+# Supabase config shim — keeps old callers working (returns empty strings if R2 is used)
+def _supabase_config():
+    return "", "", ""
 
-    if not supabase_url or not service_key:
-        return {"errors": ["Storage is not configured (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY missing)"]}
 
-    if not service_key.startswith("eyJ"):
-        return {"errors": ["SUPABASE_SERVICE_ROLE_KEY is not a valid JWT — go to Supabase → Project Settings → API and copy the full service_role key (starts with eyJ)"]}
-
-    _ensure_bucket(supabase_url, service_key, bucket)
-
-    filename = file.filename
-    content_type = getattr(file, "content_type", None) or "image/jpeg"
-
-    try:
-        data = file.read()
-        resp = requests.post(
-            f"{supabase_url}/storage/v1/object/{bucket}/{filename}",
-            headers={
-                "Authorization": f"Bearer {service_key}",
-                "Content-Type": content_type,
-                "x-upsert": "true",
-            },
-            data=data,
-            timeout=30,
-        )
-        if resp.status_code not in (200, 201):
-            return {"errors": [f"Upload failed ({resp.status_code}): {resp.text[:300]}"]}
-
-        public_url = f"{supabase_url}/storage/v1/object/public/{bucket}/{filename}"
-        return {"url": public_url}
-    except Exception as e:
-        return {"errors": [str(e)]}
+def _ensure_bucket(url, key, bucket):
+    return True

@@ -170,6 +170,28 @@ export const deleteVoiceSample = () => async (dispatch) => {
 	}
 };
 
+export const uploadIntroVideo = (videoBlob) => async (dispatch) => {
+	const formData = new FormData();
+	formData.append("video", videoBlob, "intro.webm");
+	const response = await apiFetch("/api/xhs/agent/intro", {
+		method: "POST",
+		body: formData,
+	});
+	const data = await response.json();
+	if (response.ok) {
+		dispatch(updateUser({ has_intro_video: true, intro_video_url: data.intro_video_url }));
+		return data;
+	}
+	return { error: data.error || "Upload failed" };
+};
+
+export const deleteIntroVideo = () => async (dispatch) => {
+	const response = await apiFetch("/api/xhs/agent/intro", { method: "DELETE" });
+	if (response.ok) {
+		dispatch(updateUser({ has_intro_video: false, intro_video_url: null }));
+	}
+};
+
 export const removeServiceArea = (zip) => async (dispatch, getState) => {
 	const response = await apiFetch(`/api/service_areas/${zip}`, {
 		method: "DELETE",
