@@ -15,13 +15,13 @@ import requests
 
 OUTPUT_W = 720
 OUTPUT_H = 960
-PHOTO_DURATION = 3.5
+PHOTO_DURATION = 2.0
 FPS = 24
 CRF = 26
 PRESET = "fast"
 ZOOM_START = 1.0
-ZOOM_END = 1.25
-MAX_PHOTOS = 8
+ZOOM_END = 1.2
+MAX_PHOTOS = 30
 
 _JOBS: dict = {}
 _JOB_TTL = 600  # 10 minutes
@@ -170,7 +170,7 @@ def _generate_narration(listing_data):
     style = listing_data.get("style") or listing_data.get("property_type") or "住宅"
     sqft = listing_data.get("sqft", "")
 
-    prompt = f"""你是一位加拿大华人房产经纪，请用普通话为以下房源录制一段看房视频口播文案，时长大约30秒（约220-260字）。
+    prompt = f"""你是一位加拿大华人房产经纪，请用普通话为以下房源录制一段看房视频口播文案，时长大约60秒（约440-480字）。
 
 房源信息：
 地址：{address}
@@ -182,7 +182,7 @@ def _generate_narration(listing_data):
 写作要求：
 - 语言自然，像真人在视频里直接说话，无需标题或解释
 - 开头简短问候，介绍房源地址和基本情况
-- 中间重点介绍2-3个亮点（根据描述），语气真实平实
+- 中间详细介绍3-4个亮点（根据描述），语气真实平实
 - 结尾一句邀请预约看房
 - 不要夸大，不要使用"顶级""超值""绝对"等夸张词
 - 只输出口播正文，不要任何额外说明"""
@@ -288,11 +288,11 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app):
                 return
 
             agent = User.query.get(agent_id)
-            if not agent or (not agent.voice_sample_url and not agent.elevenlabs_voice_id):
-                _job_set(job_id, {"status": "error", "message": "Please record your voice sample first in My Profile"})
+            if not agent or not agent.elevenlabs_voice_id:
+                _job_set(job_id, {"status": "error", "message": "请先在个人资料页面录制并上传您的声音样本 / Please record your voice sample first in My Profile"})
                 return
 
-            fish_voice_id = agent.elevenlabs_voice_id
+            minimax_voice_id = agent.elevenlabs_voice_id
             tmpdir = tempfile.mkdtemp(prefix="xhsvid_")
 
             # ── Step 1: Download photos ────────────────────────────────────────
@@ -347,40 +347,22 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app):
             if not narration:
                 city = listing.city or "多伦多"
                 bed = listing.bed or "?"
+                bath = listing.bath or "?"
+                price_str = f"{int(listing.list_price or 0):,}" if listing.list_price else "面议"
                 narration = (
-                    f"大家好，今天来给大家介绍一套位于{city}的精品房源。"
-                    f"这套房子共有{bed}间卧室，设计精良，采光充足，性价比很高。"
-                    f"感兴趣的朋友欢迎联系我预约看房，期待和您一起找到心仪的家。"
+                    f"大家好，今天来给大家介绍一套位于{city}的优质房源。"
+                    f"这套房子是{bed}卧{bath}卫的户型，售价{price_str}加元。"
+                    f"房屋整体设计合理，空间利用充分，采光条件非常好，居住舒适度高。"
+                    f"无论是自住还是投资，这套房源都有很高的性价比。"
+                    f"{city}地区配套设施完善，生活便利，交通便捷，周边学区也很不错。"
+                    f"如果您对这套房源感兴趣，欢迎随时联系我预约实地看房，期待和您一起找到心仪的家。"
                 )
 
             # ── Step 4: Voice narration ───────────────────────────────────────
             _job_set(job_id, {"status": "processing", "step": "Generating voiceover..."})
             from app.services.elevenlabs_service import generate_speech
 
-            # Download + convert agent's voice sample for zero-shot cloning
-            voice_sample_path = None
-            if agent.voice_sample_url:
-                try:
-                    r = requests.get(agent.voice_sample_url, timeout=30)
-                    if r.ok:
-                        raw_path = os.path.join(tmpdir, "voice_raw")
-                        mp3_path = os.path.join(tmpdir, "voice_ref.mp3")
-                        with open(raw_path, "wb") as vf:
-                            vf.write(r.content)
-                        ffmpeg, _ = _find_ffmpeg()
-                        subprocess.run(
-                            [ffmpeg, "-y", "-i", raw_path, "-ar", "22050", "-ac", "1", mp3_path],
-                            check=True, capture_output=True,
-                        )
-                        voice_sample_path = mp3_path
-                except Exception as ve:
-                    print(f"[XHS] Voice sample prep failed (non-fatal): {ve}")
-
-            audio_bytes = generate_speech(
-                narration,
-                voice_sample_path=voice_sample_path,
-                fish_voice_id=fish_voice_id,
-            )
+            audio_bytes = generate_speech(narration, fish_voice_id=minimax_voice_id)
             audio_path = os.path.join(tmpdir, "narration.mp3")
             with open(audio_path, "wb") as f:
                 f.write(audio_bytes)
@@ -456,30 +438,23 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app):
 
             # ── Step 8: Save record (7-day expiry) ───────────────────────────
             from datetime import datetime, timedelta
+            from sqlalchemy import text
+            from app.models import db
             expires_at = (datetime.utcnow() + timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%SZ")
             try:
-                requests.post(
-                    f"{supabase_url}/rest/v1/xhs_videos",
-                    headers={
-                        "apikey": service_key,
-                        "Authorization": f"Bearer {service_key}",
-                        "Content-Type": "application/json",
-                        "Prefer": "return=minimal",
-                    },
-                    json={
-                        "agent_id": agent_id,
-                        "mls_number": mls_number,
-                        "video_url": video_url,
-                        "storage_path": filename,
-                        "cover1": cover_lines[0],
-                        "cover2": cover_lines[1],
-                        "cover3": cover_lines[2],
-                        "expires_at": expires_at,
-                    },
-                    timeout=10,
+                db.session.execute(
+                    text("""INSERT INTO xhs_videos
+                            (agent_id, mls_number, video_url, storage_path, cover1, cover2, cover3, expires_at)
+                            VALUES (:aid, :mls, :url, :sp, :c1, :c2, :c3, :exp)"""),
+                    {
+                        'aid': agent_id, 'mls': mls_number, 'url': video_url,
+                        'sp': filename, 'c1': cover_lines[0], 'c2': cover_lines[1],
+                        'c3': cover_lines[2], 'exp': expires_at,
+                    }
                 )
+                db.session.commit()
             except Exception:
-                pass  # Don't fail the whole job if DB write fails
+                db.session.rollback()
 
             _job_set(job_id, {"status": "done", "url": video_url, "expires_at": expires_at})
 

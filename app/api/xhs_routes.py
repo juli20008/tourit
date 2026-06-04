@@ -3,24 +3,12 @@ import datetime
 import requests
 from flask import Blueprint, request, jsonify
 from flask_cors import cross_origin
+from sqlalchemy import text
+from app.models import db
 
 xhs_routes = Blueprint('xhs', __name__)
 
 FREE_LIMIT = 5  # free uses per device per month
-
-
-# ── Supabase REST helpers ──────────────────────────────────────────────────────
-
-def _sb_url(path):
-    return os.environ.get('SUPABASE_URL', '').rstrip('/') + f'/rest/v1/{path}'
-
-
-def _sb_headers(extra=None):
-    key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '')
-    h = {'apikey': key, 'Authorization': f'Bearer {key}', 'Content-Type': 'application/json'}
-    if extra:
-        h.update(extra)
-    return h
 
 
 def _current_month():
@@ -28,19 +16,16 @@ def _current_month():
 
 
 def _maybe_reset(row, device_id, month):
-    """If the row's reset_month is stale, zero free_used in DB and return updated row."""
     if row.get('reset_month') == month:
         return row
     try:
-        requests.patch(
-            _sb_url('xhs_credits'),
-            headers=_sb_headers({'Prefer': 'return=minimal'}),
-            params={'device_id': f'eq.{device_id}'},
-            json={'free_used': 0, 'reset_month': month},
-            timeout=5,
+        db.session.execute(
+            text("UPDATE xhs_credits SET free_used=0, reset_month=:m WHERE device_id=:d"),
+            {'m': month, 'd': device_id}
         )
+        db.session.commit()
     except Exception:
-        pass
+        db.session.rollback()
     row = dict(row)
     row['free_used'] = 0
     row['reset_month'] = month
@@ -50,69 +35,65 @@ def _maybe_reset(row, device_id, month):
 def _get_or_create_credits(device_id):
     """Return {free_used, paid_credits, reset_month} row, creating/resetting if needed."""
     month = _current_month()
-    r = requests.get(
-        _sb_url('xhs_credits'),
-        headers=_sb_headers(),
-        params={'device_id': f'eq.{device_id}', 'select': 'free_used,paid_credits,reset_month'},
-        timeout=5,
-    )
-    if r.ok:
-        rows = r.json()
-        if rows:
-            return _maybe_reset(rows[0], device_id, month)
+    row = db.session.execute(
+        text("SELECT free_used, paid_credits, reset_month FROM xhs_credits WHERE device_id=:d"),
+        {'d': device_id}
+    ).mappings().first()
 
-    ins = requests.post(
-        _sb_url('xhs_credits'),
-        headers=_sb_headers({'Prefer': 'resolution=ignore-duplicates,return=representation'}),
-        json={'device_id': device_id, 'free_used': 0, 'paid_credits': 0, 'reset_month': month},
-        timeout=5,
-    )
-    if ins.ok:
-        rows = ins.json()
-        if rows:
-            return rows[0]
+    if row:
+        return _maybe_reset(dict(row), device_id, month)
 
-    # Row already existed and conflict was silently ignored — read it now
-    r2 = requests.get(
-        _sb_url('xhs_credits'),
-        headers=_sb_headers(),
-        params={'device_id': f'eq.{device_id}', 'select': 'free_used,paid_credits,reset_month'},
-        timeout=5,
-    )
-    if r2.ok and r2.json():
-        return _maybe_reset(r2.json()[0], device_id, month)
+    try:
+        db.session.execute(
+            text("""INSERT INTO xhs_credits (device_id, free_used, paid_credits, reset_month)
+                    VALUES (:d, 0, 0, :m) ON CONFLICT (device_id) DO NOTHING"""),
+            {'d': device_id, 'm': month}
+        )
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
 
+    row = db.session.execute(
+        text("SELECT free_used, paid_credits, reset_month FROM xhs_credits WHERE device_id=:d"),
+        {'d': device_id}
+    ).mappings().first()
+
+    if row:
+        return _maybe_reset(dict(row), device_id, month)
     return {'free_used': 0, 'paid_credits': 0, 'reset_month': month}
 
 
 def _deduct_credit(device_id, row):
-    params = {'device_id': f'eq.{device_id}'}
     if row['free_used'] < FREE_LIMIT:
-        patch = {'free_used': row['free_used'] + 1}
+        patch = {'col': 'free_used', 'val': row['free_used'] + 1}
     elif row['paid_credits'] > 0:
-        patch = {'paid_credits': row['paid_credits'] - 1}
+        patch = {'col': 'paid_credits', 'val': row['paid_credits'] - 1}
     else:
         return False
-    r = requests.patch(
-        _sb_url('xhs_credits'),
-        headers=_sb_headers({'Prefer': 'return=minimal'}),
-        params=params,
-        json=patch,
-        timeout=5,
-    )
-    return r.ok
+    try:
+        db.session.execute(
+            text(f"UPDATE xhs_credits SET {patch['col']}=:v WHERE device_id=:d"),
+            {'v': patch['val'], 'd': device_id}
+        )
+        db.session.commit()
+        return True
+    except Exception:
+        db.session.rollback()
+        return False
 
 
 def _add_paid_credits(device_id, qty):
     row = _get_or_create_credits(device_id)
-    r = requests.patch(
-        _sb_url('xhs_credits'),
-        headers=_sb_headers({'Prefer': 'return=minimal'}),
-        params={'device_id': f'eq.{device_id}'},
-        json={'paid_credits': row['paid_credits'] + qty},
-        timeout=5,
-    )
-    return r.ok
+    try:
+        db.session.execute(
+            text("UPDATE xhs_credits SET paid_credits=:v WHERE device_id=:d"),
+            {'v': row['paid_credits'] + qty, 'd': device_id}
+        )
+        db.session.commit()
+        return True
+    except Exception:
+        db.session.rollback()
+        return False
 
 
 # ── PayPal helpers ─────────────────────────────────────────────────────────────
@@ -277,7 +258,7 @@ def checkout_cancel():
 
 @xhs_routes.route('/agent/voice', methods=['POST'])
 def upload_agent_voice():
-    """Upload a voice sample and create an ElevenLabs voice clone."""
+    """Upload a voice sample and create a MiniMax voice clone (one-time per agent)."""
     from flask_login import current_user, login_required
     from app.models import User, db
     from app.s3_helpers import _supabase_config, _ensure_bucket
@@ -371,26 +352,22 @@ def get_agent_videos():
     if not current_user.is_authenticated:
         return jsonify({'error': 'Unauthorized'}), 401
 
-    supabase_url = os.environ.get('SUPABASE_URL', '').rstrip('/')
-    service_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '')
-    now = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
-
     try:
-        r = requests.get(
-            f"{supabase_url}/rest/v1/xhs_videos",
-            headers={
-                'apikey': service_key,
-                'Authorization': f'Bearer {service_key}',
-            },
-            params={
-                'agent_id': f'eq.{current_user.id}',
-                'expires_at': f'gt.{now}',
-                'select': 'id,mls_number,video_url,cover1,cover2,cover3,created_at,expires_at',
-                'order': 'created_at.desc',
-            },
-            timeout=10,
-        )
-        return jsonify(r.json() if r.ok else [])
+        rows = db.session.execute(
+            text("""SELECT id, mls_number, video_url, cover1, cover2, cover3, created_at, expires_at
+                    FROM xhs_videos
+                    WHERE agent_id=:aid AND expires_at > NOW()
+                    ORDER BY created_at DESC"""),
+            {'aid': current_user.id}
+        ).mappings().all()
+        result = []
+        for r in rows:
+            row = dict(r)
+            for k in ('created_at', 'expires_at'):
+                if row.get(k) and hasattr(row[k], 'isoformat'):
+                    row[k] = row[k].isoformat()
+            result.append(row)
+        return jsonify(result)
     except Exception:
         return jsonify([])
 
@@ -436,33 +413,40 @@ def get_video_status(job_id):
 
 @xhs_routes.route('/test-tts', methods=['GET'])
 def test_tts_models():
-    """Dev helper: probe which DashScope TTS models are available on this account."""
-    api_key = os.environ.get('DASHSCOPE_API_KEY', '')
-    if not api_key:
-        return jsonify({'error': 'DASHSCOPE_API_KEY not set'}), 500
+    """Dev helper: probe MiniMax TTS connectivity."""
+    minimax_key  = os.environ.get('MINIMAX_API_KEY', '')
+    minimax_base = os.environ.get('MINIMAX_BASE_URL', 'https://api.minimax.io')
+    model        = os.environ.get('MINIMAX_TTS_MODEL', 'speech-02-hd')
 
-    base = 'https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/text2audiox/generation'
-    results = {}
-    for model in ['cosyvoice-v2', 'cosyvoice-v1', 'sambert-zhichu-v1', 'sambert-zhijia-v1']:
-        try:
-            r = requests.post(
-                base,
-                headers={
-                    'Authorization': f'Bearer {api_key}',
-                    'Content-Type': 'application/json',
-                    'X-DashScope-SSE': 'disable',
-                },
-                json={
-                    'model': model,
-                    'input': {'text': '你好'},
-                    'parameters': {'voice': 'longxiaochun', 'format': 'mp3'},
-                },
-                timeout=15,
-            )
-            results[model] = 'OK ✓' if r.ok else f'{r.status_code} — {r.text[:120]}'
-        except Exception as e:
-            results[model] = f'error: {e}'
-    return jsonify(results)
+    if not minimax_key:
+        return jsonify({'error': 'MINIMAX_API_KEY not set'}), 500
+
+    try:
+        r = requests.post(
+            f'{minimax_base}/v1/t2a_v2',
+            headers={'Authorization': f'Bearer {minimax_key}', 'Content-Type': 'application/json'},
+            json={
+                'model': model,
+                'text': '你好，这是一段测试语音。',
+                'stream': False,
+                'language_boost': 'auto',
+                'voice_setting': {'voice_id': 'male-qn-jingying', 'speed': 1.0, 'vol': 1.0, 'pitch': 0},
+                'audio_setting': {'audio_sample_rate': 32000, 'bitrate': 128000, 'format': 'mp3', 'channel': 1},
+            },
+            timeout=20,
+        )
+        if r.ok:
+            data = r.json()
+            audio_hex = data.get('data', {}).get('audio', '')
+            return jsonify({
+                'status': 'OK',
+                'model': model,
+                'audio_bytes': len(audio_hex) // 2,
+                'base_resp': data.get('base_resp'),
+            })
+        return jsonify({'status': 'error', 'code': r.status_code, 'body': r.text[:300]})
+    except Exception as e:
+        return jsonify({'status': 'exception', 'error': str(e)}), 500
 
 
 @xhs_routes.route('/rewrite', methods=['POST', 'OPTIONS'])

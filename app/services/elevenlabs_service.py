@@ -1,94 +1,153 @@
 """
-TTS pipeline:
-1. CosyVoice 2.0 zero-shot clone  — agent's recorded voice + DashScope (primary)
-2. Fish Audio cloned voice         — if agent has Fish Audio voice_id with balance
-3. CosyVoice 2.0 preset voice      — fallback if no voice sample available
+TTS pipeline — MiniMax international API (api.minimax.io):
+1. MiniMax TTS with cloned voice  — if agent has a stored voice_id
+2. MiniMax TTS with preset voice  — fallback (no clone available)
+
+Voice clone creation is a 2-step process:
+  a) Upload audio file  → file_id
+  b) POST /v1/voice_clone with file_id → voice_id (stored in users.elevenlabs_voice_id)
 """
-import base64
-import io
 import os
-import ormsgpack
+import uuid
 import requests
 
-_FISH_BASE = "https://api.fish.audio"
+_MINIMAX_BASE = os.environ.get("MINIMAX_BASE_URL", "https://api.minimax.io")
 
 
-# ── Fish Audio voice clone (create / delete only — TTS is secondary) ──────────
+def _auth_headers(json_body=False):
+    h = {"Authorization": f"Bearer {os.environ.get('MINIMAX_API_KEY', '')}"}
+    if json_body:
+        h["Content-Type"] = "application/json"
+    return h
+
+
+# ── Voice clone (create / delete) ──────────────────────────────────────────────
 
 def create_voice_clone(name, audio_bytes, content_type="audio/webm"):
-    """Upload audio to Fish Audio and return model _id (used as backup TTS)."""
-    api_key = os.environ.get("FISH_AUDIO_API_KEY", "")
+    """
+    Upload agent's voice sample to MiniMax and create a rapid voice clone.
+    Returns voice_id (stored in users.elevenlabs_voice_id).
+    Billing: $1.5 charged on first TTS generation with this voice.
+    """
+    api_key = os.environ.get("MINIMAX_API_KEY", "")
     if not api_key:
-        raise RuntimeError("FISH_AUDIO_API_KEY not configured")
-    resp = requests.post(
-        f"{_FISH_BASE}/model",
-        headers={"Authorization": f"Bearer {api_key}"},
-        data={
-            "title": name,
-            "visibility": "private",
-            "type": "tts",
-            "train_mode": "fast",
-            "enhance_audio_quality": "true",
+        raise RuntimeError("MINIMAX_API_KEY not configured")
+
+    ext_map = {
+        "audio/webm": "webm", "audio/ogg": "ogg",
+        "audio/mp3": "mp3",  "audio/mpeg": "mp3",
+        "audio/wav": "wav",  "audio/x-wav": "wav",
+        "audio/m4a": "m4a",  "audio/mp4": "m4a",
+    }
+    ext = ext_map.get(content_type.split(";")[0].strip(), "webm")
+
+    # Step 1 — upload audio
+    upload_resp = requests.post(
+        f"{_MINIMAX_BASE}/v1/files/upload",
+        headers=_auth_headers(),
+        files={"file": (f"voice_sample.{ext}", audio_bytes, content_type)},
+        data={"purpose": "voice_clone"},
+        timeout=60,
+    )
+    if not upload_resp.ok:
+        raise RuntimeError(
+            f"MiniMax upload failed ({upload_resp.status_code}): {upload_resp.text[:300]}"
+        )
+    up = upload_resp.json()
+    if up.get("base_resp", {}).get("status_code", 0) != 0:
+        raise RuntimeError(f"MiniMax upload error: {up['base_resp'].get('status_msg')}")
+    file_id = up["file"]["file_id"]
+
+    # Step 2 — create voice clone
+    voice_id = f"tourit_{uuid.uuid4().hex[:16]}"
+    model = os.environ.get("MINIMAX_TTS_MODEL", "speech-02-hd")
+    clone_resp = requests.post(
+        f"{_MINIMAX_BASE}/v1/voice_clone",
+        headers=_auth_headers(json_body=True),
+        json={
+            "file_id": file_id,
+            "voice_id": voice_id,
+            "model": model,
+            "text": "你好，我是您的专属经纪人，欢迎预约看房。",
         },
-        files={"voices": ("voice_sample.webm", audio_bytes, content_type)},
         timeout=90,
     )
-    if not resp.ok:
-        raise RuntimeError(f"Fish Audio clone failed ({resp.status_code}): {resp.text[:300]}")
-    return resp.json()["_id"]
+    if not clone_resp.ok:
+        raise RuntimeError(
+            f"MiniMax voice clone failed ({clone_resp.status_code}): {clone_resp.text[:300]}"
+        )
+    cl = clone_resp.json()
+    if cl.get("base_resp", {}).get("status_code", 0) != 0:
+        raise RuntimeError(f"MiniMax clone error: {cl['base_resp'].get('status_msg')}")
+
+    return cl.get("voice_id", voice_id)
 
 
 def delete_voice(voice_id):
-    api_key = os.environ.get("FISH_AUDIO_API_KEY", "")
+    """Delete a MiniMax cloned voice (best-effort, no hard failure)."""
+    api_key = os.environ.get("MINIMAX_API_KEY", "")
     if not api_key or not voice_id:
         return
     try:
         requests.delete(
-            f"{_FISH_BASE}/model/{voice_id}",
-            headers={"Authorization": f"Bearer {api_key}"},
+            f"{_MINIMAX_BASE}/v1/voices/{voice_id}",
+            headers=_auth_headers(),
             timeout=10,
         )
     except Exception:
         pass
 
 
-# ── CosyVoice 2.0 (primary TTS) ───────────────────────────────────────────────
+# ── MiniMax TTS ────────────────────────────────────────────────────────────────
 
-def _cosyvoice_tts(text, voice_sample_path=None, preset_voice="longxiaochun"):
+def _minimax_tts(text, voice_id=None):
     """
-    CosyVoice 2.0 TTS via DashScope.
-    - voice_sample_path: path to agent's recorded MP3/WAV → zero-shot voice clone
-    - preset_voice: used only when no voice sample is provided
+    MiniMax T2A v2 sync HTTP.
+    voice_id: cloned agent voice; falls back to MINIMAX_VOICE_ID preset if None.
+    Returns MP3 bytes.
     """
-    api_key = os.environ.get("DASHSCOPE_API_KEY", "")
+    api_key = os.environ.get("MINIMAX_API_KEY", "")
     if not api_key:
-        raise RuntimeError("DASHSCOPE_API_KEY not configured")
+        raise RuntimeError("MINIMAX_API_KEY not configured")
 
-    input_data = {"text": text}
-    params = {"format": "mp3", "sample_rate": 22050}
-
-    if voice_sample_path and os.path.exists(voice_sample_path):
-        with open(voice_sample_path, "rb") as f:
-            input_data["prompt_audio"] = base64.b64encode(f.read()).decode()
-        # Zero-shot clone — no preset voice needed
-    else:
-        params["voice"] = preset_voice
+    model  = os.environ.get("MINIMAX_TTS_MODEL", "speech-02-hd")
+    preset = os.environ.get("MINIMAX_VOICE_ID", "male-qn-jingying")
+    speed  = float(os.environ.get("MINIMAX_TTS_SPEED", "1.0"))
 
     resp = requests.post(
-        "https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/text2audiox/generation",
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-            "X-DashScope-SSE": "disable",
+        f"{_MINIMAX_BASE}/v1/t2a_v2",
+        headers=_auth_headers(json_body=True),
+        json={
+            "model": model,
+            "text": text,
+            "stream": False,
+            "language_boost": "auto",
+            "voice_setting": {
+                "voice_id": voice_id or preset,
+                "speed": speed,
+                "vol": 1.0,
+                "pitch": 0,
+            },
+            "audio_setting": {
+                "audio_sample_rate": 32000,
+                "bitrate": 128000,
+                "format": "mp3",
+                "channel": 1,
+            },
         },
-        json={"model": os.environ.get("DASHSCOPE_TTS_MODEL", "cosyvoice-v1"), "input": input_data, "parameters": params},
         timeout=60,
     )
     if not resp.ok:
-        raise RuntimeError(f"CosyVoice TTS failed ({resp.status_code}): {resp.text[:300]}")
-    if resp.headers.get("Content-Type", "").startswith("audio/"):
-        return resp.content
-    return base64.b64decode(resp.json()["output"]["audio"])
+        raise RuntimeError(f"MiniMax TTS failed ({resp.status_code}): {resp.text[:300]}")
+
+    data = resp.json()
+    if data.get("base_resp", {}).get("status_code", 0) != 0:
+        raise RuntimeError(f"MiniMax TTS error: {data['base_resp'].get('status_msg')}")
+
+    audio_hex = data.get("data", {}).get("audio", "")
+    if not audio_hex:
+        raise RuntimeError("MiniMax TTS returned no audio data")
+    return bytes.fromhex(audio_hex)
 
 
 # ── Public entry point ─────────────────────────────────────────────────────────
@@ -98,38 +157,7 @@ def generate_speech(text, voice_sample_path=None, fish_voice_id=None):
     Generate Chinese speech for XHS video narration.
 
     Priority:
-    1. CosyVoice 2.0 zero-shot clone  (agent's voice sample → best quality)
-    2. Fish Audio cloned voice         (if fish_voice_id set and account has balance)
-    3. CosyVoice 2.0 preset voice      (no sample available)
+    1. MiniMax TTS with agent's cloned voice  (fish_voice_id = MiniMax voice_id)
+    2. MiniMax TTS with preset Chinese voice  (no clone available)
     """
-    # 1. CosyVoice zero-shot — agent's own voice
-    if voice_sample_path and os.path.exists(voice_sample_path):
-        return _cosyvoice_tts(text, voice_sample_path=voice_sample_path)
-
-    # 2. Fish Audio cloned voice (backup)
-    fish_key = os.environ.get("FISH_AUDIO_API_KEY", "")
-    if fish_key and fish_voice_id:
-        payload = ormsgpack.packb({
-            "text": text,
-            "reference_id": fish_voice_id,
-            "format": "mp3",
-            "mp3_bitrate": 128,
-            "normalize": True,
-            "latency": "normal",
-        })
-        resp = requests.post(
-            f"{_FISH_BASE}/v1/tts",
-            data=payload,
-            headers={
-                "Authorization": f"Bearer {fish_key}",
-                "Content-Type": "application/msgpack",
-            },
-            timeout=120,
-        )
-        if resp.ok:
-            return resp.content
-        if resp.status_code != 402:
-            raise RuntimeError(f"Fish Audio TTS failed ({resp.status_code}): {resp.text[:300]}")
-
-    # 3. CosyVoice preset voice
-    return _cosyvoice_tts(text)
+    return _minimax_tts(text, voice_id=fish_voice_id or None)
