@@ -15,7 +15,7 @@ import requests
 
 OUTPUT_W = 720
 OUTPUT_H = 960
-PHOTO_DURATION = 2.0
+PHOTO_DURATION = 3.0
 FPS = 20
 CRF = 28
 PRESET = "ultrafast"
