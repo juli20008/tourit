@@ -13,8 +13,8 @@ import uuid
 
 import requests
 
-OUTPUT_W = 720
-OUTPUT_H = 960
+OUTPUT_W = 540
+OUTPUT_H = 720
 PHOTO_DURATION = 3.0
 FPS = 20
 CRF = 28
@@ -659,7 +659,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                 ass_escaped = ass_path.replace("\\", "/").replace(":", "\\:")
                 sub_filter = f"subtitles='{ass_escaped}':fontsdir='{font_dir}'"
                 vf_args = ["-vf", sub_filter]
-                vc_args = ["-c:v", "libx264", "-crf", str(CRF), "-preset", PRESET, "-pix_fmt", "yuv420p", "-threads", "1"]
+                vc_args = ["-c:v", "libx264", "-crf", str(CRF), "-preset", PRESET, "-pix_fmt", "yuv420p", "-threads", "1", "-bufsize", "512k", "-maxrate", "1500k"]
             else:
                 vf_args = []
                 vc_args = ["-c:v", "copy"]
