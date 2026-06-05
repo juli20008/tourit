@@ -2,10 +2,10 @@ import dotenv from 'dotenv';
 import { getAutoLogoutClient } from 'rets-client';
 import { mapDDFToSupabase } from '../adapters/ListingAdapter';
 import { DdfPhotoSession } from './ddfPhotoFetcher';
+import { createDbClient, fetchListingPhotoInfo, patchImages as patchImagesDb } from '../db';
 
 dotenv.config({ path: '.env' });
 dotenv.config({ path: '.env.local' });
-console.log('Using URL:', process.env.SUPABASE_URL);
 
 
 type DdfRaw = Record<string, any>;
@@ -70,93 +70,6 @@ const SUPABASE_COLUMNS = new Set([
   'category',
 ]);
 
-type SupabaseClientLike = {
-  from: (table: string) => {
-    select: (columns: string) => {
-      eq: (column: string, value: string) => {
-        maybeSingle: () => Promise<{ data: SupabaseRow | null; error: any }>;
-      };
-    };
-    upsert: (rows: SupabaseRow | SupabaseRow[], options?: { onConflict?: string }) => Promise<{ data: any; error: any }>;
-  };
-};
-
-function createSupabaseClient(): SupabaseClientLike {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!url || !key) {
-    throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in environment.');
-  }
-
-  return {
-    from(table: string) {
-      return {
-        select(columns: string) {
-          return {
-            eq(column: string, value: string) {
-              return {
-                async maybeSingle() {
-                  const endpoint = new URL(`/rest/v1/${table}`, url);
-                  endpoint.searchParams.set('select', columns);
-                  endpoint.searchParams.set(column, `eq.${value}`);
-
-                  const response = await fetch(endpoint.toString(), {
-                    method: 'GET',
-                    headers: {
-                      apikey: key,
-                      Authorization: `Bearer ${key}`,
-                      Accept: 'application/json',
-                    },
-                  });
-
-                  if (!response.ok) {
-                    const text = await response.text();
-                    return {
-                      data: null,
-                      error: new Error(`Supabase select failed (${response.status}): ${text}`),
-                    };
-                  }
-
-                  const data = (await response.json()) as SupabaseRow[];
-                  return {
-                    data: data[0] ?? null,
-                    error: null,
-                  };
-                },
-              };
-            },
-          };
-        },
-        async upsert(rows: SupabaseRow | SupabaseRow[], options?: { onConflict?: string }) {
-          const payload = Array.isArray(rows) ? rows : [rows];
-          const endpoint = new URL(`/rest/v1/${table}`, url).toString();
-          const conflict = options?.onConflict ? `?on_conflict=${encodeURIComponent(options.onConflict)}` : '';
-
-          const response = await fetch(endpoint + conflict, {
-            method: 'POST',
-            headers: {
-              apikey: key,
-              Authorization: `Bearer ${key}`,
-              'Content-Type': 'application/json',
-              Prefer: 'resolution=merge-duplicates,return=minimal',
-            },
-            body: JSON.stringify(payload),
-          });
-
-          if (!response.ok) {
-            const text = await response.text();
-            return { data: null, error: { status: response.status, message: text } };
-          }
-
-          // return=minimal → empty body; treat length of input as success count
-          return { data: payload, error: null };
-        },
-      };
-    },
-  };
-}
-
 function toDbRow(row: SupabaseRow): SupabaseRow {
   const filtered = Object.fromEntries(
     Object.entries(row).filter(([key]) => SUPABASE_COLUMNS.has(key))
@@ -169,47 +82,19 @@ function toDbRow(row: SupabaseRow): SupabaseRow {
   return filtered;
 }
 
-// Returns a map of mls_number → photo state from the DB.
 async function fetchExistingPhotoState(
   mlsNumbers: string[]
 ): Promise<Map<string, { photos_timestamp: string | null; hasImages: boolean }>> {
-  const url  = process.env.SUPABASE_URL!;
-  const key  = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-  const list = mlsNumbers.map(n => `"${n}"`).join(',');
-  // Fetch images alongside timestamp so hasImages is accurate, not just a
-  // timestamp-presence proxy (a listing can have a timestamp but images:[]).
-  const endpoint = `${url}/rest/v1/mls_listings?select=mls_number,photos_timestamp,images&mls_number=in.(${list})`;
-
-  const res = await fetch(endpoint, {
-    headers: { apikey: key, Authorization: `Bearer ${key}`, Accept: 'application/json' },
-  });
   const map = new Map<string, { photos_timestamp: string | null; hasImages: boolean }>();
-  if (!res.ok) return map;
-  const rows: any[] = await res.json();
+  if (!mlsNumbers.length) return map;
+  const rows = await fetchListingPhotoInfo(mlsNumbers);
   for (const r of rows) {
     map.set(r.mls_number, {
-      photos_timestamp: r.photos_timestamp ?? null,
+      photos_timestamp: r.photos_timestamp,
       hasImages: Array.isArray(r.images) && r.images.length > 0,
     });
   }
   return map;
-}
-
-// Patches only the images column for one listing.
-async function patchListingImages(mlsNumber: string, urls: string[]): Promise<void> {
-  const url  = process.env.SUPABASE_URL!;
-  const key  = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-  const res  = await fetch(`${url}/rest/v1/mls_listings?mls_number=eq.${encodeURIComponent(mlsNumber)}`, {
-    method: 'PATCH',
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-      'Content-Type': 'application/json',
-      Prefer: 'return=minimal',
-    },
-    body: JSON.stringify({ images: urls }),
-  });
-  if (!res.ok) throw new Error(`PATCH images ${res.status}: ${await res.text()}`);
 }
 
 function truncateStringFields(row: SupabaseRow): SupabaseRow {
@@ -237,7 +122,7 @@ function getListingKey(row: SupabaseRow): string {
 }
 
 async function processPageListings(
-  supabase: SupabaseClientLike,
+  supabase: ReturnType<typeof createDbClient>,
   pageItems: DdfRaw[],
   pageNumber: number,
   latestModificationRef: { value: string },
@@ -334,7 +219,7 @@ async function processPageListings(
         const listingKey = listingKeyByMls.get(mls) ?? row.id ?? mls;
         const urls = await photoSession.fetchPhotoUrls(listingKey);
         if (urls.length > 0) {
-          await patchListingImages(mls, urls);
+          await patchImagesDb(mls, urls);
           console.log(`[photo] ${mls}: ${urls.length} photo(s) saved`);
         } else {
           console.log(`[photo] ${mls}: GetObject returned 0 URLs`);
@@ -405,7 +290,7 @@ async function fetchDdfListings(): Promise<DdfRaw[]> {
     },
     async (retsClient: any) => {
       const listings: DdfRaw[] = [];
-      const supabase = createSupabaseClient();
+      const supabase = createDbClient();
       const latestModificationRef = { value: ddfLastUpdated };
 
       // Create one photo session for the whole sync — login once, reuse nonce

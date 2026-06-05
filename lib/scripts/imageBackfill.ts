@@ -16,12 +16,10 @@
 import dotenv from 'dotenv';
 import { getAutoLogoutClient } from 'rets-client';
 import { DdfPhotoSession } from '../services/ddfPhotoFetcher';
+import { getPool, patchImages as patchImagesDb } from '../db';
 
 dotenv.config({ path: '.env' });
 dotenv.config({ path: '.env.local' });
-
-const SUPABASE_URL = process.env.SUPABASE_URL!;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 function getArg(name: string): string | null {
   const a = process.argv.find(x => x.startsWith(`--${name}=`));
@@ -44,72 +42,53 @@ const MLS_FILTER: Set<string> = MLS_ARG
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 
-// ─── Supabase: load all MLS numbers that need photos ─────────────────────────
-
-// ─── Supabase: check which MLS numbers in a batch still need photos ──────────
-// Queries by MLS number (pk lookup — fast), returns the subset with null images.
-
 async function filterNeedsPhotos(mlsNumbers: string[]): Promise<Set<string>> {
   if (!mlsNumbers.length) return new Set();
-  const list = mlsNumbers.map(m => `"${m}"`).join(',');
+  const pool = getPool();
+  const params: any[] = [...mlsNumbers];
+  const mlsPh = mlsNumbers.map((_, i) => `$${i + 1}`).join(', ');
+  let query = `SELECT mls_number, images FROM mls_listings WHERE mls_number IN (${mlsPh})`;
 
-  const cityParam = CITY_FILTER.length
-    ? `&city=in.(${CITY_FILTER.map(c => encodeURIComponent(c)).join(',')})` : '';
+  if (CITY_FILTER.length) {
+    const cityPh = CITY_FILTER.map((_, i) => `$${mlsNumbers.length + i + 1}`).join(', ');
+    query += ` AND city IN (${cityPh})`;
+    params.push(...CITY_FILTER);
+  }
 
-  const url = `${SUPABASE_URL}/rest/v1/mls_listings` +
-    `?select=mls_number,images` +
-    `&mls_number=in.(${list})` +
-    cityParam;
-  const res = await fetch(url, {
-    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, Accept: 'application/json' },
-  });
-  if (!res.ok) return new Set(mlsNumbers); // on error, assume all need photos
-  const rows: any[] = await res.json();
+  const res = await pool.query(query, params);
   const needs = new Set<string>();
-  for (const r of rows) {
+  for (const r of res.rows) {
     if (!r.mls_number) continue;
     const imgs = r.images;
-    if (!imgs || (Array.isArray(imgs) && imgs.length === 0)) {
-      needs.add(String(r.mls_number));
-    }
+    if (!imgs || (Array.isArray(imgs) && imgs.length === 0)) needs.add(String(r.mls_number));
   }
   return needs;
 }
 
-// --mls fast path: resolve Supabase MLS numbers for the pre-filter
 async function loadMlsFilter(): Promise<Set<string>> {
+  if (!MLS_FILTER.size) return new Set();
+  const pool = getPool();
+  const ph = [...MLS_FILTER].map((_, i) => `$${i + 1}`).join(', ');
+  const res = await pool.query(
+    `SELECT mls_number FROM mls_listings WHERE mls_number IN (${ph})`,
+    [...MLS_FILTER]
+  );
   const set = new Set<string>();
-  const mlsList = [...MLS_FILTER].map(m => `"${m}"`).join(',');
-  const url = `${SUPABASE_URL}/rest/v1/mls_listings?select=mls_number&mls_number=in.(${mlsList})`;
-  const res = await fetch(url, {
-    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, Accept: 'application/json' },
-  });
-  if (res.ok) {
-    const rows: any[] = await res.json();
-    for (const r of rows) if (r.mls_number) set.add(String(r.mls_number));
-  }
+  for (const r of res.rows) if (r.mls_number) set.add(String(r.mls_number));
   return set;
 }
-
-// ─── Direct fetch: look up DDF GetObject using Supabase id (numeric ListingKey) ──
-// Used when --mls is specified — avoids scanning 200k DDF pages.
-// Only works when Supabase id is a numeric DDF ListingKey (non-TREB boards).
-// TREB listings (N/C/W/E/S/X prefix) have alphanumeric MLS numbers as id
-// and require the full DDF scan path.
 
 async function fetchDirectByMls(
   mlsNumbers: string[],
   photoSession: DdfPhotoSession
 ): Promise<{ ok: number; zero: number; failed: number }> {
-  const mlsList = mlsNumbers.map(m => `"${m}"`).join(',');
-  const url = `${SUPABASE_URL}/rest/v1/mls_listings` +
-    `?select=mls_number,id` +
-    `&mls_number=in.(${mlsList})`;
-  const res = await fetch(url, {
-    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, Accept: 'application/json' },
-  });
-  if (!res.ok) throw new Error(`Supabase lookup failed: ${res.status}`);
-  const rows: any[] = await res.json();
+  const pool = getPool();
+  const ph = mlsNumbers.map((_, i) => `$${i + 1}`).join(', ');
+  const res = await pool.query(
+    `SELECT mls_number, id FROM mls_listings WHERE mls_number IN (${ph})`,
+    mlsNumbers
+  );
+  const rows: any[] = res.rows;
 
   let ok = 0, zero = 0, failed = 0;
 
@@ -129,7 +108,7 @@ async function fetchDirectByMls(
     try {
       const urls = await photoSession.fetchPhotoUrls(listingKey);
       if (urls.length > 0) {
-        await patchImages(mls, urls);
+        await patchImagesDb(mls, urls);
         console.log(`  ✓ ${mls} (key=${listingKey}): ${urls.length} photo(s)`);
         ok++;
       } else {
@@ -145,24 +124,6 @@ async function fetchDirectByMls(
   return { ok, zero, failed };
 }
 
-// ─── Supabase: patch images ───────────────────────────────────────────────────
-
-async function patchImages(mlsNumber: string, urls: string[]): Promise<void> {
-  const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/mls_listings?mls_number=eq.${encodeURIComponent(mlsNumber)}`,
-    {
-      method: 'PATCH',
-      headers: {
-        apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${SUPABASE_KEY}`,
-        'Content-Type': 'application/json',
-        Prefer: 'return=minimal',
-      },
-      body: JSON.stringify({ images: urls }),
-    }
-  );
-  if (!res.ok) throw new Error(`PATCH images ${res.status}: ${await res.text()}`);
-}
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
@@ -171,8 +132,8 @@ async function main() {
   const username  = process.env.DDF_USERNAME!;
   const password  = process.env.DDF_PASSWORD!;
 
-  if (!loginUrl || !username || !password || !SUPABASE_URL || !SUPABASE_KEY) {
-    throw new Error('Missing required env vars');
+  if (!loginUrl || !username || !password || !process.env.DATABASE_URL) {
+    throw new Error('Missing required env vars (DDF_LOGIN_URL, DDF_USERNAME, DDF_PASSWORD, DATABASE_URL)');
   }
 
   if (CITY_FILTER.length) console.log(`[image-backfill] City filter: ${CITY_FILTER.join(', ')}`);
@@ -263,7 +224,7 @@ async function main() {
           try {
             const urls = await photoSession.fetchPhotoUrls(ddfKey);
             if (urls.length > 0) {
-              await patchImages(mls, urls);
+              await patchImagesDb(mls, urls);
               console.log(`  ✓ ${mls} (key=${ddfKey}): ${urls.length} photo(s)`);
               totalOk++;
             } else {

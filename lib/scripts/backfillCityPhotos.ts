@@ -12,12 +12,10 @@
 
 import dotenv from 'dotenv';
 import { DdfPhotoSession } from '../services/ddfPhotoFetcher';
+import { getPool, patchImages as patchImagesDb } from '../db';
 
 dotenv.config({ path: '.env' });
 dotenv.config({ path: '.env.local' });
-
-const SUPABASE_URL = process.env.SUPABASE_URL!;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 function getArg(name: string): string | null {
   const a = process.argv.find(x => x.startsWith(`--${name}=`));
@@ -38,51 +36,25 @@ const STATE_ARG = getArg('state'); // e.g. --state=Ontario
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 
-async function patchImages(mlsNumber: string, urls: string[]): Promise<void> {
-  const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/mls_listings?mls_number=eq.${encodeURIComponent(mlsNumber)}`,
-    {
-      method: 'PATCH',
-      headers: {
-        apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${SUPABASE_KEY}`,
-        'Content-Type': 'application/json',
-        Prefer: 'return=minimal',
-      },
-      body: JSON.stringify({ images: urls }),
-    }
-  );
-  if (!res.ok) throw new Error(`PATCH ${res.status}: ${await res.text()}`);
-}
-
 async function loadTargets(): Promise<Array<{ mls_number: string; id: number }>> {
-  const targets: Array<{ mls_number: string; id: number }> = [];
-
-  // Pure keyset pagination on id (PK) — only safe query that doesn't timeout.
-  // No WHERE clause beyond id > lastId; all other filtering runs client-side.
-  const INACTIVE = new Set(['Inactive', 'Sold', 'Expired', 'Cancelled', 'Withdrawn']);
+  const pool = getPool();
   const CITY_SET_LC = new Set(CITIES.map(c => c.toLowerCase()));
-  // Ontario boards may store state as "Ontario" or "ON"
   const STATE_SET = STATE_ARG === 'Ontario'
     ? new Set(['Ontario', 'ON'])
     : (STATE_ARG ? new Set([STATE_ARG]) : null);
 
+  const targets: Array<{ mls_number: string; id: number }> = [];
   let lastId = 0;
   let scanned = 0;
 
   while (true) {
-    const url = `${SUPABASE_URL}/rest/v1/mls_listings` +
-      `?select=mls_number,id,state,standard_status,city` +
-      `&id=gt.${lastId}` +
-      `&order=id.asc` +
-      `&limit=${BATCH_SIZE}`;
-
-    const res = await fetch(url, {
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, Accept: 'application/json' },
-    });
-    if (!res.ok) throw new Error(`Supabase query failed ${res.status}: ${await res.text()}`);
-    const rows: any[] = await res.json();
-    if (rows.length === 0) break;
+    const res = await pool.query(
+      `SELECT mls_number, id, state, standard_status, city
+       FROM mls_listings WHERE id > $1 ORDER BY id ASC LIMIT $2`,
+      [lastId, BATCH_SIZE]
+    );
+    const rows = res.rows;
+    if (!rows.length) break;
 
     scanned += rows.length;
     lastId = Number(rows[rows.length - 1].id);
@@ -90,11 +62,11 @@ async function loadTargets(): Promise<Array<{ mls_number: string; id: number }>>
     for (const r of rows) {
       const numId = Number(r.id);
       if (!r.mls_number || !numId || !Number.isInteger(numId) || numId <= 0) continue;
-      if (INACTIVE.has(r.standard_status)) continue;
-      if (STATE_SET && !STATE_SET.has(String(r.state ?? ''))) continue; // wrong province
+      if (['Inactive', 'Sold', 'Expired', 'Cancelled', 'Withdrawn'].includes(r.standard_status)) continue;
+      if (STATE_SET && !STATE_SET.has(String(r.state ?? ''))) continue;
       if (!FETCH_ALL) {
         const cityLc = String(r.city ?? '').replace(/\s*\([^)]*\)\s*$/, '').trim().toLowerCase();
-        if (!CITY_SET_LC.has(cityLc)) continue;              // wrong city
+        if (!CITY_SET_LC.has(cityLc)) continue;
       }
       targets.push({ mls_number: String(r.mls_number), id: numId });
     }
@@ -116,8 +88,8 @@ async function main() {
   const username  = process.env.DDF_USERNAME!;
   const password  = process.env.DDF_PASSWORD!;
 
-  if (!loginUrl || !username || !password || !SUPABASE_URL || !SUPABASE_KEY) {
-    throw new Error('Missing required env vars');
+  if (!loginUrl || !username || !password || !process.env.DATABASE_URL) {
+    throw new Error('Missing required env vars (DDF_LOGIN_URL, DDF_USERNAME, DDF_PASSWORD, DATABASE_URL)');
   }
 
   const scopeLabel = STATE_ARG ? `state=${STATE_ARG}` : (FETCH_ALL ? 'all cities' : CITIES.join(', '));
@@ -149,7 +121,7 @@ async function main() {
     try {
       const urls = await photoSession.fetchPhotoUrls(id);
       if (urls.length > 0) {
-        await patchImages(mls_number, urls);
+        await patchImagesDb(mls_number, urls);
         ok++;
       } else {
         zero++;

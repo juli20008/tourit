@@ -19,12 +19,10 @@ import dotenv from 'dotenv';
 import { getAutoLogoutClient } from 'rets-client';
 import { mapDDFToSupabase } from '../adapters/ListingAdapter';
 import { DdfPhotoSession } from '../services/ddfPhotoFetcher';
+import { upsertListings, patchImages, fetchExistingTimestamps } from '../db';
 
 dotenv.config({ path: '.env' });
 dotenv.config({ path: '.env.local' });
-
-const SUPABASE_URL = process.env.SUPABASE_URL!;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 // ── CLI flags ─────────────────────────────────────────────────────────────────
 const DRY_RUN   = process.argv.includes('--dry-run');
@@ -76,55 +74,6 @@ function toDbRow(raw: Record<string, any>): Record<string, any> {
   return filtered;
 }
 
-// ── Supabase helpers ──────────────────────────────────────────────────────────
-
-async function upsertBatch(rows: Record<string, any>[]): Promise<void> {
-  const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/mls_listings?on_conflict=mls_number`,
-    {
-      method: 'POST',
-      headers: {
-        apikey:         SUPABASE_KEY,
-        Authorization:  `Bearer ${SUPABASE_KEY}`,
-        'Content-Type': 'application/json',
-        Prefer:         'resolution=merge-duplicates,return=minimal',
-      },
-      body: JSON.stringify(rows),
-    }
-  );
-  if (!res.ok) throw new Error(`Upsert failed ${res.status}: ${await res.text()}`);
-}
-
-async function patchImages(mlsNumber: string, urls: string[]): Promise<void> {
-  const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/mls_listings?mls_number=eq.${encodeURIComponent(mlsNumber)}`,
-    {
-      method: 'PATCH',
-      headers: {
-        apikey:         SUPABASE_KEY,
-        Authorization:  `Bearer ${SUPABASE_KEY}`,
-        'Content-Type': 'application/json',
-        Prefer:         'return=minimal',
-      },
-      body: JSON.stringify({ images: urls }),
-    }
-  );
-  if (!res.ok) throw new Error(`PATCH images ${res.status}: ${await res.text()}`);
-}
-
-async function fetchExistingTimestamps(mlsNumbers: string[]): Promise<Map<string, string | null>> {
-  if (!mlsNumbers.length) return new Map();
-  const list = mlsNumbers.map(n => `"${n}"`).join(',');
-  const url  = `${SUPABASE_URL}/rest/v1/mls_listings?select=mls_number,photos_timestamp&mls_number=in.(${list})`;
-  const res  = await fetch(url, {
-    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, Accept: 'application/json' },
-  });
-  const map = new Map<string, string | null>();
-  if (!res.ok) return map;
-  const rows: any[] = await res.json();
-  for (const r of rows) map.set(r.mls_number, r.photos_timestamp ?? null);
-  return map;
-}
 
 // ── Full-feed scan with client-side city filter ───────────────────────────────
 // DDF only accepts (LastUpdated=...) queries — all other DMQL fields are rejected.
@@ -215,7 +164,7 @@ async function scanAllAndFilter(
         const mlsNums    = dbRows.map(r => r.mls_number).filter(Boolean) as string[];
         const existingTs = photoSession ? await fetchExistingTimestamps(mlsNums) : new Map<string, string | null>();
 
-        await upsertBatch(dbRows);
+        await upsertListings(dbRows);
         counters.upserted += dbRows.length;
 
         if (photoSession) {
@@ -258,8 +207,8 @@ async function main() {
   const username  = process.env.DDF_USERNAME!;
   const password  = process.env.DDF_PASSWORD!;
 
-  if (!loginUrl || !username || !password || !SUPABASE_URL || !SUPABASE_KEY) {
-    throw new Error('Missing required env vars: DDF_LOGIN_URL, DDF_USERNAME, DDF_PASSWORD, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY');
+  if (!loginUrl || !username || !password || !process.env.DATABASE_URL) {
+    throw new Error('Missing required env vars: DDF_LOGIN_URL, DDF_USERNAME, DDF_PASSWORD, DATABASE_URL');
   }
 
   console.log(`[syncCities] Cities: ${CITIES.join(', ')}`);

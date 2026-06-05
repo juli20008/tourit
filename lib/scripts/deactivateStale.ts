@@ -10,64 +10,26 @@
 
 import dotenv from 'dotenv';
 import { getAutoLogoutClient } from 'rets-client';
+import { fetchActiveMlsNumbers, deactivateListing } from '../db';
 
 dotenv.config({ path: '.env' });
 dotenv.config({ path: '.env.local' });
 
-const SUPABASE_URL = process.env.SUPABASE_URL!;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const DRY_RUN = process.argv.includes('--dry-run');
 const PAGE_SIZE = 500;
 const PAGE_DELAY = 100;
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 
-// ─── Fetch all active MLS numbers from Supabase ───────────────────────────────
-
-async function fetchSupabaseMlsNumbers(): Promise<Set<string>> {
-  const all = new Set<string>();
-  const INACTIVE = new Set(['Inactive', 'Sold', 'Expired', 'Cancelled', 'Withdrawn']);
-  let lastId = 0;
-  const limit = 1000;
-
-  while (true) {
-    const url = `${SUPABASE_URL}/rest/v1/mls_listings` +
-      `?select=id,mls_number,standard_status&id=gt.${lastId}&order=id.asc&limit=${limit}`;
-    const res = await fetch(url, {
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, Accept: 'application/json' },
-    });
-    if (!res.ok) throw new Error(`Supabase fetch failed: ${res.status}`);
-    const rows: any[] = await res.json();
-    if (!rows.length) break;
-    lastId = Number(rows[rows.length - 1].id);
-    for (const r of rows) {
-      if (r.mls_number && !INACTIVE.has(r.standard_status)) all.add(String(r.mls_number));
-    }
-    if (rows.length < limit) break;
-  }
-  return all;
-}
-
-// ─── Mark listings inactive in Supabase ───────────────────────────────────────
-
 async function markInactive(mlsNumbers: string[]): Promise<number> {
   let ok = 0;
   for (const mls of mlsNumbers) {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/mls_listings?mls_number=eq.${encodeURIComponent(mls)}`,
-      {
-        method: 'PATCH',
-        headers: {
-          apikey: SUPABASE_KEY,
-          Authorization: `Bearer ${SUPABASE_KEY}`,
-          'Content-Type': 'application/json',
-          Prefer: 'return=minimal',
-        },
-        body: JSON.stringify({ standard_status: 'Inactive' }),
-      }
-    );
-    if (res.ok) ok++;
-    else console.warn(`  PATCH failed for ${mls}: ${res.status}`);
+    try {
+      await deactivateListing(mls);
+      ok++;
+    } catch (e: any) {
+      console.warn(`  deactivate failed for ${mls}: ${e.message}`);
+    }
   }
   return ok;
 }
@@ -79,13 +41,13 @@ async function main() {
   const username = process.env.DDF_USERNAME!;
   const password = process.env.DDF_PASSWORD!;
 
-  if (!loginUrl || !username || !password || !SUPABASE_URL || !SUPABASE_KEY) {
-    throw new Error('Missing required env vars');
+  if (!loginUrl || !username || !password || !process.env.DATABASE_URL) {
+    throw new Error('Missing required env vars (DDF_LOGIN_URL, DDF_USERNAME, DDF_PASSWORD, DATABASE_URL)');
   }
 
-  console.log(`[deactivate] Fetching all active MLS numbers from Supabase…`);
-  const supabaseNumbers = await fetchSupabaseMlsNumbers();
-  console.log(`[deactivate] Supabase has ${supabaseNumbers.size} non-inactive listings`);
+  console.log(`[deactivate] Fetching all active MLS numbers from DB…`);
+  const supabaseNumbers = await fetchActiveMlsNumbers();
+  console.log(`[deactivate] DB has ${supabaseNumbers.size} non-inactive listings`);
 
   console.log(`[deactivate] Querying ALL current DDF listings…`);
   const ddfNumbers = new Set<string>();

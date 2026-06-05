@@ -10,12 +10,10 @@
  */
 
 import dotenv from 'dotenv';
+import { getPool, patchGeocode } from '../db';
 
 dotenv.config({ path: '.env' });
 dotenv.config({ path: '.env.local' });
-
-const SUPABASE_URL = process.env.SUPABASE_URL!;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 function getArg(name: string): string | null {
   const a = process.argv.find(x => x.startsWith(`--${name}=`));
@@ -44,52 +42,26 @@ interface Listing {
 }
 
 async function fetchNullGeoListings(): Promise<Listing[]> {
-  const all: Listing[] = [];
-  let offset = 0;
-  const pageSize = 1000;
-
-  const cityParam = CITY_FILTER.length
-    ? `&city=in.(${CITY_FILTER.map(c => encodeURIComponent(c)).join(',')})` : '';
-  // Only apply state filter when no city filter — city alone is precise enough,
-  // and state values vary (e.g. "Ontario" vs "ON") across boards.
-  const stateParam = CITY_FILTER.length ? '' : `&state=eq.${encodeURIComponent(STATE)}`;
   if (CITY_FILTER.length) console.log(`[geocode] City filter: ${CITY_FILTER.join(', ')}`);
 
-  while (true) {
-    const url = `${SUPABASE_URL}/rest/v1/mls_listings` +
-      `?select=mls_number,street_number,street_name,street_suffix,city,zip` +
-      stateParam +
-      `&lat=is.null` +
-      cityParam +
-      `&limit=${pageSize}&offset=${offset}`;
+  const params: any[] = ['Inactive'];
+  let where = `lat IS NULL AND status != $1`;
 
-    const res = await fetch(url, {
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, Accept: 'application/json' },
-    });
-    if (!res.ok) throw new Error(`Supabase fetch failed: ${res.status}`);
-    const rows: Listing[] = await res.json();
-    all.push(...rows);
-    if (rows.length < pageSize) break;
-    offset += pageSize;
+  if (CITY_FILTER.length) {
+    const ph = CITY_FILTER.map((_, i) => `$${i + 2}`).join(', ');
+    where += ` AND city IN (${ph})`;
+    params.push(...CITY_FILTER);
+  } else {
+    params.push(STATE);
+    where += ` AND state = $${params.length}`;
   }
-  return all;
-}
 
-async function patchGeo(mlsNumber: string, lat: number, lng: number): Promise<void> {
-  const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/mls_listings?mls_number=eq.${encodeURIComponent(mlsNumber)}`,
-    {
-      method: 'PATCH',
-      headers: {
-        apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${SUPABASE_KEY}`,
-        'Content-Type': 'application/json',
-        Prefer: 'return=minimal',
-      },
-      body: JSON.stringify({ lat, lng }),
-    }
+  const res = await getPool().query(
+    `SELECT mls_number, street_number, street_name, street_suffix, city, zip
+     FROM mls_listings WHERE ${where}`,
+    params
   );
-  if (!res.ok) throw new Error(`PATCH failed ${res.status}: ${await res.text()}`);
+  return res.rows;
 }
 
 // ─── Nominatim geocoder ───────────────────────────────────────────────────────
@@ -128,7 +100,7 @@ async function geocode(listing: Listing): Promise<{ lat: number; lng: number } |
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
-  if (!SUPABASE_URL || !SUPABASE_KEY) throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
+  if (!process.env.DATABASE_URL) throw new Error('Missing DATABASE_URL');
 
   console.log(`[geocode] Loading ${STATE} listings with null lat…`);
   const listings = await fetchNullGeoListings();
@@ -151,7 +123,7 @@ async function main() {
     try {
       const coords = await geocode(listing);
       if (coords) {
-        await patchGeo(listing.mls_number, coords.lat, coords.lng);
+        await patchGeocode(listing.mls_number, coords.lat, coords.lng);
         ok++;
       } else {
         notFound++;
