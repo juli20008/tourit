@@ -574,7 +574,12 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
 
             img_dir = os.path.join(tmpdir, "imgs")
             os.makedirs(img_dir, exist_ok=True)
-            image_urls = listing.effective_images[:MAX_PHOTOS]
+            all_images = listing.effective_images or []
+            if len(all_images) <= MAX_PHOTOS:
+                image_urls = all_images
+            else:
+                step = len(all_images) / MAX_PHOTOS
+                image_urls = [all_images[int(i * step)] for i in range(MAX_PHOTOS)]
 
             downloaded = []
             for i, url in enumerate(image_urls):
