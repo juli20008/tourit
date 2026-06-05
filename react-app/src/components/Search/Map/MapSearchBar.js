@@ -23,8 +23,8 @@ const saveRecent = (item) => {
 
 const SectionLabel = ({ children }) => (
 	<div style={{
-		padding: "6px 14px 4px",
-		fontSize: 11, fontWeight: 600, color: "#94a3b8",
+		padding: "7px 16px 5px",
+		fontSize: 12, fontWeight: 600, color: "#94a3b8",
 		textTransform: "uppercase", letterSpacing: "0.06em",
 		borderBottom: "1px solid #f0f0ec",
 		background: "#fafafa",
@@ -232,12 +232,12 @@ const MapSearchBar = ({ onPlaceSelect, googleReady }) => {
 		<div style={{ position: "relative", width: "100%" }}>
 			<form onSubmit={handleSubmit} autoComplete="off">
 				<div style={{
-					display: "flex", alignItems: "center", gap: 8,
-					background: "white", borderRadius: 10,
-					boxShadow: "0 2px 10px rgba(0,0,0,.18)",
-					padding: "8px 14px",
+					display: "flex", alignItems: "center", gap: 10,
+					background: "white", borderRadius: 12,
+					boxShadow: "0 2px 12px rgba(0,0,0,.18)",
+					padding: "11px 16px",
 				}}>
-					<Search size={15} strokeWidth={1.5} style={{ color: "#94a3b8", flexShrink: 0 }} />
+					<Search size={18} strokeWidth={1.5} style={{ color: "#94a3b8", flexShrink: 0 }} />
 					<input
 						type="text"
 						value={query}
@@ -249,7 +249,7 @@ const MapSearchBar = ({ onPlaceSelect, googleReady }) => {
 						autoComplete="off"
 						style={{
 							border: "none", outline: "none", background: "transparent",
-							fontSize: 13, width: "100%", color: "#0f172a",
+							fontSize: 15, width: "100%", color: "#0f172a",
 						}}
 					/>
 					{query && (
@@ -295,13 +295,13 @@ const MapSearchBar = ({ onPlaceSelect, googleReady }) => {
 									>
 										<Clock size={13} strokeWidth={1.5} style={{ color: "#94a3b8", flexShrink: 0 }} />
 										<div style={{
-											fontSize: 13, flex: 1, minWidth: 0,
+											fontSize: 14, flex: 1, minWidth: 0,
 											overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
 											color: "#374151",
 										}}>
 											{item.label}
 										</div>
-										<span style={{ fontSize: 11, color: "#cbd5e1", flexShrink: 0 }}>
+										<span style={{ fontSize: 12, color: "#cbd5e1", flexShrink: 0 }}>
 											{item.type === "listing" ? "Listing" : "Location"}
 										</span>
 									</div>
@@ -351,16 +351,16 @@ const MapSearchBar = ({ onPlaceSelect, googleReady }) => {
 										<div style={{ flex: 1, minWidth: 0 }}>
 											<div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 4 }}>
 												{price && (
-													<span style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>{price}</span>
+													<span style={{ fontSize: 14, fontWeight: 600, color: "#0f172a" }}>{price}</span>
 												)}
 												<span style={{ fontSize: 11, color: isLease ? "#16a34a" : "#2563eb", flexShrink: 0 }}>
 													{isLease ? "For Lease" : "For Sale"}
 												</span>
 											</div>
-											<div style={{ fontSize: 12, color: "#475569", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+											<div style={{ fontSize: 13, color: "#475569", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
 												{addr}
 											</div>
-											<div style={{ fontSize: 11, color: "#94a3b8" }}>
+											<div style={{ fontSize: 12, color: "#94a3b8" }}>
 												{listing.category || listing.type || ""}
 												{listing.bed  ? ` · ${listing.bed} bd`  : ""}
 												{listing.bath ? ` · ${listing.bath} ba` : ""}
@@ -390,7 +390,7 @@ const MapSearchBar = ({ onPlaceSelect, googleReady }) => {
 										}}
 									>
 										<MapPin size={13} strokeWidth={1.5} style={{ color: "#94a3b8", flexShrink: 0 }} />
-										<div style={{ fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+										<div style={{ fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
 											<span style={{ fontWeight: 500 }}>{pred.structured_formatting?.main_text}</span>
 											{pred.structured_formatting?.secondary_text && (
 												<span style={{ color: "#94a3b8", marginLeft: 4 }}>
