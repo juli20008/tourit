@@ -47,7 +47,7 @@ const PreviewItem = ({ property, onSelect }) => {
 				<div className="text-[16px] font-bold text-ink leading-tight">
 					{price}
 				</div>
-				<div className="text-[13px] text-inkMuted truncate">
+				<div className="text-[13px] text-inkMuted truncate" translate="no">
 					{property.street}, {property.city}
 				</div>
 				<div className="text-[13px] text-[#5f6b7a]">

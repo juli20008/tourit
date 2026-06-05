@@ -137,7 +137,7 @@ const GuestChat = ({ property, today, hour, setShowSelectDate }) => {
 						<i className="fa-regular fa-calendar" style={{ marginRight: 6 }} />
 						{formattedAppt}
 					</div>
-					<div className="gc-appt-address">{address}</div>
+					<div className="gc-appt-address" translate="no">{address}</div>
 					{image && <img src={image} alt="" className="gc-appt-img" />}
 					<div className="gc-appt-badge">Showing Request Sent</div>
 				</div>

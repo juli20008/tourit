@@ -263,7 +263,7 @@ const XHSVideoModal = ({ listing, onClose, onGenerated }) => {
 					<button className="btn btn-sm btn-bl" onClick={onClose} style={{ padding: "4px 10px" }}>✕</button>
 				</div>
 
-				<div style={{ color: "#64748b", fontSize: "0.85rem", marginBottom: 18 }}>
+				<div style={{ color: "#64748b", fontSize: "0.85rem", marginBottom: 18 }} translate="no">
 					{listing.street || listing.address}
 					{listing.city ? `, ${listing.city}` : ""}
 				</div>

@@ -42,7 +42,7 @@ const SheetCard = ({ property, onSelect }) => {
 			</div>
 			<div className="px-2 py-1.5 flex flex-col gap-0.5">
 				<div className="text-[15px] font-bold text-[#0f172a]">{price}</div>
-				<div className="text-[11px] text-[#536071] truncate">
+				<div className="text-[11px] text-[#536071] truncate" translate="no">
 					{property.street}, {property.city}
 				</div>
 				<div className="text-[11px] text-[#5f6b7a]">

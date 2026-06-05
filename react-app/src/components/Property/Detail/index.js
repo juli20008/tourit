@@ -151,7 +151,7 @@ const Detail = ({ property }) => {
 			</div>
 
 			{/* Address */}
-			<div className="text-lg text-inkMuted mb-1">
+			<div className="text-lg text-inkMuted mb-1" translate="no">
 				{[property?.unit && `Unit ${property.unit}`, property?.street, property?.city, property?.state, property?.zip]
 					.filter(Boolean).join(", ")}
 			</div>

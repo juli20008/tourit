@@ -219,7 +219,7 @@ const ChatBubble = () => {
 								<i className="fa-regular fa-calendar" style={{ marginRight: 5 }} />
 								{formattedAppt}
 							</div>
-							<div className="cb-appt-address">{address}</div>
+							<div className="cb-appt-address" translate="no">{address}</div>
 							{image && <img src={image} alt="" className="cb-appt-img" />}
 							<div className="cb-appt-badge">Showing Request Sent</div>
 						</div>

@@ -357,7 +357,7 @@ const MapSearchBar = ({ onPlaceSelect, googleReady }) => {
 													{isLease ? "For Lease" : "For Sale"}
 												</span>
 											</div>
-											<div style={{ fontSize: 13, color: "#475569", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+											<div style={{ fontSize: 13, color: "#475569", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} translate="no">
 												{addr}
 											</div>
 											<div style={{ fontSize: 12, color: "#94a3b8" }}>

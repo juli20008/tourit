@@ -25,11 +25,11 @@ const ListingCard = ({ listing, existingVideo, onVideoGenerated }) => {
 				/>
 			)}
 			<div style={{ flex: 1, minWidth: 0 }}>
-				<div style={{ fontWeight: 600, fontSize: "0.9rem", marginBottom: 2 }}>
+				<div style={{ fontWeight: 600, fontSize: "0.9rem", marginBottom: 2 }} translate="no">
 					{listing.street || listing.address || listing.mls_number}
 					{listing.unit ? ` #${listing.unit}` : ""}
 				</div>
-				<div style={{ color: "#64748b", fontSize: "0.8rem", marginBottom: 8 }}>
+				<div style={{ color: "#64748b", fontSize: "0.8rem", marginBottom: 8 }} translate="no">
 					{[listing.city, listing.state].filter(Boolean).join(", ")}
 					{listing.price ? ` · ${fmtPrice(listing.price)}` : ""}
 					{listing.bed ? ` · ${listing.bed}bd` : ""}

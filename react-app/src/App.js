@@ -20,6 +20,7 @@ import { authenticate } from "./store/session";
 import { initWhitelabel } from "./store/whitelabel";
 
 import About from "./components/About";
+import AgentLanding from "./components/AgentLanding";
 import Career from "./components/Career";
 import AgentLogin from "./components/AgentLogin";
 import ListingPage from "./components/Property/ListingPage";
@@ -148,6 +149,9 @@ function App() {
 				</Route>
 				<Route path="/about" exact={true}>
 					<About />
+				</Route>
+				<Route path="/for-agents" exact={true}>
+					<AgentLanding />
 				</Route>
 				<Route path="/career" exact={true}>
 					<Career />

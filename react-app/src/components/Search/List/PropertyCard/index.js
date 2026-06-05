@@ -56,7 +56,7 @@ const PropertyCard = ({ property, setOver }) => {
 						: `${property?.bed ?? ""} bd`}{" "}
 					{property?.bath} ba {property?.sqft} sqft
 				</div>
-				<div className="card-address text-[16px] font-medium leading-snug text-[#676a71]">
+				<div className="card-address text-[16px] font-medium leading-snug text-[#676a71]" translate="no">
 					{property?.street}, {property?.city}, {property?.state}{" "}
 					{property?.zip}
 				</div>
