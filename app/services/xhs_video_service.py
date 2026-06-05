@@ -21,7 +21,7 @@ CRF = 28
 PRESET = "ultrafast"
 ZOOM_START = 1.0
 ZOOM_END = 1.15
-MAX_PHOTOS = 20
+MAX_PHOTOS = 12
 
 _JOBS: dict = {}
 _JOB_TTL = 600  # 10 minutes
@@ -319,10 +319,14 @@ def _transcode_intro(ffmpeg, src_path, out_path):
     Audio is stripped — narration track replaces it later.
     Input may be vertical (good) or landscape (pad with blurred background).
     """
+    # Pre-downscale to ≤720×960 first (caps 4K/1080p input before complex filter),
+    # then split into fg (padded) and bg (blurred) paths.
     vf = (
-        f"[0:v]scale={OUTPUT_W}:{OUTPUT_H}:force_original_aspect_ratio=decrease,"
+        f"[0:v]scale='min(iw,{OUTPUT_W})':'min(ih,{OUTPUT_H})'"
+        f":force_original_aspect_ratio=decrease:flags=bilinear,split[a][b];"
+        f"[a]scale={OUTPUT_W}:{OUTPUT_H}:force_original_aspect_ratio=decrease:flags=bilinear,"
         f"pad={OUTPUT_W}:{OUTPUT_H}:(ow-iw)/2:(oh-ih)/2:color=black[fg];"
-        f"[0:v]scale={OUTPUT_W}:{OUTPUT_H}:force_original_aspect_ratio=increase,"
+        f"[b]scale={OUTPUT_W}:{OUTPUT_H}:force_original_aspect_ratio=increase:flags=bilinear,"
         f"crop={OUTPUT_W}:{OUTPUT_H},boxblur=6:2[bg];"
         f"[bg][fg]overlay=(W-w)/2:(H-h)/2"
     )
