@@ -130,8 +130,22 @@ def _generate_cover(line1, line2, line3, out_path):
                     pass
             return ImageFont.load_default()
 
-        f1, f2, f3 = _load(76), _load(60), _load(50)
         STROKE_W = 3
+        MAX_W = OUTPUT_W - 60
+
+        def _fit(text, start_size):
+            size = start_size
+            while size >= 20:
+                f = _load(size)
+                bbox = draw.textbbox((0, 0), text, font=f, stroke_width=STROKE_W)
+                if bbox[2] - bbox[0] <= MAX_W:
+                    return f
+                size -= 4
+            return _load(20)
+
+        f1 = _fit(line1, 76) if line1 else _load(76)
+        f2 = _fit(line2, 60) if line2 else _load(60)
+        f3 = _fit(line3, 50) if line3 else _load(50)
 
         # Line 1 at 2/10 from top
         if line1:
@@ -193,6 +207,18 @@ def _generate_intro_overlay(line1, line2, line3, out_path):
         TEXT_COLOR   = (15, 23, 42, 255)    # near-black
         STROKE_COLOR = (255, 255, 255, 255)  # white outline
         STROKE_W     = 4
+        MAX_W        = W - 60  # 30px margin each side
+
+        def _fit(text, start_size):
+            """Shrink font until text fits within MAX_W."""
+            size = start_size
+            while size >= 20:
+                f = _load(size)
+                bbox = draw.textbbox((0, 0), text, font=f, stroke_width=STROKE_W)
+                if bbox[2] - bbox[0] <= MAX_W:
+                    return f
+                size -= 4
+            return _load(20)
 
         def _draw_text_centered(text, font, y_center):
             bbox = draw.textbbox((0, 0), text, font=font, stroke_width=STROKE_W)
@@ -204,7 +230,11 @@ def _generate_intro_overlay(line1, line2, line3, out_path):
                       stroke_width=STROKE_W, stroke_fill=STROKE_COLOR)
             return th
 
-        fonts = [_load(76), _load(60), _load(50)]
+        fonts = [
+            _fit(line1, 76) if line1 else _load(76),
+            _fit(line2, 60) if line2 else _load(60),
+            _fit(line3, 50) if line3 else _load(50),
+        ]
         lines_data = [line1, line2, line3]
 
         # Line 1 at 2/10 from top
@@ -657,14 +687,18 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
             final_audio_path = audio_path
             if intro_audio_path:
                 try:
-                    audio_list_path = os.path.join(tmpdir, "audio_list.txt")
                     combined_audio_path = os.path.join(tmpdir, "combined_audio.aac")
-                    with open(audio_list_path, "w", encoding="utf-8") as f:
-                        f.write(f"file '{intro_audio_path}'\n")
-                        f.write(f"file '{audio_path}'\n")
+                    # filter_complex concat handles mixed formats (AAC + MP3) correctly
                     subprocess.run(
-                        [ffmpeg, "-y", "-f", "concat", "-safe", "0", "-i", audio_list_path,
-                         "-c:a", "aac", "-threads", "1", combined_audio_path],
+                        [
+                            ffmpeg, "-y",
+                            "-i", intro_audio_path,
+                            "-i", audio_path,
+                            "-filter_complex", "[0:a][1:a]concat=n=2:v=0:a=1[outa]",
+                            "-map", "[outa]",
+                            "-c:a", "aac", "-threads", "1",
+                            combined_audio_path,
+                        ],
                         check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                     )
                     final_audio_path = combined_audio_path
