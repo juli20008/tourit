@@ -176,6 +176,7 @@ const XHSVideoModal = ({ listing, onClose, onGenerated }) => {
 	const [phase, setPhase] = useState("input");
 	const [step, setStep] = useState("");
 	const [videoUrl, setVideoUrl] = useState(null);
+	const [coverUrl, setCoverUrl] = useState(null);
 	const [errorMsg, setErrorMsg] = useState("");
 	const pollRef = useRef(null);
 
@@ -226,6 +227,7 @@ const XHSVideoModal = ({ listing, onClose, onGenerated }) => {
 				if (status.status === "done") {
 					clearInterval(pollRef.current);
 					setVideoUrl(status.url);
+					if (status.cover_url) setCoverUrl(status.cover_url);
 					setPhase("done");
 					if (onGenerated) onGenerated({ url: status.url, expires_at: status.expires_at });
 				} else if (status.status === "error") {
@@ -331,11 +333,24 @@ const XHSVideoModal = ({ listing, onClose, onGenerated }) => {
 						<div style={{ color: "#16a34a", fontSize: "1.5rem", marginBottom: 12 }}>✓</div>
 						<p style={{ fontWeight: 600, marginBottom: 16 }}>视频已生成！/ Video ready!</p>
 						<video src={videoUrl} controls
-							style={{ width: "100%", borderRadius: 8, marginBottom: 16 }} />
+							style={{ width: "100%", borderRadius: 8, marginBottom: 12 }} />
 						<a href={videoUrl} download className="btn"
-							style={{ display: "inline-block", textDecoration: "none" }}>
-							下载视频 Download
+							style={{ display: "inline-block", textDecoration: "none", marginBottom: coverUrl ? 20 : 0 }}>
+							下载视频 Download Video
 						</a>
+						{coverUrl && (
+							<div style={{ marginTop: 4 }}>
+								<p style={{ fontSize: 13, color: "#64748b", marginBottom: 8 }}>
+									封面图 / Cover Image（上传为小红书封面）
+								</p>
+								<img src={coverUrl} alt="cover"
+									style={{ width: "100%", borderRadius: 8, marginBottom: 10 }} />
+								<a href={coverUrl} download className="btn"
+									style={{ display: "inline-block", textDecoration: "none", background: "#f1f5f9", color: "#0f172a" }}>
+									下载封面 Download Cover
+								</a>
+							</div>
+						)}
 					</div>
 				)}
 

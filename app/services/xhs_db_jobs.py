@@ -30,11 +30,16 @@ def ensure_jobs_table():
                     cover3       TEXT,
                     intro_r2_key TEXT,
                     video_url    TEXT,
+                    cover_url    TEXT,
                     expires_at   TEXT,
                     error_msg    TEXT,
                     created_at   TIMESTAMPTZ DEFAULT NOW(),
                     updated_at   TIMESTAMPTZ DEFAULT NOW()
                 )
+            """)
+            cur.execute("""
+                ALTER TABLE xhs_video_jobs
+                ADD COLUMN IF NOT EXISTS cover_url TEXT
             """)
     finally:
         conn.close()
@@ -61,7 +66,7 @@ def create_job(job_id, mls_number, agent_id, cover_lines, intro_r2_key=None):
 
 
 def update_job(job_id, data):
-    allowed = {'status', 'step', 'video_url', 'expires_at', 'error_msg'}
+    allowed = {'status', 'step', 'video_url', 'cover_url', 'expires_at', 'error_msg'}
     fields, values = [], []
     for k, v in data.items():
         if k in allowed:
@@ -89,6 +94,8 @@ def db_status_callback(job_id, data):
         mapped['step'] = data['step']
     if data.get('url'):
         mapped['video_url'] = data['url']
+    if data.get('cover_url'):
+        mapped['cover_url'] = data['cover_url']
     if data.get('expires_at'):
         mapped['expires_at'] = data['expires_at']
     if data.get('message'):
@@ -112,6 +119,8 @@ def get_job(job_id):
         result['step'] = d['step']
     if d.get('video_url'):
         result['url'] = d['video_url']
+    if d.get('cover_url'):
+        result['cover_url'] = d['cover_url']
     if d.get('expires_at'):
         result['expires_at'] = str(d['expires_at'])
     if d.get('error_msg'):

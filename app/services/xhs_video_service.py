@@ -760,11 +760,15 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
             img_dir = os.path.join(tmpdir, "imgs")
             os.makedirs(img_dir, exist_ok=True)
             all_images = listing.effective_images or []
-            if len(all_images) <= MAX_PHOTOS:
-                image_urls = all_images
-            else:
+            if len(all_images) == 0:
+                image_urls = []
+            elif len(all_images) >= MAX_PHOTOS:
+                # Evenly sample MAX_PHOTOS from the full set
                 step = len(all_images) / MAX_PHOTOS
                 image_urls = [all_images[int(i * step)] for i in range(MAX_PHOTOS)]
+            else:
+                # Fewer photos than needed — cycle to reach MAX_PHOTOS
+                image_urls = [all_images[i % len(all_images)] for i in range(MAX_PHOTOS)]
 
             downloaded = []
             for i, url in enumerate(image_urls):
@@ -794,6 +798,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
 
             intro_clip_path = None
             intro_audio_path = None
+            raw_intro = None
             if intro_bytes and len(intro_bytes) > 1000:
                 try:
                     raw_intro = os.path.join(tmpdir, "intro_raw.webm")
@@ -823,46 +828,39 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                         _composite_overlay(ffmpeg, transcoded_intro, overlay_png, intro_clip_path)
                     else:
                         os.rename(transcoded_intro, intro_clip_path)
-
-                    # ── Composite cover frame (property photo + agent cutout + text) ──
-                    # Prepend a ~1.5 s static cover clip so XHS thumbnail looks polished.
-                    if downloaded:
-                        comp_png = os.path.join(tmpdir, "composite_cover.png")
-                        ok = _generate_composite_cover(
-                            ffmpeg, raw_intro, downloaded[0],
-                            cover_lines[0], cover_lines[1], cover_lines[2],
-                            comp_png,
-                        )
-                        if ok and os.path.exists(comp_png):
-                            comp_clip = os.path.join(clips_dir, "clip_comp_cover.mp4")
-                            _make_clip(ffmpeg, ffprobe, comp_png, comp_clip,
-                                       duration=1.5, zoom_start=1.0, zoom_end=1.0)
-                            # Insert at the very front
-                            intro_clip_path = _concat_clips(
-                                ffmpeg, [comp_clip, intro_clip_path],
-                                os.path.join(clips_dir, "clip_intro_with_cover.mp4"),
-                            )
                 except Exception:
                     intro_clip_path = None
                     intro_audio_path = None
 
             if not intro_clip_path:
-                # Fall back to composite cover (photo + text) or plain dark cover
+                # Fall back to static cover slide (dark background + text)
                 cover_path = os.path.join(tmpdir, "cover.png")
-                if downloaded:
-                    ok = _generate_composite_cover(
-                        ffmpeg, None, downloaded[0],
-                        cover_lines[0], cover_lines[1], cover_lines[2],
-                        cover_path,
-                    )
-                    if not ok:
-                        _generate_cover(cover_lines[0], cover_lines[1], cover_lines[2], cover_path)
-                else:
-                    _generate_cover(cover_lines[0], cover_lines[1], cover_lines[2], cover_path)
+                _generate_cover(cover_lines[0], cover_lines[1], cover_lines[2], cover_path)
                 if os.path.exists(cover_path):
                     cover_clip_path = os.path.join(clips_dir, "clip_cover.mp4")
                     _make_clip(ffmpeg, ffprobe, cover_path, cover_clip_path)
                     intro_clip_path = cover_clip_path
+
+            # ── Generate composite cover image (property photo + agent cutout + text)
+            # Uploaded to R2 as a separate asset — NOT inserted into the video timeline.
+            # The user downloads it and sets it as the XHS thumbnail manually.
+            _cover_r2_url = None
+            if downloaded:
+                comp_png = os.path.join(tmpdir, "composite_cover.png")
+                intro_src = raw_intro if raw_intro and os.path.exists(raw_intro) else None
+                ok = _generate_composite_cover(
+                    ffmpeg, intro_src, downloaded[0],
+                    cover_lines[0], cover_lines[1], cover_lines[2],
+                    comp_png,
+                )
+                if ok and os.path.exists(comp_png):
+                    try:
+                        from app.s3_helpers import _upload_file_obj
+                        cover_r2_key = f"xhs-covers/{job_id}.jpg"
+                        with open(comp_png, "rb") as _cf:
+                            _cover_r2_url = _upload_file_obj(_cf, cover_r2_key, "image/jpeg")
+                    except Exception:
+                        pass
 
             all_images = downloaded
 
@@ -1014,7 +1012,10 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
             except Exception:
                 db.session.rollback()
 
-            _job_set(job_id, {"status": "done", "url": video_url, "expires_at": expires_at})
+            done_payload = {"status": "done", "url": video_url, "expires_at": expires_at}
+            if _cover_r2_url:
+                done_payload["cover_url"] = _cover_r2_url
+            _job_set(job_id, done_payload)
 
             # Email notification (best-effort)
             try:
