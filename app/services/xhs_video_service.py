@@ -510,7 +510,7 @@ def get_job(job_id):
 def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_bytes=None):
     if not _GENERATION_LOCK.acquire(blocking=False):
         with flask_app.app_context():
-            _job_set(job_id, {"status": "error", "message": "另一个视频正在生成中，请稍后再试 / Another video is already generating, please try again in a few minutes"})
+            _job_set(job_id, {"status": "error", "message": "另一个视频正在生成中，完成后会发邮件通知您再来试 / Another video is already generating — you'll get an email when it's done, then try again"})
         return
     with flask_app.app_context():
         tmpdir = None
