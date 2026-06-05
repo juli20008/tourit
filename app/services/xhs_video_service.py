@@ -16,7 +16,7 @@ import requests
 OUTPUT_W = 720
 OUTPUT_H = 960
 PHOTO_DURATION = 3.0
-FPS = 20
+FPS = 15
 CRF = 28
 PRESET = "ultrafast"
 ZOOM_START = 1.0
@@ -323,7 +323,7 @@ def _transcode_intro(ffmpeg, src_path, out_path):
         f"[0:v]scale={OUTPUT_W}:{OUTPUT_H}:force_original_aspect_ratio=decrease,"
         f"pad={OUTPUT_W}:{OUTPUT_H}:(ow-iw)/2:(oh-ih)/2:color=black[fg];"
         f"[0:v]scale={OUTPUT_W}:{OUTPUT_H}:force_original_aspect_ratio=increase,"
-        f"crop={OUTPUT_W}:{OUTPUT_H},boxblur=20:5[bg];"
+        f"crop={OUTPUT_W}:{OUTPUT_H},boxblur=6:2[bg];"
         f"[bg][fg]overlay=(W-w)/2:(H-h)/2"
     )
     subprocess.run(
@@ -515,7 +515,7 @@ def _make_clip(ffmpeg, ffprobe, img_path, out_path, reverse=False):
         sh = f"trunc(ih*{OUTPUT_W}/iw*({z})/2)*2"
         px = f"(in_w-{OUTPUT_W})/2"
         py = f"(in_h-{OUTPUT_H})*({ease})"
-    scale = f"scale='{sw}':'{sh}':eval=frame:flags=lanczos"
+    scale = f"scale='{sw}':'{sh}':eval=frame:flags=bilinear"
     crop = f"crop={OUTPUT_W}:{OUTPUT_H}:'{px}':'{py}'"
     subprocess.run(
         [
@@ -594,14 +594,15 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
             downloaded = []
             for i, url in enumerate(image_urls):
                 try:
-                    r = requests.get(url, timeout=20)
+                    r = requests.get(url, timeout=20, stream=True)
                     if r.ok:
                         ext = url.rsplit(".", 1)[-1].lower().split("?")[0]
                         if ext not in {"jpg", "jpeg", "png", "webp"}:
                             ext = "jpg"
                         path = os.path.join(img_dir, f"{i:04d}.{ext}")
                         with open(path, "wb") as f:
-                            f.write(r.content)
+                            for chunk in r.iter_content(chunk_size=65536):
+                                f.write(chunk)
                         downloaded.append(path)
                 except Exception:
                     pass
@@ -623,6 +624,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                     raw_intro = os.path.join(tmpdir, "intro_raw.webm")
                     with open(raw_intro, "wb") as f:
                         f.write(intro_bytes)
+                    intro_bytes = None  # free memory immediately after writing to disk
 
                     # Extract original audio (user's voice) before stripping for video
                     _intro_audio_tmp = os.path.join(tmpdir, "intro_audio.aac")
