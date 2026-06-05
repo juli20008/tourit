@@ -1,7 +1,7 @@
 /**
  * Hourly incremental sync:
- *  1. Query DDF for listings updated in the last 70 minutes
- *  2. Upsert each listing into mls_listings
+ *  1. Query DDF for listings updated in the last 4 hours (paginated, no 500-limit dead zone)
+ *  2. Upsert each listing into mls_listings (via direct PostgreSQL)
  *  3. Fetch photo URLs via GetObject and update the images column
  *
  * Run with:
@@ -12,48 +12,10 @@ import dotenv from 'dotenv';
 import { getAutoLogoutClient } from 'rets-client';
 import { mapDDFToSupabase } from '../adapters/ListingAdapter';
 import { DdfPhotoSession } from './ddfPhotoFetcher';
+import { upsertListings, patchImages, fetchExistingTimestamps } from '../db';
 
 dotenv.config({ path: '.env' });
 dotenv.config({ path: '.env.local' });
-
-// ─── Supabase helpers ─────────────────────────────────────────────────────────
-
-const SUPABASE_URL = process.env.SUPABASE_URL!;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-async function supabaseUpsert(rows: Record<string, any>[]): Promise<void> {
-  const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/mls_listings?on_conflict=mls_number`,
-    {
-      method: 'POST',
-      headers: {
-        apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${SUPABASE_KEY}`,
-        'Content-Type': 'application/json',
-        Prefer: 'resolution=merge-duplicates,return=minimal',
-      },
-      body: JSON.stringify(rows),
-    }
-  );
-  if (!res.ok) throw new Error(`Upsert failed ${res.status}: ${await res.text()}`);
-}
-
-async function patchImages(mlsNumber: string, urls: string[]): Promise<void> {
-  const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/mls_listings?mls_number=eq.${encodeURIComponent(mlsNumber)}`,
-    {
-      method: 'PATCH',
-      headers: {
-        apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${SUPABASE_KEY}`,
-        'Content-Type': 'application/json',
-        Prefer: 'return=minimal',
-      },
-      body: JSON.stringify({ images: urls }),
-    }
-  );
-  if (!res.ok) throw new Error(`PATCH images ${res.status}: ${await res.text()}`);
-}
 
 // ─── Column allowlist ─────────────────────────────────────────────────────────
 
@@ -72,19 +34,15 @@ const COLUMNS = new Set([
 ]);
 
 function toDbRow(raw: Record<string, any>): Record<string, any> {
-  const mapped  = mapDDFToSupabase(raw);
+  const mapped   = mapDDFToSupabase(raw);
   const filtered = Object.fromEntries(Object.entries(mapped).filter(([k]) => COLUMNS.has(k)));
-  // ensure id is set
   if (!filtered.id && filtered.mls_number) filtered.id = filtered.mls_number;
-  // Never overwrite geocoded coordinates with null — omit lat/lng when DDF doesn't provide them
   if (filtered.lat == null) delete filtered.lat;
   if (filtered.lng == null) delete filtered.lng;
-  // Never wipe existing photos — images are managed separately via patchImages()
   delete filtered.images;
+  filtered.last_seen_at = new Date().toISOString();
   return filtered;
 }
-
-// ─── Photo timestamp helpers ──────────────────────────────────────────────────
 
 function toDotNetTicks(value: any): string | null {
   if (!value) return null;
@@ -94,18 +52,8 @@ function toDotNetTicks(value: any): string | null {
   return String(ticks);
 }
 
-async function fetchExistingTimestamps(mlsNumbers: string[]): Promise<Map<string, string | null>> {
-  if (!mlsNumbers.length) return new Map();
-  const list = mlsNumbers.map(n => `"${n}"`).join(',');
-  const url = `${SUPABASE_URL}/rest/v1/mls_listings?select=mls_number,photos_timestamp&mls_number=in.(${list})`;
-  const res = await fetch(url, {
-    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, Accept: 'application/json' },
-  });
-  const map = new Map<string, string | null>();
-  if (!res.ok) return map;
-  const rows: any[] = await res.json();
-  for (const r of rows) map.set(r.mls_number, r.photos_timestamp ?? null);
-  return map;
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
@@ -115,31 +63,56 @@ async function main() {
   const username  = process.env.DDF_USERNAME!;
   const password  = process.env.DDF_PASSWORD!;
 
-  if (!loginUrl || !username || !password || !SUPABASE_URL || !SUPABASE_KEY) {
-    throw new Error('Missing required env vars');
+  if (!loginUrl || !username || !password || !process.env.DATABASE_URL) {
+    throw new Error('Missing required env vars (DDF_LOGIN_URL, DDF_USERNAME, DDF_PASSWORD, DATABASE_URL)');
   }
 
-  // 200-minute lookback: covers the 180-min run interval + 20-min buffer so no listing
-  // falls in the dead zone between consecutive runs.
-  const since = new Date(Date.now() - 200 * 60 * 1000).toISOString().replace(/\.\d{3}Z$/, 'Z');
+  // 4-hour lookback — cron runs every 3h, extra buffer for slow DDF updates
+  const since = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString().replace(/\.\d{3}Z$/, 'Z');
   console.log(`[hourly] Querying DDF for listings updated since ${since}`);
 
-  // ── Step 1: Search ────────────────────────────────────────────────────────
+  // ── Step 1: Paginated search ───────────────────────────────────────────────
+  const PAGE_SIZE = 500;
+  const MAX_PAGES = 40; // safety cap: 40 × 500 = 20 000 listings max per run
+
   const rawListings: any[] = await (getAutoLogoutClient as any)(
     { loginUrl, username, password, version: 'RETS/1.7.2', userAgent: 'Tourit-Hourly/1.0' },
     async (rets: any) => {
-      const result = await rets.search.query(
-        'Property', 'Property',
-        `(LastUpdated=${since})`,
-        { limit: 500, offset: 1, count: 1, format: 'COMPACT', standardNames: 1 }
-      );
-      const rows = result.results ?? [];
-      const total = result.count ?? '?';
-      console.log(`[hourly] DDF returned ${rows.length} listing(s) (total count: ${total})`);
-      if (rows.length === 500) {
-        console.warn(`[hourly] WARNING: result hit the 500-listing limit — some listings may be missing. Consider reducing run interval.`);
+      const all: any[] = [];
+      let offset = 1;
+      let page   = 1;
+      let total: number | null = null;
+
+      while (page <= MAX_PAGES) {
+        console.log(`[hourly] Page ${page} (offset ${offset})…`);
+        const result = await rets.search.query(
+          'Property', 'Property',
+          `(LastUpdated=${since})`,
+          { limit: PAGE_SIZE, offset, count: 1, format: 'COMPACT', standardNames: 1 }
+        );
+        const rows = result.results ?? [];
+        if (page === 1) {
+          total = typeof result.count === 'number' ? result.count : null;
+          console.log(`[hourly] DDF total count: ${total ?? 'unknown'}`);
+        }
+        all.push(...rows);
+        console.log(`[hourly] Page ${page}: got ${rows.length} row(s), cumulative ${all.length}`);
+
+        // Stop when last page reached
+        const done = rows.length < PAGE_SIZE ||
+          (total !== null && all.length >= total);
+        if (done) break;
+
+        offset += PAGE_SIZE;
+        page++;
+        await sleep(1500); // be polite to DDF server
       }
-      return rows;
+
+      if (page > MAX_PAGES) {
+        console.warn(`[hourly] Hit page cap (${MAX_PAGES}) — some listings may be missing.`);
+      }
+
+      return all;
     }
   );
 
@@ -148,23 +121,23 @@ async function main() {
     return;
   }
 
-  // ── Step 2: Capture existing timestamps BEFORE upsert so we can detect changes
-  const dbRows = rawListings.map(toDbRow);
+  console.log(`[hourly] Fetched ${rawListings.length} listing(s) from DDF.`);
+
+  // ── Step 2: Capture existing timestamps BEFORE upsert ─────────────────────
+  const dbRows  = rawListings.map(toDbRow);
   const mlsNums = dbRows.map(r => String(r.mls_number ?? '')).filter(Boolean);
   const existingTs = await fetchExistingTimestamps(mlsNums);
 
-  await supabaseUpsert(dbRows);
+  await upsertListings(dbRows);
   console.log(`[hourly] Upserted ${dbRows.length} listing(s).`);
 
-  // ── Step 3: Fetch & store photos (only if photos_timestamp changed or new) ───
-
-  // Determine which listings actually need a GetObject call
+  // ── Step 3: Fetch & store photos (only if photos_timestamp changed) ────────
   const needsPhoto = rawListings.filter((raw, i) => {
-    const mls = String(dbRows[i].mls_number ?? '');
+    const mls   = String(dbRows[i].mls_number ?? '');
     if (!mls) return false;
     const ddfTs = toDotNetTicks(raw.PhotosChangeTimestamp ?? raw.photosChangeTimestamp);
     const dbTs  = existingTs.get(mls) ?? null;
-    return ddfTs !== dbTs; // fetch only when timestamp changed or listing is new
+    return ddfTs !== dbTs;
   });
 
   console.log(`[hourly] ${needsPhoto.length}/${rawListings.length} listing(s) need photo update`);
@@ -177,22 +150,18 @@ async function main() {
   const photoSession = new DdfPhotoSession(loginUrl, username, password);
   await photoSession.login();
 
-  let photoOk = 0;
-  let photoFail = 0;
+  let photoOk = 0, photoFail = 0;
 
   for (const raw of needsPhoto) {
     const mlsNumber  = String(raw.ListingId ?? raw.ListingID ?? raw.MLS_NUM ?? raw.MlsNumber ?? raw.ListingKey ?? '');
     const listingKey = raw.ListingKey ?? raw.ListingID ?? mlsNumber;
     if (!listingKey || !mlsNumber) continue;
-
     try {
       const urls = await photoSession.fetchPhotoUrls(listingKey);
       if (urls.length > 0) {
         await patchImages(mlsNumber, urls);
-        console.log(`[photo] ${mlsNumber} (key=${listingKey}): ${urls.length} photo(s) saved`);
+        console.log(`[photo] ${mlsNumber}: ${urls.length} photo(s) saved`);
         photoOk++;
-      } else {
-        console.log(`[photo] ${mlsNumber}: 0 URLs returned from GetObject`);
       }
     } catch (e: any) {
       console.warn(`[photo] ${mlsNumber}: ${e.message}`);
@@ -200,7 +169,7 @@ async function main() {
     }
   }
 
-  console.log(`\n[hourly] Done. Listings: ${dbRows.length} | Photos OK: ${photoOk} | Photo errors: ${photoFail}`);
+  console.log(`\n[hourly] Done. Listings: ${dbRows.length} | Photos OK: ${photoOk} | Errors: ${photoFail}`);
 }
 
 main().catch(err => {
