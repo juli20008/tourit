@@ -60,11 +60,21 @@ def _find_ffmpeg():
 
 _FONT_CACHE: dict[str, str | None] = {}
 
-def _get_chinese_font():
-    if "path" in _FONT_CACHE:
-        return _FONT_CACHE["path"]
+def _get_chinese_font(bold=False):
+    cache_key = "bold" if bold else "regular"
+    if cache_key in _FONT_CACHE:
+        return _FONT_CACHE[cache_key]
 
-    system_candidates = [
+    import glob as _glob
+
+    bold_candidates = [
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSansCJKsc-Bold.otf",
+        "/usr/share/fonts/noto-cjk/NotoSansCJK-Bold.ttc",
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc",
+        "/usr/share/fonts/truetype/noto-cjk/NotoSansCJK-Bold.ttc",
+    ]
+    regular_candidates = [
         "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
         "/usr/share/fonts/opentype/noto/NotoSansCJKsc-Regular.otf",
         "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
@@ -75,53 +85,60 @@ def _get_chinese_font():
         "/System/Library/Fonts/PingFang.ttc",
         "/usr/share/fonts/opentype/noto/NotoSansCJKsc-Regular.otf",
     ]
-    # Also glob for any Noto CJK font installed on system
-    import glob as _glob
-    for pattern in [
-        "/usr/share/fonts/**/*CJK*Regular*",
-        "/usr/share/fonts/**/*noto*sc*",
-    ]:
+    for pattern in ["/usr/share/fonts/**/*CJK*Bold*", "/usr/share/fonts/**/*noto*sc*bold*"]:
         for found in _glob.glob(pattern, recursive=True):
-            system_candidates.append(found)
-    for p in system_candidates:
+            bold_candidates.append(found)
+    for pattern in ["/usr/share/fonts/**/*CJK*Regular*", "/usr/share/fonts/**/*noto*sc*"]:
+        for found in _glob.glob(pattern, recursive=True):
+            regular_candidates.append(found)
+
+    candidates = (bold_candidates + regular_candidates) if bold else regular_candidates
+    for p in candidates:
         if os.path.exists(p):
-            _FONT_CACHE["path"] = p
+            _FONT_CACHE[cache_key] = p
             return p
 
-    # Download NotoSansSC from Google Fonts GitHub (OTF subset)
-    dl_path = "/tmp/NotoSansSC-Regular.otf"
-    if os.path.exists(dl_path):
-        _FONT_CACHE["path"] = dl_path
-        return dl_path
-
-    font_url = (
-        "https://github.com/googlefonts/noto-cjk/raw/main/Sans/SubsetOTF/SC/NotoSansSC-Regular.otf"
-    )
-    try:
-        r = requests.get(font_url, timeout=30)
-        if r.ok:
-            with open(dl_path, "wb") as f:
-                f.write(r.content)
-            _FONT_CACHE["path"] = dl_path
+    # Download bold first, fall back to regular
+    for variant, url in [
+        ("Bold",    "https://github.com/googlefonts/noto-cjk/raw/main/Sans/SubsetOTF/SC/NotoSansSC-Bold.otf"),
+        ("Regular", "https://github.com/googlefonts/noto-cjk/raw/main/Sans/SubsetOTF/SC/NotoSansSC-Regular.otf"),
+    ]:
+        dl_path = f"/tmp/NotoSansSC-{variant}.otf"
+        if os.path.exists(dl_path):
+            _FONT_CACHE[cache_key] = dl_path
             return dl_path
-    except Exception:
-        pass
+        if bold or variant == "Regular":
+            try:
+                r = requests.get(url, timeout=30)
+                if r.ok:
+                    with open(dl_path, "wb") as f:
+                        f.write(r.content)
+                    _FONT_CACHE[cache_key] = dl_path
+                    return dl_path
+            except Exception:
+                pass
 
-    _FONT_CACHE["path"] = None
+    _FONT_CACHE[cache_key] = None
     return None
 
 
 # ── Cover slide (plain — used when no intro video) ─────────────────────────────
 
+def _draw_impact_text(draw, text, font, x, y, stroke_w):
+    """White fill + black stroke — XHS/TikTok impact style."""
+    draw.text((x, y), text, font=font, fill=(255, 255, 255, 255),
+              stroke_width=stroke_w, stroke_fill=(0, 0, 0, 255))
+
+
 def _generate_cover(line1, line2, line3, out_path):
-    """Render a 720×960 cover image with 3 lines of Chinese text."""
+    """Render a 720×960 cover image — XHS impact style: white text, thick black stroke."""
     try:
         from PIL import Image, ImageDraw, ImageFont
 
         img = Image.new("RGB", (OUTPUT_W, OUTPUT_H), "#0f172a")
         draw = ImageDraw.Draw(img)
 
-        font_path = _get_chinese_font()
+        font_path = _get_chinese_font(bold=True)
 
         def _load(size):
             if font_path:
@@ -131,7 +148,7 @@ def _generate_cover(line1, line2, line3, out_path):
                     pass
             return ImageFont.load_default()
 
-        STROKE_W = 3
+        STROKE_W = 9
         MAX_W = OUTPUT_W - 60
 
         def _fit(text, start_size):
@@ -144,9 +161,9 @@ def _generate_cover(line1, line2, line3, out_path):
                 size -= 4
             return _load(20)
 
-        f1 = _fit(line1, 76) if line1 else _load(76)
-        f2 = _fit(line2, 60) if line2 else _load(60)
-        f3 = _fit(line3, 50) if line3 else _load(50)
+        f1 = _fit(line1, 96) if line1 else _load(96)
+        f2 = _fit(line2, 76) if line2 else _load(76)
+        f3 = _fit(line3, 62) if line3 else _load(62)
 
         # Line 1 at 2/10 from top
         if line1:
@@ -154,8 +171,7 @@ def _generate_cover(line1, line2, line3, out_path):
             w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
             x = (OUTPUT_W - w) // 2
             y = int(OUTPUT_H * 0.2) - h // 2
-            draw.text((x, y), line1, font=f1, fill="#f8fafc",
-                      stroke_width=STROKE_W, stroke_fill="#0f172a")
+            _draw_impact_text(draw, line1, f1, x, y, STROKE_W)
 
         # Lines 2-3 at bottom
         spacing = 20
@@ -171,8 +187,7 @@ def _generate_cover(line1, line2, line3, out_path):
                 bbox = draw.textbbox((0, 0), text, font=font, stroke_width=STROKE_W)
                 w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
                 x = (OUTPUT_W - w) // 2
-                draw.text((x, y), text, font=font, fill="#f8fafc",
-                          stroke_width=STROKE_W, stroke_fill="#0f172a")
+                _draw_impact_text(draw, text, font, x, y, STROKE_W)
                 y += h + spacing
 
         img.save(out_path, "PNG")
@@ -229,7 +244,7 @@ def _generate_intro_overlay(line1, line2, line3, out_path, content_rect=None):
         img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
         draw = ImageDraw.Draw(img)
 
-        font_path = _get_chinese_font()
+        font_path = _get_chinese_font(bold=True)
 
         def _load(size):
             if font_path:
@@ -239,10 +254,8 @@ def _generate_intro_overlay(line1, line2, line3, out_path, content_rect=None):
                     pass
             return ImageFont.load_default()
 
-        TEXT_COLOR   = (15, 23, 42, 255)
-        STROKE_COLOR = (255, 255, 255, 255)
-        STROKE_W     = 4
-        MAX_W        = cw - MARGIN * 2  # constrained to content width
+        STROKE_W = 9
+        MAX_W    = cw - MARGIN * 2  # constrained to content width
 
         def _fit(text, start_size):
             size = start_size
@@ -254,27 +267,25 @@ def _generate_intro_overlay(line1, line2, line3, out_path, content_rect=None):
                 size -= 4
             return _load(20)
 
-        def _draw_text_centered(text, font, y_center):
+        def _draw_centered(text, font, y_center):
             bbox = draw.textbbox((0, 0), text, font=font, stroke_width=STROKE_W)
             tw = bbox[2] - bbox[0]
             th = bbox[3] - bbox[1]
-            # center within content area horizontally
             x = x_off + (cw - tw) // 2
             y = y_center - th // 2
-            draw.text((x, y), text, font=font, fill=TEXT_COLOR,
-                      stroke_width=STROKE_W, stroke_fill=STROKE_COLOR)
+            _draw_impact_text(draw, text, font, x, y, STROKE_W)
             return th
 
         fonts = [
-            _fit(line1, 76) if line1 else _load(76),
-            _fit(line2, 60) if line2 else _load(60),
-            _fit(line3, 50) if line3 else _load(50),
+            _fit(line1, 96) if line1 else _load(96),
+            _fit(line2, 76) if line2 else _load(76),
+            _fit(line3, 62) if line3 else _load(62),
         ]
         lines_data = [line1, line2, line3]
 
         # Line 1 at 2/10 from top of content area
         if line1:
-            _draw_text_centered(line1, fonts[0], y_off + int(ch * 0.2))
+            _draw_centered(line1, fonts[0], y_off + int(ch * 0.2))
 
         # Lines 2-3 stacked at bottom of content area
         spacing = 20
@@ -291,8 +302,7 @@ def _generate_intro_overlay(line1, line2, line3, out_path, content_rect=None):
                 th = bbox[3] - bbox[1]
                 tw = bbox[2] - bbox[0]
                 x = x_off + (cw - tw) // 2
-                draw.text((x, y_cursor), text, font=font, fill=TEXT_COLOR,
-                          stroke_width=STROKE_W, stroke_fill=STROKE_COLOR)
+                _draw_impact_text(draw, text, font, x, y_cursor, STROKE_W)
                 y_cursor += th + spacing
 
         img.save(out_path, "PNG")
