@@ -809,6 +809,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                     _intro_audio_tmp = os.path.join(tmpdir, "intro_audio.aac")
                     subprocess.run(
                         [ffmpeg, "-y", "-i", raw_intro, "-vn",
+                         "-af", "highpass=f=80,afftdn=nf=-25,loudnorm",
                          "-c:a", "aac", "-threads", "1", _intro_audio_tmp],
                         check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                     )
