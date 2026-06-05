@@ -13,8 +13,8 @@ import uuid
 
 import requests
 
-OUTPUT_W = 540
-OUTPUT_H = 720
+OUTPUT_W = 720
+OUTPUT_H = 960
 PHOTO_DURATION = 3.0
 FPS = 20
 CRF = 28
@@ -621,6 +621,11 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                 clip_path = os.path.join(clips_dir, f"clip_{i:04d}.mp4")
                 _make_clip(ffmpeg, ffprobe, img_path, clip_path, reverse=(i % 2 == 1))
                 clip_paths.append(clip_path)
+                # Free disk space: delete source image immediately after clip is made
+                try:
+                    os.remove(img_path)
+                except OSError:
+                    pass
 
             list_file = os.path.join(tmpdir, "clips.txt")
             with open(list_file, "w", encoding="utf-8") as f:
@@ -633,6 +638,13 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                 check=True,
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )
+
+            # Free disk space: delete individual clips after concat
+            for cp in clip_paths:
+                try:
+                    os.remove(cp)
+                except OSError:
+                    pass
 
             # ── Step 6: Mix audio + burn subtitles ───────────────────────────
             _job_set(job_id, {"status": "processing", "step": "Mixing audio & subtitles..."})
