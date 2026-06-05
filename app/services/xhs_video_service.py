@@ -132,10 +132,17 @@ def _generate_cover(line1, line2, line3, out_path):
 
         f1, f2, f3 = _load(88), _load(64), _load(52)
 
-        draw.rectangle([(120, 360), (OUTPUT_W - 120, 364)], fill="#3b82f6")
+        # Line 1 at 2/10 from top
+        if line1:
+            bbox = draw.textbbox((0, 0), line1, font=f1)
+            w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+            x = (OUTPUT_W - w) // 2
+            y = int(OUTPUT_H * 0.2) - h // 2
+            draw.text((x, y), line1, font=f1, fill="#f8fafc")
 
-        y = 420
-        for text, font, gap in [(line1, f1, 130), (line2, f2, 106), (line3, f3, 86)]:
+        # Lines 2-3 at bottom
+        y = OUTPUT_H - 220
+        for text, font, gap in [(line2, f2, 90), (line3, f3, 72)]:
             if text:
                 bbox = draw.textbbox((0, 0), text, font=font)
                 w = bbox[2] - bbox[0]
@@ -192,7 +199,7 @@ def _generate_intro_overlay(line1, line2, line3, out_path):
             (15, 118, 110, 200),  # teal
         ]
 
-        # Measure all lines, stack from bottom up
+        # Measure all lines
         rendered = []
         for text, font, color in lines:
             if not text:
@@ -203,35 +210,31 @@ def _generate_intro_overlay(line1, line2, line3, out_path):
             rendered.append((text, font, color, tw, th))
 
         spacing = 18
-        total_h = sum((r[4] + pad_y * 2 + spacing) for r in rendered if r) - spacing
-        start_y = H - 80 - total_h
-
         shadow_layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
         sdraw = ImageDraw.Draw(shadow_layer)
 
-        y_cursor = start_y
-        for i, r in enumerate(rendered):
-            if not r:
-                continue
+        def _draw_pill(i, r, y_pos):
             text, font, color, tw, th = r
             pill_w = tw + pad_x * 2
             pill_h = th + pad_y * 2
             x = (W - pill_w) // 2
+            sdraw.rounded_rectangle([x+3, y_pos+3, x+pill_w+3, y_pos+pill_h+3], radius=radius, fill=(0, 0, 0, 120))
+            draw.rounded_rectangle([x, y_pos, x+pill_w, y_pos+pill_h], radius=radius, fill=pill_colors[i])
+            draw.text((x+pad_x, y_pos+pad_y), text, font=font, fill=color)
 
-            # Drop shadow (offset 3px)
-            sx, sy = x + 3, y_cursor + 3
-            sdraw.rounded_rectangle([sx, sy, sx + pill_w, sy + pill_h], radius=radius, fill=(0, 0, 0, 120))
+        # Line 1: pill centered at 2/10 from top
+        if rendered[0]:
+            pill_h0 = rendered[0][4] + pad_y * 2
+            _draw_pill(0, rendered[0], int(H * 0.2) - pill_h0 // 2)
 
-            # Pill background
-            draw.rounded_rectangle([x, y_cursor, x + pill_w, y_cursor + pill_h],
-                                    radius=radius, fill=pill_colors[i])
-
-            # Text centered in pill
-            tx = x + pad_x
-            ty = y_cursor + pad_y
-            draw.text((tx, ty), text, font=font, fill=color)
-
-            y_cursor += pill_h + spacing
+        # Lines 2-3: stacked at bottom
+        bottom = [(i, r) for i, r in enumerate(rendered[1:], 1) if r]
+        if bottom:
+            total_h_b = sum(r[4] + pad_y * 2 for _, r in bottom) + spacing * (len(bottom) - 1)
+            y_cursor = H - 80 - total_h_b
+            for i, r in bottom:
+                _draw_pill(i, r, y_cursor)
+                y_cursor += r[4] + pad_y * 2 + spacing
 
         # Merge shadow beneath main layer
         base = Image.new("RGBA", (W, H), (0, 0, 0, 0))
@@ -538,11 +541,22 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
             os.makedirs(clips_dir, exist_ok=True)
 
             intro_clip_path = None
+            intro_audio_path = None
             if intro_bytes and len(intro_bytes) > 1000:
                 try:
                     raw_intro = os.path.join(tmpdir, "intro_raw.webm")
                     with open(raw_intro, "wb") as f:
                         f.write(intro_bytes)
+
+                    # Extract original audio (user's voice) before stripping for video
+                    _intro_audio_tmp = os.path.join(tmpdir, "intro_audio.aac")
+                    subprocess.run(
+                        [ffmpeg, "-y", "-i", raw_intro, "-vn", "-t", "10",
+                         "-c:a", "aac", "-threads", "1", _intro_audio_tmp],
+                        check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                    )
+                    if os.path.exists(_intro_audio_tmp) and os.path.getsize(_intro_audio_tmp) > 100:
+                        intro_audio_path = _intro_audio_tmp
 
                     transcoded_intro = os.path.join(tmpdir, "intro_base.mp4")
                     _transcode_intro(ffmpeg, raw_intro, transcoded_intro)
@@ -556,7 +570,8 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                     else:
                         os.rename(transcoded_intro, intro_clip_path)
                 except Exception:
-                    intro_clip_path = None  # intro failed — fall back to cover slide
+                    intro_clip_path = None
+                    intro_audio_path = None
 
             if not intro_clip_path:
                 # Fall back to static cover slide
@@ -645,27 +660,35 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                 except OSError:
                     pass
 
-            # ── Step 6: Mix audio + burn subtitles ───────────────────────────
-            _job_set(job_id, {"status": "processing", "step": "Mixing audio & subtitles..."})
+            # ── Step 6: Mix audio ─────────────────────────────────────────────
+            _job_set(job_id, {"status": "processing", "step": "Mixing audio..."})
 
-            # Get exact audio duration via ffprobe
-            try:
-                probe = subprocess.run(
-                    [ffprobe, "-v", "quiet", "-print_format", "json", "-show_format", audio_path],
-                    capture_output=True, text=True,
-                )
-                audio_duration = float(json.loads(probe.stdout).get("format", {}).get("duration", 0))
-            except Exception:
-                audio_duration = os.path.getsize(audio_path) / 16000
+            # If intro had audio, prepend it before the narration
+            final_audio_path = audio_path
+            if intro_audio_path:
+                try:
+                    audio_list_path = os.path.join(tmpdir, "audio_list.txt")
+                    combined_audio_path = os.path.join(tmpdir, "combined_audio.aac")
+                    with open(audio_list_path, "w", encoding="utf-8") as f:
+                        f.write(f"file '{intro_audio_path}'\n")
+                        f.write(f"file '{audio_path}'\n")
+                    subprocess.run(
+                        [ffmpeg, "-y", "-f", "concat", "-safe", "0", "-i", audio_list_path,
+                         "-c:a", "aac", "-threads", "1", combined_audio_path],
+                        check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                    )
+                    final_audio_path = combined_audio_path
+                except Exception:
+                    final_audio_path = audio_path  # fallback to narration only
 
             final_path = os.path.join(tmpdir, "final.mp4")
 
-            # Audio mix only — copy video stream to avoid full re-encode (OOM risk on 512MB)
+            # Copy video stream — no re-encode (avoids OOM on 512MB)
             subprocess.run(
                 [
                     ffmpeg, "-y",
                     "-i", silent_path,
-                    "-i", audio_path,
+                    "-i", final_audio_path,
                     "-map", "0:v:0",
                     "-map", "1:a:0",
                     "-c:v", "copy",
