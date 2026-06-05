@@ -21,7 +21,7 @@ CRF = 28
 PRESET = "ultrafast"
 ZOOM_START = 1.0
 ZOOM_END = 1.15
-MAX_PHOTOS = 30
+MAX_PHOTOS = 20
 
 _JOBS: dict = {}
 _JOB_TTL = 600  # 10 minutes
@@ -381,7 +381,7 @@ def _generate_narration(listing_data):
     style = listing_data.get("style") or listing_data.get("property_type") or "住宅"
     sqft = listing_data.get("sqft", "")
 
-    prompt = f"""你是一位加拿大华人房产经纪，请用普通话为以下房源录制一段看房视频口播文案，时长大约90秒（约650-700字）。
+    prompt = f"""你是一位加拿大华人房产经纪，请用普通话为以下房源录制一段看房视频口播文案，时长大约60秒（约440-480字）。
 
 房源信息：
 社区：{listing_data.get('neighborhood') or listing_data.get('city', '')}
@@ -393,7 +393,7 @@ def _generate_narration(listing_data):
 - 语言自然，像真人在视频里直接说话，无需标题或解释
 - 开头直接介绍房子，不要用"大家好""我是地产经纪""今天带大家""今天介绍"等套话，一上来就讲房源亮点，可以提社区名称
 - 不要提及价格或售价
-- 中间详细介绍4-5个亮点（根据描述），每个亮点展开讲2-3句，语气真实平实
+- 中间详细介绍3-4个亮点（根据描述），语气真实平实
 - 结尾一句邀请预约看房
 - 不要夸大，不要使用"顶级""超值""绝对"等夸张词
 - 只输出口播正文，不要任何额外说明"""
@@ -404,7 +404,7 @@ def _generate_narration(listing_data):
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
             json={
                 "model": "deepseek-chat",
-                "max_tokens": 900,
+                "max_tokens": 600,
                 "messages": [{"role": "user", "content": prompt}],
             },
             timeout=30,
