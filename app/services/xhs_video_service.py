@@ -26,6 +26,15 @@ MAX_PHOTOS = 12
 _JOBS: dict = {}
 _JOB_TTL = 600  # 10 minutes
 _GENERATION_LOCK = threading.Semaphore(1)  # only one video at a time on 512 MB
+_JOB_CALLBACKS: dict = {}  # job_id -> fn(job_id, data) for out-of-process status updates
+
+
+def register_job_callback(job_id, callback):
+    _JOB_CALLBACKS[job_id] = callback
+
+
+def unregister_job_callback(job_id):
+    _JOB_CALLBACKS.pop(job_id, None)
 
 
 # ── ffmpeg discovery (same logic as photo_to_video.py) ────────────────────────
@@ -542,6 +551,12 @@ def _make_clip(ffmpeg, ffprobe, img_path, out_path, reverse=False):
 
 def _job_set(job_id, data):
     _JOBS[job_id] = {**data, "ts": time.time()}
+    cb = _JOB_CALLBACKS.get(job_id)
+    if cb:
+        try:
+            cb(job_id, data)
+        except Exception:
+            pass
 
 
 def _job_clean():
@@ -833,6 +848,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
             if tmpdir:
                 shutil.rmtree(tmpdir, ignore_errors=True)
             _GENERATION_LOCK.release()
+            unregister_job_callback(job_id)
 
 
 def start_video_job(mls_number, agent_id, cover_lines, flask_app, intro_bytes=None):

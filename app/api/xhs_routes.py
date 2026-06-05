@@ -362,19 +362,42 @@ def get_agent_videos():
         return jsonify([])
 
 
+def _trigger_github_actions(job_id):
+    """Fire a repository_dispatch to start the Actions video workflow."""
+    gh_pat  = os.environ.get('GH_PAT', '')
+    gh_repo = os.environ.get('GH_REPO', 'juli20008/tourit')
+    if not gh_pat:
+        return False
+    try:
+        r = requests.post(
+            f'https://api.github.com/repos/{gh_repo}/dispatches',
+            headers={
+                'Authorization': f'Bearer {gh_pat}',
+                'Accept': 'application/vnd.github+json',
+                'X-GitHub-Api-Version': '2022-11-28',
+            },
+            json={'event_type': 'generate-video', 'client_payload': {'job_id': job_id}},
+            timeout=10,
+        )
+        return r.status_code == 204
+    except Exception:
+        return False
+
+
 @xhs_routes.route('/agent/video/<mls_number>', methods=['POST'])
 def generate_agent_video(mls_number):
     """Start XHS video generation. Accepts multipart/form-data with optional intro video."""
     from flask_login import current_user
     from flask import current_app
+    from app.services.xhs_db_jobs import ensure_jobs_table, create_job
     from app.services.xhs_video_service import start_video_job
+    import uuid
 
     if not current_user.is_authenticated:
         return jsonify({'error': 'Unauthorized'}), 401
     if not current_user.agent:
         return jsonify({'error': 'Agent account required'}), 403
 
-    # Accept both JSON and multipart/form-data
     if request.content_type and 'multipart' in request.content_type:
         cover_lines = [
             str(request.form.get('cover1', '') or '')[:40],
@@ -392,6 +415,35 @@ def generate_agent_video(mls_number):
         ]
         intro_bytes = None
 
+    use_actions = bool(os.environ.get('GH_PAT'))
+
+    if use_actions:
+        job_id = uuid.uuid4().hex
+        intro_r2_key = None
+
+        # Upload intro video to R2 as temp file
+        if intro_bytes and len(intro_bytes) > 1000:
+            try:
+                from app.s3_helpers import _upload_bytes
+                ext = 'mp4' if (intro_bytes[:4] in (b'\x00\x00\x00\x18', b'\x00\x00\x00\x20') or intro_bytes[4:8] == b'ftyp') else 'webm'
+                intro_r2_key = f'tmp-intros/{job_id}.{ext}'
+                _upload_bytes(intro_bytes, intro_r2_key, f'video/{ext}')
+            except Exception:
+                intro_r2_key = None
+
+        try:
+            ensure_jobs_table()
+            create_job(job_id, mls_number, current_user.id, cover_lines, intro_r2_key)
+        except Exception as e:
+            return jsonify({'error': f'DB error: {e}'}), 500
+
+        dispatched = _trigger_github_actions(job_id)
+        if not dispatched:
+            return jsonify({'error': 'Failed to trigger video generation. Check GH_PAT.'}), 500
+
+        return jsonify({'job_id': job_id, 'status': 'queued'})
+
+    # Fallback: run in background thread on this server
     job_id = start_video_job(
         mls_number, current_user.id, cover_lines,
         current_app._get_current_object(),
@@ -404,10 +456,14 @@ def generate_agent_video(mls_number):
 def get_video_status(job_id):
     """Poll video generation job status."""
     from flask_login import current_user
-    from app.services.xhs_video_service import get_job
 
     if not current_user.is_authenticated:
         return jsonify({'error': 'Unauthorized'}), 401
+
+    if os.environ.get('GH_PAT'):
+        from app.services.xhs_db_jobs import get_job
+    else:
+        from app.services.xhs_video_service import get_job
 
     job = get_job(job_id)
     if not job:
