@@ -324,7 +324,7 @@ def _generate_intro_overlay(line1, line2, line3, out_path, content_rect=None):
 
 def _transcode_intro(ffmpeg, src_path, out_path):
     """
-    Trim intro to 10s, resize/pad to 720×960 (portrait), re-encode.
+    Trim intro to 20s, resize/pad to 720×960 (portrait), re-encode.
     Audio is stripped — narration track replaces it later.
     Input may be vertical (good) or landscape (pad with blurred background).
     """
@@ -343,7 +343,7 @@ def _transcode_intro(ffmpeg, src_path, out_path):
         [
             ffmpeg, "-y",
             "-i", src_path,
-            "-t", "10",
+            "-t", "20",
             "-filter_complex", vf,
             "-an",
             "-r", str(FPS),
