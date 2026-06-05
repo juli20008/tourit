@@ -204,6 +204,133 @@ def _generate_cover(line1, line2, line3, out_path):
         pass
 
 
+def _generate_composite_cover(ffmpeg, intro_path, photo_path, line1, line2, line3, out_path):
+    """
+    Cover frame: first property photo (cropped 3:4) as background,
+    agent person-cutout (rembg) from intro first frame in centre-bottom,
+    three impact-text lines overlaid.
+    Falls back to plain _generate_cover() if anything fails.
+    """
+    import io as _io
+    try:
+        from PIL import Image, ImageDraw, ImageEnhance
+
+        # ── 1. Extract first frame from intro (skip if no intro provided) ───────
+        person_rgba = None
+        if intro_path and os.path.exists(intro_path):
+            frame_png = out_path + "_frame.png"
+            try:
+                subprocess.run(
+                    [ffmpeg, "-y", "-i", intro_path,
+                     "-vframes", "1", "-q:v", "2", frame_png],
+                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                )
+                if os.path.exists(frame_png) and os.path.getsize(frame_png) > 1000:
+                    # ── 2. Background removal ─────────────────────────────────
+                    try:
+                        from rembg import remove as rembg_remove
+                        with open(frame_png, "rb") as _f:
+                            person_rgba = Image.open(
+                                _io.BytesIO(rembg_remove(_f.read()))
+                            ).convert("RGBA")
+                    except Exception:
+                        person_rgba = Image.open(frame_png).convert("RGBA")
+            except Exception:
+                pass
+            finally:
+                try:
+                    os.unlink(frame_png)
+                except OSError:
+                    pass
+
+        # ── 3. Crop property photo to 720×960 (centre-crop) ───────────────────
+        bg = Image.open(photo_path).convert("RGB")
+        bw, bh = bg.size
+        tgt_ratio = OUTPUT_W / OUTPUT_H          # 0.75 (portrait)
+        if bw / bh > tgt_ratio:                  # too wide → crop sides
+            new_w = int(bh * tgt_ratio)
+            bg = bg.crop(((bw - new_w) // 2, 0, (bw - new_w) // 2 + new_w, bh))
+        else:                                    # too tall → crop top/bottom
+            new_h = int(bw / tgt_ratio)
+            bg = bg.crop((0, (bh - new_h) // 2, bw, (bh - new_h) // 2 + new_h))
+        bg = bg.resize((OUTPUT_W, OUTPUT_H), Image.LANCZOS)
+        # Darken background for text contrast
+        bg = ImageEnhance.Brightness(bg).enhance(0.65)
+        canvas = bg.convert("RGBA")
+
+        # ── 4. Scale + position person (centre, aligned to bottom) ───────────
+        if person_rgba is not None:
+            pw, ph = person_rgba.size
+            target_h = int(OUTPUT_H * 0.80)
+            target_w = int(pw * target_h / ph)
+            if target_w > OUTPUT_W:              # clamp if too wide
+                target_w = OUTPUT_W
+                target_h = int(ph * target_w / pw)
+            person_rgba = person_rgba.resize((target_w, target_h), Image.LANCZOS)
+            px = (OUTPUT_W - target_w) // 2
+            py = OUTPUT_H - target_h
+            canvas.paste(person_rgba, (px, py), person_rgba)
+
+        # ── 5. Impact text overlay ────────────────────────────────────────────
+        result = canvas.convert("RGB")
+        draw = ImageDraw.Draw(result)
+        font_path = _get_chinese_font(bold=True)
+
+        def _load(size):
+            if font_path:
+                try:
+                    return ImageFont.truetype(font_path, size)
+                except Exception:
+                    pass
+            from PIL import ImageFont as _IF
+            return _IF.load_default()
+
+        from PIL import ImageFont
+        STROKE_W = 9
+        MAX_W = OUTPUT_W - 60
+
+        def _fit(text, start_size):
+            size = start_size
+            while size >= 20:
+                f = _load(size)
+                bbox = draw.textbbox((0, 0), text, font=f, stroke_width=STROKE_W)
+                if bbox[2] - bbox[0] <= MAX_W:
+                    return f
+                size -= 4
+            return _load(20)
+
+        f1 = _fit(line1, 96) if line1 else _load(96)
+        f2 = _fit(line2, 76) if line2 else _load(76)
+        f3 = _fit(line3, 62) if line3 else _load(62)
+
+        if line1:
+            bbox = draw.textbbox((0, 0), line1, font=f1, stroke_width=STROKE_W)
+            w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+            _draw_impact_text(draw, line1, f1,
+                              (OUTPUT_W - w) // 2, int(OUTPUT_H * 0.07), STROKE_W)
+
+        spacing = 18
+        bottom = [(t, f) for t, f in [(line2, f2), (line3, f3)] if t]
+        if bottom:
+            total_h = sum(
+                draw.textbbox((0, 0), t, font=f, stroke_width=STROKE_W)[3] -
+                draw.textbbox((0, 0), t, font=f, stroke_width=STROKE_W)[1]
+                for t, f in bottom
+            ) + spacing * (len(bottom) - 1)
+            y = OUTPUT_H - 80 - total_h
+            for text, font in bottom:
+                bbox = draw.textbbox((0, 0), text, font=font, stroke_width=STROKE_W)
+                w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+                _draw_impact_text(draw, text, font, (OUTPUT_W - w) // 2, y, STROKE_W)
+                y += h + spacing
+
+        result.save(out_path, "PNG")
+        return True
+
+    except Exception as _e:
+        return False
+
+
 # ── 小红书-style cover overlay for intro video ──────────────────────────────────
 
 def _video_content_rect(ffprobe, src_path):
@@ -511,12 +638,16 @@ def _probe_dimensions(ffprobe, path):
     return OUTPUT_W, OUTPUT_H
 
 
-def _make_clip(ffmpeg, ffprobe, img_path, out_path, reverse=False):
+def _make_clip(ffmpeg, ffprobe, img_path, out_path, reverse=False,
+               duration=None, zoom_start=None, zoom_end=None):
+    dur = duration if duration is not None else PHOTO_DURATION
+    zs  = zoom_start if zoom_start is not None else ZOOM_START
+    ze  = zoom_end   if zoom_end   is not None else ZOOM_END
     src_w, src_h = _probe_dimensions(ffprobe, img_path)
-    ease = f"(1-cos(PI*t/{PHOTO_DURATION}))/2"
+    ease = f"(1-cos(PI*t/{dur}))/2"
     if reverse:
         ease = f"(1-({ease}))"
-    z = f"({ZOOM_START}+({ZOOM_END}-{ZOOM_START})*({ease}))"
+    z = f"({zs}+({ze}-{zs})*({ease}))"
     scaled_w_at_1 = src_w * OUTPUT_H / src_h
     if scaled_w_at_1 >= OUTPUT_W:
         sw = f"trunc(iw*{OUTPUT_H}/ih*({z})/2)*2"
@@ -533,7 +664,7 @@ def _make_clip(ffmpeg, ffprobe, img_path, out_path, reverse=False):
     subprocess.run(
         [
             ffmpeg, "-y",
-            "-loop", "1", "-t", str(PHOTO_DURATION),
+            "-loop", "1", "-t", str(dur),
             "-i", img_path,
             "-vf", f"{scale},{crop}",
             "-r", str(FPS),
@@ -545,6 +676,31 @@ def _make_clip(ffmpeg, ffprobe, img_path, out_path, reverse=False):
         check=True,
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
+
+
+def _concat_clips(ffmpeg, clip_paths, out_path):
+    """Concatenate video-only clips (no audio) using ffmpeg concat demuxer."""
+    import tempfile as _tf
+    list_file = out_path + ".txt"
+    try:
+        with open(list_file, "w") as f:
+            for p in clip_paths:
+                f.write(f"file '{p}'\n")
+        subprocess.run(
+            [ffmpeg, "-y", "-f", "concat", "-safe", "0",
+             "-i", list_file,
+             "-c", "copy", out_path],
+            check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+        return out_path
+    except Exception:
+        # concat failed — return the original intro clip unchanged
+        return clip_paths[-1] if clip_paths else None
+    finally:
+        try:
+            os.unlink(list_file)
+        except OSError:
+            pass
 
 
 # ── Job state helpers ──────────────────────────────────────────────────────────
@@ -648,7 +804,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                     # Extract original audio (user's voice) before stripping for video
                     _intro_audio_tmp = os.path.join(tmpdir, "intro_audio.aac")
                     subprocess.run(
-                        [ffmpeg, "-y", "-i", raw_intro, "-vn", "-t", "10",
+                        [ffmpeg, "-y", "-i", raw_intro, "-vn", "-t", "20",
                          "-c:a", "aac", "-threads", "1", _intro_audio_tmp],
                         check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                     )
@@ -667,14 +823,42 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                         _composite_overlay(ffmpeg, transcoded_intro, overlay_png, intro_clip_path)
                     else:
                         os.rename(transcoded_intro, intro_clip_path)
+
+                    # ── Composite cover frame (property photo + agent cutout + text) ──
+                    # Prepend a ~1.5 s static cover clip so XHS thumbnail looks polished.
+                    if downloaded:
+                        comp_png = os.path.join(tmpdir, "composite_cover.png")
+                        ok = _generate_composite_cover(
+                            ffmpeg, raw_intro, downloaded[0],
+                            cover_lines[0], cover_lines[1], cover_lines[2],
+                            comp_png,
+                        )
+                        if ok and os.path.exists(comp_png):
+                            comp_clip = os.path.join(clips_dir, "clip_comp_cover.mp4")
+                            _make_clip(ffmpeg, ffprobe, comp_png, comp_clip,
+                                       duration=1.5, zoom_start=1.0, zoom_end=1.0)
+                            # Insert at the very front
+                            intro_clip_path = _concat_clips(
+                                ffmpeg, [comp_clip, intro_clip_path],
+                                os.path.join(clips_dir, "clip_intro_with_cover.mp4"),
+                            )
                 except Exception:
                     intro_clip_path = None
                     intro_audio_path = None
 
             if not intro_clip_path:
-                # Fall back to static cover slide
+                # Fall back to composite cover (photo + text) or plain dark cover
                 cover_path = os.path.join(tmpdir, "cover.png")
-                _generate_cover(cover_lines[0], cover_lines[1], cover_lines[2], cover_path)
+                if downloaded:
+                    ok = _generate_composite_cover(
+                        ffmpeg, None, downloaded[0],
+                        cover_lines[0], cover_lines[1], cover_lines[2],
+                        cover_path,
+                    )
+                    if not ok:
+                        _generate_cover(cover_lines[0], cover_lines[1], cover_lines[2], cover_path)
+                else:
+                    _generate_cover(cover_lines[0], cover_lines[1], cover_lines[2], cover_path)
                 if os.path.exists(cover_path):
                     cover_clip_path = os.path.join(clips_dir, "clip_cover.mp4")
                     _make_clip(ffmpeg, ffprobe, cover_path, cover_clip_path)
