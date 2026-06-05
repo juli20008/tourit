@@ -25,6 +25,7 @@ MAX_PHOTOS = 20
 
 _JOBS: dict = {}
 _JOB_TTL = 600  # 10 minutes
+_GENERATION_LOCK = threading.Semaphore(1)  # only one video at a time on 512 MB
 
 
 # ── ffmpeg discovery (same logic as photo_to_video.py) ────────────────────────
@@ -507,6 +508,10 @@ def get_job(job_id):
 # ── Main pipeline (runs in background thread) ──────────────────────────────────
 
 def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_bytes=None):
+    if not _GENERATION_LOCK.acquire(blocking=False):
+        with flask_app.app_context():
+            _job_set(job_id, {"status": "error", "message": "另一个视频正在生成中，请稍后再试 / Another video is already generating, please try again in a few minutes"})
+        return
     with flask_app.app_context():
         tmpdir = None
         try:
@@ -769,6 +774,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
         finally:
             if tmpdir:
                 shutil.rmtree(tmpdir, ignore_errors=True)
+            _GENERATION_LOCK.release()
 
 
 def start_video_job(mls_number, agent_id, cover_lines, flask_app, intro_bytes=None):
