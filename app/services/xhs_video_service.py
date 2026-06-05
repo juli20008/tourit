@@ -16,12 +16,12 @@ import requests
 OUTPUT_W = 720
 OUTPUT_H = 960
 PHOTO_DURATION = 3.0
-FPS = 15
+FPS = 20
 CRF = 28
 PRESET = "ultrafast"
 ZOOM_START = 1.0
 ZOOM_END = 1.15
-MAX_PHOTOS = 12
+MAX_PHOTOS = 20
 
 _JOBS: dict = {}
 _JOB_TTL = 600  # 10 minutes
@@ -336,7 +336,7 @@ def _transcode_intro(ffmpeg, src_path, out_path):
         f"[a]scale={OUTPUT_W}:{OUTPUT_H}:force_original_aspect_ratio=decrease:flags=bilinear,"
         f"pad={OUTPUT_W}:{OUTPUT_H}:(ow-iw)/2:(oh-ih)/2:color=black[fg];"
         f"[b]scale={OUTPUT_W}:{OUTPUT_H}:force_original_aspect_ratio=increase:flags=bilinear,"
-        f"crop={OUTPUT_W}:{OUTPUT_H},boxblur=6:2[bg];"
+        f"crop={OUTPUT_W}:{OUTPUT_H},boxblur=20:5[bg];"
         f"[bg][fg]overlay=(W-w)/2:(H-h)/2"
     )
     subprocess.run(
@@ -528,7 +528,7 @@ def _make_clip(ffmpeg, ffprobe, img_path, out_path, reverse=False):
         sh = f"trunc(ih*{OUTPUT_W}/iw*({z})/2)*2"
         px = f"(in_w-{OUTPUT_W})/2"
         py = f"(in_h-{OUTPUT_H})*({ease})"
-    scale = f"scale='{sw}':'{sh}':eval=frame:flags=bilinear"
+    scale = f"scale='{sw}':'{sh}':eval=frame:flags=lanczos"
     crop = f"crop={OUTPUT_W}:{OUTPUT_H}:'{px}':'{py}'"
     subprocess.run(
         [

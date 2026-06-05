@@ -142,7 +142,7 @@ def _minimax_tts(text, voice_id=None):
 
     model  = os.environ.get("MINIMAX_TTS_MODEL", "speech-02-hd")
     preset = os.environ.get("MINIMAX_VOICE_ID", "male-qn-jingying")
-    speed  = float(os.environ.get("MINIMAX_TTS_SPEED", "1.0"))
+    speed  = float(os.environ.get("MINIMAX_TTS_SPEED", "1.2"))
 
     resp = requests.post(
         f"{_MINIMAX_BASE}/v1/t2a_v2",
