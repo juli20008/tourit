@@ -5,11 +5,15 @@ import QRCode from "qrcode";
 const fmtPrice = (p) =>
 	"$" + (p ?? 0).toFixed(0).replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,");
 
+const API_BASE = process.env.REACT_APP_API_URL
+	? process.env.REACT_APP_API_URL.replace(/\/$/, "")
+	: (typeof window !== "undefined" && window.location.hostname === "localhost" ? "" : "https://api.tourit.ca");
+
 // Load image via backend proxy to avoid canvas CORS taint.
 const loadImg = (url) =>
 	new Promise((resolve) => {
 		if (!url) return resolve({ img: null, tainted: false });
-		const proxyUrl = `/share/proxy-image?url=${encodeURIComponent(url)}`;
+		const proxyUrl = `${API_BASE}/share/proxy-image?url=${encodeURIComponent(url)}`;
 		fetch(proxyUrl)
 			.then((r) => (r.ok ? r.blob() : Promise.reject()))
 			.then((blob) => {
