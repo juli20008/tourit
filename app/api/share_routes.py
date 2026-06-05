@@ -43,7 +43,13 @@ def proxy_image():
     if not any(domain == d or domain.endswith("." + d) for d in _ALLOWED):
         return "", 403
     try:
-        r = http_client.get(url, timeout=8, headers={"User-Agent": "Tourit/1.0"})
+        r = http_client.get(url, timeout=12, headers={
+            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "Accept": "image/webp,image/avif,image/*,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Referer": "https://www.realtor.ca/",
+            "Cache-Control": "no-cache",
+        })
         if not r.ok:
             return "", 502
         ct = r.headers.get("Content-Type", "image/jpeg")

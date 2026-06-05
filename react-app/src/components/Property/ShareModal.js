@@ -10,6 +10,7 @@ const API_BASE = process.env.REACT_APP_API_URL
 	: (typeof window !== "undefined" && window.location.hostname === "localhost" ? "" : "https://api.tourit.ca");
 
 // Load image via backend proxy to avoid canvas CORS taint.
+// Falls back to direct crossOrigin load (tainted) then uncredentialed load if proxy fails.
 const loadImg = (url) =>
 	new Promise((resolve) => {
 		if (!url) return resolve({ img: null, tainted: false });
@@ -20,11 +21,25 @@ const loadImg = (url) =>
 				const blobUrl = URL.createObjectURL(blob);
 				const img = new Image();
 				img.onload = () => { URL.revokeObjectURL(blobUrl); resolve({ img, tainted: false }); };
-				img.onerror = () => { URL.revokeObjectURL(blobUrl); resolve({ img: null, tainted: false }); };
+				img.onerror = () => { URL.revokeObjectURL(blobUrl); _loadDirect(url, resolve); };
 				img.src = blobUrl;
 			})
-			.catch(() => resolve({ img: null, tainted: false }));
+			.catch(() => _loadDirect(url, resolve));
 	});
+
+// Direct fallback: try with CORS headers first, then without (taints canvas).
+const _loadDirect = (url, resolve) => {
+	const img = new Image();
+	img.crossOrigin = "anonymous";
+	img.onload = () => resolve({ img, tainted: false });
+	img.onerror = () => {
+		const img2 = new Image();
+		img2.onload = () => resolve({ img: img2, tainted: true });
+		img2.onerror = () => resolve({ img: null, tainted: false });
+		img2.src = url + (url.includes("?") ? "&" : "?") + "_nc=" + Date.now();
+	};
+	img.src = url;
+};
 
 const loadImgFromUrl = (src) =>
 	new Promise((resolve) => {
