@@ -182,16 +182,50 @@ def _generate_cover(line1, line2, line3, out_path):
 
 # ── 小红书-style cover overlay for intro video ──────────────────────────────────
 
-def _generate_intro_overlay(line1, line2, line3, out_path):
+def _video_content_rect(ffprobe, src_path):
+    """
+    Return (x_off, y_off, cw, ch) — the rect where actual video pixels land
+    inside the 720×960 canvas after scale-to-fit + pad with black.
+    Falls back to full canvas if probe fails.
+    """
+    try:
+        import json as _json
+        out = subprocess.check_output(
+            [ffprobe, "-v", "quiet", "-select_streams", "v:0",
+             "-show_entries", "stream=width,height",
+             "-of", "json", src_path],
+            stderr=subprocess.DEVNULL,
+        )
+        info = _json.loads(out)
+        sw = info["streams"][0]["width"]
+        sh = info["streams"][0]["height"]
+        scale = min(OUTPUT_W / sw, OUTPUT_H / sh)
+        cw = int(sw * scale)
+        ch = int(sh * scale)
+        x_off = (OUTPUT_W - cw) // 2
+        y_off = (OUTPUT_H - ch) // 2
+        return x_off, y_off, cw, ch
+    except Exception:
+        return 0, 0, OUTPUT_W, OUTPUT_H
+
+
+def _generate_intro_overlay(line1, line2, line3, out_path, content_rect=None):
     """
     Render a transparent 720×960 PNG overlay — 小红书 style:
     dark text with white stroke, no pill background.
-    Line 1 at 2/10 from top; lines 2-3 stacked at bottom.
+    Text is constrained to content_rect (the actual video area, not black bars).
+    Line 1 at 2/10 from top of content; lines 2-3 stacked at bottom of content.
     """
     try:
         from PIL import Image, ImageDraw, ImageFont
 
         W, H = OUTPUT_W, OUTPUT_H
+        if content_rect:
+            x_off, y_off, cw, ch = content_rect
+        else:
+            x_off, y_off, cw, ch = 0, 0, W, H
+
+        MARGIN = 30
         img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
         draw = ImageDraw.Draw(img)
 
@@ -205,13 +239,12 @@ def _generate_intro_overlay(line1, line2, line3, out_path):
                     pass
             return ImageFont.load_default()
 
-        TEXT_COLOR   = (15, 23, 42, 255)    # near-black
-        STROKE_COLOR = (255, 255, 255, 255)  # white outline
+        TEXT_COLOR   = (15, 23, 42, 255)
+        STROKE_COLOR = (255, 255, 255, 255)
         STROKE_W     = 4
-        MAX_W        = W - 60  # 30px margin each side
+        MAX_W        = cw - MARGIN * 2  # constrained to content width
 
         def _fit(text, start_size):
-            """Shrink font until text fits within MAX_W."""
             size = start_size
             while size >= 20:
                 f = _load(size)
@@ -225,7 +258,8 @@ def _generate_intro_overlay(line1, line2, line3, out_path):
             bbox = draw.textbbox((0, 0), text, font=font, stroke_width=STROKE_W)
             tw = bbox[2] - bbox[0]
             th = bbox[3] - bbox[1]
-            x = (W - tw) // 2
+            # center within content area horizontally
+            x = x_off + (cw - tw) // 2
             y = y_center - th // 2
             draw.text((x, y), text, font=font, fill=TEXT_COLOR,
                       stroke_width=STROKE_W, stroke_fill=STROKE_COLOR)
@@ -238,11 +272,11 @@ def _generate_intro_overlay(line1, line2, line3, out_path):
         ]
         lines_data = [line1, line2, line3]
 
-        # Line 1 at 2/10 from top
+        # Line 1 at 2/10 from top of content area
         if line1:
-            _draw_text_centered(line1, fonts[0], int(H * 0.2))
+            _draw_text_centered(line1, fonts[0], y_off + int(ch * 0.2))
 
-        # Lines 2-3 stacked at bottom
+        # Lines 2-3 stacked at bottom of content area
         spacing = 20
         bottom_texts = [(t, f) for t, f in zip(lines_data[1:], fonts[1:]) if t]
         if bottom_texts:
@@ -251,12 +285,12 @@ def _generate_intro_overlay(line1, line2, line3, out_path):
                 draw.textbbox((0, 0), t, font=f, stroke_width=STROKE_W)[1]
                 for t, f in bottom_texts
             ) + spacing * (len(bottom_texts) - 1)
-            y_cursor = H - 90 - total_h
+            y_cursor = y_off + ch - 90 - total_h
             for text, font in bottom_texts:
                 bbox = draw.textbbox((0, 0), text, font=font, stroke_width=STROKE_W)
                 th = bbox[3] - bbox[1]
                 tw = bbox[2] - bbox[0]
-                x = (W - tw) // 2
+                x = x_off + (cw - tw) // 2
                 draw.text((x, y_cursor), text, font=font, fill=TEXT_COLOR,
                           stroke_width=STROKE_W, stroke_fill=STROKE_COLOR)
                 y_cursor += th + spacing
@@ -586,10 +620,11 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                         intro_audio_path = _intro_audio_tmp
 
                     transcoded_intro = os.path.join(tmpdir, "intro_base.mp4")
+                    content_rect = _video_content_rect(ffprobe, raw_intro)
                     _transcode_intro(ffmpeg, raw_intro, transcoded_intro)
 
                     overlay_png = os.path.join(tmpdir, "intro_overlay.png")
-                    _generate_intro_overlay(cover_lines[0], cover_lines[1], cover_lines[2], overlay_png)
+                    _generate_intro_overlay(cover_lines[0], cover_lines[1], cover_lines[2], overlay_png, content_rect=content_rect)
 
                     intro_clip_path = os.path.join(clips_dir, "clip_intro.mp4")
                     if os.path.exists(overlay_png):
