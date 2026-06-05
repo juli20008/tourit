@@ -363,23 +363,22 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
 # ── Narration text ─────────────────────────────────────────────────────────────
 
-def _generate_narration(listing_data):
+def _generate_narration(listing_data, cover_lines=None):
     api_key = os.environ.get("DEEPSEEK_API_KEY", "")
     if not api_key:
         return None
 
-    price = f"{int(listing_data.get('list_price') or 0):,}"
     beds = listing_data.get("bed", "?")
     baths = listing_data.get("bath", "?")
-    street_parts = filter(None, [
-        str(listing_data.get("street_number", "") or ""),
-        str(listing_data.get("street_name", "") or ""),
-        str(listing_data.get("street_suffix", "") or ""),
-    ])
-    address = " ".join(street_parts) + f", {listing_data.get('city', '')}"
     desc = (listing_data.get("description") or "")[:600]
     style = listing_data.get("style") or listing_data.get("property_type") or "住宅"
     sqft = listing_data.get("sqft", "")
+
+    cover_hints = ""
+    if cover_lines:
+        hints = [l for l in cover_lines if l and l.strip()]
+        if hints:
+            cover_hints = f"\n经纪人封面关键词（请在口播中自然融入1-2个）：{'、'.join(hints)}"
 
     prompt = f"""你是一位加拿大华人房产经纪，请用普通话为以下房源录制一段看房视频口播文案，时长大约60秒（约440-480字）。
 
@@ -387,7 +386,7 @@ def _generate_narration(listing_data):
 社区：{listing_data.get('neighborhood') or listing_data.get('city', '')}
 房型：{style}，{beds}卧{baths}卫
 面积：{f'{sqft}平方英尺' if sqft else '未知'}
-描述：{desc if desc else '暂无'}
+描述：{desc if desc else '暂无'}{cover_hints}
 
 写作要求：
 - 语言自然，像真人在视频里直接说话，无需标题或解释
@@ -585,7 +584,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                 "property_type": listing.property_type,
                 "sqft": listing.sqft,
             }
-            narration = _generate_narration(listing_data)
+            narration = _generate_narration(listing_data, cover_lines=cover_lines)
             if not narration:
                 city = listing.city or "多伦多"
                 bed = listing.bed or "?"
