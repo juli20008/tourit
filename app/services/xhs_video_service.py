@@ -658,23 +658,9 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
             except Exception:
                 audio_duration = os.path.getsize(audio_path) / 16000
 
-            ass_path = os.path.join(tmpdir, "subs.ass")
-            font_path = _get_chinese_font()
-            _build_ass(narration, audio_duration, font_path, ass_path)
-
             final_path = os.path.join(tmpdir, "final.mp4")
 
-            # Build subtitle filter — include font dir if we have a font
-            if font_path and os.path.exists(ass_path):
-                font_dir = os.path.dirname(font_path).replace("\\", "/").replace(":", "\\:")
-                ass_escaped = ass_path.replace("\\", "/").replace(":", "\\:")
-                sub_filter = f"subtitles='{ass_escaped}':fontsdir='{font_dir}'"
-                vf_args = ["-vf", sub_filter]
-                vc_args = ["-c:v", "libx264", "-crf", str(CRF), "-preset", PRESET, "-pix_fmt", "yuv420p", "-threads", "1", "-bufsize", "512k", "-maxrate", "1500k"]
-            else:
-                vf_args = []
-                vc_args = ["-c:v", "copy"]
-
+            # Audio mix only — copy video stream to avoid full re-encode (OOM risk on 512MB)
             subprocess.run(
                 [
                     ffmpeg, "-y",
@@ -682,8 +668,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                     "-i", audio_path,
                     "-map", "0:v:0",
                     "-map", "1:a:0",
-                    *vf_args,
-                    *vc_args,
+                    "-c:v", "copy",
                     "-c:a", "aac",
                     "-shortest",
                     final_path,
