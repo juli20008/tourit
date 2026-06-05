@@ -130,25 +130,35 @@ def _generate_cover(line1, line2, line3, out_path):
                     pass
             return ImageFont.load_default()
 
-        f1, f2, f3 = _load(88), _load(64), _load(52)
+        f1, f2, f3 = _load(76), _load(60), _load(50)
+        STROKE_W = 3
 
         # Line 1 at 2/10 from top
         if line1:
-            bbox = draw.textbbox((0, 0), line1, font=f1)
+            bbox = draw.textbbox((0, 0), line1, font=f1, stroke_width=STROKE_W)
             w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
             x = (OUTPUT_W - w) // 2
             y = int(OUTPUT_H * 0.2) - h // 2
-            draw.text((x, y), line1, font=f1, fill="#f8fafc")
+            draw.text((x, y), line1, font=f1, fill="#f8fafc",
+                      stroke_width=STROKE_W, stroke_fill="#0f172a")
 
         # Lines 2-3 at bottom
-        y = OUTPUT_H - 220
-        for text, font, gap in [(line2, f2, 90), (line3, f3, 72)]:
-            if text:
-                bbox = draw.textbbox((0, 0), text, font=font)
-                w = bbox[2] - bbox[0]
+        spacing = 20
+        bottom = [(t, f) for t, f in [(line2, f2), (line3, f3)] if t]
+        if bottom:
+            total_h = sum(
+                draw.textbbox((0, 0), t, font=f, stroke_width=STROKE_W)[3] -
+                draw.textbbox((0, 0), t, font=f, stroke_width=STROKE_W)[1]
+                for t, f in bottom
+            ) + spacing * (len(bottom) - 1)
+            y = OUTPUT_H - 90 - total_h
+            for text, font in bottom:
+                bbox = draw.textbbox((0, 0), text, font=font, stroke_width=STROKE_W)
+                w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
                 x = (OUTPUT_W - w) // 2
-                draw.text((x, y), text, font=font, fill="#f8fafc")
-                y += gap
+                draw.text((x, y), text, font=font, fill="#f8fafc",
+                          stroke_width=STROKE_W, stroke_fill="#0f172a")
+                y += h + spacing
 
         img.save(out_path, "PNG")
     except ImportError:
@@ -159,12 +169,12 @@ def _generate_cover(line1, line2, line3, out_path):
 
 def _generate_intro_overlay(line1, line2, line3, out_path):
     """
-    Render a transparent 720×960 PNG overlay with 小红书-style pill text boxes.
-    Three lines sit in the lower third with gradient fade, drop shadows, rounded pills.
+    Render a transparent 720×960 PNG overlay — 小红书 style:
+    dark text with white stroke, no pill background.
+    Line 1 at 2/10 from top; lines 2-3 stacked at bottom.
     """
     try:
         from PIL import Image, ImageDraw, ImageFont
-        import math
 
         W, H = OUTPUT_W, OUTPUT_H
         img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
@@ -180,67 +190,47 @@ def _generate_intro_overlay(line1, line2, line3, out_path):
                     pass
             return ImageFont.load_default()
 
-        # Gradient overlay — bottom 45% of frame fades from transparent to near-black
-        grad_top = int(H * 0.55)
-        for y in range(grad_top, H):
-            alpha = int(200 * ((y - grad_top) / (H - grad_top)) ** 1.4)
-            draw.line([(0, y), (W, y)], fill=(0, 0, 0, alpha))
+        TEXT_COLOR   = (15, 23, 42, 255)    # near-black
+        STROKE_COLOR = (255, 255, 255, 255)  # white outline
+        STROKE_W     = 4
 
-        lines = [
-            (line1, _load(52), (255, 255, 255)),
-            (line2, _load(42), (253, 224, 71)),   # warm yellow accent
-            (line3, _load(36), (203, 213, 225)),   # muted blue-grey
-        ]
+        def _draw_text_centered(text, font, y_center):
+            bbox = draw.textbbox((0, 0), text, font=font, stroke_width=STROKE_W)
+            tw = bbox[2] - bbox[0]
+            th = bbox[3] - bbox[1]
+            x = (W - tw) // 2
+            y = y_center - th // 2
+            draw.text((x, y), text, font=font, fill=TEXT_COLOR,
+                      stroke_width=STROKE_W, stroke_fill=STROKE_COLOR)
+            return th
 
-        pad_x, pad_y, radius = 24, 12, 22
-        pill_colors = [
-            (30, 64, 175, 200),   # deep blue
-            (146, 64, 14, 200),   # warm amber
-            (15, 118, 110, 200),  # teal
-        ]
+        fonts = [_load(76), _load(60), _load(50)]
+        lines_data = [line1, line2, line3]
 
-        # Measure all lines
-        rendered = []
-        for text, font, color in lines:
-            if not text:
-                rendered.append(None)
-                continue
-            bbox = draw.textbbox((0, 0), text, font=font)
-            tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
-            rendered.append((text, font, color, tw, th))
+        # Line 1 at 2/10 from top
+        if line1:
+            _draw_text_centered(line1, fonts[0], int(H * 0.2))
 
-        spacing = 18
-        shadow_layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-        sdraw = ImageDraw.Draw(shadow_layer)
+        # Lines 2-3 stacked at bottom
+        spacing = 20
+        bottom_texts = [(t, f) for t, f in zip(lines_data[1:], fonts[1:]) if t]
+        if bottom_texts:
+            total_h = sum(
+                draw.textbbox((0, 0), t, font=f, stroke_width=STROKE_W)[3] -
+                draw.textbbox((0, 0), t, font=f, stroke_width=STROKE_W)[1]
+                for t, f in bottom_texts
+            ) + spacing * (len(bottom_texts) - 1)
+            y_cursor = H - 90 - total_h
+            for text, font in bottom_texts:
+                bbox = draw.textbbox((0, 0), text, font=font, stroke_width=STROKE_W)
+                th = bbox[3] - bbox[1]
+                tw = bbox[2] - bbox[0]
+                x = (W - tw) // 2
+                draw.text((x, y_cursor), text, font=font, fill=TEXT_COLOR,
+                          stroke_width=STROKE_W, stroke_fill=STROKE_COLOR)
+                y_cursor += th + spacing
 
-        def _draw_pill(i, r, y_pos):
-            text, font, color, tw, th = r
-            pill_w = tw + pad_x * 2
-            pill_h = th + pad_y * 2
-            x = (W - pill_w) // 2
-            sdraw.rounded_rectangle([x+3, y_pos+3, x+pill_w+3, y_pos+pill_h+3], radius=radius, fill=(0, 0, 0, 120))
-            draw.rounded_rectangle([x, y_pos, x+pill_w, y_pos+pill_h], radius=radius, fill=pill_colors[i])
-            draw.text((x+pad_x, y_pos+pad_y), text, font=font, fill=color)
-
-        # Line 1: pill centered at 2/10 from top
-        if rendered[0]:
-            pill_h0 = rendered[0][4] + pad_y * 2
-            _draw_pill(0, rendered[0], int(H * 0.2) - pill_h0 // 2)
-
-        # Lines 2-3: stacked at bottom
-        bottom = [(i, r) for i, r in enumerate(rendered[1:], 1) if r]
-        if bottom:
-            total_h_b = sum(r[4] + pad_y * 2 for _, r in bottom) + spacing * (len(bottom) - 1)
-            y_cursor = H - 80 - total_h_b
-            for i, r in bottom:
-                _draw_pill(i, r, y_cursor)
-                y_cursor += r[4] + pad_y * 2 + spacing
-
-        # Merge shadow beneath main layer
-        base = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-        base = Image.alpha_composite(base, shadow_layer)
-        base = Image.alpha_composite(base, img)
-        base.save(out_path, "PNG")
+        img.save(out_path, "PNG")
 
     except ImportError:
         pass
