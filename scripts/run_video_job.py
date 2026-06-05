@@ -71,9 +71,8 @@ def main():
             print(f"[run_video_job] Could not download intro (non-fatal): {e}")
             intro_bytes = None
 
-    # ── Create Flask app and run pipeline ────────────────────────────────────
-    from app import create_app
-    app = create_app()
+    # ── Load Flask app (module-level app, not factory) ───────────────────────
+    from app import app
 
     from app.services.xhs_db_jobs import db_status_callback
     from app.services.xhs_video_service import register_job_callback, _run_pipeline
