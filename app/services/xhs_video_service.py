@@ -399,10 +399,12 @@ def _generate_narration(listing_data, cover_lines=None):
     sqft = listing_data.get("sqft", "")
 
     cover_hints = ""
+    cover_opener = ""
     if cover_lines:
         hints = [l for l in cover_lines if l and l.strip()]
         if hints:
-            cover_hints = f"\n经纪人封面关键词（请在口播中自然融入1-2个）：{'、'.join(hints)}"
+            cover_hints = f"\n封面关键词（必须在开头前两句内直接点出，不要拖到后面）：{'、'.join(hints)}"
+            cover_opener = f"\n- 开头前两句必须直接点出封面关键词：{'、'.join(hints)}；这是观众第一眼看到的，要马上呼应"
 
     prompt = f"""你是一位加拿大华人房产经纪，请用普通话为以下房源录制一段看房视频口播文案，时长大约60秒（约440-480字）。
 
@@ -413,8 +415,8 @@ def _generate_narration(listing_data, cover_lines=None):
 描述：{desc if desc else '暂无'}{cover_hints}
 
 写作要求：
-- 语言自然，像真人在视频里直接说话，无需标题或解释
-- 开头直接介绍房子，不要用"大家好""我是地产经纪""今天带大家""今天介绍"等套话，一上来就讲房源亮点，可以提社区名称
+- 语言自然，像真人在视频里直接说话，无需标题或解释{cover_opener}
+- 不要用"大家好""我是地产经纪""今天带大家""今天介绍"等套话
 - 不要提及价格或售价
 - 中间详细介绍3-4个亮点（根据描述），语气真实平实
 - 结尾一句邀请预约看房
