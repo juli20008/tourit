@@ -451,7 +451,7 @@ def _generate_intro_overlay(line1, line2, line3, out_path, content_rect=None):
 
 def _transcode_intro(ffmpeg, src_path, out_path):
     """
-    Trim intro to 20s, resize/pad to 720×960 (portrait), re-encode.
+    Resize/pad intro to 720×960 (portrait), re-encode. No duration limit.
     Audio is stripped — narration track replaces it later.
     Input may be vertical (good) or landscape (pad with blurred background).
     """
@@ -470,7 +470,6 @@ def _transcode_intro(ffmpeg, src_path, out_path):
         [
             ffmpeg, "-y",
             "-i", src_path,
-            "-t", "20",
             "-filter_complex", vf,
             "-an",
             "-r", str(FPS),
@@ -809,7 +808,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                     # Extract original audio (user's voice) before stripping for video
                     _intro_audio_tmp = os.path.join(tmpdir, "intro_audio.aac")
                     subprocess.run(
-                        [ffmpeg, "-y", "-i", raw_intro, "-vn", "-t", "20",
+                        [ffmpeg, "-y", "-i", raw_intro, "-vn",
                          "-c:a", "aac", "-threads", "1", _intro_audio_tmp],
                         check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                     )
