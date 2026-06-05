@@ -339,18 +339,21 @@ WrapStyle: 1
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,{font_name},38,&H00FFFFFF,&H000000FF,&H00000000,&H99000000,-1,0,0,0,100,100,0,0,1,2.5,1,2,20,20,40,1
+Style: Default,{font_name},40,&H00FFFFFF,&H000000FF,&H00000000,&HAA000000,0,0,0,0,100,100,1,0,3,0,2,2,30,30,55,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
+
+    # 弹入 + 淡入淡出：每行字幕缩放弹出，出现/消失带渐变
+    _anim = r"{\fad(120,80)\t(0,100,\fscx108\fscy108)\t(100,200,\fscx100\fscy100)}"
 
     lines = []
     t = 0.0
     for seg in segments:
         duration = audio_duration_secs * (len(seg) / total_chars)
         duration = max(duration, 0.5)
-        lines.append(f"Dialogue: 0,{_ts(t)},{_ts(t + duration)},Default,,0,0,0,,{seg}")
+        lines.append(f"Dialogue: 0,{_ts(t)},{_ts(t + duration)},Default,,0,0,0,,{_anim}{seg}")
         t += duration
 
     with open(out_path, "w", encoding="utf-8") as f:
@@ -378,7 +381,7 @@ def _generate_narration(listing_data):
     style = listing_data.get("style") or listing_data.get("property_type") or "住宅"
     sqft = listing_data.get("sqft", "")
 
-    prompt = f"""你是一位加拿大华人房产经纪，请用普通话为以下房源录制一段看房视频口播文案，时长大约60秒（约440-480字）。
+    prompt = f"""你是一位加拿大华人房产经纪，请用普通话为以下房源录制一段看房视频口播文案，时长大约90秒（约650-700字）。
 
 房源信息：
 社区：{listing_data.get('neighborhood') or listing_data.get('city', '')}
@@ -388,9 +391,9 @@ def _generate_narration(listing_data):
 
 写作要求：
 - 语言自然，像真人在视频里直接说话，无需标题或解释
-- 开头直接介绍房子，不要用"大家好""我是地产经纪""今天带大家"等套话，一上来就讲房源亮点，可以提社区名称
+- 开头直接介绍房子，不要用"大家好""我是地产经纪""今天带大家""今天介绍"等套话，一上来就讲房源亮点，可以提社区名称
 - 不要提及价格或售价
-- 中间详细介绍3-4个亮点（根据描述），语气真实平实
+- 中间详细介绍4-5个亮点（根据描述），每个亮点展开讲2-3句，语气真实平实
 - 结尾一句邀请预约看房
 - 不要夸大，不要使用"顶级""超值""绝对"等夸张词
 - 只输出口播正文，不要任何额外说明"""
@@ -401,7 +404,7 @@ def _generate_narration(listing_data):
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
             json={
                 "model": "deepseek-chat",
-                "max_tokens": 600,
+                "max_tokens": 900,
                 "messages": [{"role": "user", "content": prompt}],
             },
             timeout=30,
@@ -589,11 +592,13 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                 bath = listing.bath or "?"
                 price_str = f"{int(listing.list_price or 0):,}" if listing.list_price else "面议"
                 narration = (
-                    f"大家好，今天来给大家介绍一套位于{city}的优质房源。"
-                    f"这套房子是{bed}卧{bath}卫的户型，售价{price_str}加元。"
-                    f"房屋整体设计合理，空间利用充分，采光条件非常好，居住舒适度高。"
-                    f"无论是自住还是投资，这套房源都有很高的性价比。"
-                    f"{city}地区配套设施完善，生活便利，交通便捷，周边学区也很不错。"
+                    f"这套房子是{bed}卧{bath}卫的户型，空间布局非常合理，每个功能区划分清晰，住起来很舒适。"
+                    f"房屋的采光条件相当好，主要生活区域在白天都能享受到充足的自然光，整体氛围明亮通透。"
+                    f"厨房和卫浴的装修保持得很好，设施齐全，日常使用完全没有问题，入住即可。"
+                    f"主卧空间宽敞，有足够的储物空间，其他卧室也都能满足家庭日常居住需求。"
+                    f"{city}这个区域配套设施非常成熟，周边有超市、餐厅、公园，生活非常便利。"
+                    f"交通方面也很方便，无论是开车还是乘坐公共交通，通勤都比较顺畅。"
+                    f"学区方面，这里周边的学校口碑也不错，对于有孩子的家庭来说是一个加分项。"
                     f"如果您对这套房源感兴趣，欢迎随时联系我预约实地看房，期待和您一起找到心仪的家。"
                 )
 
@@ -632,9 +637,15 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
             # ── Step 6: Mix audio + burn subtitles ───────────────────────────
             _job_set(job_id, {"status": "processing", "step": "Mixing audio & subtitles..."})
 
-            # Estimate audio duration from file size (mp3 ~128kbps)
-            audio_size = os.path.getsize(audio_path)
-            audio_duration = audio_size / 16000  # 128kbps = 16000 bytes/sec
+            # Get exact audio duration via ffprobe
+            try:
+                probe = subprocess.run(
+                    [ffprobe, "-v", "quiet", "-print_format", "json", "-show_format", audio_path],
+                    capture_output=True, text=True,
+                )
+                audio_duration = float(json.loads(probe.stdout).get("format", {}).get("duration", 0))
+            except Exception:
+                audio_duration = os.path.getsize(audio_path) / 16000
 
             ass_path = os.path.join(tmpdir, "subs.ass")
             font_path = _get_chinese_font()
