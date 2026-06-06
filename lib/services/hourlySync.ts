@@ -128,8 +128,11 @@ async function main() {
   const mlsNums = dbRows.map(r => String(r.mls_number ?? '')).filter(Boolean);
   const existingTs = await fetchExistingTimestamps(mlsNums);
 
+  const newCount    = mlsNums.filter(m => !existingTs.has(m)).length;
+  const updateCount = mlsNums.length - newCount;
+
   await upsertListings(dbRows);
-  console.log(`[hourly] Upserted ${dbRows.length} listing(s).`);
+  console.log(`[hourly] Upserted ${dbRows.length} listing(s) — ✨ ${newCount} new, ${updateCount} updated.`);
 
   // ── Step 3: Fetch & store photos (only if photos_timestamp changed) ────────
   const needsPhoto = rawListings.filter((raw, i) => {
