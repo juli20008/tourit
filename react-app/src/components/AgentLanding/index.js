@@ -1,16 +1,19 @@
 
-// ─── Video embed URLs ─────────────────────────────────────────────────────────
-// Replace null with your embed URL (e.g. "https://www.youtube.com/embed/VIDEO_ID")
+// ─── Video sources ────────────────────────────────────────────────────────────
+// Local mp4 → served from /public/videos/; external → YouTube/Loom embed URL
 const VIDEOS = {
-  feature1: null,
+  feature1: "/videos/feature1.mp4",  // vertical 9:20 portrait
   feature2: null,
   feature3: null,
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+const isLocalVideo = (src) => src && /\.(mp4|webm|mov)(\?|$)/i.test(src);
+
+// Horizontal slot — for YouTube/Loom iframes or empty placeholder
 const VideoSlot = ({ src, label }) => {
-  if (src) {
+  if (src && !isLocalVideo(src)) {
     return (
       <div style={S.videoWrap}>
         <iframe
@@ -24,10 +27,36 @@ const VideoSlot = ({ src, label }) => {
       </div>
     );
   }
+  if (!src) {
+    return (
+      <div style={S.videoPlaceholder}>
+        <div style={S.playBtn}>▶</div>
+        <div style={{ color: "#94a3b8", fontSize: "0.8rem", marginTop: 10 }}>{label}</div>
+      </div>
+    );
+  }
+  return null;
+};
+
+// Vertical slot — phone-frame style for portrait mp4
+const VerticalVideoSlot = ({ src, label }) => {
+  if (!src) {
+    return (
+      <div style={S.verticalPlaceholder}>
+        <div style={S.playBtn}>▶</div>
+        <div style={{ color: "#94a3b8", fontSize: "0.8rem", marginTop: 10 }}>{label}</div>
+      </div>
+    );
+  }
   return (
-    <div style={S.videoPlaceholder}>
-      <div style={S.playBtn}>▶</div>
-      <div style={{ color: "#94a3b8", fontSize: "0.8rem", marginTop: 10 }}>{label}</div>
+    <div style={S.phoneFrame}>
+      <div style={S.phoneNotch} />
+      <video
+        src={src}
+        controls
+        playsInline
+        style={{ width: "100%", display: "block", borderRadius: "0 0 28px 28px" }}
+      />
     </div>
   );
 };
@@ -126,6 +155,7 @@ const FEATURES = [
     PriceComponent: PricingCard1,
     videoKey: "feature1",
     videoLabel: "白标网站演示 Demo",
+    vertical: true,
     flip: false,
     bg: "#ffffff",
   },
@@ -374,15 +404,17 @@ const AgentLanding = () => (
     {/* ── Three features ── */}
     {FEATURES.map((f) => {
       const Price = f.PriceComponent;
+      const videoSrc = VIDEOS[f.videoKey];
       return (
         <section key={f.n} style={{ ...S.featureSection, background: f.bg }}>
           <div style={{
             ...S.featureInner,
             flexDirection: f.flip ? "row-reverse" : "row",
+            alignItems: f.vertical ? "center" : "flex-start",
           }}>
 
             {/* Text side */}
-            <div style={S.featureText}>
+            <div style={{ ...S.featureText, flex: f.vertical ? "1 1 400px" : "1 1 360px" }}>
               <div style={S.badge}>{String(f.n).padStart(2, "0")}</div>
               <div style={S.featureTag}>{f.tag}</div>
               <h2 style={S.featureTitle}>{f.zh}</h2>
@@ -398,8 +430,11 @@ const AgentLanding = () => (
             </div>
 
             {/* Video side */}
-            <div style={S.featureVideo}>
-              <VideoSlot src={VIDEOS[f.videoKey]} label={f.videoLabel} />
+            <div style={f.vertical ? S.featureVideoVertical : S.featureVideo}>
+              {f.vertical
+                ? <VerticalVideoSlot src={videoSrc} label={f.videoLabel} />
+                : <VideoSlot src={videoSrc} label={f.videoLabel} />
+              }
             </div>
 
           </div>
@@ -540,6 +575,39 @@ const S = {
     maxWidth: 500,
     position: "sticky",
     top: 80,
+  },
+  featureVideoVertical: {
+    flex: "0 0 auto",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  phoneFrame: {
+    width: 260,
+    background: "#0f172a",
+    borderRadius: 36,
+    boxShadow: "0 0 0 8px #1e293b, 0 24px 64px rgba(0,0,0,.35)",
+    overflow: "hidden",
+    flexShrink: 0,
+  },
+  phoneNotch: {
+    height: 28,
+    background: "#0f172a",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+  verticalPlaceholder: {
+    width: 260,
+    aspectRatio: "9/19.5",
+    background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)",
+    borderRadius: 36,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    boxShadow: "0 0 0 8px #1e293b, 0 24px 64px rgba(0,0,0,.2)",
   },
   badge: {
     display: "inline-flex",
