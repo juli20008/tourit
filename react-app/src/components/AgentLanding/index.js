@@ -1,4 +1,6 @@
 
+import { useState, useRef } from "react";
+
 // ─── Video sources ────────────────────────────────────────────────────────────
 // Local mp4 → served from /public/videos/; external → YouTube/Loom embed URL
 const VIDEOS = {
@@ -40,10 +42,20 @@ const VideoSlot = ({ src, label }) => {
 
 // Vertical slot — phone-frame style for portrait mp4
 const VerticalVideoSlot = ({ src, label }) => {
+  const videoRef = useRef(null);
+  const [playing, setPlaying] = useState(false);
+
+  const toggle = () => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (v.paused) { v.play(); setPlaying(true); }
+    else          { v.pause(); setPlaying(false); }
+  };
+
   if (!src) {
     return (
       <div style={S.verticalPlaceholder}>
-        <div style={S.playBtn}>▶</div>
+        <div style={S.bigPlayBtn}>▶</div>
         <div style={{ color: "#94a3b8", fontSize: "0.8rem", marginTop: 10 }}>{label}</div>
       </div>
     );
@@ -51,12 +63,36 @@ const VerticalVideoSlot = ({ src, label }) => {
   return (
     <div style={S.phoneFrame}>
       <div style={S.phoneNotch} />
-      <video
-        src={src}
-        controls
-        playsInline
-        style={{ width: "100%", display: "block", borderRadius: "0 0 28px 28px" }}
-      />
+      <div style={{ position: "relative" }}>
+        <video
+          ref={videoRef}
+          src={src}
+          playsInline
+          onEnded={() => setPlaying(false)}
+          onPause={() => setPlaying(false)}
+          onPlay={() => setPlaying(true)}
+          style={{ width: "100%", display: "block", borderRadius: "0 0 28px 28px" }}
+        />
+        {/* Custom centered play/pause overlay */}
+        <div
+          onClick={toggle}
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            borderRadius: "0 0 28px 28px",
+            background: playing ? "transparent" : "rgba(0,0,0,.28)",
+            transition: "background 0.2s",
+          }}
+        >
+          {!playing && (
+            <div style={S.bigPlayBtn}>▶</div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };
@@ -698,6 +734,20 @@ const S = {
     fontSize: "1.4rem",
     color: "rgba(255,255,255,.6)",
     paddingLeft: 4,
+  },
+  bigPlayBtn: {
+    width: 72,
+    height: 72,
+    background: "rgba(255,255,255,.92)",
+    borderRadius: "50%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "1.8rem",
+    color: "#0f172a",
+    paddingLeft: 6,
+    boxShadow: "0 4px 24px rgba(0,0,0,.35)",
+    flexShrink: 0,
   },
 
   // Pricing cards (inside features)
