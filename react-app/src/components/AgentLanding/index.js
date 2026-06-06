@@ -96,7 +96,7 @@ const PricingCard1 = () => (
       <span style={{ fontSize: "1.1rem", marginRight: 10, flexShrink: 0 }}>🔥</span>
       <div>
         <div style={S.priceCondition}>前 100 名注册经纪人免费用一年</div>
-        <div style={S.priceConditionEn}>First 100 agents — free for 1 year · No credit card</div>
+        <div style={S.priceConditionEn}>First 100 agents - free for 1 year · No credit card</div>
       </div>
     </div>
     <div style={{ display: "flex", alignItems: "center", marginTop: 8 }}>
@@ -139,12 +139,12 @@ const PricingCard3 = () => (
       <span style={{ fontSize: "1.2rem", marginRight: 10, flexShrink: 0 }}>🤝</span>
       <div>
         <div style={S.priceCondition}>成交后支付 30% 佣金分润</div>
-        <div style={S.priceConditionEn}>Pay 30% commission — only when you close</div>
+        <div style={S.priceConditionEn}>Pay 30% commission - only when you close</div>
       </div>
     </div>
     <div style={{ display: "flex", alignItems: "center", marginTop: 8, background: "rgba(22,163,74,.07)", borderRadius: 8, padding: "8px 10px" }}>
       <span style={{ fontSize: "1rem", marginRight: 8 }}>✅</span>
-      <div style={{ color: "#15803d", fontSize: "0.82rem", fontWeight: 600 }}>不成交不付钱 · Zero risk — no close, no fee</div>
+      <div style={{ color: "#15803d", fontSize: "0.82rem", fontWeight: 600 }}>不成交不付钱 · Zero risk - no close, no fee</div>
     </div>
   </div>
 );
@@ -158,7 +158,7 @@ const FEATURES = [
     zh: "免费经纪人白标网站",
     en: "Your brand. Your domain. Your listings.",
     desc: "每位经纪人拥有专属子域名主页，房源、视频、预约全部集成。一个链接发出去，客户全程留在你的品牌下。",
-    descEn: "Every agent gets a branded subdomain — listings, videos, and bookings all in one place.",
+    descEn: "Every agent gets a branded subdomain - listings, videos, and bookings all in one place.",
     bullets: [
       "免费开通，无需技术背景 / Free setup, no tech skills needed",
       "房源自动同步 MLS，实时更新 / Listings auto-sync from MLS",
@@ -178,7 +178,7 @@ const FEATURES = [
     zh: "一键生成看房自媒体视频",
     en: "Real face · AI voice clone · Auto-subtitled",
     desc: "录制真人出镜开场，AI 克隆你的声音生成专业旁白，自动剪辑房源照片、配字幕、加背景音乐。直接下载发抖音、小红书、微信视频号。",
-    descEn: "Record a selfie intro. AI clones your voice, writes the script, assembles photos, adds captions — download and post instantly.",
+    descEn: "Record a selfie intro. AI clones your voice, writes the script, assembles photos, adds captions - download and post instantly.",
     bullets: [
       "真人出镜 + 声音克隆，专业感拉满 / Real face intro + voice clone",
       "AI 自动撰写口播文案 / AI-written narration script",
@@ -313,7 +313,7 @@ const CTASection = () => {
         <h2 style={{ fontSize: isMobile ? "1.7rem" : "clamp(1.8rem,4vw,2.6rem)", fontWeight: 800, color: "#f8fafc", lineHeight: 1.2, letterSpacing: "-0.02em", marginBottom: 20 }}>
           前 100 名，白标网站免费用一年
           <span style={{ display: "block", fontSize: isMobile ? "1rem" : "1.3rem", fontWeight: 500, color: "#94a3b8", marginTop: 8 }}>
-            First 100 agents — white-label site free for 1 year
+            First 100 agents - white-label site free for 1 year
           </span>
         </h2>
 
@@ -332,7 +332,7 @@ const CTASection = () => {
 
         <p style={{ color: "#64748b", fontSize: isMobile ? "0.88rem" : "0.92rem", marginBottom: 32, maxWidth: 460, margin: "0 auto 32px" }}>
           与 Julie 预约 15 分钟演示，当场开通您的免费白标网站账号。<br />
-          <span style={{ fontSize: "0.82rem" }}>Book a 15-min demo with Julie — we'll set up your free account on the call.</span>
+          <span style={{ fontSize: "0.82rem" }}>Book a 15-min demo with Julie - we'll set up your free account on the call.</span>
         </p>
 
         <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 12, justifyContent: "center", alignItems: "stretch", maxWidth: isMobile ? 340 : "none", margin: "0 auto" }}>
