@@ -1,5 +1,3 @@
-import { useState, useRef } from "react";
-import apiFetch from "../../utils/apiFetch";
 
 // ─── Video embed URLs ─────────────────────────────────────────────────────────
 // Replace null with your embed URL (e.g. "https://www.youtube.com/embed/VIDEO_ID")
@@ -266,118 +264,64 @@ const PricingTable = () => (
   </section>
 );
 
-// ─── Email CTA ────────────────────────────────────────────────────────────────
+const CALENDLY_URL = "https://calendly.com/julie-li-realtor/";
 
-const CTASection = () => {
-  const [email, setEmail]   = useState("");
-  const [state, setState]   = useState("idle");
-  const [errMsg, setErrMsg] = useState("");
-  const inputRef            = useRef(null);
+// ─── CTA ─────────────────────────────────────────────────────────────────────
 
-  const submit = async (e) => {
-    e.preventDefault();
-    const trimmed = email.trim();
-    if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
-      setErrMsg("请输入有效的邮箱地址 / Please enter a valid email");
-      inputRef.current?.focus();
-      return;
-    }
-    setErrMsg("");
-    setState("loading");
-    try {
-      const res = await apiFetch("/api/agent-leads", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: trimmed }),
-      });
-      if (res.ok) {
-        setState("done");
-      } else {
-        const d = await res.json().catch(() => ({}));
-        setErrMsg(d.error || "提交失败，请稍后再试 / Submission failed, try again");
-        setState("error");
-      }
-    } catch {
-      setErrMsg("网络错误，请稍后再试 / Network error, please try again");
-      setState("error");
-    }
-  };
+const CTASection = () => (
+  <section style={S.ctaSection}>
+    <div style={S.ctaInner}>
+      <p style={S.ctaEyebrow}>🔥 限时优惠 · Limited-Time Offer</p>
+      <h2 style={S.ctaTitle}>
+        前 100 名，白标网站免费用一年
+        <span style={{ display: "block", fontSize: "1.3rem", fontWeight: 500, color: "#94a3b8", marginTop: 8 }}>
+          First 100 agents — white-label site free for 1 year
+        </span>
+      </h2>
 
-  return (
-    <section style={S.ctaSection}>
-      <div style={S.ctaInner}>
-        {state === "done" ? (
-          <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: "3rem", marginBottom: 16 }}>🎉</div>
-            <h2 style={{ ...S.ctaTitle, marginBottom: 12 }}>收到了！</h2>
-            <p style={{ color: "#94a3b8", fontSize: "1.05rem", maxWidth: 460, margin: "0 auto" }}>
-              我们会在 24 小时内联系您，帮您开通专属账号。<br />
-              <span style={{ color: "#64748b" }}>We'll reach out within 24 hours to set up your free account.</span>
-            </p>
+      <div style={S.ctaValueRow}>
+        {[
+          { label: "白标网站", value: "$400/yr → 免费", color: "#a78bfa" },
+          { label: "每条视频", value: "$3 / video", color: "#60a5fa" },
+          { label: "获客成本", value: "$0 upfront", color: "#34d399" },
+        ].map((v, i) => (
+          <div key={i} style={S.ctaValueChip}>
+            <div style={{ color: v.color, fontWeight: 700, fontSize: "1rem" }}>{v.value}</div>
+            <div style={{ color: "#475569", fontSize: "0.72rem", marginTop: 2 }}>{v.label}</div>
           </div>
-        ) : (
-          <>
-            <p style={S.ctaEyebrow}>🔥 限时优惠 · Limited-Time Offer</p>
-            <h2 style={S.ctaTitle}>
-              前 100 名，白标网站免费用一年
-              <span style={{ display: "block", fontSize: "1.4rem", fontWeight: 500, color: "#94a3b8", marginTop: 8 }}>
-                First 100 agents get the white-label site free for 1 year
-              </span>
-            </h2>
-
-            {/* Mini value summary */}
-            <div style={S.ctaValueRow}>
-              {[
-                { label: "白标网站", value: "$400/yr → 免费", color: "#a78bfa" },
-                { label: "每条视频", value: "$3 / video", color: "#60a5fa" },
-                { label: "获客成本", value: "$0 upfront", color: "#34d399" },
-              ].map((v, i) => (
-                <div key={i} style={S.ctaValueChip}>
-                  <div style={{ color: v.color, fontWeight: 700, fontSize: "1rem" }}>{v.value}</div>
-                  <div style={{ color: "#475569", fontSize: "0.72rem", marginTop: 2 }}>{v.label}</div>
-                </div>
-              ))}
-            </div>
-
-            <p style={{ color: "#64748b", fontSize: "0.95rem", marginBottom: 28, maxWidth: 480, margin: "0 auto 28px" }}>
-              填入邮箱，24 小时内开通账号 + 安排演示。<br />
-              <span style={{ fontSize: "0.85rem" }}>Drop your email — we'll set up your account and demo within 24 hours.</span>
-            </p>
-            <form onSubmit={submit} style={S.ctaForm}>
-              <input
-                ref={inputRef}
-                type="email"
-                value={email}
-                onChange={e => { setEmail(e.target.value); setErrMsg(""); }}
-                placeholder="your@email.com"
-                style={S.ctaInput}
-                disabled={state === "loading"}
-                autoComplete="email"
-              />
-              <button
-                type="submit"
-                style={{
-                  ...S.ctaBtn,
-                  opacity: state === "loading" ? 0.7 : 1,
-                  cursor: state === "loading" ? "not-allowed" : "pointer",
-                }}
-                disabled={state === "loading"}
-              >
-                {state === "loading" ? "提交中…" : "Claim my free account →"}
-              </button>
-            </form>
-            {errMsg && (
-              <p style={{ color: "#f87171", fontSize: "0.85rem", marginTop: 12 }}>{errMsg}</p>
-            )}
-            <p style={{ color: "#334155", fontSize: "0.78rem", marginTop: 18 }}>
-              无需信用卡 · No credit card &nbsp;·&nbsp; 随时取消 · Cancel anytime &nbsp;·&nbsp; 名额有限 · Limited spots
-            </p>
-          </>
-        )}
+        ))}
       </div>
-    </section>
-  );
-};
+
+      <p style={{ color: "#64748b", fontSize: "0.92rem", marginBottom: 36, maxWidth: 460, margin: "0 auto 36px" }}>
+        与 Julie 预约 15 分钟演示，当场开通您的免费白标网站账号。<br />
+        <span style={{ fontSize: "0.82rem" }}>Book a 15-min demo with Julie — we'll set up your free account on the call.</span>
+      </p>
+
+      <div style={S.ctaBtnGroup}>
+        <a
+          href={CALENDLY_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={S.ctaBtnPrimary}
+        >
+          📅 与 Julie 预约 Demo
+        </a>
+        <a
+          href={CALENDLY_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={S.ctaBtnSecondary}
+        >
+          🌐 领取免费白标网站
+        </a>
+      </div>
+
+      <p style={{ color: "#334155", fontSize: "0.75rem", marginTop: 20 }}>
+        名额有限，送完为止 · Limited spots &nbsp;·&nbsp; 无需信用卡 · No credit card
+      </p>
+    </div>
+  </section>
+);
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
@@ -897,35 +841,35 @@ const S = {
     textAlign: "center",
     minWidth: 110,
   },
-  ctaForm: {
+  ctaBtnGroup: {
     display: "flex",
-    gap: 10,
-    maxWidth: 500,
-    margin: "0 auto",
-    flexWrap: "wrap",
+    gap: 14,
     justifyContent: "center",
+    flexWrap: "wrap",
   },
-  ctaInput: {
-    flex: "1 1 240px",
-    padding: "13px 18px",
-    borderRadius: 10,
-    border: "1.5px solid rgba(255,255,255,.15)",
-    background: "rgba(255,255,255,.07)",
-    color: "#f8fafc",
-    fontSize: "1rem",
-    outline: "none",
-  },
-  ctaBtn: {
-    flex: "0 0 auto",
-    padding: "13px 22px",
-    borderRadius: 10,
-    border: "none",
+  ctaBtnPrimary: {
+    display: "inline-block",
     background: "linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)",
     color: "#fff",
+    borderRadius: 12,
+    padding: "15px 32px",
     fontWeight: 700,
-    fontSize: "0.95rem",
+    fontSize: "1rem",
+    textDecoration: "none",
+    boxShadow: "0 4px 20px rgba(99,102,241,.4)",
     whiteSpace: "nowrap",
-    boxShadow: "0 4px 20px rgba(99,102,241,.35)",
+  },
+  ctaBtnSecondary: {
+    display: "inline-block",
+    background: "rgba(255,255,255,.08)",
+    border: "1.5px solid rgba(255,255,255,.18)",
+    color: "#f8fafc",
+    borderRadius: 12,
+    padding: "15px 32px",
+    fontWeight: 700,
+    fontSize: "1rem",
+    textDecoration: "none",
+    whiteSpace: "nowrap",
   },
 };
 
