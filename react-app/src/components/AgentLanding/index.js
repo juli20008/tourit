@@ -2,8 +2,7 @@ import { useState, useRef } from "react";
 import apiFetch from "../../utils/apiFetch";
 
 // ─── Video embed URLs ─────────────────────────────────────────────────────────
-// Replace null with your embed URLs (YouTube, Loom, etc.)
-// e.g. "https://www.youtube.com/embed/VIDEO_ID"
+// Replace null with your embed URL (e.g. "https://www.youtube.com/embed/VIDEO_ID")
 const VIDEOS = {
   feature1: null,
   feature2: null,
@@ -35,15 +34,82 @@ const VideoSlot = ({ src, label }) => {
   );
 };
 
-const Badge = ({ n }) => (
-  <div style={S.badge}>{String(n).padStart(2, "0")}</div>
-);
-
 const Check = () => (
-  <span style={{ color: "#16a34a", fontWeight: 700, marginRight: 8, fontSize: "1rem" }}>✓</span>
+  <span style={{ color: "#16a34a", fontWeight: 700, marginRight: 8, flexShrink: 0 }}>✓</span>
 );
 
-// ─── Feature sections data ────────────────────────────────────────────────────
+// ─── Pricing cards per feature ────────────────────────────────────────────────
+
+const PricingCard1 = () => (
+  <div style={S.priceCard}>
+    <div style={S.priceCardTop}>
+      <span style={S.priceFree}>免费</span>
+      <span style={{ color: "#94a3b8", fontSize: "0.85rem", marginLeft: 8 }}>FREE</span>
+      <div style={S.priceStrike}>原价 $400 / 年</div>
+    </div>
+    <div style={S.priceDivider} />
+    <div style={S.priceRow}>
+      <span style={S.priceFireIcon}>🔥</span>
+      <div>
+        <div style={S.priceCondition}>前 100 名注册经纪人永久免费</div>
+        <div style={S.priceConditionEn}>First 100 agents — free forever · No credit card</div>
+      </div>
+    </div>
+    <div style={{ ...S.priceRow, marginTop: 6 }}>
+      <span style={{ fontSize: "1.1rem", marginRight: 10 }}>⏳</span>
+      <div style={{ color: "#f59e0b", fontSize: "0.82rem", fontWeight: 600 }}>
+        名额有限，送完为止 · Limited spots, first-come first-served
+      </div>
+    </div>
+  </div>
+);
+
+const PricingCard2 = () => (
+  <div style={S.priceCard}>
+    <div style={{ marginBottom: 14 }}>
+      <div style={S.priceLabel}>声音克隆上传 · Voice profile upload</div>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 4 }}>
+        <span style={S.priceAmount}>$5</span>
+        <span style={S.priceUnit}>/ 次 per upload</span>
+      </div>
+      <div style={{ color: "#94a3b8", fontSize: "0.78rem", marginTop: 2 }}>一次上传，永久复用 · Upload once, use forever</div>
+    </div>
+    <div style={S.priceDivider} />
+    <div>
+      <div style={S.priceLabel}>视频生成 · Video generation</div>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 4 }}>
+        <span style={S.priceAmount}>$3</span>
+        <span style={S.priceUnit}>/ 条 per video</span>
+      </div>
+      <div style={{ color: "#94a3b8", fontSize: "0.78rem", marginTop: 2 }}>每套房子单独生成，批量更优惠 · Bulk pricing available</div>
+    </div>
+  </div>
+);
+
+const PricingCard3 = () => (
+  <div style={S.priceCard}>
+    <div style={S.priceCardTop}>
+      <span style={S.priceFree}>免费获客</span>
+      <span style={{ color: "#94a3b8", fontSize: "0.85rem", marginLeft: 8 }}>Free leads</span>
+    </div>
+    <div style={S.priceDivider} />
+    <div style={S.priceRow}>
+      <span style={{ fontSize: "1.2rem", marginRight: 10 }}>🤝</span>
+      <div>
+        <div style={S.priceCondition}>成交后支付 30% 佣金分润</div>
+        <div style={S.priceConditionEn}>Pay 30% commission — only when you close</div>
+      </div>
+    </div>
+    <div style={{ ...S.priceRow, marginTop: 8, background: "rgba(22,163,74,.07)", borderRadius: 8, padding: "8px 10px" }}>
+      <span style={{ fontSize: "1rem", marginRight: 8 }}>✅</span>
+      <div style={{ color: "#15803d", fontSize: "0.82rem", fontWeight: 600 }}>
+        不成交不付钱 · Zero risk — no close, no fee
+      </div>
+    </div>
+  </div>
+);
+
+// ─── Feature sections ─────────────────────────────────────────────────────────
 
 const FEATURES = [
   {
@@ -51,14 +117,15 @@ const FEATURES = [
     tag: "白标网站 · White-label Site",
     zh: "免费经纪人白标网站",
     en: "Your brand. Your domain. Your listings.",
-    desc: "每位经纪人拥有一个专属子域名主页，房源、视频、预约全部集成。一个链接发出去，客户全程留在你的品牌下。",
+    desc: "每位经纪人拥有专属子域名主页，房源、视频、预约全部集成。一个链接发出去，客户全程留在你的品牌下。",
     descEn: "Every agent gets a branded subdomain — listings, videos, and bookings all in one place. Share one link and keep clients in your world.",
     bullets: [
       "免费开通，无需技术背景 / Free setup, no tech skills needed",
       "房源自动同步 MLS，实时更新 / Listings auto-sync from MLS",
-      "微信、小红书、朋友圈一键分享 / One-tap share to WeChat, XHS, moments",
+      "微信、小红书、朋友圈一键分享 / One-tap share to WeChat, XHS & Moments",
       "移动端完美适配 / Fully mobile-optimized",
     ],
+    PriceComponent: PricingCard1,
     videoKey: "feature1",
     videoLabel: "白标网站演示 Demo",
     flip: false,
@@ -69,14 +136,15 @@ const FEATURES = [
     tag: "AI 视频 · AI Property Video",
     zh: "一键生成看房自媒体视频",
     en: "Real face · AI voice clone · Auto-subtitled",
-    desc: "录制 10 秒真人出镜开场，AI 克隆你的声音生成专业旁白，自动剪辑房源照片、配字幕、加背景音乐。直接下载发抖音、小红书、微信视频号。",
-    descEn: "Record a 10-second selfie intro. AI clones your voice, writes the script, assembles property photos, adds captions and music — download and post instantly.",
+    desc: "录制真人出镜开场，AI 克隆你的声音生成专业旁白，自动剪辑房源照片、配字幕、加背景音乐。直接下载发抖音、小红书、微信视频号。",
+    descEn: "Record a selfie intro. AI clones your voice, writes the script, assembles property photos, adds captions and music — download and post instantly.",
     bullets: [
       "真人出镜 + 声音克隆，专业感拉满 / Real face intro + voice clone",
       "AI 自动撰写口播文案 / AI-written narration script",
       "竖屏 9:16，直接适配各平台 / 9:16 vertical, platform-ready",
       "每套房子 < 5 分钟生成 / Under 5 min per listing",
     ],
+    PriceComponent: PricingCard2,
     videoKey: "feature2",
     videoLabel: "视频生成演示 Demo",
     flip: true,
@@ -84,31 +152,127 @@ const FEATURES = [
   },
   {
     n: 3,
-    tag: "零摩擦预约 · Frictionless Booking",
-    zh: "客户直约，无需登录",
-    en: "The smoothest showing flow in the industry.",
-    desc: "客户看到房源，直接选时间预约，不需要注册账号、不需要留联系方式、不需要下载任何 App。实时聊天窗口内置，成交前零信息壁垒。",
-    descEn: "Clients pick a time slot directly from your listing — no account, no contact form, no app download. Built-in real-time chat closes the loop seamlessly.",
+    tag: "Lead 分发 · Lead Distribution",
+    zh: "免费获客，成交再付",
+    en: "Get leads for free. Pay only when you close.",
+    desc: "Tourit 将有意向的买家 Lead 直接分发给你。客户无需登录、无需留联系方式，通过内置聊天自然建立信任，成交后才支付 30% 佣金分润。",
+    descEn: "Tourit distributes ready buyers directly to you. Clients book with zero friction — no login, no contact form. Pay 30% commission only on closed deals.",
     bullets: [
-      "客户 0 摩擦预约，转化率大幅提升 / Zero-friction booking, higher conversion",
-      "经纪人实时收邮件通知 / Instant email notification to agent",
-      "内置实时聊天，引导留资 / Built-in live chat for natural lead capture",
-      "预约记录、聊天记录全部存档 / Full appointment & chat history",
+      "0 元获取 Lead，无订阅费 / Zero upfront cost to receive leads",
+      "客户直约，内置实时聊天 / Direct booking with built-in live chat",
+      "成交前零摩擦，转化率极高 / Zero friction before close = higher conversion",
+      "预约、聊天记录全程存档 / Full appointment & chat history",
     ],
+    PriceComponent: PricingCard3,
     videoKey: "feature3",
-    videoLabel: "预约流程演示 Demo",
+    videoLabel: "客户预约演示 Demo",
     flip: false,
     bg: "#ffffff",
   },
 ];
 
+// ─── Pricing comparison table ─────────────────────────────────────────────────
+
+const PricingTable = () => (
+  <section style={S.pricingSection}>
+    <div style={S.pricingInner}>
+      <p style={S.pricingEyebrow}>透明定价 · Clear Pricing</p>
+      <h2 style={S.pricingTitle}>
+        三大工具，一目了然
+        <span style={{ display: "block", fontSize: "1.3rem", fontWeight: 500, color: "#64748b", marginTop: 8 }}>
+          Straightforward pricing, no surprises
+        </span>
+      </h2>
+
+      <div style={S.pricingGrid}>
+        {/* Col 1 */}
+        <div style={{ ...S.pricingCol, borderTop: "3px solid #6366f1" }}>
+          <div style={{ fontSize: "1.6rem", marginBottom: 10 }}>🌐</div>
+          <div style={S.pricingColTitle}>白标网站</div>
+          <div style={S.pricingColSub}>White-label Site</div>
+          <div style={S.pricingBigNum}>
+            <span style={{ textDecoration: "line-through", color: "#94a3b8", fontSize: "1.1rem", fontWeight: 400, marginRight: 6 }}>$400</span>
+            <span style={{ color: "#16a34a" }}>免费</span>
+          </div>
+          <div style={S.pricingBigNumSub}>前 100 名永久免费 · /yr thereafter</div>
+          <div style={S.pricingColDivider} />
+          {[
+            "专属子域名主页",
+            "MLS 自动同步",
+            "一键社媒分享",
+            "移动端适配",
+          ].map((t, i) => (
+            <div key={i} style={S.pricingFeatureRow}><Check />{t}</div>
+          ))}
+          <div style={{ marginTop: "auto", paddingTop: 24 }}>
+            <a href="#cta" style={S.pricingCTA}>前 100 名免费注册 →</a>
+          </div>
+        </div>
+
+        {/* Col 2 */}
+        <div style={{ ...S.pricingCol, borderTop: "3px solid #f59e0b", position: "relative" }}>
+          <div style={S.popularBadge}>⭐ 最受欢迎</div>
+          <div style={{ fontSize: "1.6rem", marginBottom: 10 }}>🎬</div>
+          <div style={S.pricingColTitle}>AI 看房视频</div>
+          <div style={S.pricingColSub}>AI Property Video</div>
+          <div style={{ marginTop: 12, marginBottom: 4 }}>
+            <div style={{ fontSize: "0.78rem", color: "#64748b", marginBottom: 4 }}>声音克隆 Voice upload</div>
+            <div style={S.pricingBigNum}><span style={{ color: "#0f172a" }}>$5</span></div>
+            <div style={S.pricingBigNumSub}>/ 次 per upload · 一次终身用</div>
+          </div>
+          <div style={{ marginTop: 10, marginBottom: 4 }}>
+            <div style={{ fontSize: "0.78rem", color: "#64748b", marginBottom: 4 }}>视频生成 Per video</div>
+            <div style={S.pricingBigNum}><span style={{ color: "#0f172a" }}>$3</span></div>
+            <div style={S.pricingBigNumSub}>/ 条 · &lt; 5 min generation</div>
+          </div>
+          <div style={S.pricingColDivider} />
+          {[
+            "真人出镜开场",
+            "AI 声音克隆",
+            "自动字幕 + 背景音乐",
+            "竖屏 9:16 即传即用",
+          ].map((t, i) => (
+            <div key={i} style={S.pricingFeatureRow}><Check />{t}</div>
+          ))}
+          <div style={{ marginTop: "auto", paddingTop: 24 }}>
+            <a href="#cta" style={{ ...S.pricingCTA, background: "#f59e0b" }}>开始生成视频 →</a>
+          </div>
+        </div>
+
+        {/* Col 3 */}
+        <div style={{ ...S.pricingCol, borderTop: "3px solid #16a34a" }}>
+          <div style={{ fontSize: "1.6rem", marginBottom: 10 }}>🤝</div>
+          <div style={S.pricingColTitle}>Lead 分发</div>
+          <div style={S.pricingColSub}>Lead Distribution</div>
+          <div style={S.pricingBigNum}>
+            <span style={{ color: "#16a34a" }}>$0</span>
+          </div>
+          <div style={S.pricingBigNumSub}>获客免费 · 成交付 30% 佣金</div>
+          <div style={S.pricingColDivider} />
+          {[
+            "0 元接收 Leads",
+            "客户直约，零摩擦",
+            "内置实时聊天",
+            "不成交不付钱",
+          ].map((t, i) => (
+            <div key={i} style={S.pricingFeatureRow}><Check />{t}</div>
+          ))}
+          <div style={{ marginTop: "auto", paddingTop: 24 }}>
+            <a href="#cta" style={{ ...S.pricingCTA, background: "#16a34a" }}>免费加入网络 →</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+);
+
 // ─── Email CTA ────────────────────────────────────────────────────────────────
 
 const CTASection = () => {
-  const [email, setEmail]       = useState("");
-  const [state, setState]       = useState("idle"); // idle | loading | done | error
-  const [errMsg, setErrMsg]     = useState("");
-  const inputRef                = useRef(null);
+  const [email, setEmail]   = useState("");
+  const [state, setState]   = useState("idle");
+  const [errMsg, setErrMsg] = useState("");
+  const inputRef            = useRef(null);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -153,16 +317,31 @@ const CTASection = () => {
           </div>
         ) : (
           <>
-            <p style={S.ctaEyebrow}>限时免费 · Free While in Beta</p>
+            <p style={S.ctaEyebrow}>🔥 限时优惠 · Limited-Time Offer</p>
             <h2 style={S.ctaTitle}>
-              现在注册，永久免费
-              <span style={{ display: "block", fontSize: "1.6rem", fontWeight: 500, color: "#94a3b8", marginTop: 8 }}>
-                Register now — free forever for early members
+              前 100 名，白标网站永久免费
+              <span style={{ display: "block", fontSize: "1.4rem", fontWeight: 500, color: "#94a3b8", marginTop: 8 }}>
+                First 100 agents get the white-label site free — forever
               </span>
             </h2>
-            <p style={{ color: "#64748b", fontSize: "1rem", marginBottom: 32, maxWidth: 500, margin: "0 auto 32px" }}>
-              填入您的邮箱，我们会在 24 小时内为您开通账号并安排演示。<br />
-              <span style={{ fontSize: "0.9rem" }}>Drop your email — we'll set up your account and schedule a demo within 24 hours.</span>
+
+            {/* Mini value summary */}
+            <div style={S.ctaValueRow}>
+              {[
+                { label: "白标网站", value: "$400/yr → 免费", color: "#a78bfa" },
+                { label: "每条视频", value: "$3 / video", color: "#60a5fa" },
+                { label: "获客成本", value: "$0 upfront", color: "#34d399" },
+              ].map((v, i) => (
+                <div key={i} style={S.ctaValueChip}>
+                  <div style={{ color: v.color, fontWeight: 700, fontSize: "1rem" }}>{v.value}</div>
+                  <div style={{ color: "#475569", fontSize: "0.72rem", marginTop: 2 }}>{v.label}</div>
+                </div>
+              ))}
+            </div>
+
+            <p style={{ color: "#64748b", fontSize: "0.95rem", marginBottom: 28, maxWidth: 480, margin: "0 auto 28px" }}>
+              填入邮箱，24 小时内开通账号 + 安排演示。<br />
+              <span style={{ fontSize: "0.85rem" }}>Drop your email — we'll set up your account and demo within 24 hours.</span>
             </p>
             <form onSubmit={submit} style={S.ctaForm}>
               <input
@@ -190,8 +369,8 @@ const CTASection = () => {
             {errMsg && (
               <p style={{ color: "#f87171", fontSize: "0.85rem", marginTop: 12 }}>{errMsg}</p>
             )}
-            <p style={{ color: "#475569", fontSize: "0.8rem", marginTop: 20 }}>
-              无需绑定信用卡 · No credit card required &nbsp;·&nbsp; 随时可取消 · Cancel anytime
+            <p style={{ color: "#334155", fontSize: "0.78rem", marginTop: 18 }}>
+              无需信用卡 · No credit card &nbsp;·&nbsp; 随时取消 · Cancel anytime &nbsp;·&nbsp; 名额有限 · Limited spots
             </p>
           </>
         )}
@@ -202,53 +381,56 @@ const CTASection = () => {
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
-const AgentLanding = () => {
-  return (
-    <div style={S.page}>
+const AgentLanding = () => (
+  <div style={S.page}>
 
-      {/* ── Hero ── */}
-      <section style={S.hero}>
-        <div style={S.heroInner}>
-          <div style={S.heroPill}>专为华人经纪人打造 · Built for Chinese-Canadian Realtors</div>
-          <h1 style={S.heroTitle}>
-            让每一位经纪人<br />
-            都拥有自己的<br />
-            <span style={S.heroAccent}>数字营销武器库</span>
-          </h1>
-          <p style={S.heroSub}>
-            白标网站 · AI 视频 · 零摩擦预约<br />
-            <span style={{ color: "#64748b" }}>White-label site · AI video · Frictionless booking</span>
-          </p>
+    {/* ── Hero ── */}
+    <section style={S.hero}>
+      <div style={S.heroInner}>
+        <div style={S.heroPill}>专为华人经纪人打造 · Built for Chinese-Canadian Realtors</div>
+        <h1 style={S.heroTitle}>
+          让每一位经纪人<br />
+          都拥有自己的<br />
+          <span style={S.heroAccent}>数字营销武器库</span>
+        </h1>
+        <p style={S.heroSub}>
+          白标网站 · AI 视频 · Lead 分发<br />
+          <span style={{ color: "#64748b" }}>White-label site · AI video · Lead distribution</span>
+        </p>
 
-          {/* Feature pills */}
-          <div style={S.heroPills}>
-            {[
-              { icon: "🌐", zh: "免费白标网站", en: "Free white-label site" },
-              { icon: "🎬", zh: "一键看房视频", en: "One-click property video" },
-              { icon: "📅", zh: "客户直约", en: "Direct client booking" },
-            ].map((f, i) => (
-              <div key={i} style={S.heroPillCard}>
-                <span style={{ fontSize: "1.6rem" }}>{f.icon}</span>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: "0.9rem", color: "#f8fafc" }}>{f.zh}</div>
-                  <div style={{ fontSize: "0.75rem", color: "#64748b" }}>{f.en}</div>
-                </div>
+        <div style={S.heroPills}>
+          {[
+            { icon: "🌐", zh: "白标网站", price: "原价 $400/yr", highlight: "前100名免费" },
+            { icon: "🎬", zh: "AI 看房视频", price: "$5 声音克隆", highlight: "$3 / 条" },
+            { icon: "🤝", zh: "Lead 分发", price: "获客 $0", highlight: "成交付 30%" },
+          ].map((f, i) => (
+            <div key={i} style={S.heroPillCard}>
+              <span style={{ fontSize: "1.5rem" }}>{f.icon}</span>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: "0.88rem", color: "#f8fafc" }}>{f.zh}</div>
+                <div style={{ fontSize: "0.72rem", color: "#64748b", textDecoration: "line-through" }}>{f.price}</div>
+                <div style={{ fontSize: "0.78rem", color: "#34d399", fontWeight: 600 }}>{f.highlight}</div>
               </div>
-            ))}
-          </div>
-
-          <a href="#cta" style={S.heroBtn}>
-            立即免费注册 · Claim your free account →
-          </a>
+            </div>
+          ))}
         </div>
 
-        {/* Decorative gradient orbs */}
-        <div style={{ ...S.orb, top: "10%", right: "8%", background: "radial-gradient(circle, rgba(59,130,246,.15) 0%, transparent 70%)", width: 400, height: 400 }} />
-        <div style={{ ...S.orb, bottom: "5%", left: "5%", background: "radial-gradient(circle, rgba(139,92,246,.1) 0%, transparent 70%)", width: 300, height: 300 }} />
-      </section>
+        <a href="#cta" style={S.heroBtn}>
+          🔥 前 100 名免费注册 · Claim your spot →
+        </a>
+        <div style={{ color: "#475569", fontSize: "0.8rem", marginTop: 12 }}>
+          名额有限，送完为止 · Limited spots available
+        </div>
+      </div>
 
-      {/* ── Three features ── */}
-      {FEATURES.map((f) => (
+      <div style={{ ...S.orb, top: "10%", right: "8%", background: "radial-gradient(circle, rgba(59,130,246,.15) 0%, transparent 70%)", width: 400, height: 400 }} />
+      <div style={{ ...S.orb, bottom: "5%", left: "5%", background: "radial-gradient(circle, rgba(139,92,246,.1) 0%, transparent 70%)", width: 300, height: 300 }} />
+    </section>
+
+    {/* ── Three features ── */}
+    {FEATURES.map((f) => {
+      const Price = f.PriceComponent;
+      return (
         <section key={f.n} style={{ ...S.featureSection, background: f.bg }}>
           <div style={{
             ...S.featureInner,
@@ -257,7 +439,7 @@ const AgentLanding = () => {
 
             {/* Text side */}
             <div style={S.featureText}>
-              <Badge n={f.n} />
+              <div style={S.badge}>{String(f.n).padStart(2, "0")}</div>
               <div style={S.featureTag}>{f.tag}</div>
               <h2 style={S.featureTitle}>{f.zh}</h2>
               <p style={S.featureEn}>{f.en}</p>
@@ -265,11 +447,10 @@ const AgentLanding = () => {
               <p style={S.featureDescEn}>{f.descEn}</p>
               <ul style={S.bulletList}>
                 {f.bullets.map((b, i) => (
-                  <li key={i} style={S.bulletItem}>
-                    <Check />{b}
-                  </li>
+                  <li key={i} style={S.bulletItem}><Check />{b}</li>
                 ))}
               </ul>
+              <Price />
             </div>
 
             {/* Video side */}
@@ -279,54 +460,37 @@ const AgentLanding = () => {
 
           </div>
         </section>
-      ))}
+      );
+    })}
 
-      {/* ── Social proof strip ── */}
-      <section style={S.socialStrip}>
-        <div style={S.socialInner}>
-          {[
-            { stat: "< 5 min", label: "每条视频生成时间 / per video" },
-            { stat: "0 元", label: "白标网站月费 / monthly site fee" },
-            { stat: "0 clicks", label: "客户预约需要点击的注册步骤 / sign-up steps for clients" },
-            { stat: "100%", label: "您品牌的主页域名 / your brand domain" },
-          ].map((s, i) => (
-            <div key={i} style={S.statCard}>
-              <div style={S.statNum}>{s.stat}</div>
-              <div style={S.statLabel}>{s.label}</div>
-            </div>
-          ))}
-        </div>
-      </section>
+    {/* ── Pricing table ── */}
+    <PricingTable />
 
-      {/* ── CTA ── */}
-      <div id="cta">
-        <CTASection />
-      </div>
-
-      <style>{`
-        @keyframes al-fade-up {
-          from { opacity: 0; transform: translateY(24px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @media (max-width: 768px) {
-          .al-feature-inner { flex-direction: column !important; }
-          .al-feature-text  { max-width: 100% !important; }
-          .al-feature-video { width: 100% !important; }
-          .al-hero-pills    { flex-direction: column !important; gap: 10px !important; }
-        }
-      `}</style>
+    {/* ── CTA ── */}
+    <div id="cta">
+      <CTASection />
     </div>
-  );
-};
+
+    <style>{`
+      @keyframes al-fade-up {
+        from { opacity: 0; transform: translateY(24px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      @media (max-width: 900px) {
+        .al-pricing-grid { grid-template-columns: 1fr !important; max-width: 420px !important; }
+      }
+      @media (max-width: 768px) {
+        .al-feature-inner { flex-direction: column !important; }
+        .al-hero-pills    { flex-direction: column !important; gap: 10px !important; }
+      }
+    `}</style>
+  </div>
+);
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const S = {
-  page: {
-    background: "#fff",
-    minHeight: "100vh",
-    overflowX: "hidden",
-  },
+  page: { background: "#fff", minHeight: "100vh", overflowX: "hidden" },
 
   // Hero
   hero: {
@@ -338,7 +502,7 @@ const S = {
     textAlign: "center",
   },
   heroInner: {
-    maxWidth: 720,
+    maxWidth: 760,
     margin: "0 auto",
     position: "relative",
     zIndex: 1,
@@ -373,14 +537,14 @@ const S = {
     color: "#94a3b8",
     fontSize: "1.1rem",
     lineHeight: 1.7,
-    marginBottom: 40,
+    marginBottom: 36,
   },
   heroPills: {
     display: "flex",
     justifyContent: "center",
-    gap: 16,
+    gap: 12,
     flexWrap: "wrap",
-    marginBottom: 44,
+    marginBottom: 36,
   },
   heroPillCard: {
     display: "flex",
@@ -389,7 +553,8 @@ const S = {
     background: "rgba(255,255,255,.06)",
     border: "1px solid rgba(255,255,255,.1)",
     borderRadius: 14,
-    padding: "12px 20px",
+    padding: "10px 18px",
+    textAlign: "left",
   },
   heroBtn: {
     display: "inline-block",
@@ -401,7 +566,6 @@ const S = {
     fontSize: "1rem",
     textDecoration: "none",
     boxShadow: "0 4px 20px rgba(99,102,241,.4)",
-    transition: "transform 0.15s, box-shadow 0.15s",
   },
   orb: {
     position: "absolute",
@@ -409,7 +573,7 @@ const S = {
     pointerEvents: "none",
   },
 
-  // Feature sections
+  // Features
   featureSection: {
     padding: "80px 24px",
     borderBottom: "1px solid #f1f5f9",
@@ -418,7 +582,7 @@ const S = {
     maxWidth: 1100,
     margin: "0 auto",
     display: "flex",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 64,
     flexWrap: "wrap",
   },
@@ -430,6 +594,8 @@ const S = {
     flex: "1 1 320px",
     width: "100%",
     maxWidth: 500,
+    position: "sticky",
+    top: 80,
   },
   badge: {
     display: "inline-flex",
@@ -443,7 +609,6 @@ const S = {
     fontWeight: 800,
     fontSize: "0.95rem",
     marginBottom: 16,
-    letterSpacing: "0.05em",
   },
   featureTag: {
     fontSize: "0.78rem",
@@ -465,30 +630,26 @@ const S = {
     fontSize: "1rem",
     fontWeight: 500,
     color: "#64748b",
-    marginBottom: 16,
+    marginBottom: 14,
     fontStyle: "italic",
   },
   featureDesc: {
-    fontSize: "0.95rem",
+    fontSize: "0.93rem",
     color: "#334155",
     lineHeight: 1.75,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   featureDescEn: {
-    fontSize: "0.85rem",
+    fontSize: "0.83rem",
     color: "#94a3b8",
     lineHeight: 1.65,
-    marginBottom: 20,
+    marginBottom: 18,
   },
-  bulletList: {
-    listStyle: "none",
-    margin: 0,
-    padding: 0,
-  },
+  bulletList: { listStyle: "none", margin: "0 0 24px", padding: 0 },
   bulletItem: {
-    fontSize: "0.9rem",
+    fontSize: "0.88rem",
     color: "#334155",
-    padding: "5px 0",
+    padding: "4px 0",
     display: "flex",
     alignItems: "flex-start",
   },
@@ -527,66 +688,214 @@ const S = {
     paddingLeft: 4,
   },
 
-  // Social proof
-  socialStrip: {
-    background: "#0f172a",
-    padding: "60px 24px",
+  // Pricing cards (inside features)
+  priceCard: {
+    background: "#f8fafc",
+    border: "1.5px solid #e2e8f0",
+    borderRadius: 14,
+    padding: "18px 20px",
+    marginTop: 8,
   },
-  socialInner: {
-    maxWidth: 1000,
-    margin: "0 auto",
+  priceCardTop: {
     display: "flex",
-    justifyContent: "space-around",
+    alignItems: "baseline",
+    gap: 0,
+    marginBottom: 8,
     flexWrap: "wrap",
-    gap: 32,
   },
-  statCard: {
-    textAlign: "center",
-    flex: "1 1 160px",
-  },
-  statNum: {
-    fontSize: "clamp(2rem, 5vw, 3rem)",
+  priceFree: {
+    fontSize: "1.6rem",
     fontWeight: 800,
-    color: "#f8fafc",
+    color: "#16a34a",
+    letterSpacing: "-0.02em",
+  },
+  priceStrike: {
+    fontSize: "0.82rem",
+    color: "#94a3b8",
+    textDecoration: "line-through",
+    marginLeft: "auto",
+    alignSelf: "center",
+  },
+  priceDivider: {
+    height: 1,
+    background: "#e2e8f0",
+    margin: "10px 0",
+  },
+  priceRow: {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: 0,
+  },
+  priceFireIcon: {
+    fontSize: "1.1rem",
+    marginRight: 10,
+    flexShrink: 0,
+  },
+  priceCondition: {
+    fontWeight: 700,
+    fontSize: "0.9rem",
+    color: "#0f172a",
+  },
+  priceConditionEn: {
+    fontSize: "0.78rem",
+    color: "#64748b",
+    marginTop: 2,
+  },
+  priceLabel: {
+    fontSize: "0.78rem",
+    fontWeight: 600,
+    color: "#64748b",
+    letterSpacing: "0.04em",
+  },
+  priceAmount: {
+    fontSize: "2rem",
+    fontWeight: 800,
+    color: "#0f172a",
     letterSpacing: "-0.03em",
     lineHeight: 1,
-    marginBottom: 8,
-    background: "linear-gradient(135deg, #60a5fa, #a78bfa)",
-    WebkitBackgroundClip: "text",
-    WebkitTextFillColor: "transparent",
-    backgroundClip: "text",
   },
-  statLabel: {
-    fontSize: "0.8rem",
+  priceUnit: {
+    fontSize: "0.82rem",
     color: "#64748b",
-    lineHeight: 1.5,
   },
 
-  // CTA
-  ctaSection: {
-    background: "linear-gradient(160deg, #0a0f1e 0%, #0f172a 100%)",
-    padding: "100px 24px",
+  // Pricing table section
+  pricingSection: {
+    background: "#f8fafc",
+    padding: "88px 24px",
+    borderTop: "1px solid #e2e8f0",
+  },
+  pricingInner: {
+    maxWidth: 1060,
+    margin: "0 auto",
     textAlign: "center",
   },
-  ctaInner: {
-    maxWidth: 600,
-    margin: "0 auto",
-  },
-  ctaEyebrow: {
+  pricingEyebrow: {
     fontSize: "0.78rem",
     fontWeight: 600,
     color: "#6366f1",
     letterSpacing: "0.1em",
     textTransform: "uppercase",
+    marginBottom: 12,
+  },
+  pricingTitle: {
+    fontSize: "clamp(1.8rem, 4vw, 2.6rem)",
+    fontWeight: 800,
+    color: "#0f172a",
+    lineHeight: 1.2,
+    letterSpacing: "-0.02em",
+    marginBottom: 48,
+  },
+  pricingGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, 1fr)",
+    gap: 24,
+    textAlign: "left",
+  },
+  pricingCol: {
+    background: "#fff",
+    borderRadius: 16,
+    padding: "28px 24px 24px",
+    boxShadow: "0 2px 16px rgba(0,0,0,.06)",
+    display: "flex",
+    flexDirection: "column",
+  },
+  pricingColTitle: {
+    fontWeight: 800,
+    fontSize: "1.1rem",
+    color: "#0f172a",
+    marginBottom: 2,
+  },
+  pricingColSub: {
+    fontSize: "0.78rem",
+    color: "#64748b",
+    marginBottom: 16,
+  },
+  pricingBigNum: {
+    fontSize: "2.4rem",
+    fontWeight: 800,
+    letterSpacing: "-0.03em",
+    lineHeight: 1.1,
+  },
+  pricingBigNumSub: {
+    fontSize: "0.78rem",
+    color: "#64748b",
+    marginBottom: 8,
+    marginTop: 2,
+  },
+  pricingColDivider: {
+    height: 1,
+    background: "#f1f5f9",
+    margin: "16px 0",
+  },
+  pricingFeatureRow: {
+    display: "flex",
+    alignItems: "center",
+    fontSize: "0.85rem",
+    color: "#334155",
+    padding: "4px 0",
+  },
+  pricingCTA: {
+    display: "block",
+    textAlign: "center",
+    background: "#0f172a",
+    color: "#fff",
+    borderRadius: 10,
+    padding: "11px 0",
+    fontWeight: 700,
+    fontSize: "0.88rem",
+    textDecoration: "none",
+  },
+  popularBadge: {
+    position: "absolute",
+    top: -14,
+    left: "50%",
+    transform: "translateX(-50%)",
+    background: "#f59e0b",
+    color: "#fff",
+    borderRadius: 20,
+    padding: "3px 14px",
+    fontSize: "0.75rem",
+    fontWeight: 700,
+    whiteSpace: "nowrap",
+  },
+
+  // CTA
+  ctaSection: {
+    background: "linear-gradient(160deg, #0a0f1e 0%, #0f172a 100%)",
+    padding: "96px 24px",
+    textAlign: "center",
+  },
+  ctaInner: { maxWidth: 620, margin: "0 auto" },
+  ctaEyebrow: {
+    fontSize: "0.85rem",
+    fontWeight: 600,
+    color: "#f59e0b",
+    letterSpacing: "0.06em",
     marginBottom: 16,
   },
   ctaTitle: {
-    fontSize: "clamp(1.8rem, 4vw, 2.8rem)",
+    fontSize: "clamp(1.8rem, 4vw, 2.6rem)",
     fontWeight: 800,
     color: "#f8fafc",
     lineHeight: 1.2,
     letterSpacing: "-0.02em",
-    marginBottom: 16,
+    marginBottom: 28,
+  },
+  ctaValueRow: {
+    display: "flex",
+    justifyContent: "center",
+    gap: 12,
+    flexWrap: "wrap",
+    marginBottom: 28,
+  },
+  ctaValueChip: {
+    background: "rgba(255,255,255,.06)",
+    border: "1px solid rgba(255,255,255,.1)",
+    borderRadius: 10,
+    padding: "10px 18px",
+    textAlign: "center",
+    minWidth: 110,
   },
   ctaForm: {
     display: "flex",
@@ -608,7 +917,7 @@ const S = {
   },
   ctaBtn: {
     flex: "0 0 auto",
-    padding: "13px 24px",
+    padding: "13px 22px",
     borderRadius: 10,
     border: "none",
     background: "linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)",
