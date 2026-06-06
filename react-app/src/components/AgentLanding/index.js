@@ -51,8 +51,8 @@ const PricingCard1 = () => (
     <div style={S.priceRow}>
       <span style={S.priceFireIcon}>🔥</span>
       <div>
-        <div style={S.priceCondition}>前 100 名注册经纪人永久免费</div>
-        <div style={S.priceConditionEn}>First 100 agents — free forever · No credit card</div>
+        <div style={S.priceCondition}>前 100 名注册经纪人免费用一年</div>
+        <div style={S.priceConditionEn}>First 100 agents — free for 1 year · No credit card</div>
       </div>
     </div>
     <div style={{ ...S.priceRow, marginTop: 6 }}>
@@ -194,7 +194,7 @@ const PricingTable = () => (
             <span style={{ textDecoration: "line-through", color: "#94a3b8", fontSize: "1.1rem", fontWeight: 400, marginRight: 6 }}>$400</span>
             <span style={{ color: "#16a34a" }}>免费</span>
           </div>
-          <div style={S.pricingBigNumSub}>前 100 名永久免费 · /yr thereafter</div>
+          <div style={S.pricingBigNumSub}>前 100 名免费用一年 · $400/yr thereafter</div>
           <div style={S.pricingColDivider} />
           {[
             "专属子域名主页",
@@ -319,9 +319,9 @@ const CTASection = () => {
           <>
             <p style={S.ctaEyebrow}>🔥 限时优惠 · Limited-Time Offer</p>
             <h2 style={S.ctaTitle}>
-              前 100 名，白标网站永久免费
+              前 100 名，白标网站免费用一年
               <span style={{ display: "block", fontSize: "1.4rem", fontWeight: 500, color: "#94a3b8", marginTop: 8 }}>
-                First 100 agents get the white-label site free — forever
+                First 100 agents get the white-label site free for 1 year
               </span>
             </h2>
 
@@ -400,7 +400,7 @@ const AgentLanding = () => (
 
         <div style={S.heroPills}>
           {[
-            { icon: "🌐", zh: "白标网站", price: "原价 $400/yr", highlight: "前100名免费" },
+            { icon: "🌐", zh: "白标网站", price: "原价 $400/yr", highlight: "前100名免费1年" },
             { icon: "🎬", zh: "AI 看房视频", price: "$5 声音克隆", highlight: "$3 / 条" },
             { icon: "🤝", zh: "Lead 分发", price: "获客 $0", highlight: "成交付 30%" },
           ].map((f, i) => (
