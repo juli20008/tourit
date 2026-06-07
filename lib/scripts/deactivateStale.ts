@@ -92,7 +92,21 @@ async function main() {
 
   console.log(`[deactivate] DDF returned ${ddfNumbers.size} active listings`);
 
-  // Listings in Supabase but NOT in DDF → no longer exist
+  // Safety check: if DDF returned suspiciously few listings, abort.
+  // A partial DDF failure would otherwise wipe the entire DB.
+  const MIN_DDF_EXPECTED = 50_000;
+  if (ddfNumbers.size < MIN_DDF_EXPECTED) {
+    console.error(`[deactivate] SAFETY ABORT: DDF only returned ${ddfNumbers.size} listings (expected ≥${MIN_DDF_EXPECTED}). Aborting to prevent mass deactivation.`);
+    process.exitCode = 1;
+    return;
+  }
+  if (supabaseNumbers.size > 0 && ddfNumbers.size < supabaseNumbers.size * 0.4) {
+    console.error(`[deactivate] SAFETY ABORT: DDF (${ddfNumbers.size}) is less than 40% of DB (${supabaseNumbers.size}). Aborting.`);
+    process.exitCode = 1;
+    return;
+  }
+
+  // Listings in DB but NOT in DDF → no longer exist
   const toDeactivate = [...supabaseNumbers].filter(mls => !ddfNumbers.has(mls));
   console.log(`[deactivate] ${toDeactivate.length} listing(s) no longer in DDF → marking Inactive`);
 
