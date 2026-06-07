@@ -174,30 +174,21 @@ def _generate_cover(line1, line2, line3, out_path):
         f2 = _fit(line2, 76) if line2 else _load(76)
         f3 = _fit(line3, 62) if line3 else _load(62)
 
-        # Line 1 at 2/10 from top
-        if line1:
-            bbox = draw.textbbox((0, 0), line1, font=f1, stroke_width=STROKE_W)
-            w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
-            x = (OUTPUT_W - w) // 2
-            y = int(OUTPUT_H * 0.2) - h // 2
-            _draw_impact_text(draw, line1, f1, x, y, STROKE_W)
-
-        # Lines 2-3 at bottom
+        # Lines 1 & 2 stacked at top (big text)
         spacing = 20
-        bottom = [(t, f) for t, f in [(line2, f2), (line3, f3)] if t]
-        if bottom:
-            total_h = sum(
-                draw.textbbox((0, 0), t, font=f, stroke_width=STROKE_W)[3] -
-                draw.textbbox((0, 0), t, font=f, stroke_width=STROKE_W)[1]
-                for t, f in bottom
-            ) + spacing * (len(bottom) - 1)
-            y = OUTPUT_H - 90 - total_h
-            for text, font in bottom:
-                bbox = draw.textbbox((0, 0), text, font=font, stroke_width=STROKE_W)
-                w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
-                x = (OUTPUT_W - w) // 2
-                _draw_impact_text(draw, text, font, x, y, STROKE_W)
-                y += h + spacing
+        top = [(t, f) for t, f in [(line1, f1), (line2, f2)] if t]
+        y = int(OUTPUT_H * 0.08)
+        for text, font in top:
+            bbox = draw.textbbox((0, 0), text, font=font, stroke_width=STROKE_W)
+            w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+            _draw_impact_text(draw, text, font, (OUTPUT_W - w) // 2, y, STROKE_W)
+            y += h + spacing
+
+        # Line 3 at bottom (small text)
+        if line3:
+            bbox = draw.textbbox((0, 0), line3, font=f3, stroke_width=STROKE_W)
+            w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+            _draw_impact_text(draw, line3, f3, (OUTPUT_W - w) // 2, OUTPUT_H - 90 - h, STROKE_W)
 
         img.save(out_path, "PNG")
     except ImportError:
@@ -303,26 +294,21 @@ def _generate_composite_cover(ffmpeg, intro_path, photo_path, line1, line2, line
         f2 = _fit(line2, 76) if line2 else _load(76)
         f3 = _fit(line3, 62) if line3 else _load(62)
 
-        if line1:
-            bbox = draw.textbbox((0, 0), line1, font=f1, stroke_width=STROKE_W)
-            w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
-            _draw_impact_text(draw, line1, f1,
-                              (OUTPUT_W - w) // 2, int(OUTPUT_H * 0.07), STROKE_W)
-
+        # Lines 1 & 2 stacked at top (above person)
         spacing = 18
-        bottom = [(t, f) for t, f in [(line2, f2), (line3, f3)] if t]
-        if bottom:
-            total_h = sum(
-                draw.textbbox((0, 0), t, font=f, stroke_width=STROKE_W)[3] -
-                draw.textbbox((0, 0), t, font=f, stroke_width=STROKE_W)[1]
-                for t, f in bottom
-            ) + spacing * (len(bottom) - 1)
-            y = OUTPUT_H - 80 - total_h
-            for text, font in bottom:
-                bbox = draw.textbbox((0, 0), text, font=font, stroke_width=STROKE_W)
-                w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
-                _draw_impact_text(draw, text, font, (OUTPUT_W - w) // 2, y, STROKE_W)
-                y += h + spacing
+        top = [(t, f) for t, f in [(line1, f1), (line2, f2)] if t]
+        y = int(OUTPUT_H * 0.05)
+        for text, font in top:
+            bbox = draw.textbbox((0, 0), text, font=font, stroke_width=STROKE_W)
+            w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+            _draw_impact_text(draw, text, font, (OUTPUT_W - w) // 2, y, STROKE_W)
+            y += h + spacing
+
+        # Line 3 at bottom (small text below person)
+        if line3:
+            bbox = draw.textbbox((0, 0), line3, font=f3, stroke_width=STROKE_W)
+            w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+            _draw_impact_text(draw, line3, f3, (OUTPUT_W - w) // 2, OUTPUT_H - 80 - h, STROKE_W)
 
         result.save(out_path, "PNG")
         return True

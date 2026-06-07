@@ -275,12 +275,12 @@ const XHSVideoModal = ({ listing, onClose, onGenerated }) => {
 								封面文字 / Cover Text
 							</label>
 							<p style={{ color: "#64748b", fontSize: "0.78rem", marginTop: 0, marginBottom: 10 }}>
-								视频封面将显示这三行文字。
+								第一、二行大字显示在人物上方，第三行小字显示在人物下方。
 							</p>
 							{[
-								[cover1, setCover1, "第一行（大字）/ Line 1 (large)"],
-								[cover2, setCover2, "第二行 / Line 2"],
-								[cover3, setCover3, "第三行（小字）/ Line 3 (small)"],
+								[cover1, setCover1, "第一行（大字，人物上方）/ Line 1 (large, above)"],
+								[cover2, setCover2, "第二行（大字，人物上方）/ Line 2 (large, above)"],
+								[cover3, setCover3, "第三行（小字，人物下方）/ Line 3 (small, below)"],
 							].map(([val, setter, placeholder], i) => (
 								<input
 									key={i}
