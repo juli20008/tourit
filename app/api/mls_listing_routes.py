@@ -416,6 +416,31 @@ def gta_spread():
     return jsonify(result)
 
 
+@mls_listing_routes.route("/debug-count", methods=["GET"])
+def debug_count():
+    """Temporary: raw row counts to diagnose empty-map issue."""
+    try:
+        total     = db.session.execute(text("SELECT COUNT(*) FROM mls_listings")).scalar()
+        active    = db.session.execute(text(
+            "SELECT COUNT(*) FROM mls_listings WHERE standard_status NOT IN "
+            "('Inactive','Sold','Expired','Cancelled','Withdrawn') OR standard_status IS NULL"
+        )).scalar()
+        has_coords = db.session.execute(text(
+            "SELECT COUNT(*) FROM mls_listings WHERE lat IS NOT NULL AND lng IS NOT NULL AND list_price IS NOT NULL"
+        )).scalar()
+        sample_status = db.session.execute(text(
+            "SELECT standard_status, COUNT(*) n FROM mls_listings GROUP BY standard_status ORDER BY n DESC LIMIT 5"
+        )).fetchall()
+        return jsonify({
+            "total": total,
+            "active": active,
+            "has_coords_and_price": has_coords,
+            "status_breakdown": [{"status": r[0], "count": r[1]} for r in sample_status],
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @mls_listing_routes.route("/suggest", methods=["GET"])
 def suggest_listings():
     """Real-time street-name autocomplete — fallback when client index has no match."""
