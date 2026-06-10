@@ -51,6 +51,54 @@ def _find_ffmpeg():
     return _xff()
 
 
+# ── DeepSeek Vision narration generator ──────────────────────────────────────
+
+def _generate_slide_narration(img_path):
+    """Call DeepSeek Vision to auto-generate narration for a blank slide (~45s max)."""
+    import base64
+    import os as _os
+    import requests as _req
+
+    api_key = _os.environ.get("DEEPSEEK_API_KEY", "")
+    if not api_key:
+        return ""
+    try:
+        with open(img_path, "rb") as fh:
+            b64 = base64.b64encode(fh.read()).decode()
+        ext = img_path.lower().rsplit(".", 1)[-1]
+        mime = "image/png" if ext == "png" else "image/jpeg"
+        resp = _req.post(
+            "https://api.deepseek.com/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={
+                "model": "deepseek-chat",
+                "messages": [{
+                    "role": "user",
+                    "content": [
+                        {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}},
+                        {"type": "text", "text": (
+                            "你是一位专业的自媒体房产讲解博主。请根据这张幻灯片内容写一段旁白。\n"
+                            "要求：\n"
+                            "1. 字数严格控制在200字以内，适合语音朗读。\n"
+                            "2. 语言客观、专业，不使用夸张、极端或煽动性词汇。\n"
+                            "3. 在段落开头或结尾加入一句自然的悬念钩子，引发好奇，让观众想继续看——"
+                            "例如提出一个问题、点出一个反直觉的结论、或暗示下一页会揭晓关键信息。"
+                            "钩子要融入内容，不能生硬。\n"
+                            "4. 不要使用标题、序号或列表格式，直接用流畅的段落表达。\n"
+                            "5. 不要出现"震惊""颠覆""必看"等极端词汇。"
+                        )},
+                    ],
+                }],
+                "max_tokens": 350,
+            },
+            timeout=30,
+        )
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"].strip()
+    except Exception:
+        return ""
+
+
 # ── Per-slide clip helpers ────────────────────────────────────────────────────
 
 def _get_audio_duration(ffprobe, audio_path):
@@ -211,7 +259,10 @@ def _run_ppt_pipeline(job_id, agent_id, slide_images_bytes, slide_texts, cover_l
 
             for i, (img_path, text) in enumerate(zip(slide_images, slide_texts)):
                 _job_set(job_id, {"status": "processing", "step": f"Generating voiceover {i+1}/{n}..."})
-                narration = text.strip() if text and text.strip() else f"第{i+1}页"
+                if text and text.strip():
+                    narration = text.strip()
+                else:
+                    narration = _generate_slide_narration(img_path) or f"第{i+1}页"
                 try:
                     audio_bytes = generate_speech(narration, fish_voice_id=minimax_voice_id)
                     audio_path = os.path.join(tmpdir, f"slide_{i:02d}.mp3")
