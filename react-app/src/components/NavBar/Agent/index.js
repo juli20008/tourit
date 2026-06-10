@@ -59,6 +59,9 @@ const AgentBar = () => {
 					<NavLink to="/appointments" exact={true} className="btn-font-lt nav-desktop-only">
 						Appointments
 					</NavLink>
+					<NavLink to="/ppt-video" exact={true} className="btn-font-lt nav-desktop-only">
+						数分视频
+					</NavLink>
 					<NavLink to="/profile" exact={true} className="btn-font-lt nav-desktop-only">
 						My Profile
 					</NavLink>
@@ -110,6 +113,14 @@ const AgentBar = () => {
 						>
 							<i className="fa-regular fa-calendar mr-3 text-[#94a3b8]" />
 							Appointments
+						</NavLink>
+						<NavLink
+							to="/ppt-video"
+							className="nav-mobile-item"
+							onClick={() => setShowMobileMenu(false)}
+						>
+							<i className="fa-solid fa-film mr-3 text-[#94a3b8]" />
+							数分视频
 						</NavLink>
 						<NavLink
 							to="/profile"

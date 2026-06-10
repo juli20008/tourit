@@ -28,6 +28,7 @@ from .api.historical_live_tour_routes import historical_live_tour_routes
 from .api.guest_routes import guest_routes
 from .api.share_routes import share_routes
 from .api.agent_lead_routes import agent_lead_routes
+from .api.ppt_video_routes import ppt_video_routes
 
 from .seeds import seed_commands
 
@@ -81,6 +82,7 @@ app.register_blueprint(historical_live_tour_routes, url_prefix='/api/historical-
 app.register_blueprint(guest_routes, url_prefix='/api/guest')
 app.register_blueprint(share_routes, url_prefix='/share')
 app.register_blueprint(agent_lead_routes, url_prefix='/api/agent-leads')
+app.register_blueprint(ppt_video_routes, url_prefix='/api/ppt-videos')
 db.init_app(app)
 Migrate(app, db)
 socketio.init_app(app)
