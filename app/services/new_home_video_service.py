@@ -105,14 +105,43 @@ def _run_new_home_pipeline(job_id, agent_id, main_video_bytes, narration, cover_
             # ── Step 3: Mux video + narration audio ──────────────────────────
             _job_set(job_id, {"status": "processing", "step": "Mixing audio..."})
             main_with_audio = os.path.join(tmpdir, "main_mixed.mp4")
-            subprocess.run(
-                [ffmpeg, "-y",
-                 "-i", transcoded_main, "-i", audio_path,
-                 "-map", "0:v:0", "-map", "1:a:0",
-                 "-c:v", "copy", "-c:a", "aac", "-shortest",
-                 main_with_audio],
-                check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-            )
+
+            def _dur(path):
+                r = subprocess.run(
+                    [ffprobe, "-v", "quiet", "-show_entries", "format=duration",
+                     "-of", "default=noprint_wrappers=1:nokey=1", path],
+                    capture_output=True, text=True,
+                )
+                try:
+                    return float(r.stdout.strip())
+                except Exception:
+                    return 0.0
+
+            video_dur = _dur(transcoded_main)
+            audio_dur = _dur(audio_path)
+
+            if audio_dur > video_dur + 0.5:
+                # Narration longer than video — loop video until audio ends
+                subprocess.run(
+                    [ffmpeg, "-y",
+                     "-stream_loop", "-1", "-i", transcoded_main,
+                     "-i", audio_path,
+                     "-map", "0:v:0", "-map", "1:a:0",
+                     "-c:v", "libx264", "-crf", str(CRF), "-preset", PRESET,
+                     "-r", str(FPS), "-pix_fmt", "yuv420p",
+                     "-c:a", "aac", "-shortest",
+                     main_with_audio],
+                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                )
+            else:
+                subprocess.run(
+                    [ffmpeg, "-y",
+                     "-i", transcoded_main, "-i", audio_path,
+                     "-map", "0:v:0", "-map", "1:a:0",
+                     "-c:v", "copy", "-c:a", "aac", "-shortest",
+                     main_with_audio],
+                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                )
 
             # ── Step 4: Intro clip + cover ───────────────────────────────────
             _job_set(job_id, {"status": "processing", "step": "Creating intro..."})
