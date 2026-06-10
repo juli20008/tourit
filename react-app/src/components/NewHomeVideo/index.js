@@ -120,6 +120,7 @@ const NewHomeVideo = () => {
 	const [cover3, setCover3]       = useState("");
 	const [introBlob, setIntroBlob]       = useState(null);
 	const [coverBg, setCoverBg]           = useState(null);
+	const [aiLoading, setAiLoading]       = useState(false);
 	const [coverBgPreview, setCoverBgPreview] = useState(null);
 	const [step, setStep]                 = useState("");
 	const [videoUrl, setVideoUrl]         = useState(null);
@@ -189,7 +190,7 @@ const NewHomeVideo = () => {
 		clearInterval(pollRef.current);
 		if (coverBgPreview) URL.revokeObjectURL(coverBgPreview);
 		setPhase("input"); setMainFile(null); setIntroBlob(null);
-		setCoverBg(null); setCoverBgPreview(null);
+		setCoverBg(null); setCoverBgPreview(null); setAiLoading(false);
 		setNarration(""); setCover1(""); setCover2(""); setCover3("");
 		setStep(""); setVideoUrl(null); setCoverUrl(null); setExpiresAt(null);
 		setErrMsg(""); setMainErr("");
@@ -241,9 +242,31 @@ const NewHomeVideo = () => {
 
 					{/* Narration */}
 					<div style={{ marginBottom: 24 }}>
-						<label style={{ display: "block", fontWeight: 600, marginBottom: 6, fontSize: "0.9rem" }}>
-							旁白讲解 / Narration
-						</label>
+						<div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+							<label style={{ fontWeight: 600, fontSize: "0.9rem" }}>
+								旁白讲解 / Narration
+							</label>
+							<button
+								type="button"
+								disabled={aiLoading}
+								onClick={async () => {
+									setAiLoading(true);
+									try {
+										const res = await apiFetch("/api/new-home-videos/narration-hint", {
+											method: "POST",
+											headers: { "Content-Type": "application/json" },
+											body: JSON.stringify({ cover1, cover2, cover3, existing: narration }),
+										});
+										const d = await res.json();
+										if (d.narration) setNarration(d.narration);
+									} catch {}
+									setAiLoading(false);
+								}}
+								style={{ fontSize: "0.78rem", padding: "4px 10px", background: aiLoading ? "#e2e8f0" : "#7c3aed", color: aiLoading ? "#94a3b8" : "#fff", border: "none", borderRadius: 6, cursor: aiLoading ? "default" : "pointer", fontWeight: 600 }}
+							>
+								{aiLoading ? "生成中..." : "✨ AI生成旁白"}
+							</button>
+						</div>
 						<p style={{ color: "#64748b", fontSize: "0.78rem", margin: "0 0 8px" }}>
 							输入您的讲解文字，将由您的克隆声音朗读并替换视频原有声音。留空则使用默认问候语。
 						</p>

@@ -117,6 +117,57 @@ def generate_new_home_video():
         return jsonify({"error": str(e)}), 500
 
 
+@new_home_video_routes.route("/narration-hint", methods=["POST"])
+@login_required
+def narration_hint():
+    """Use DeepSeek to generate a narration script from cover lines."""
+    try:
+        data = request.get_json(silent=True) or {}
+        cover1 = (data.get("cover1") or "").strip()
+        cover2 = (data.get("cover2") or "").strip()
+        cover3 = (data.get("cover3") or "").strip()
+        existing = (data.get("existing") or "").strip()
+
+        context_parts = [p for p in [cover1, cover2, cover3] if p]
+        context = "、".join(context_parts) if context_parts else "新房视频"
+
+        if existing:
+            prompt = (
+                f"请根据以下封面标题优化这段新房讲解旁白，保持口播风格，"
+                f"自然流畅，控制在150字以内，不要使用$符号或M缩写，货币用加元表达。\n"
+                f"封面标题：{context}\n"
+                f"原旁白：{existing}"
+            )
+        else:
+            prompt = (
+                f"请根据以下新房视频封面标题，用第一人称口播风格写一段介绍旁白，"
+                f"控制在150字以内，语气自然亲切，突出房源亮点，不要使用$符号或M缩写，货币用加元表达。\n"
+                f"封面标题：{context}"
+            )
+
+        import requests as _req
+        api_key = os.environ.get("DEEPSEEK_API_KEY", "")
+        if not api_key:
+            return jsonify({"error": "DeepSeek API not configured"}), 503
+
+        resp = _req.post(
+            "https://api.deepseek.com/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={
+                "model": "deepseek-chat",
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 300,
+                "temperature": 0.7,
+            },
+            timeout=30,
+        )
+        resp.raise_for_status()
+        text_out = resp.json()["choices"][0]["message"]["content"].strip()
+        return jsonify({"narration": text_out})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @new_home_video_routes.route("/status/<job_id>", methods=["GET"])
 @login_required
 def new_home_video_status(job_id):
