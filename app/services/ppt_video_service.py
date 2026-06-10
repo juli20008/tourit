@@ -23,14 +23,29 @@ MIN_SLIDE_DURATION = 2.0
 _JOBS: dict = {}
 _JOB_TTL = 600
 _GENERATION_LOCK = threading.Semaphore(1)
+_JOB_CALLBACKS: dict = {}
 
 
 # ── Job helpers ───────────────────────────────────────────────────────────────
+
+def register_job_callback(job_id, callback):
+    _JOB_CALLBACKS[job_id] = callback
+
+
+def unregister_job_callback(job_id):
+    _JOB_CALLBACKS.pop(job_id, None)
+
 
 def _job_set(job_id, data):
     entry = _JOBS.setdefault(job_id, {})
     entry.update(data)
     entry["ts"] = time.time()
+    cb = _JOB_CALLBACKS.get(job_id)
+    if cb:
+        try:
+            cb(job_id, data)
+        except Exception:
+            pass
 
 
 def get_ppt_job(job_id):
@@ -371,6 +386,7 @@ def _run_ppt_pipeline(job_id, agent_id, slide_images_bytes, slide_texts, cover_l
             if tmpdir:
                 shutil.rmtree(tmpdir, ignore_errors=True)
             _GENERATION_LOCK.release()
+            unregister_job_callback(job_id)
 
 
 def start_ppt_video_job(agent_id, slide_images_bytes, slide_texts, cover_lines, flask_app, intro_bytes=None):
