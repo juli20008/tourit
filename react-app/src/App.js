@@ -22,6 +22,7 @@ import { initWhitelabel } from "./store/whitelabel";
 import About from "./components/About";
 import AgentLanding from "./components/AgentLanding";
 import PPTVideo from "./components/PPTVideo";
+import NewHomeVideo from "./components/NewHomeVideo";
 import Career from "./components/Career";
 import AgentLogin from "./components/AgentLogin";
 import ListingPage from "./components/Property/ListingPage";
@@ -168,6 +169,9 @@ function App() {
 				</Route>
 			<ProtectedRoute path="/ppt-video" exact={true}>
 					<PPTVideo />
+				</ProtectedRoute>
+			<ProtectedRoute path="/new-home-video" exact={true}>
+					<NewHomeVideo />
 				</ProtectedRoute>
 <ProtectedRoute path="/appointments" exact={true}>
 					<Appointments />
