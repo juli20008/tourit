@@ -1,12 +1,10 @@
 """
-数分视频 — PPT presentation video generation service.
-Pipeline: PPTX slides + per-slide narration text + agent voice clone → portrait MP4.
+数分视频 — slide image presentation video generation service.
+Pipeline: uploaded slide images + per-slide narration text + agent voice clone → portrait MP4.
 Reuses intro/cover/ffmpeg helpers from xhs_video_service.
 """
-import glob as _glob
 import json
 import os
-import re
 import shutil
 import subprocess
 import tempfile
@@ -53,44 +51,6 @@ def _find_ffmpeg():
     return _xff()
 
 
-def _find_soffice():
-    """Find LibreOffice soffice binary."""
-    for candidate in ["soffice", "libreoffice"]:
-        if shutil.which(candidate):
-            return candidate
-    for path in [
-        r"C:\Program Files\LibreOffice\program\soffice.exe",
-        r"C:\Program Files (x86)\LibreOffice\program\soffice.exe",
-        "/usr/bin/soffice",
-        "/usr/bin/libreoffice",
-    ]:
-        if os.path.exists(path):
-            return path
-    return None
-
-
-# ── PPTX → images ────────────────────────────────────────────────────────────
-
-def _slide_sort_key(path):
-    """Natural-sort so Slide1 < Slide2 < Slide10."""
-    name = os.path.basename(path)
-    nums = re.findall(r"\d+", name)
-    return (int(nums[-1]) if nums else 0, name)
-
-
-def _convert_pptx_to_images(soffice, pptx_path, out_dir):
-    """Convert PPTX → PNG using LibreOffice headless. Returns sorted list of PNG paths."""
-    subprocess.run(
-        [soffice, "--headless", "--convert-to", "png", "--outdir", out_dir, pptx_path],
-        check=True,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        timeout=120,
-    )
-    pngs = sorted(_glob.glob(os.path.join(out_dir, "*.png")), key=_slide_sort_key)
-    return pngs
-
-
 # ── Per-slide clip helpers ────────────────────────────────────────────────────
 
 def _get_audio_duration(ffprobe, audio_path):
@@ -130,7 +90,7 @@ def _make_slide_clip(ffmpeg, img_path, duration, out_path):
 
 # ── Main pipeline ─────────────────────────────────────────────────────────────
 
-def _run_ppt_pipeline(job_id, agent_id, pptx_bytes, slide_texts, cover_lines, flask_app, intro_bytes=None):
+def _run_ppt_pipeline(job_id, agent_id, slide_images_bytes, slide_texts, cover_lines, flask_app, intro_bytes=None):
     if not _GENERATION_LOCK.acquire(blocking=False):
         with flask_app.app_context():
             _job_set(job_id, {"status": "error", "message": "另一个视频正在生成中，请稍后再试"})
@@ -153,29 +113,23 @@ def _run_ppt_pipeline(job_id, agent_id, pptx_bytes, slide_texts, cover_lines, fl
             clips_dir = os.path.join(tmpdir, "clips")
             os.makedirs(clips_dir, exist_ok=True)
 
-            # ── Step 1: PPTX → images ─────────────────────────────────────────
-            _job_set(job_id, {"status": "processing", "step": "Converting slides..."})
-            soffice = _find_soffice()
-            if not soffice:
-                _job_set(job_id, {"status": "error", "message": "服务器未安装 LibreOffice，无法转换 PPT"})
-                return
-
-            pptx_path = os.path.join(tmpdir, "presentation.pptx")
-            with open(pptx_path, "wb") as fh:
-                fh.write(pptx_bytes)
-            pptx_bytes = None  # free memory
-
+            # ── Step 1: Write uploaded images to disk ────────────────────────
+            _job_set(job_id, {"status": "processing", "step": "Loading images..."})
             slides_dir = os.path.join(tmpdir, "slides")
             os.makedirs(slides_dir, exist_ok=True)
-            slide_images = _convert_pptx_to_images(soffice, pptx_path, slides_dir)
+
+            slide_images = []
+            for idx, img_bytes in enumerate(slide_images_bytes[:MAX_SLIDES]):
+                img_path = os.path.join(slides_dir, f"slide_{idx:04d}.jpg")
+                with open(img_path, "wb") as fh:
+                    fh.write(img_bytes)
+                slide_images.append(img_path)
 
             if not slide_images:
-                _job_set(job_id, {"status": "error", "message": "无法解析 PPT 文件，请确认格式正确（.pptx）"})
+                _job_set(job_id, {"status": "error", "message": "请至少上传一张幻灯片图片"})
                 return
 
-            slide_images = slide_images[:MAX_SLIDES]
             n = len(slide_images)
-            # Align texts list length with actual slide count
             slide_texts = list((slide_texts or []))[:n]
             while len(slide_texts) < n:
                 slide_texts.append("")
@@ -368,14 +322,14 @@ def _run_ppt_pipeline(job_id, agent_id, pptx_bytes, slide_texts, cover_lines, fl
             _GENERATION_LOCK.release()
 
 
-def start_ppt_video_job(agent_id, pptx_bytes, slide_texts, cover_lines, flask_app, intro_bytes=None):
+def start_ppt_video_job(agent_id, slide_images_bytes, slide_texts, cover_lines, flask_app, intro_bytes=None):
     """Start background PPT video generation. Returns job_id."""
     _job_clean()
     job_id = uuid.uuid4().hex
     _job_set(job_id, {"status": "queued", "step": "Queued..."})
     t = threading.Thread(
         target=_run_ppt_pipeline,
-        args=(job_id, agent_id, pptx_bytes, slide_texts, cover_lines, flask_app),
+        args=(job_id, agent_id, slide_images_bytes, slide_texts, cover_lines, flask_app),
         kwargs={"intro_bytes": intro_bytes},
         daemon=True,
     )

@@ -3,8 +3,8 @@ from flask_login import login_required, current_user
 
 ppt_video_routes = Blueprint("ppt_video_routes", __name__)
 
-MAX_PPTX_BYTES = 50 * 1024 * 1024   # 50 MB
-MAX_INTRO_BYTES = 50 * 1024 * 1024  # 50 MB
+MAX_IMAGE_BYTES = 10 * 1024 * 1024   # 10 MB per image
+MAX_INTRO_BYTES = 50 * 1024 * 1024   # 50 MB
 
 
 @ppt_video_routes.route("/generate", methods=["POST"])
@@ -12,12 +12,20 @@ MAX_INTRO_BYTES = 50 * 1024 * 1024  # 50 MB
 def generate_ppt_video():
     if not current_user.agent:
         return jsonify({"error": "Agent account required"}), 403
-    if "pptx" not in request.files:
-        return jsonify({"error": "pptx file required"}), 400
 
-    pptx_bytes = request.files["pptx"].read(MAX_PPTX_BYTES + 1)
-    if len(pptx_bytes) > MAX_PPTX_BYTES:
-        return jsonify({"error": "PPT 文件过大（最大 50MB）"}), 400
+    slide_images_bytes = []
+    for i in range(1, 6):
+        key = f"image_{i}"
+        if key not in request.files:
+            continue
+        img_bytes = request.files[key].read(MAX_IMAGE_BYTES + 1)
+        if len(img_bytes) > MAX_IMAGE_BYTES:
+            return jsonify({"error": f"图片 {i} 过大（每张最大 10MB）"}), 400
+        if img_bytes:
+            slide_images_bytes.append(img_bytes)
+
+    if not slide_images_bytes:
+        return jsonify({"error": "请至少上传一张幻灯片图片"}), 400
 
     slide_texts = [
         (request.form.get(f"slide_{i}") or "").strip()
@@ -38,7 +46,7 @@ def generate_ppt_video():
     from app.services.ppt_video_service import start_ppt_video_job
     job_id = start_ppt_video_job(
         agent_id=current_user.id,
-        pptx_bytes=pptx_bytes,
+        slide_images_bytes=slide_images_bytes,
         slide_texts=slide_texts,
         cover_lines=cover_lines,
         flask_app=current_app._get_current_object(),

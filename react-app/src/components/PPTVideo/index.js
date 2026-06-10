@@ -5,21 +5,20 @@ const POLL_MS = 2500;
 const MAX_SLIDES = 5;
 const MAX_INTRO_MB = 50;
 const MAX_INTRO_SECS = 10;
+const MAX_IMG_MB = 10;
 
 const STEP_LABELS = {
-	"Loading...":             "正在加载...",
-	"Converting slides...":   "正在转换幻灯片...",
-	"Creating intro...":      "生成片头...",
-	"Generating voiceover 1/1...": "生成配音 1/1...",
-	"Assembling video...":    "合成视频...",
-	"Mixing audio...":        "混合音频...",
-	"Uploading...":           "上传中...",
+	"Loading...":          "正在加载...",
+	"Loading images...":   "正在加载图片...",
+	"Creating intro...":   "生成片头...",
+	"Assembling video...": "合成视频...",
+	"Mixing audio...":     "混合音频...",
+	"Uploading...":        "上传中...",
 };
 
 const stepLabel = (step) => {
 	if (!step) return "";
 	if (STEP_LABELS[step]) return STEP_LABELS[step];
-	// Dynamic steps like "Generating voiceover 2/5..." or "Rendering slide 3/5..."
 	const voiceMatch = step.match(/^Generating voiceover (\d+)\/(\d+)/);
 	if (voiceMatch) return `生成配音 ${voiceMatch[1]}/${voiceMatch[2]}...`;
 	const renderMatch = step.match(/^Rendering slide (\d+)\/(\d+)/);
@@ -129,42 +128,67 @@ const IntroSection = ({ introBlob, setIntroBlob }) => {
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 const PPTVideo = () => {
-	const [phase, setPhase]         = useState("input"); // input | generating | done | error
-	const [pptxFile, setPptxFile]   = useState(null);
+	const [phase, setPhase]           = useState("input");
+	const [slideImages, setSlideImages] = useState([]); // [{file, previewUrl}]
 	const [slideTexts, setSlideTexts] = useState(Array(MAX_SLIDES).fill(""));
-	const [cover1, setCover1]       = useState("");
-	const [cover2, setCover2]       = useState("");
-	const [cover3, setCover3]       = useState("");
-	const [introBlob, setIntroBlob] = useState(null);
-	const [jobId, setJobId]         = useState(null);
-	const [step, setStep]           = useState("");
-	const [videoUrl, setVideoUrl]   = useState(null);
-	const [coverUrl, setCoverUrl]   = useState(null);
-	const [expiresAt, setExpiresAt] = useState(null);
-	const [errMsg, setErrMsg]       = useState("");
-	const [pptxErr, setPptxErr]     = useState("");
-	const pollRef   = useRef(null);
-	const pptxRef   = useRef(null);
+	const [cover1, setCover1]         = useState("");
+	const [cover2, setCover2]         = useState("");
+	const [cover3, setCover3]         = useState("");
+	const [introBlob, setIntroBlob]   = useState(null);
+	const [jobId, setJobId]           = useState(null);
+	const [step, setStep]             = useState("");
+	const [videoUrl, setVideoUrl]     = useState(null);
+	const [coverUrl, setCoverUrl]     = useState(null);
+	const [expiresAt, setExpiresAt]   = useState(null);
+	const [errMsg, setErrMsg]         = useState("");
+	const [imgErr, setImgErr]         = useState("");
+	const pollRef    = useRef(null);
+	const imgInputRef = useRef(null);
 
-	useEffect(() => () => clearInterval(pollRef.current), []);
+	useEffect(() => () => {
+		clearInterval(pollRef.current);
+		slideImages.forEach(s => URL.revokeObjectURL(s.previewUrl));
+	}, []); // eslint-disable-line react-hooks/exhaustive-deps
 
 	const handleSlideText = (i, val) => {
 		setSlideTexts(prev => { const next = [...prev]; next[i] = val; return next; });
 	};
 
-	const pickPPTX = e => {
-		const file = e.target.files?.[0];
-		if (!file) return;
-		if (file.size > 50 * 1024 * 1024) { setPptxErr("文件过大（最大 50MB）"); e.target.value = ""; return; }
-		setPptxErr("");
-		setPptxFile(file);
+	const addImages = e => {
+		const files = Array.from(e.target.files || []);
+		if (!files.length) return;
+		setImgErr("");
+		const remaining = MAX_SLIDES - slideImages.length;
+		const toAdd = files.slice(0, remaining);
+		const oversized = toAdd.filter(f => f.size > MAX_IMG_MB * 1024 * 1024);
+		if (oversized.length) { setImgErr(`部分图片过大（每张最大 ${MAX_IMG_MB}MB）`); return; }
+		const newSlides = toAdd.map(f => ({ file: f, previewUrl: URL.createObjectURL(f) }));
+		setSlideImages(prev => [...prev, ...newSlides]);
+		e.target.value = "";
+	};
+
+	const removeImage = (idx) => {
+		setSlideImages(prev => {
+			URL.revokeObjectURL(prev[idx].previewUrl);
+			return prev.filter((_, i) => i !== idx);
+		});
+	};
+
+	const moveImage = (idx, dir) => {
+		setSlideImages(prev => {
+			const next = [...prev];
+			const swap = idx + dir;
+			if (swap < 0 || swap >= next.length) return prev;
+			[next[idx], next[swap]] = [next[swap], next[idx]];
+			return next;
+		});
 	};
 
 	const startGeneration = async () => {
-		if (!pptxFile) { setPptxErr("请先选择 PPT 文件"); return; }
+		if (!slideImages.length) { setImgErr("请至少上传一张幻灯片图片"); return; }
 		setPhase("generating");
 		const fd = new FormData();
-		fd.append("pptx", pptxFile);
+		slideImages.forEach((s, i) => fd.append(`image_${i + 1}`, s.file));
 		slideTexts.forEach((t, i) => fd.append(`slide_${i + 1}`, t));
 		fd.append("cover1", cover1);
 		fd.append("cover2", cover2);
@@ -204,11 +228,12 @@ const PPTVideo = () => {
 
 	const reset = () => {
 		clearInterval(pollRef.current);
-		setPhase("input"); setPptxFile(null); setIntroBlob(null);
+		slideImages.forEach(s => URL.revokeObjectURL(s.previewUrl));
+		setPhase("input"); setSlideImages([]); setIntroBlob(null);
 		setSlideTexts(Array(MAX_SLIDES).fill(""));
 		setCover1(""); setCover2(""); setCover3("");
 		setJobId(null); setStep(""); setVideoUrl(null); setCoverUrl(null);
-		setExpiresAt(null); setErrMsg(""); setPptxErr("");
+		setExpiresAt(null); setErrMsg(""); setImgErr("");
 	};
 
 	const expiryLabel = expiresAt ? (() => {
@@ -222,33 +247,67 @@ const PPTVideo = () => {
 				数分视频
 			</h1>
 			<p style={{ color: "#64748b", fontSize: "0.9rem", marginBottom: 28 }}>
-				上传 PPT（3–5 页），输入每页旁白，自动生成您的专业讲解视频。
+				上传 3–5 张幻灯片图片，输入每页旁白，自动生成您的专业讲解视频。
 			</p>
 
 			{/* ── Input phase ── */}
 			{phase === "input" && (
 				<div style={{ background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 16, padding: "28px 24px" }}>
 
-					{/* PPT upload */}
+					{/* Image upload */}
 					<div style={{ marginBottom: 24 }}>
 						<label style={{ display: "block", fontWeight: 600, marginBottom: 6, fontSize: "0.9rem" }}>
-							PPT 文件 / PPTX File <span style={{ color: "#dc2626" }}>*</span>
+							幻灯片图片 / Slide Images <span style={{ color: "#dc2626" }}>*</span>
+							<span style={{ color: "#94a3b8", fontWeight: 400, marginLeft: 8, fontSize: "0.8rem" }}>
+								({slideImages.length}/{MAX_SLIDES})
+							</span>
 						</label>
-						<div
-							onClick={() => pptxRef.current?.click()}
-							style={{
-								border: "2px dashed #cbd5e1", borderRadius: 10, padding: "20px",
-								textAlign: "center", cursor: "pointer", background: pptxFile ? "#f0fdf4" : "#f8fafc",
-								color: pptxFile ? "#15803d" : "#64748b", fontSize: "0.88rem",
-							}}
-						>
-							{pptxFile
-								? `✓ ${pptxFile.name}`
-								: "点击上传 .pptx 文件（最多 5 页，50MB）\nClick to upload .pptx (max 5 slides, 50 MB)"
-							}
-						</div>
-						<input ref={pptxRef} type="file" accept=".pptx,.ppt" style={{ display: "none" }} onChange={pickPPTX} />
-						{pptxErr && <div style={{ color: "#dc2626", fontSize: "0.78rem", marginTop: 4 }}>{pptxErr}</div>}
+						<p style={{ color: "#64748b", fontSize: "0.78rem", margin: "0 0 10px" }}>
+							将幻灯片截图上传，支持 JPG / PNG，每张最大 10MB。可拖动顺序。
+						</p>
+
+						{/* Thumbnails grid */}
+						{slideImages.length > 0 && (
+							<div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
+								{slideImages.map((s, i) => (
+									<div key={i} style={{ position: "relative", width: 100, flexShrink: 0 }}>
+										<img
+											src={s.previewUrl}
+											alt={`Slide ${i + 1}`}
+											style={{ width: "100%", aspectRatio: "4/3", objectFit: "cover", borderRadius: 8, border: "1.5px solid #e2e8f0", display: "block" }}
+										/>
+										<div style={{ position: "absolute", top: 3, left: 5, background: "rgba(0,0,0,.55)", color: "#fff", borderRadius: 10, padding: "1px 6px", fontSize: "0.7rem", fontWeight: 700 }}>
+											{i + 1}
+										</div>
+										<button
+											onClick={() => removeImage(i)}
+											style={{ position: "absolute", top: 3, right: 3, background: "rgba(220,38,38,.8)", color: "#fff", border: "none", borderRadius: "50%", width: 20, height: 20, cursor: "pointer", fontSize: "0.7rem", lineHeight: 1, padding: 0 }}
+										>✕</button>
+										<div style={{ display: "flex", justifyContent: "center", gap: 4, marginTop: 4 }}>
+											<button onClick={() => moveImage(i, -1)} disabled={i === 0}
+												style={{ background: "none", border: "1px solid #cbd5e1", borderRadius: 4, padding: "1px 6px", cursor: i === 0 ? "default" : "pointer", color: i === 0 ? "#cbd5e1" : "#475569", fontSize: "0.75rem" }}>←</button>
+											<button onClick={() => moveImage(i, 1)} disabled={i === slideImages.length - 1}
+												style={{ background: "none", border: "1px solid #cbd5e1", borderRadius: 4, padding: "1px 6px", cursor: i === slideImages.length - 1 ? "default" : "pointer", color: i === slideImages.length - 1 ? "#cbd5e1" : "#475569", fontSize: "0.75rem" }}>→</button>
+										</div>
+									</div>
+								))}
+							</div>
+						)}
+
+						{slideImages.length < MAX_SLIDES && (
+							<div
+								onClick={() => imgInputRef.current?.click()}
+								style={{
+									border: "2px dashed #cbd5e1", borderRadius: 10, padding: "18px",
+									textAlign: "center", cursor: "pointer", background: "#f8fafc",
+									color: "#64748b", fontSize: "0.88rem",
+								}}
+							>
+								+ 添加图片 / Add Images
+							</div>
+						)}
+						<input ref={imgInputRef} type="file" accept="image/*" multiple style={{ display: "none" }} onChange={addImages} />
+						{imgErr && <div style={{ color: "#dc2626", fontSize: "0.78rem", marginTop: 4 }}>{imgErr}</div>}
 					</div>
 
 					{/* Per-slide narrations */}
@@ -257,16 +316,16 @@ const PPTVideo = () => {
 							每页旁白 / Per-slide Narration
 						</label>
 						<p style={{ color: "#64748b", fontSize: "0.78rem", margin: "0 0 10px" }}>
-							填写与您的幻灯片数量相同的旁白。未填写的页面将跳过。
+							填写与上传图片数量相同的旁白。未填写的页面将使用默认文本。
 						</p>
-						{slideTexts.map((text, i) => (
+						{Array.from({ length: Math.max(slideImages.length, 1) }).map((_, i) => (
 							<div key={i} style={{ marginBottom: 10 }}>
 								<div style={{ fontSize: "0.78rem", color: "#94a3b8", marginBottom: 3 }}>
 									第 {i + 1} 页 / Slide {i + 1}
 								</div>
 								<textarea
 									rows={3}
-									value={text}
+									value={slideTexts[i]}
 									onChange={e => handleSlideText(i, e.target.value)}
 									placeholder={`第${i + 1}页的讲解内容...`}
 									className="agent-profile-input"
