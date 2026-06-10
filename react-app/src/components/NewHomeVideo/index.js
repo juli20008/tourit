@@ -113,7 +113,6 @@ const IntroSection = ({ introBlob, setIntroBlob }) => {
 const NewHomeVideo = () => {
 	const [phase, setPhase]         = useState("input");
 	const [mainFile, setMainFile]   = useState(null);
-	const [mainPreview, setMainPreview] = useState(null);
 	const [mainErr, setMainErr]     = useState("");
 	const [narration, setNarration] = useState("");
 	const [cover1, setCover1]       = useState("");
@@ -143,7 +142,6 @@ const NewHomeVideo = () => {
 		}
 		setMainErr("");
 		setMainFile(file);
-		setMainPreview(file.name);
 	};
 
 	const startGeneration = async () => {
@@ -190,7 +188,7 @@ const NewHomeVideo = () => {
 	const reset = () => {
 		clearInterval(pollRef.current);
 		if (coverBgPreview) URL.revokeObjectURL(coverBgPreview);
-		setPhase("input"); setMainFile(null); setMainPreview(null); setIntroBlob(null);
+		setPhase("input"); setMainFile(null); setIntroBlob(null);
 		setCoverBg(null); setCoverBgPreview(null);
 		setNarration(""); setCover1(""); setCover2(""); setCover3("");
 		setStep(""); setVideoUrl(null); setCoverUrl(null); setExpiresAt(null);
@@ -218,14 +216,14 @@ const NewHomeVideo = () => {
 							主视频 / Main Video <span style={{ color: "#dc2626" }}>*</span>
 							<span style={{ color: "#94a3b8", fontWeight: 400, marginLeft: 8, fontSize: "0.8rem" }}>最大 {MAX_MAIN_MB}MB</span>
 						</label>
-						{mainPreview ? (
+						{mainFile ? (
 							<div style={{ display: "flex", alignItems: "center", gap: 12, background: "#f0fdf4", border: "1.5px solid #bbf7d0", borderRadius: 10, padding: "12px 16px", marginBottom: 10 }}>
 								<span style={{ fontSize: "1.4rem" }}>🎬</span>
 								<div style={{ flex: 1, minWidth: 0 }}>
-									<div style={{ fontWeight: 600, fontSize: "0.88rem", color: "#166534", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{mainFile?.name}</div>
-									<div style={{ fontSize: "0.78rem", color: "#4ade80" }}>{mainFile ? `${(mainFile.size / 1024 / 1024).toFixed(1)} MB` : ""}</div>
+									<div style={{ fontWeight: 600, fontSize: "0.88rem", color: "#166534", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{mainFile.name}</div>
+									<div style={{ fontSize: "0.78rem", color: "#16a34a" }}>{(mainFile.size / 1024 / 1024).toFixed(1)} MB ✓</div>
 								</div>
-								<button onClick={() => { setMainFile(null); setMainPreview(null); }}
+								<button onClick={() => setMainFile(null)}
 									style={{ background: "rgba(0,0,0,.15)", color: "#166534", border: "none", borderRadius: "50%", width: 26, height: 26, cursor: "pointer", fontSize: "0.85rem", flexShrink: 0 }}>✕</button>
 							</div>
 						) : (
