@@ -102,52 +102,10 @@ def _run_new_home_pipeline(job_id, agent_id, main_video_bytes, narration, cover_
             with open(audio_path, "wb") as fh:
                 fh.write(audio_bytes)
 
-            # ── Step 3: Mux video + narration audio ──────────────────────────
-            _job_set(job_id, {"status": "processing", "step": "Mixing audio..."})
-            main_with_audio = os.path.join(tmpdir, "main_mixed.mp4")
-
-            def _dur(path):
-                r = subprocess.run(
-                    [ffprobe, "-v", "quiet", "-show_entries", "format=duration",
-                     "-of", "default=noprint_wrappers=1:nokey=1", path],
-                    capture_output=True, text=True,
-                )
-                try:
-                    return float(r.stdout.strip())
-                except Exception:
-                    return 0.0
-
-            video_dur = _dur(transcoded_main)
-            audio_dur = _dur(audio_path)
-
-            if audio_dur > video_dur + 0.5:
-                # Narration longer than video — loop video until audio ends
-                subprocess.run(
-                    [ffmpeg, "-y",
-                     "-stream_loop", "-1", "-i", transcoded_main,
-                     "-i", audio_path,
-                     "-map", "0:v:0", "-map", "1:a:0",
-                     "-c:v", "libx264", "-crf", str(CRF), "-preset", PRESET,
-                     "-r", str(FPS), "-pix_fmt", "yuv420p",
-                     "-c:a", "aac", "-shortest",
-                     main_with_audio],
-                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                )
-            else:
-                subprocess.run(
-                    [ffmpeg, "-y",
-                     "-i", transcoded_main, "-i", audio_path,
-                     "-map", "0:v:0", "-map", "1:a:0",
-                     "-c:v", "copy", "-c:a", "aac", "-shortest",
-                     main_with_audio],
-                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                )
-
-            # ── Step 4: Intro clip + cover ───────────────────────────────────
+            # ── Step 3: Intro clip + cover (video-only) ──────────────────────
             _job_set(job_id, {"status": "processing", "step": "Creating intro..."})
 
             intro_clip_path = None
-            intro_audio_path = None
             raw_intro = None
 
             if intro_bytes and len(intro_bytes) > 1000:
@@ -156,16 +114,6 @@ def _run_new_home_pipeline(job_id, agent_id, main_video_bytes, narration, cover_
                     with open(raw_intro, "wb") as fh:
                         fh.write(intro_bytes)
                     intro_bytes = None
-
-                    _intro_audio_tmp = os.path.join(tmpdir, "intro_audio.aac")
-                    subprocess.run(
-                        [ffmpeg, "-y", "-i", raw_intro, "-vn",
-                         "-af", "highpass=f=80,afftdn=nf=-25,loudnorm",
-                         "-c:a", "aac", "-threads", "1", _intro_audio_tmp],
-                        check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                    )
-                    if os.path.exists(_intro_audio_tmp) and os.path.getsize(_intro_audio_tmp) > 100:
-                        intro_audio_path = _intro_audio_tmp
 
                     transcoded_intro = os.path.join(tmpdir, "intro_base.mp4")
                     content_rect = _video_content_rect(ffprobe, raw_intro)
@@ -227,36 +175,69 @@ def _run_new_home_pipeline(job_id, agent_id, main_video_bytes, narration, cover_
                     except Exception:
                         pass
 
-            # ── Step 5: Concatenate intro + main ─────────────────────────────
+            # ── Step 4: Assemble silent video (intro + main, no audio) ────────
             _job_set(job_id, {"status": "processing", "step": "Assembling video..."})
-            all_clips = []
             if intro_clip_path and os.path.exists(intro_clip_path):
-                # Intro clip has no audio (-an from _transcode_intro / cover loop).
-                # Add a silent AAC track so concat -c copy preserves main audio.
-                intro_a = os.path.join(clips_dir, "clip_intro_a.mp4")
-                subprocess.run(
-                    [ffmpeg, "-y",
-                     "-i", intro_clip_path,
-                     "-f", "lavfi", "-i", "anullsrc=channel_layout=mono:sample_rate=32000",
-                     "-c:v", "copy", "-c:a", "aac", "-ar", "32000",
-                     "-map", "0:v", "-map", "1:a", "-shortest",
-                     intro_a],
-                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                )
-                all_clips.append(intro_a)
-            all_clips.append(main_with_audio)
-
-            if len(all_clips) == 1:
-                final_path = all_clips[0]
-            else:
                 list_file = os.path.join(tmpdir, "clips.txt")
                 with open(list_file, "w", encoding="utf-8") as fh:
-                    for cp in all_clips:
-                        fh.write(f"file '{cp}'\n")
-                final_path = os.path.join(tmpdir, "final.mp4")
+                    fh.write(f"file '{intro_clip_path}'\n")
+                    fh.write(f"file '{transcoded_main}'\n")
+                silent_video = os.path.join(tmpdir, "silent_video.mp4")
                 subprocess.run(
                     [ffmpeg, "-y", "-f", "concat", "-safe", "0", "-i", list_file,
-                     "-c", "copy", final_path],
+                     "-c", "copy", silent_video],
+                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                )
+            else:
+                silent_video = transcoded_main
+
+            # ── Step 5: Mix narration over full video (loop if needed) ────────
+            _job_set(job_id, {"status": "processing", "step": "Mixing audio..."})
+
+            def _dur(path):
+                r = subprocess.run(
+                    [ffprobe, "-v", "quiet", "-show_entries", "format=duration",
+                     "-of", "default=noprint_wrappers=1:nokey=1", path],
+                    capture_output=True, text=True,
+                )
+                try:
+                    return float(r.stdout.strip())
+                except Exception:
+                    return 0.0
+
+            import math
+            video_dur = _dur(silent_video)
+            audio_dur = _dur(audio_path)
+            final_path = os.path.join(tmpdir, "final.mp4")
+
+            if audio_dur > video_dur + 0.5 and video_dur > 0:
+                # Narration longer than full video — loop video via concat
+                n = math.ceil(audio_dur / video_dur) + 1
+                loop_list = os.path.join(tmpdir, "loop.txt")
+                with open(loop_list, "w") as fh:
+                    for _ in range(n):
+                        fh.write(f"file '{silent_video}'\n")
+                looped = os.path.join(tmpdir, "looped.mp4")
+                subprocess.run(
+                    [ffmpeg, "-y", "-f", "concat", "-safe", "0", "-i", loop_list,
+                     "-c", "copy", looped],
+                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                )
+                subprocess.run(
+                    [ffmpeg, "-y",
+                     "-i", looped, "-i", audio_path,
+                     "-map", "0:v:0", "-map", "1:a:0",
+                     "-c:v", "copy", "-c:a", "aac", "-shortest",
+                     final_path],
+                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                )
+            else:
+                subprocess.run(
+                    [ffmpeg, "-y",
+                     "-i", silent_video, "-i", audio_path,
+                     "-map", "0:v:0", "-map", "1:a:0",
+                     "-c:v", "copy", "-c:a", "aac", "-shortest",
+                     final_path],
                     check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                 )
 
