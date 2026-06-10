@@ -231,7 +231,19 @@ def _run_new_home_pipeline(job_id, agent_id, main_video_bytes, narration, cover_
             _job_set(job_id, {"status": "processing", "step": "Assembling video..."})
             all_clips = []
             if intro_clip_path and os.path.exists(intro_clip_path):
-                all_clips.append(intro_clip_path)
+                # Intro clip has no audio (-an from _transcode_intro / cover loop).
+                # Add a silent AAC track so concat -c copy preserves main audio.
+                intro_a = os.path.join(clips_dir, "clip_intro_a.mp4")
+                subprocess.run(
+                    [ffmpeg, "-y",
+                     "-i", intro_clip_path,
+                     "-f", "lavfi", "-i", "anullsrc=channel_layout=mono:sample_rate=32000",
+                     "-c:v", "copy", "-c:a", "aac", "-ar", "32000",
+                     "-map", "0:v", "-map", "1:a", "-shortest",
+                     intro_a],
+                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                )
+                all_clips.append(intro_a)
             all_clips.append(main_with_audio)
 
             if len(all_clips) == 1:
