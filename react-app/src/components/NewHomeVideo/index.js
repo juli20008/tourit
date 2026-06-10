@@ -120,7 +120,7 @@ const NewHomeVideo = () => {
 	const [cover3, setCover3]       = useState("");
 	const [introBlob, setIntroBlob]       = useState(null);
 	const [coverBg, setCoverBg]           = useState(null);
-	const [aiLoading, setAiLoading]       = useState(false);
+	const [aiOptimizing, setAiOptimizing] = useState(false);
 	const [coverBgPreview, setCoverBgPreview] = useState(null);
 	const [step, setStep]                 = useState("");
 	const [videoUrl, setVideoUrl]         = useState(null);
@@ -190,7 +190,7 @@ const NewHomeVideo = () => {
 		clearInterval(pollRef.current);
 		if (coverBgPreview) URL.revokeObjectURL(coverBgPreview);
 		setPhase("input"); setMainFile(null); setIntroBlob(null);
-		setCoverBg(null); setCoverBgPreview(null); setAiLoading(false);
+		setCoverBg(null); setCoverBgPreview(null); setAiOptimizing(false);
 		setNarration(""); setCover1(""); setCover2(""); setCover3("");
 		setStep(""); setVideoUrl(null); setCoverUrl(null); setExpiresAt(null);
 		setErrMsg(""); setMainErr("");
@@ -212,9 +212,9 @@ const NewHomeVideo = () => {
 				<div style={{ background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 16, padding: "28px 24px" }}>
 
 					{/* Main video upload */}
-					<div style={{ marginBottom: 24 }}>
+					<div style={{ marginBottom: 24 }} translate="no">
 						<label style={{ display: "block", fontWeight: 600, marginBottom: 6, fontSize: "0.9rem" }}>
-							主视频 / Main Video <span style={{ color: "#dc2626" }}>*</span>
+							<span>主视频 / Main Video </span><span style={{ color: "#dc2626" }}>*</span>
 							<span style={{ color: "#94a3b8", fontWeight: 400, marginLeft: 8, fontSize: "0.8rem" }}>最大 {MAX_MAIN_MB}MB</span>
 						</label>
 						{mainFile ? (
@@ -222,7 +222,7 @@ const NewHomeVideo = () => {
 								<span style={{ fontSize: "1.4rem" }}>🎬</span>
 								<div style={{ flex: 1, minWidth: 0 }}>
 									<div style={{ fontWeight: 600, fontSize: "0.88rem", color: "#166534", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{mainFile.name}</div>
-									<div style={{ fontSize: "0.78rem", color: "#16a34a" }}>{(mainFile.size / 1024 / 1024).toFixed(1)} MB ✓</div>
+									<div style={{ fontSize: "0.78rem", color: "#16a34a" }}><span>{(mainFile.size / 1024 / 1024).toFixed(1)} MB ✓</span></div>
 								</div>
 								<button onClick={() => setMainFile(null)}
 									style={{ background: "rgba(0,0,0,.15)", color: "#166534", border: "none", borderRadius: "50%", width: 26, height: 26, cursor: "pointer", fontSize: "0.85rem", flexShrink: 0 }}>✕</button>
@@ -232,7 +232,7 @@ const NewHomeVideo = () => {
 								onClick={() => mainRef.current?.click()}
 								style={{ border: "2px dashed #cbd5e1", borderRadius: 10, padding: "24px", textAlign: "center", cursor: "pointer", background: "#f8fafc", color: "#64748b", fontSize: "0.88rem" }}
 							>
-								点击上传主视频 / Click to upload main video<br />
+								<span>点击上传主视频 / Click to upload main video</span><br />
 								<span style={{ fontSize: "0.75rem", color: "#94a3b8" }}>MP4 · MOV · 最大 {MAX_MAIN_MB}MB</span>
 							</div>
 						)}
@@ -242,42 +242,35 @@ const NewHomeVideo = () => {
 
 					{/* Narration */}
 					<div style={{ marginBottom: 24 }}>
-						<div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-							<label style={{ fontWeight: 600, fontSize: "0.9rem" }}>
-								旁白讲解 / Narration
-							</label>
-							<button
-								type="button"
-								disabled={aiLoading}
-								onClick={async () => {
-									setAiLoading(true);
-									try {
-										const res = await apiFetch("/api/new-home-videos/narration-hint", {
-											method: "POST",
-											headers: { "Content-Type": "application/json" },
-											body: JSON.stringify({ cover1, cover2, cover3, existing: narration }),
-										});
-										const d = await res.json();
-										if (d.narration) setNarration(d.narration);
-									} catch {}
-									setAiLoading(false);
-								}}
-								style={{ fontSize: "0.78rem", padding: "4px 10px", background: aiLoading ? "#e2e8f0" : "#7c3aed", color: aiLoading ? "#94a3b8" : "#fff", border: "none", borderRadius: 6, cursor: aiLoading ? "default" : "pointer", fontWeight: 600 }}
-							>
-								{aiLoading ? "生成中..." : "✨ AI生成旁白"}
-							</button>
-						</div>
+						<label style={{ display: "block", fontWeight: 600, marginBottom: 6, fontSize: "0.9rem" }}>
+							旁白讲解 / Narration
+						</label>
 						<p style={{ color: "#64748b", fontSize: "0.78rem", margin: "0 0 8px" }}>
-							输入您的讲解文字，将由您的克隆声音朗读并替换视频原有声音。留空则使用默认问候语。
+							输入您的讲解文字，将由您的克隆声音朗读并替换视频原有声音。留空则使用默认问候语。离开输入框后 AI 自动优化文字。
 						</p>
 						<textarea
 							rows={6}
 							value={narration}
 							onChange={e => setNarration(e.target.value)}
+							onBlur={async () => {
+								if (!narration.trim() || aiOptimizing) return;
+								setAiOptimizing(true);
+								try {
+									const res = await apiFetch("/api/new-home-videos/narration-hint", {
+										method: "POST",
+										headers: { "Content-Type": "application/json" },
+										body: JSON.stringify({ cover1, cover2, cover3, existing: narration }),
+									});
+									const d = await res.json();
+									if (d.narration) setNarration(d.narration);
+								} catch {}
+								setAiOptimizing(false);
+							}}
 							placeholder="输入旁白内容，例如：这套房子位于 Markham 核心地段，三卧两卫，宽敞的开放式厨房......"
 							className="agent-profile-input"
 							style={{ width: "100%", resize: "vertical", fontFamily: "inherit" }}
 						/>
+						{aiOptimizing && <div style={{ color: "#7c3aed", fontSize: "0.75rem", marginTop: 4 }}>✨ AI 优化中...</div>}
 					</div>
 
 					{/* Cover lines */}
