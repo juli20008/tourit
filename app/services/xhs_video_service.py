@@ -172,7 +172,7 @@ def _generate_cover(line1, line2, line3, out_path):
 
         f1 = _fit(line1, 96) if line1 else _load(96)
         f2 = _fit(line2, 76) if line2 else _load(76)
-        f3 = _fit(line3, 62) if line3 else _load(62)
+        f3 = _fit(line3, 96) if line3 else _load(96)
 
         # Lines 1 & 2 stacked at top (big text)
         spacing = 20
@@ -292,7 +292,7 @@ def _generate_composite_cover(ffmpeg, intro_path, photo_path, line1, line2, line
 
         f1 = _fit(line1, 96) if line1 else _load(96)
         f2 = _fit(line2, 76) if line2 else _load(76)
-        f3 = _fit(line3, 62) if line3 else _load(62)
+        f3 = _fit(line3, 96) if line3 else _load(96)
 
         # Lines 1 & 2 stacked at top (above person)
         spacing = 18
@@ -401,7 +401,7 @@ def _generate_intro_overlay(line1, line2, line3, out_path, content_rect=None):
         fonts = [
             _fit(line1, 96) if line1 else _load(96),
             _fit(line2, 76) if line2 else _load(76),
-            _fit(line3, 62) if line3 else _load(62),
+            _fit(line3, 96) if line3 else _load(96),
         ]
         lines_data = [line1, line2, line3]
 
