@@ -36,4 +36,4 @@ class Config:
 
     SUPABASE_URL = os.environ.get('SUPABASE_URL')
     SUPABASE_SERVICE_ROLE_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
-    MAX_CONTENT_LENGTH = 100 * 1024 * 1024  # 100 MB — for video uploads
+    MAX_CONTENT_LENGTH = 250 * 1024 * 1024  # 250 MB — covers 200 MB main video + intro
