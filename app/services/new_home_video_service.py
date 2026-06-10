@@ -188,24 +188,8 @@ def _run_new_home_pipeline(job_id, agent_id, main_video_bytes, narration, cover_
                     except Exception:
                         pass
 
-            # ── Step 4: Assemble silent video (intro + main, no audio) ────────
+            # ── Step 4: Loop main video if needed, then prepend intro once ──
             _job_set(job_id, {"status": "processing", "step": "Assembling video..."})
-            if intro_clip_path and os.path.exists(intro_clip_path):
-                list_file = os.path.join(tmpdir, "clips.txt")
-                with open(list_file, "w", encoding="utf-8") as fh:
-                    fh.write(f"file '{intro_clip_path}'\n")
-                    fh.write(f"file '{transcoded_main}'\n")
-                silent_video = os.path.join(tmpdir, "silent_video.mp4")
-                subprocess.run(
-                    [ffmpeg, "-y", "-f", "concat", "-safe", "0", "-i", list_file,
-                     "-c", "copy", silent_video],
-                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                )
-            else:
-                silent_video = transcoded_main
-
-            # ── Step 5: Build full audio track then mix onto video ───────────
-            _job_set(job_id, {"status": "processing", "step": "Mixing audio..."})
 
             def _dur(path):
                 r = subprocess.run(
@@ -218,7 +202,45 @@ def _run_new_home_pipeline(job_id, agent_id, main_video_bytes, narration, cover_
                 except Exception:
                     return 0.0
 
-            # If user provided an intro video, prepend its original audio before narration
+            import math
+            main_dur   = _dur(transcoded_main)
+            narr_dur   = _dur(audio_path)
+
+            # Loop only the main video; intro is never looped
+            if narr_dur > main_dur + 0.5 and main_dur > 0:
+                n = math.ceil(narr_dur / main_dur) + 1
+                loop_list = os.path.join(tmpdir, "loop.txt")
+                with open(loop_list, "w") as fh:
+                    for _ in range(n):
+                        fh.write(f"file '{transcoded_main}'\n")
+                looped_main = os.path.join(tmpdir, "looped_main.mp4")
+                subprocess.run(
+                    [ffmpeg, "-y", "-f", "concat", "-safe", "0", "-i", loop_list,
+                     "-c", "copy", looped_main],
+                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                )
+                main_for_concat = looped_main
+            else:
+                main_for_concat = transcoded_main
+
+            if intro_clip_path and os.path.exists(intro_clip_path):
+                list_file = os.path.join(tmpdir, "clips.txt")
+                with open(list_file, "w", encoding="utf-8") as fh:
+                    fh.write(f"file '{intro_clip_path}'\n")
+                    fh.write(f"file '{main_for_concat}'\n")
+                silent_video = os.path.join(tmpdir, "silent_video.mp4")
+                subprocess.run(
+                    [ffmpeg, "-y", "-f", "concat", "-safe", "0", "-i", list_file,
+                     "-c", "copy", silent_video],
+                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                )
+            else:
+                silent_video = main_for_concat
+
+            # ── Step 5: Build full audio track then mix onto video ───────────
+            _job_set(job_id, {"status": "processing", "step": "Mixing audio..."})
+
+            # Prepend intro's original audio (if any) before narration
             if intro_audio_path:
                 combined_audio = os.path.join(tmpdir, "combined_audio.aac")
                 subprocess.run(
@@ -233,41 +255,15 @@ def _run_new_home_pipeline(job_id, agent_id, main_video_bytes, narration, cover_
             else:
                 final_audio_path = audio_path
 
-            import math
-            video_dur = _dur(silent_video)
-            audio_dur = _dur(final_audio_path)
             final_path = os.path.join(tmpdir, "final.mp4")
-
-            if audio_dur > video_dur + 0.5 and video_dur > 0:
-                # Audio longer than full video — loop video via concat
-                n = math.ceil(audio_dur / video_dur) + 1
-                loop_list = os.path.join(tmpdir, "loop.txt")
-                with open(loop_list, "w") as fh:
-                    for _ in range(n):
-                        fh.write(f"file '{silent_video}'\n")
-                looped = os.path.join(tmpdir, "looped.mp4")
-                subprocess.run(
-                    [ffmpeg, "-y", "-f", "concat", "-safe", "0", "-i", loop_list,
-                     "-c", "copy", looped],
-                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                )
-                subprocess.run(
-                    [ffmpeg, "-y",
-                     "-i", looped, "-i", final_audio_path,
-                     "-map", "0:v:0", "-map", "1:a:0",
-                     "-c:v", "copy", "-c:a", "aac", "-shortest",
-                     final_path],
-                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                )
-            else:
-                subprocess.run(
-                    [ffmpeg, "-y",
-                     "-i", silent_video, "-i", final_audio_path,
-                     "-map", "0:v:0", "-map", "1:a:0",
-                     "-c:v", "copy", "-c:a", "aac", "-shortest",
-                     final_path],
-                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                )
+            subprocess.run(
+                [ffmpeg, "-y",
+                 "-i", silent_video, "-i", final_audio_path,
+                 "-map", "0:v:0", "-map", "1:a:0",
+                 "-c:v", "copy", "-c:a", "aac", "-shortest",
+                 final_path],
+                check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
 
             # ── Step 6: Upload ────────────────────────────────────────────────
             _job_set(job_id, {"status": "processing", "step": "Uploading..."})
