@@ -19,37 +19,42 @@ def ensure_jobs_table():
         with conn, conn.cursor() as cur:
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS new_home_video_jobs (
-                    job_id        TEXT PRIMARY KEY,
-                    status        TEXT    DEFAULT 'queued',
-                    step          TEXT,
-                    agent_id      INTEGER,
-                    main_r2_key   TEXT,
-                    narration     TEXT,
-                    cover1        TEXT,
-                    cover2        TEXT,
-                    cover3        TEXT,
-                    intro_r2_key  TEXT,
-                    video_url     TEXT,
-                    cover_url     TEXT,
-                    expires_at    TEXT,
-                    error_msg     TEXT,
-                    created_at    TIMESTAMPTZ DEFAULT NOW(),
-                    updated_at    TIMESTAMPTZ DEFAULT NOW()
+                    job_id           TEXT PRIMARY KEY,
+                    status           TEXT    DEFAULT 'queued',
+                    step             TEXT,
+                    agent_id         INTEGER,
+                    main_r2_key      TEXT,
+                    narration        TEXT,
+                    cover1           TEXT,
+                    cover2           TEXT,
+                    cover3           TEXT,
+                    intro_r2_key     TEXT,
+                    cover_bg_r2_key  TEXT,
+                    video_url        TEXT,
+                    cover_url        TEXT,
+                    expires_at       TEXT,
+                    error_msg        TEXT,
+                    created_at       TIMESTAMPTZ DEFAULT NOW(),
+                    updated_at       TIMESTAMPTZ DEFAULT NOW()
                 )
+            """)
+            cur.execute("""
+                ALTER TABLE new_home_video_jobs
+                ADD COLUMN IF NOT EXISTS cover_bg_r2_key TEXT
             """)
     finally:
         conn.close()
 
 
-def create_job(job_id, agent_id, main_r2_key, narration, cover_lines, intro_r2_key=None):
+def create_job(job_id, agent_id, main_r2_key, narration, cover_lines, intro_r2_key=None, cover_bg_r2_key=None):
     conn = _conn()
     try:
         with conn, conn.cursor() as cur:
             cur.execute("""
                 INSERT INTO new_home_video_jobs
                     (job_id, status, agent_id, main_r2_key, narration,
-                     cover1, cover2, cover3, intro_r2_key)
-                VALUES (%s, 'queued', %s, %s, %s, %s, %s, %s, %s)
+                     cover1, cover2, cover3, intro_r2_key, cover_bg_r2_key)
+                VALUES (%s, 'queued', %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (job_id) DO NOTHING
             """, (
                 job_id, agent_id, main_r2_key, narration,
@@ -57,6 +62,7 @@ def create_job(job_id, agent_id, main_r2_key, narration, cover_lines, intro_r2_k
                 cover_lines[1] if len(cover_lines) > 1 else '',
                 cover_lines[2] if len(cover_lines) > 2 else '',
                 intro_r2_key,
+                cover_bg_r2_key,
             ))
     finally:
         conn.close()

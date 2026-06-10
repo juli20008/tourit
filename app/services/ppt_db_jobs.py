@@ -32,6 +32,7 @@ def ensure_jobs_table():
                     cover2          TEXT,
                     cover3          TEXT,
                     intro_r2_key    TEXT,
+                    cover_bg_r2_key TEXT,
                     video_url       TEXT,
                     cover_url       TEXT,
                     expires_at      TEXT,
@@ -40,19 +41,23 @@ def ensure_jobs_table():
                     updated_at      TIMESTAMPTZ DEFAULT NOW()
                 )
             """)
+            cur.execute("""
+                ALTER TABLE ppt_video_jobs
+                ADD COLUMN IF NOT EXISTS cover_bg_r2_key TEXT
+            """)
     finally:
         conn.close()
 
 
-def create_job(job_id, agent_id, image_r2_keys, slide_texts, cover_lines, intro_r2_key=None):
+def create_job(job_id, agent_id, image_r2_keys, slide_texts, cover_lines, intro_r2_key=None, cover_bg_r2_key=None):
     conn = _conn()
     try:
         with conn, conn.cursor() as cur:
             cur.execute("""
                 INSERT INTO ppt_video_jobs
                     (job_id, status, agent_id, slide_count,
-                     image_r2_keys, slide_texts, cover1, cover2, cover3, intro_r2_key)
-                VALUES (%s, 'queued', %s, %s, %s, %s, %s, %s, %s, %s)
+                     image_r2_keys, slide_texts, cover1, cover2, cover3, intro_r2_key, cover_bg_r2_key)
+                VALUES (%s, 'queued', %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (job_id) DO NOTHING
             """, (
                 job_id, agent_id, len(image_r2_keys),
@@ -62,6 +67,7 @@ def create_job(job_id, agent_id, image_r2_keys, slide_texts, cover_lines, intro_
                 cover_lines[1] if len(cover_lines) > 1 else '',
                 cover_lines[2] if len(cover_lines) > 2 else '',
                 intro_r2_key,
+                cover_bg_r2_key,
             ))
     finally:
         conn.close()

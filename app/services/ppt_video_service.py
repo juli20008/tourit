@@ -155,7 +155,7 @@ def _make_slide_clip(ffmpeg, img_path, duration, out_path):
 
 # ── Main pipeline ─────────────────────────────────────────────────────────────
 
-def _run_ppt_pipeline(job_id, agent_id, slide_images_bytes, slide_texts, cover_lines, flask_app, intro_bytes=None):
+def _run_ppt_pipeline(job_id, agent_id, slide_images_bytes, slide_texts, cover_lines, flask_app, intro_bytes=None, cover_bg_bytes=None):
     if not _GENERATION_LOCK.acquire(blocking=False):
         with flask_app.app_context():
             _job_set(job_id, {"status": "error", "message": "另一个视频正在生成中，请稍后再试"})
@@ -251,12 +251,18 @@ def _run_ppt_pipeline(job_id, agent_id, slide_images_bytes, slide_texts, cover_l
                     _make_slide_clip(ffmpeg, cover_path, 3.0, cover_clip)
                     intro_clip_path = cover_clip
 
-            # Composite cover image (slide 1 as background + agent cutout)
+            # Composite cover image (slide 1 or custom bg as background + agent cutout)
             _cover_r2_url = None
+            _cover_bg_path = None
+            if cover_bg_bytes:
+                _cover_bg_path = os.path.join(tmpdir, "cover_bg.jpg")
+                with open(_cover_bg_path, "wb") as _f:
+                    _f.write(cover_bg_bytes)
             comp_png = os.path.join(tmpdir, "composite_cover.png")
             intro_src = raw_intro if raw_intro and os.path.exists(raw_intro) else None
+            bg_photo = _cover_bg_path if _cover_bg_path else slide_images[0]
             ok = _generate_composite_cover(
-                ffmpeg, intro_src, slide_images[0],
+                ffmpeg, intro_src, bg_photo,
                 cover_lines[0], cover_lines[1], cover_lines[2], comp_png,
             )
             if ok and os.path.exists(comp_png):
@@ -391,7 +397,7 @@ def _run_ppt_pipeline(job_id, agent_id, slide_images_bytes, slide_texts, cover_l
             unregister_job_callback(job_id)
 
 
-def start_ppt_video_job(agent_id, slide_images_bytes, slide_texts, cover_lines, flask_app, intro_bytes=None):
+def start_ppt_video_job(agent_id, slide_images_bytes, slide_texts, cover_lines, flask_app, intro_bytes=None, cover_bg_bytes=None):
     """Start background PPT video generation. Returns job_id."""
     _job_clean()
     job_id = uuid.uuid4().hex
@@ -399,7 +405,7 @@ def start_ppt_video_job(agent_id, slide_images_bytes, slide_texts, cover_lines, 
     t = threading.Thread(
         target=_run_ppt_pipeline,
         args=(job_id, agent_id, slide_images_bytes, slide_texts, cover_lines, flask_app),
-        kwargs={"intro_bytes": intro_bytes},
+        kwargs={"intro_bytes": intro_bytes, "cover_bg_bytes": cover_bg_bytes},
         daemon=True,
     )
     t.start()

@@ -173,12 +173,15 @@ const XHSVideoModal = ({ listing, onClose, onGenerated }) => {
 	const [cover2, setCover2] = useState("");
 	const [cover3, setCover3] = useState("");
 	const [introBlob, setIntroBlob] = useState(null);
+	const [coverBg, setCoverBg] = useState(null);
+	const [coverBgPreview, setCoverBgPreview] = useState(null);
 	const [phase, setPhase] = useState("input");
 	const [step, setStep] = useState("");
 	const [videoUrl, setVideoUrl] = useState(null);
 	const [coverUrl, setCoverUrl] = useState(null);
 	const [errorMsg, setErrorMsg] = useState("");
 	const pollRef = useRef(null);
+	const coverBgRef = useRef(null);
 
 	useEffect(() => {
 		return () => clearInterval(pollRef.current);
@@ -202,6 +205,9 @@ const XHSVideoModal = ({ listing, onClose, onGenerated }) => {
 		if (introBlob) {
 			const ext = introBlob.type?.includes("mp4") ? "mp4" : "webm";
 			formData.append("intro_video", introBlob, `intro.${ext}`);
+		}
+		if (coverBg) {
+			formData.append("cover_bg", coverBg);
 		}
 
 		const resp = await apiFetch(`/api/xhs/agent/video/${mlsNumber}`, {
@@ -296,6 +302,40 @@ const XHSVideoModal = ({ listing, onClose, onGenerated }) => {
 						</div>
 
 						<IntroSection introBlob={introBlob} setIntroBlob={setIntroBlob} />
+
+						{/* Cover background image */}
+						<div style={{ marginBottom: 16 }}>
+							<label style={{ display: "block", fontWeight: 600, marginBottom: 6, fontSize: "0.9rem" }}>
+								封面背景图 / Cover Background <span style={{ color: "#94a3b8", fontWeight: 400 }}>(选填)</span>
+							</label>
+							<p style={{ color: "#64748b", fontSize: "0.75rem", margin: "0 0 8px" }}>
+								上传后作为封面底图，人物和文字叠放其上。不上传则使用房源图片。
+							</p>
+							{coverBgPreview ? (
+								<div style={{ position: "relative", display: "inline-block" }}>
+									<img src={coverBgPreview} alt="封面背景" style={{ width: 100, height: 75, objectFit: "cover", borderRadius: 8, border: "1.5px solid #e2e8f0", display: "block" }} />
+									<button
+										onClick={() => { URL.revokeObjectURL(coverBgPreview); setCoverBg(null); setCoverBgPreview(null); }}
+										style={{ position: "absolute", top: 3, right: 3, background: "rgba(220,38,38,.8)", color: "#fff", border: "none", borderRadius: "50%", width: 20, height: 20, cursor: "pointer", fontSize: "0.7rem", lineHeight: 1, padding: 0 }}
+									>✕</button>
+								</div>
+							) : (
+								<div
+									onClick={() => coverBgRef.current?.click()}
+									style={{ border: "2px dashed #cbd5e1", borderRadius: 8, padding: "10px 16px", textAlign: "center", cursor: "pointer", background: "#f8fafc", color: "#64748b", fontSize: "0.8rem", display: "inline-block", minWidth: 160 }}
+								>
+									+ 上传背景图
+								</div>
+							)}
+							<input ref={coverBgRef} type="file" accept="image/*" style={{ display: "none" }} onChange={e => {
+								const f = e.target.files?.[0];
+								if (!f) return;
+								if (coverBgPreview) URL.revokeObjectURL(coverBgPreview);
+								setCoverBg(f);
+								setCoverBgPreview(URL.createObjectURL(f));
+								e.target.value = "";
+							}} />
+						</div>
 
 						{errorMsg && (
 							<div style={{ color: "#dc2626", fontSize: "0.85rem", marginBottom: 12 }}>{errorMsg}</div>

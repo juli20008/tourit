@@ -57,13 +57,14 @@ def main():
         sys.exit(1)
 
     row = dict(row)
-    agent_id      = row['agent_id']
-    image_r2_keys = json.loads(row.get('image_r2_keys') or '[]')
-    slide_texts   = json.loads(row.get('slide_texts') or '[]')
-    cover_lines   = [row.get('cover1') or '', row.get('cover2') or '', row.get('cover3') or '']
-    intro_r2_key  = row.get('intro_r2_key')
+    agent_id         = row['agent_id']
+    image_r2_keys    = json.loads(row.get('image_r2_keys') or '[]')
+    slide_texts      = json.loads(row.get('slide_texts') or '[]')
+    cover_lines      = [row.get('cover1') or '', row.get('cover2') or '', row.get('cover3') or '']
+    intro_r2_key     = row.get('intro_r2_key')
+    cover_bg_r2_key  = row.get('cover_bg_r2_key')
 
-    print(f"[run_ppt_video_job] agent={agent_id} slides={len(image_r2_keys)} intro={intro_r2_key}")
+    print(f"[run_ppt_video_job] agent={agent_id} slides={len(image_r2_keys)} intro={intro_r2_key} cover_bg={cover_bg_r2_key}")
 
     s3 = _s3_client()
     bucket = os.environ.get("S3_BUCKET", "tourit")
@@ -89,6 +90,16 @@ def main():
         except Exception as e:
             print(f"[run_ppt_video_job] Could not download intro (non-fatal): {e}")
 
+    # ── Download cover background from R2 if present ──────────────────────────
+    cover_bg_bytes = None
+    if cover_bg_r2_key:
+        try:
+            obj = s3.get_object(Bucket=bucket, Key=cover_bg_r2_key)
+            cover_bg_bytes = obj["Body"].read()
+            print(f"[run_ppt_video_job] Downloaded cover_bg {len(cover_bg_bytes):,} bytes")
+        except Exception as e:
+            print(f"[run_ppt_video_job] Could not download cover_bg (non-fatal): {e}")
+
     # ── Load Flask app ────────────────────────────────────────────────────────
     from app import app
 
@@ -101,13 +112,15 @@ def main():
     _run_ppt_pipeline(
         job_id, agent_id, slide_images_bytes, slide_texts, cover_lines, app,
         intro_bytes=intro_bytes,
+        cover_bg_bytes=cover_bg_bytes,
     )
     print(f"[run_ppt_video_job] Pipeline finished for job {job_id}")
 
     # ── Clean up temp R2 files ────────────────────────────────────────────────
     keys_to_delete = image_r2_keys[:]
-    if intro_r2_key:
-        keys_to_delete.append(intro_r2_key)
+    for key in [intro_r2_key, cover_bg_r2_key]:
+        if key:
+            keys_to_delete.append(key)
     for key in keys_to_delete:
         try:
             s3.delete_object(Bucket=bucket, Key=key)

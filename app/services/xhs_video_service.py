@@ -715,7 +715,7 @@ def get_job(job_id):
 
 # ── Main pipeline (runs in background thread) ──────────────────────────────────
 
-def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_bytes=None):
+def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_bytes=None, cover_bg_bytes=None):
     if not _GENERATION_LOCK.acquire(blocking=False):
         with flask_app.app_context():
             _job_set(job_id, {"status": "error", "message": "另一个视频正在生成中，完成后会发邮件通知您再来试 / Another video is already generating — you'll get an email when it's done, then try again"})
@@ -833,11 +833,17 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
             # Uploaded to R2 as a separate asset — NOT inserted into the video timeline.
             # The user downloads it and sets it as the XHS thumbnail manually.
             _cover_r2_url = None
-            if downloaded:
+            _cover_bg_path = None
+            if cover_bg_bytes:
+                _cover_bg_path = os.path.join(tmpdir, "cover_bg.jpg")
+                with open(_cover_bg_path, "wb") as _f:
+                    _f.write(cover_bg_bytes)
+            if downloaded or _cover_bg_path:
                 comp_png = os.path.join(tmpdir, "composite_cover.png")
                 intro_src = raw_intro if raw_intro and os.path.exists(raw_intro) else None
+                bg_photo = _cover_bg_path if _cover_bg_path else downloaded[0]
                 ok = _generate_composite_cover(
-                    ffmpeg, intro_src, downloaded[0],
+                    ffmpeg, intro_src, bg_photo,
                     cover_lines[0], cover_lines[1], cover_lines[2],
                     comp_png,
                 )
@@ -1024,14 +1030,15 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
             unregister_job_callback(job_id)
 
 
-def start_video_job(mls_number, agent_id, cover_lines, flask_app, intro_bytes=None):
+def start_video_job(mls_number, agent_id, cover_lines, flask_app, intro_bytes=None, cover_bg_bytes=None):
     """Start background video generation. Returns job_id."""
     _job_clean()
     job_id = uuid.uuid4().hex
     _job_set(job_id, {"status": "processing", "step": "Starting..."})
     t = threading.Thread(
         target=_run_pipeline,
-        args=(job_id, mls_number, agent_id, cover_lines, flask_app, intro_bytes),
+        args=(job_id, mls_number, agent_id, cover_lines, flask_app),
+        kwargs={"intro_bytes": intro_bytes, "cover_bg_bytes": cover_bg_bytes},
         daemon=True,
     )
     t.start()

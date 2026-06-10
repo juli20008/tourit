@@ -119,14 +119,17 @@ const NewHomeVideo = () => {
 	const [cover1, setCover1]       = useState("");
 	const [cover2, setCover2]       = useState("");
 	const [cover3, setCover3]       = useState("");
-	const [introBlob, setIntroBlob] = useState(null);
-	const [step, setStep]           = useState("");
-	const [videoUrl, setVideoUrl]   = useState(null);
-	const [coverUrl, setCoverUrl]   = useState(null);
-	const [expiresAt, setExpiresAt] = useState(null);
-	const [errMsg, setErrMsg]       = useState("");
-	const pollRef    = useRef(null);
-	const mainRef    = useRef(null);
+	const [introBlob, setIntroBlob]       = useState(null);
+	const [coverBg, setCoverBg]           = useState(null);
+	const [coverBgPreview, setCoverBgPreview] = useState(null);
+	const [step, setStep]                 = useState("");
+	const [videoUrl, setVideoUrl]         = useState(null);
+	const [coverUrl, setCoverUrl]         = useState(null);
+	const [expiresAt, setExpiresAt]       = useState(null);
+	const [errMsg, setErrMsg]             = useState("");
+	const pollRef     = useRef(null);
+	const mainRef     = useRef(null);
+	const coverBgRef  = useRef(null);
 
 	useEffect(() => () => {
 		clearInterval(pollRef.current);
@@ -155,6 +158,7 @@ const NewHomeVideo = () => {
 		fd.append("cover2", cover2);
 		fd.append("cover3", cover3);
 		if (introBlob) fd.append("intro_video", introBlob, "intro.webm");
+		if (coverBg) fd.append("cover_bg", coverBg);
 
 		try {
 			const res = await apiFetch("/api/new-home-videos/generate", { method: "POST", body: fd });
@@ -188,7 +192,9 @@ const NewHomeVideo = () => {
 	const reset = () => {
 		clearInterval(pollRef.current);
 		if (mainPreview) URL.revokeObjectURL(mainPreview);
+		if (coverBgPreview) URL.revokeObjectURL(coverBgPreview);
 		setPhase("input"); setMainFile(null); setMainPreview(null); setIntroBlob(null);
+		setCoverBg(null); setCoverBgPreview(null);
 		setNarration(""); setCover1(""); setCover2(""); setCover3("");
 		setStep(""); setVideoUrl(null); setCoverUrl(null); setExpiresAt(null);
 		setErrMsg(""); setMainErr("");
@@ -270,6 +276,40 @@ const NewHomeVideo = () => {
 								onChange={e => setter(e.target.value)} placeholder={ph}
 								className="agent-profile-input" style={{ marginBottom: 8, width: "100%" }} />
 						))}
+					</div>
+
+					{/* Cover background image */}
+					<div style={{ marginBottom: 24 }}>
+						<label style={{ display: "block", fontWeight: 600, marginBottom: 6, fontSize: "0.9rem" }}>
+							封面背景图 / Cover Background <span style={{ color: "#94a3b8", fontWeight: 400 }}>(选填)</span>
+						</label>
+						<p style={{ color: "#64748b", fontSize: "0.78rem", margin: "0 0 10px" }}>
+							上传后将作为封面底图，人物抠图和封面文字叠放其上。不上传则使用主视频第一帧。
+						</p>
+						{coverBgPreview ? (
+							<div style={{ position: "relative", display: "inline-block" }}>
+								<img src={coverBgPreview} alt="封面背景" style={{ width: 120, height: 90, objectFit: "cover", borderRadius: 8, border: "1.5px solid #e2e8f0", display: "block" }} />
+								<button
+									onClick={() => { URL.revokeObjectURL(coverBgPreview); setCoverBg(null); setCoverBgPreview(null); }}
+									style={{ position: "absolute", top: 3, right: 3, background: "rgba(220,38,38,.8)", color: "#fff", border: "none", borderRadius: "50%", width: 20, height: 20, cursor: "pointer", fontSize: "0.7rem", lineHeight: 1, padding: 0 }}
+								>✕</button>
+							</div>
+						) : (
+							<div
+								onClick={() => coverBgRef.current?.click()}
+								style={{ border: "2px dashed #cbd5e1", borderRadius: 10, padding: "14px 18px", textAlign: "center", cursor: "pointer", background: "#f8fafc", color: "#64748b", fontSize: "0.82rem", display: "inline-block", minWidth: 180 }}
+							>
+								+ 上传背景图
+							</div>
+						)}
+						<input ref={coverBgRef} type="file" accept="image/*" style={{ display: "none" }} onChange={e => {
+							const f = e.target.files?.[0];
+							if (!f) return;
+							if (coverBgPreview) URL.revokeObjectURL(coverBgPreview);
+							setCoverBg(f);
+							setCoverBgPreview(URL.createObjectURL(f));
+							e.target.value = "";
+						}} />
 					</div>
 
 					{/* Intro video */}

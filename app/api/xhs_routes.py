@@ -398,6 +398,8 @@ def generate_agent_video(mls_number):
     if not current_user.agent:
         return jsonify({'error': 'Agent account required'}), 403
 
+    MAX_COVER_BG_BYTES = 10 * 1024 * 1024  # 10 MB
+
     if request.content_type and 'multipart' in request.content_type:
         cover_lines = [
             str(request.form.get('cover1', '') or '')[:40],
@@ -406,6 +408,10 @@ def generate_agent_video(mls_number):
         ]
         intro_file = request.files.get('intro_video')
         intro_bytes = intro_file.read() if intro_file and intro_file.filename else None
+        cover_bg_file = request.files.get('cover_bg')
+        cover_bg_bytes = cover_bg_file.read(MAX_COVER_BG_BYTES + 1) if cover_bg_file and cover_bg_file.filename else None
+        if cover_bg_bytes and len(cover_bg_bytes) > MAX_COVER_BG_BYTES:
+            cover_bg_bytes = None
     else:
         data = request.get_json(silent=True) or {}
         cover_lines = [
@@ -414,12 +420,14 @@ def generate_agent_video(mls_number):
             str(data.get('cover3', '') or '')[:40],
         ]
         intro_bytes = None
+        cover_bg_bytes = None
 
     use_actions = bool(os.environ.get('GH_PAT'))
 
     if use_actions:
         job_id = uuid.uuid4().hex
         intro_r2_key = None
+        cover_bg_r2_key = None
 
         # Upload intro video to R2 as temp file
         if intro_bytes and len(intro_bytes) > 1000:
@@ -431,9 +439,18 @@ def generate_agent_video(mls_number):
             except Exception:
                 intro_r2_key = None
 
+        # Upload cover background image to R2 if provided
+        if cover_bg_bytes and len(cover_bg_bytes) > 100:
+            try:
+                from app.s3_helpers import _upload_bytes
+                cover_bg_r2_key = f'tmp-cover-bg/{job_id}.jpg'
+                _upload_bytes(cover_bg_bytes, cover_bg_r2_key, 'image/jpeg')
+            except Exception:
+                cover_bg_r2_key = None
+
         try:
             ensure_jobs_table()
-            create_job(job_id, mls_number, current_user.id, cover_lines, intro_r2_key)
+            create_job(job_id, mls_number, current_user.id, cover_lines, intro_r2_key, cover_bg_r2_key)
         except Exception as e:
             return jsonify({'error': f'DB error: {e}'}), 500
 
@@ -448,6 +465,7 @@ def generate_agent_video(mls_number):
         mls_number, current_user.id, cover_lines,
         current_app._get_current_object(),
         intro_bytes=intro_bytes,
+        cover_bg_bytes=cover_bg_bytes,
     )
     return jsonify({'job_id': job_id, 'status': 'processing'})
 

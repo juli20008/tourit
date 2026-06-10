@@ -53,7 +53,7 @@ def _find_ffmpeg():
 
 
 def _run_new_home_pipeline(job_id, agent_id, main_video_bytes, narration, cover_lines,
-                            flask_app, intro_bytes=None):
+                            flask_app, intro_bytes=None, cover_bg_bytes=None):
     if not _GENERATION_LOCK.acquire(blocking=False):
         with flask_app.app_context():
             _job_set(job_id, {"status": "error", "message": "另一个视频正在生成中，请稍后再试"})
@@ -171,13 +171,18 @@ def _run_new_home_pipeline(job_id, agent_id, main_video_bytes, narration, cover_
 
             # ── Composite cover image ─────────────────────────────────────────
             _cover_r2_url = None
+            _cover_bg_path = None
+            if cover_bg_bytes:
+                _cover_bg_path = os.path.join(tmpdir, "cover_bg.jpg")
+                with open(_cover_bg_path, "wb") as _f:
+                    _f.write(cover_bg_bytes)
             frame_path = os.path.join(tmpdir, "main_frame.jpg")
             subprocess.run(
                 [ffmpeg, "-y", "-i", transcoded_main, "-vframes", "1", "-q:v", "2", frame_path],
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )
             intro_src = raw_intro if raw_intro and os.path.exists(raw_intro) else None
-            bg_img = frame_path if os.path.exists(frame_path) else None
+            bg_img = _cover_bg_path if _cover_bg_path else (frame_path if os.path.exists(frame_path) else None)
             if bg_img:
                 comp_png = os.path.join(tmpdir, "composite_cover.png")
                 ok = _generate_composite_cover(
@@ -256,13 +261,13 @@ def _run_new_home_pipeline(job_id, agent_id, main_video_bytes, narration, cover_
 
 
 def start_new_home_job(agent_id, main_video_bytes, narration, cover_lines,
-                        flask_app, intro_bytes=None):
+                        flask_app, intro_bytes=None, cover_bg_bytes=None):
     job_id = uuid.uuid4().hex
     _job_set(job_id, {"status": "queued", "step": "Queued..."})
     t = threading.Thread(
         target=_run_new_home_pipeline,
         args=(job_id, agent_id, main_video_bytes, narration, cover_lines, flask_app),
-        kwargs={"intro_bytes": intro_bytes},
+        kwargs={"intro_bytes": intro_bytes, "cover_bg_bytes": cover_bg_bytes},
         daemon=True,
     )
     t.start()

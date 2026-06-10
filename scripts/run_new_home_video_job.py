@@ -54,13 +54,14 @@ def main():
         sys.exit(1)
 
     row = dict(row)
-    agent_id     = row['agent_id']
-    main_r2_key  = row['main_r2_key']
-    narration    = row.get('narration') or ''
-    cover_lines  = [row.get('cover1') or '', row.get('cover2') or '', row.get('cover3') or '']
-    intro_r2_key = row.get('intro_r2_key')
+    agent_id        = row['agent_id']
+    main_r2_key     = row['main_r2_key']
+    narration       = row.get('narration') or ''
+    cover_lines     = [row.get('cover1') or '', row.get('cover2') or '', row.get('cover3') or '']
+    intro_r2_key    = row.get('intro_r2_key')
+    cover_bg_r2_key = row.get('cover_bg_r2_key')
 
-    print(f"[run_new_home_video_job] agent={agent_id} main={main_r2_key}")
+    print(f"[run_new_home_video_job] agent={agent_id} main={main_r2_key} cover_bg={cover_bg_r2_key}")
 
     s3 = _s3_client()
     bucket = os.environ.get("S3_BUCKET", "tourit")
@@ -80,6 +81,16 @@ def main():
         except Exception as e:
             print(f"[run_new_home_video_job] Intro download failed (non-fatal): {e}")
 
+    # Download cover background if present
+    cover_bg_bytes = None
+    if cover_bg_r2_key:
+        try:
+            obj = s3.get_object(Bucket=bucket, Key=cover_bg_r2_key)
+            cover_bg_bytes = obj["Body"].read()
+            print(f"[run_new_home_video_job] Downloaded cover_bg {len(cover_bg_bytes):,} bytes")
+        except Exception as e:
+            print(f"[run_new_home_video_job] Cover bg download failed (non-fatal): {e}")
+
     from app import app
     from app.services.new_home_db_jobs import db_status_callback
     from app.services.new_home_video_service import register_job_callback, _run_new_home_pipeline
@@ -90,11 +101,12 @@ def main():
     _run_new_home_pipeline(
         job_id, agent_id, main_video_bytes, narration, cover_lines, app,
         intro_bytes=intro_bytes,
+        cover_bg_bytes=cover_bg_bytes,
     )
     print(f"[run_new_home_video_job] Done")
 
     # Cleanup R2 temp files
-    for key in [main_r2_key, intro_r2_key]:
+    for key in [main_r2_key, intro_r2_key, cover_bg_r2_key]:
         if key:
             try:
                 s3.delete_object(Bucket=bucket, Key=key)

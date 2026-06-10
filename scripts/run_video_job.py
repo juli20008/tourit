@@ -43,33 +43,45 @@ def main():
         sys.exit(1)
 
     row = dict(row)
-    mls_number   = row['mls_number']
-    agent_id     = row['agent_id']
-    cover_lines  = [row.get('cover1') or '', row.get('cover2') or '', row.get('cover3') or '']
-    intro_r2_key = row.get('intro_r2_key')
+    mls_number       = row['mls_number']
+    agent_id         = row['agent_id']
+    cover_lines      = [row.get('cover1') or '', row.get('cover2') or '', row.get('cover3') or '']
+    intro_r2_key     = row.get('intro_r2_key')
+    cover_bg_r2_key  = row.get('cover_bg_r2_key')
 
-    print(f"[run_video_job] MLS={mls_number} agent={agent_id} intro_key={intro_r2_key}")
+    print(f"[run_video_job] MLS={mls_number} agent={agent_id} intro_key={intro_r2_key} cover_bg_key={cover_bg_r2_key}")
+
+    import boto3
+    from botocore.config import Config
+    s3 = boto3.client(
+        "s3",
+        endpoint_url=os.environ["R2_ENDPOINT"],
+        aws_access_key_id=os.environ["S3_KEY"],
+        aws_secret_access_key=os.environ["S3_SECRET"],
+        region_name="auto",
+        config=Config(signature_version="s3v4"),
+    )
+    bucket = os.environ.get("S3_BUCKET", "tourit")
 
     # ── Download intro from R2 if present ────────────────────────────────────
     intro_bytes = None
     if intro_r2_key:
         try:
-            import boto3
-            from botocore.config import Config
-            s3 = boto3.client(
-                "s3",
-                endpoint_url=os.environ["R2_ENDPOINT"],
-                aws_access_key_id=os.environ["S3_KEY"],
-                aws_secret_access_key=os.environ["S3_SECRET"],
-                region_name="auto",
-                config=Config(signature_version="s3v4"),
-            )
-            obj = s3.get_object(Bucket=os.environ.get("S3_BUCKET", "tourit"), Key=intro_r2_key)
+            obj = s3.get_object(Bucket=bucket, Key=intro_r2_key)
             intro_bytes = obj["Body"].read()
             print(f"[run_video_job] Downloaded intro {len(intro_bytes):,} bytes from R2")
         except Exception as e:
             print(f"[run_video_job] Could not download intro (non-fatal): {e}")
-            intro_bytes = None
+
+    # ── Download cover background from R2 if present ─────────────────────────
+    cover_bg_bytes = None
+    if cover_bg_r2_key:
+        try:
+            obj = s3.get_object(Bucket=bucket, Key=cover_bg_r2_key)
+            cover_bg_bytes = obj["Body"].read()
+            print(f"[run_video_job] Downloaded cover_bg {len(cover_bg_bytes):,} bytes from R2")
+        except Exception as e:
+            print(f"[run_video_job] Could not download cover_bg (non-fatal): {e}")
 
     # ── Load Flask app (module-level app, not factory) ───────────────────────
     from app import app
@@ -80,16 +92,17 @@ def main():
     register_job_callback(job_id, db_status_callback)
 
     print(f"[run_video_job] Launching pipeline...")
-    _run_pipeline(job_id, mls_number, agent_id, cover_lines, app, intro_bytes=intro_bytes)
+    _run_pipeline(job_id, mls_number, agent_id, cover_lines, app, intro_bytes=intro_bytes, cover_bg_bytes=cover_bg_bytes)
     print(f"[run_video_job] Pipeline finished for job {job_id}")
 
-    # ── Clean up temp intro from R2 ───────────────────────────────────────────
-    if intro_r2_key:
-        try:
-            s3.delete_object(Bucket=os.environ.get("S3_BUCKET", "tourit"), Key=intro_r2_key)
-            print(f"[run_video_job] Cleaned up temp intro {intro_r2_key}")
-        except Exception:
-            pass
+    # ── Clean up temp files from R2 ───────────────────────────────────────────
+    for key in [intro_r2_key, cover_bg_r2_key]:
+        if key:
+            try:
+                s3.delete_object(Bucket=bucket, Key=key)
+                print(f"[run_video_job] Cleaned up {key}")
+            except Exception:
+                pass
 
 
 if __name__ == "__main__":

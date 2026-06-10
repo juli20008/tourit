@@ -6,8 +6,9 @@ from flask_login import login_required, current_user
 
 new_home_video_routes = Blueprint("new_home_video_routes", __name__)
 
-MAX_MAIN_BYTES  = 200 * 1024 * 1024   # 200 MB
-MAX_INTRO_BYTES =  50 * 1024 * 1024   #  50 MB
+MAX_MAIN_BYTES     = 200 * 1024 * 1024   # 200 MB
+MAX_INTRO_BYTES    =  50 * 1024 * 1024   #  50 MB
+MAX_COVER_BG_BYTES =  10 * 1024 * 1024   #  10 MB
 
 
 def _trigger_github_actions(job_id):
@@ -60,6 +61,12 @@ def generate_new_home_video():
             if len(intro_bytes) > MAX_INTRO_BYTES:
                 intro_bytes = None
 
+        cover_bg_bytes = None
+        if "cover_bg" in request.files:
+            cover_bg_bytes = request.files["cover_bg"].read(MAX_COVER_BG_BYTES + 1)
+            if len(cover_bg_bytes) > MAX_COVER_BG_BYTES:
+                cover_bg_bytes = None
+
         use_actions = bool(os.environ.get("GH_PAT"))
 
         if use_actions:
@@ -78,9 +85,14 @@ def generate_new_home_video():
                 intro_r2_key = f"tmp-new-home-intros/{job_id}.{i_ext}"
                 _upload_bytes(intro_bytes, intro_r2_key, f"video/{i_ext}")
 
+            cover_bg_r2_key = None
+            if cover_bg_bytes and len(cover_bg_bytes) > 100:
+                cover_bg_r2_key = f"tmp-cover-bg/{job_id}.jpg"
+                _upload_bytes(cover_bg_bytes, cover_bg_r2_key, "image/jpeg")
+
             from app.services.new_home_db_jobs import ensure_jobs_table, create_job
             ensure_jobs_table()
-            create_job(job_id, current_user.id, main_r2_key, narration, cover_lines, intro_r2_key)
+            create_job(job_id, current_user.id, main_r2_key, narration, cover_lines, intro_r2_key, cover_bg_r2_key)
 
             dispatched = _trigger_github_actions(job_id)
             if not dispatched:
@@ -97,6 +109,7 @@ def generate_new_home_video():
             cover_lines=cover_lines,
             flask_app=current_app._get_current_object(),
             intro_bytes=intro_bytes,
+            cover_bg_bytes=cover_bg_bytes,
         )
         return jsonify({"job_id": job_id, "status": "queued"})
 
