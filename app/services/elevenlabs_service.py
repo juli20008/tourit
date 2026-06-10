@@ -8,10 +8,33 @@ Voice clone creation is a 2-step process:
   b) POST /v1/voice_clone with file_id → voice_id (stored in users.elevenlabs_voice_id)
 """
 import os
+import re
 import subprocess
 import tempfile
 import uuid
 import requests
+
+
+def _normalize_for_tts(text: str) -> str:
+    """Expand currency/number shorthands so MiniMax reads them correctly in Chinese."""
+    # $X.XXM or $XM → "X.XX million 加元"   e.g. $1.07M → 1.07 million 加元
+    text = re.sub(r'\$(\d+\.?\d*)\s*[Mm]\b', r'\1 million 加元', text)
+    # X.XXM or XM (no $) → "X.XX million"   e.g. 2.3M → 2.3 million
+    text = re.sub(r'\b(\d+\.?\d+)\s*[Mm]\b', r'\1 million', text)
+    # $X,XXX,XXX or $XXX,XXX → convert to million/万 + 加元
+    def _fmt(m):
+        n = float(m.group(1).replace(',', ''))
+        if n >= 1_000_000:
+            s = f"{n / 1_000_000:.2f}".rstrip('0').rstrip('.')
+            return f"{s} million 加元"
+        if n >= 10_000:
+            s = f"{n / 10_000:.1f}".rstrip('0').rstrip('.')
+            return f"{s}万加元"
+        return f"{m.group(1).replace(',', '')}加元"
+    text = re.sub(r'\$([\d,]+)', _fmt, text)
+    # Any remaining bare $
+    text = text.replace('$', '加元')
+    return text
 
 _MINIMAX_BASE = os.environ.get("MINIMAX_BASE_URL", "https://api.minimax.io")
 
@@ -190,4 +213,4 @@ def generate_speech(text, voice_sample_path=None, fish_voice_id=None):
     1. MiniMax TTS with agent's cloned voice  (fish_voice_id = MiniMax voice_id)
     2. MiniMax TTS with preset Chinese voice  (no clone available)
     """
-    return _minimax_tts(text, voice_id=fish_voice_id or None)
+    return _minimax_tts(_normalize_for_tts(text), voice_id=fish_voice_id or None)
