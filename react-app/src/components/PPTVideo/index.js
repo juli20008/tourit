@@ -197,7 +197,8 @@ const PPTVideo = () => {
 
 		try {
 			const res = await apiFetch("/api/ppt-videos/generate", { method: "POST", body: fd });
-			const data = await res.json();
+			let data;
+			try { data = await res.json(); } catch { throw new Error(`服务器错误 (${res.status})，请稍后重试`); }
 			if (!res.ok || !data.job_id) throw new Error(data.error || "启动失败");
 			setJobId(data.job_id);
 			pollRef.current = setInterval(() => pollStatus(data.job_id), POLL_MS);

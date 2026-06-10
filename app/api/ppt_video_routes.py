@@ -10,49 +10,52 @@ MAX_INTRO_BYTES = 50 * 1024 * 1024   # 50 MB
 @ppt_video_routes.route("/generate", methods=["POST"])
 @login_required
 def generate_ppt_video():
-    if not current_user.agent:
-        return jsonify({"error": "Agent account required"}), 403
+    try:
+        if not current_user.agent:
+            return jsonify({"error": "Agent account required"}), 403
 
-    slide_images_bytes = []
-    for i in range(1, 6):
-        key = f"image_{i}"
-        if key not in request.files:
-            continue
-        img_bytes = request.files[key].read(MAX_IMAGE_BYTES + 1)
-        if len(img_bytes) > MAX_IMAGE_BYTES:
-            return jsonify({"error": f"图片 {i} 过大（每张最大 10MB）"}), 400
-        if img_bytes:
-            slide_images_bytes.append(img_bytes)
+        slide_images_bytes = []
+        for i in range(1, 6):
+            key = f"image_{i}"
+            if key not in request.files:
+                continue
+            img_bytes = request.files[key].read(MAX_IMAGE_BYTES + 1)
+            if len(img_bytes) > MAX_IMAGE_BYTES:
+                return jsonify({"error": f"图片 {i} 过大（每张最大 10MB）"}), 400
+            if img_bytes:
+                slide_images_bytes.append(img_bytes)
 
-    if not slide_images_bytes:
-        return jsonify({"error": "请至少上传一张幻灯片图片"}), 400
+        if not slide_images_bytes:
+            return jsonify({"error": "请至少上传一张幻灯片图片"}), 400
 
-    slide_texts = [
-        (request.form.get(f"slide_{i}") or "").strip()
-        for i in range(1, 6)
-    ]
-    cover_lines = [
-        (request.form.get("cover1") or "").strip()[:40],
-        (request.form.get("cover2") or "").strip()[:40],
-        (request.form.get("cover3") or "").strip()[:40],
-    ]
+        slide_texts = [
+            (request.form.get(f"slide_{i}") or "").strip()
+            for i in range(1, 6)
+        ]
+        cover_lines = [
+            (request.form.get("cover1") or "").strip()[:40],
+            (request.form.get("cover2") or "").strip()[:40],
+            (request.form.get("cover3") or "").strip()[:40],
+        ]
 
-    intro_bytes = None
-    if "intro_video" in request.files:
-        intro_bytes = request.files["intro_video"].read(MAX_INTRO_BYTES + 1)
-        if len(intro_bytes) > MAX_INTRO_BYTES:
-            intro_bytes = None
+        intro_bytes = None
+        if "intro_video" in request.files:
+            intro_bytes = request.files["intro_video"].read(MAX_INTRO_BYTES + 1)
+            if len(intro_bytes) > MAX_INTRO_BYTES:
+                intro_bytes = None
 
-    from app.services.ppt_video_service import start_ppt_video_job
-    job_id = start_ppt_video_job(
-        agent_id=current_user.id,
-        slide_images_bytes=slide_images_bytes,
-        slide_texts=slide_texts,
-        cover_lines=cover_lines,
-        flask_app=current_app._get_current_object(),
-        intro_bytes=intro_bytes,
-    )
-    return jsonify({"job_id": job_id, "status": "queued"})
+        from app.services.ppt_video_service import start_ppt_video_job
+        job_id = start_ppt_video_job(
+            agent_id=current_user.id,
+            slide_images_bytes=slide_images_bytes,
+            slide_texts=slide_texts,
+            cover_lines=cover_lines,
+            flask_app=current_app._get_current_object(),
+            intro_bytes=intro_bytes,
+        )
+        return jsonify({"job_id": job_id, "status": "queued"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @ppt_video_routes.route("/status/<job_id>", methods=["GET"])
