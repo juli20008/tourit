@@ -106,6 +106,7 @@ def _run_new_home_pipeline(job_id, agent_id, main_video_bytes, narration, cover_
             _job_set(job_id, {"status": "processing", "step": "Creating intro..."})
 
             intro_clip_path = None
+            intro_audio_path = None  # original audio from user's intro video
             raw_intro = None
 
             if intro_bytes and len(intro_bytes) > 1000:
@@ -114,6 +115,17 @@ def _run_new_home_pipeline(job_id, agent_id, main_video_bytes, narration, cover_
                     with open(raw_intro, "wb") as fh:
                         fh.write(intro_bytes)
                     intro_bytes = None
+
+                    # Extract original audio — keep agent's voice for intro portion
+                    _intro_audio_tmp = os.path.join(tmpdir, "intro_audio.aac")
+                    subprocess.run(
+                        [ffmpeg, "-y", "-i", raw_intro, "-vn",
+                         "-af", "highpass=f=80,afftdn=nf=-25,loudnorm",
+                         "-c:a", "aac", "-threads", "1", _intro_audio_tmp],
+                        check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                    )
+                    if os.path.exists(_intro_audio_tmp) and os.path.getsize(_intro_audio_tmp) > 100:
+                        intro_audio_path = _intro_audio_tmp
 
                     transcoded_intro = os.path.join(tmpdir, "intro_base.mp4")
                     content_rect = _video_content_rect(ffprobe, raw_intro)
@@ -129,6 +141,7 @@ def _run_new_home_pipeline(job_id, agent_id, main_video_bytes, narration, cover_
                         os.rename(transcoded_intro, intro_clip_path)
                 except Exception:
                     intro_clip_path = None
+                    intro_audio_path = None
 
             if not intro_clip_path:
                 cover_path = os.path.join(tmpdir, "cover.png")
@@ -191,7 +204,7 @@ def _run_new_home_pipeline(job_id, agent_id, main_video_bytes, narration, cover_
             else:
                 silent_video = transcoded_main
 
-            # ── Step 5: Mix narration over full video (loop if needed) ────────
+            # ── Step 5: Build full audio track then mix onto video ───────────
             _job_set(job_id, {"status": "processing", "step": "Mixing audio..."})
 
             def _dur(path):
@@ -205,13 +218,28 @@ def _run_new_home_pipeline(job_id, agent_id, main_video_bytes, narration, cover_
                 except Exception:
                     return 0.0
 
+            # If user provided an intro video, prepend its original audio before narration
+            if intro_audio_path:
+                combined_audio = os.path.join(tmpdir, "combined_audio.aac")
+                subprocess.run(
+                    [ffmpeg, "-y",
+                     "-i", intro_audio_path, "-i", audio_path,
+                     "-filter_complex", "[0:a][1:a]concat=n=2:v=0:a=1[outa]",
+                     "-map", "[outa]", "-c:a", "aac",
+                     combined_audio],
+                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                )
+                final_audio_path = combined_audio
+            else:
+                final_audio_path = audio_path
+
             import math
             video_dur = _dur(silent_video)
-            audio_dur = _dur(audio_path)
+            audio_dur = _dur(final_audio_path)
             final_path = os.path.join(tmpdir, "final.mp4")
 
             if audio_dur > video_dur + 0.5 and video_dur > 0:
-                # Narration longer than full video — loop video via concat
+                # Audio longer than full video — loop video via concat
                 n = math.ceil(audio_dur / video_dur) + 1
                 loop_list = os.path.join(tmpdir, "loop.txt")
                 with open(loop_list, "w") as fh:
@@ -225,7 +253,7 @@ def _run_new_home_pipeline(job_id, agent_id, main_video_bytes, narration, cover_
                 )
                 subprocess.run(
                     [ffmpeg, "-y",
-                     "-i", looped, "-i", audio_path,
+                     "-i", looped, "-i", final_audio_path,
                      "-map", "0:v:0", "-map", "1:a:0",
                      "-c:v", "copy", "-c:a", "aac", "-shortest",
                      final_path],
@@ -234,7 +262,7 @@ def _run_new_home_pipeline(job_id, agent_id, main_video_bytes, narration, cover_
             else:
                 subprocess.run(
                     [ffmpeg, "-y",
-                     "-i", silent_video, "-i", audio_path,
+                     "-i", silent_video, "-i", final_audio_path,
                      "-map", "0:v:0", "-map", "1:a:0",
                      "-c:v", "copy", "-c:a", "aac", "-shortest",
                      final_path],
