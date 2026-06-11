@@ -82,7 +82,7 @@ const IntroSection = ({ introBlob, setIntroBlob }) => {
 				开场视频（选填）/ Intro Video (optional)
 			</label>
 			<p style={{ color: "#64748b", fontSize: "0.78rem", margin: "0 0 10px" }}>
-				最多 10 秒竖屏自拍，封面文字自动叠加。
+				最多 {MAX_INTRO_SECS} 秒竖屏自拍，封面文字自动叠加。
 			</p>
 			{recording && (
 				<div style={{ position: "relative", width: 120, margin: "0 auto 10px" }}>

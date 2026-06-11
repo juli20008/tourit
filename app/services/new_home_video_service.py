@@ -110,23 +110,34 @@ def _run_new_home_pipeline(job_id, agent_id, main_video_bytes, narration, cover_
             raw_intro = None
 
             if intro_bytes and len(intro_bytes) > 1000:
-                try:
-                    raw_intro = os.path.join(tmpdir, "intro_raw.webm")
-                    with open(raw_intro, "wb") as fh:
-                        fh.write(intro_bytes)
-                    intro_bytes = None
+                raw_intro = os.path.join(tmpdir, "intro_raw.mp4")
+                with open(raw_intro, "wb") as fh:
+                    fh.write(intro_bytes)
+                intro_bytes = None
 
-                    # Extract original audio — keep agent's voice for intro portion
-                    _intro_audio_tmp = os.path.join(tmpdir, "intro_audio.aac")
+                # Extract original audio — try with filters, fall back to plain extract
+                _intro_audio_tmp = os.path.join(tmpdir, "intro_audio.aac")
+                try:
                     subprocess.run(
                         [ffmpeg, "-y", "-i", raw_intro, "-vn",
-                         "-af", "highpass=f=80,afftdn=nf=-25,loudnorm",
+                         "-af", "highpass=f=80,loudnorm",
                          "-c:a", "aac", "-threads", "1", _intro_audio_tmp],
                         check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                     )
-                    if os.path.exists(_intro_audio_tmp) and os.path.getsize(_intro_audio_tmp) > 100:
-                        intro_audio_path = _intro_audio_tmp
+                except Exception:
+                    try:
+                        subprocess.run(
+                            [ffmpeg, "-y", "-i", raw_intro, "-vn",
+                             "-c:a", "aac", _intro_audio_tmp],
+                            check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                        )
+                    except Exception:
+                        pass
+                if os.path.exists(_intro_audio_tmp) and os.path.getsize(_intro_audio_tmp) > 100:
+                    intro_audio_path = _intro_audio_tmp
 
+                # Transcode + overlay — if this fails, skip intro (don't drop silently)
+                try:
                     transcoded_intro = os.path.join(tmpdir, "intro_base.mp4")
                     content_rect = _video_content_rect(ffprobe, raw_intro)
                     _transcode_intro(ffmpeg, raw_intro, transcoded_intro)
@@ -139,9 +150,9 @@ def _run_new_home_pipeline(job_id, agent_id, main_video_bytes, narration, cover_
                         _composite_overlay(ffmpeg, transcoded_intro, overlay_png, intro_clip_path)
                     else:
                         os.rename(transcoded_intro, intro_clip_path)
-                except Exception:
+                except Exception as _e:
+                    _job_set(job_id, {"step": f"Creating intro... (warn: {_e})"})
                     intro_clip_path = None
-                    intro_audio_path = None
 
             if not intro_clip_path:
                 cover_path = os.path.join(tmpdir, "cover.png")
