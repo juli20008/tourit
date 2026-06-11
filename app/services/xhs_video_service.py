@@ -187,7 +187,7 @@ def _generate_cover(line1, line2, line3, out_path):
         if line3:
             bbox = draw.textbbox((0, 0), line3, font=f3, stroke_width=STROKE_W)
             w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
-            _draw_impact_text(draw, line3, f3, (OUTPUT_W - w) // 2, OUTPUT_H - 90 - h, STROKE_W)
+            _draw_impact_text(draw, line3, f3, (OUTPUT_W - w) // 2, int(OUTPUT_H * 0.78) - h // 2, STROKE_W)
 
         img.save(out_path, "PNG")
     except ImportError:
@@ -302,11 +302,11 @@ def _generate_composite_cover(ffmpeg, intro_path, photo_path, line1, line2, line
             _draw_impact_text(draw, text, font, (OUTPUT_W - w) // 2, y, STROKE_W)
             y += h + spacing
 
-        # Line 3 at bottom (below person)
+        # Line 3 lower portion (~78% from top)
         if line3:
             bbox = draw.textbbox((0, 0), line3, font=f3, stroke_width=STROKE_W)
             w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
-            _draw_impact_text(draw, line3, f3, (OUTPUT_W - w) // 2, OUTPUT_H - 80 - h, STROKE_W)
+            _draw_impact_text(draw, line3, f3, (OUTPUT_W - w) // 2, int(OUTPUT_H * 0.78) - h // 2, STROKE_W)
 
         result.save(out_path, "PNG")
         return True
