@@ -170,15 +170,24 @@ def _generate_cover(line1, line2, line3, out_path):
                 size -= 4
             return _load(20), 20
 
-        # Equal thirds: centers at H/6, H/2, 5H/6
-        section_centers = [OUTPUT_H // 6, OUTPUT_H // 2, OUTPUT_H * 5 // 6]
-        for text, yc in zip([line1, line2, line3], section_centers):
-            if not text:
-                continue
-            font, _ = _fit(text)
+        f1 = _fit(line1)[0] if line1 else _load(96)
+        f2 = _fit(line2, 76)[0] if line2 else _load(76)
+        f3 = _fit(line3)[0] if line3 else _load(96)
+
+        # Lines 1 & 2 stacked at top
+        spacing = 20
+        y = int(OUTPUT_H * 0.08)
+        for text, font in [(t, f) for t, f in [(line1, f1), (line2, f2)] if t]:
             bbox = draw.textbbox((0, 0), text, font=font, stroke_width=STROKE_W)
             w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
-            _draw_impact_text(draw, text, font, (OUTPUT_W - w) // 2, yc - h // 2, STROKE_W)
+            _draw_impact_text(draw, text, font, (OUTPUT_W - w) // 2, y, STROKE_W)
+            y += h + spacing
+
+        # Line 3 at bottom
+        if line3:
+            bbox = draw.textbbox((0, 0), line3, font=f3, stroke_width=STROKE_W)
+            w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+            _draw_impact_text(draw, line3, f3, (OUTPUT_W - w) // 2, OUTPUT_H - 90 - h, STROKE_W)
 
         img.save(out_path, "PNG")
     except ImportError:
@@ -280,15 +289,24 @@ def _generate_composite_cover(ffmpeg, intro_path, photo_path, line1, line2, line
                 size -= 4
             return _load(20)
 
-        # Equal thirds: centers at H/6, H/2, 5H/6
-        section_centers = [OUTPUT_H // 6, OUTPUT_H // 2, OUTPUT_H * 5 // 6]
-        for text, yc in zip([line1, line2, line3], section_centers):
-            if not text:
-                continue
-            font = _fit(text)
+        f1 = _fit(line1) if line1 else _load(96)
+        f2 = _fit(line2, 76) if line2 else _load(76)
+        f3 = _fit(line3) if line3 else _load(96)
+
+        # Lines 1 & 2 stacked at top (above person)
+        spacing = 18
+        y = int(OUTPUT_H * 0.05)
+        for text, font in [(t, f) for t, f in [(line1, f1), (line2, f2)] if t]:
             bbox = draw.textbbox((0, 0), text, font=font, stroke_width=STROKE_W)
             w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
-            _draw_impact_text(draw, text, font, (OUTPUT_W - w) // 2, yc - h // 2, STROKE_W)
+            _draw_impact_text(draw, text, font, (OUTPUT_W - w) // 2, y, STROKE_W)
+            y += h + spacing
+
+        # Line 3 at bottom (below person)
+        if line3:
+            bbox = draw.textbbox((0, 0), line3, font=f3, stroke_width=STROKE_W)
+            w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+            _draw_impact_text(draw, line3, f3, (OUTPUT_W - w) // 2, OUTPUT_H - 80 - h, STROKE_W)
 
         result.save(out_path, "PNG")
         return True
@@ -378,17 +396,22 @@ def _generate_intro_overlay(line1, line2, line3, out_path, content_rect=None):
             _draw_impact_text(draw, text, font, x, y, STROKE_W)
             return th
 
-        # Equal thirds within content rect: centers at 1/6, 1/2, 5/6 of ch
-        section_centers = [
-            y_off + ch // 6,
-            y_off + ch // 2,
-            y_off + ch * 5 // 6,
-        ]
-        for text, yc in zip([line1, line2, line3], section_centers):
-            if not text:
-                continue
-            font = _fit(text)
-            _draw_centered(text, font, yc)
+        f1 = _fit(line1) if line1 else _load(96)
+        f2 = _fit(line2, 76) if line2 else _load(76)
+        f3 = _fit(line3) if line3 else _load(96)
+
+        # Lines 1 & 2 at top of content area
+        spacing = 20
+        bottom_y = y_off + int(ch * 0.2)
+        for text, font in [(t, f) for t, f in [(line1, f1), (line2, f2)] if t]:
+            bbox = draw.textbbox((0, 0), text, font=font, stroke_width=STROKE_W)
+            h = bbox[3] - bbox[1]
+            _draw_centered(text, font, bottom_y + h // 2)
+            bottom_y += h + spacing
+
+        # Line 3 at bottom of content area
+        if line3:
+            _draw_centered(line3, f3, y_off + ch - 90)
 
         img.save(out_path, "PNG")
 
