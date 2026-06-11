@@ -359,7 +359,7 @@ def _generate_intro_overlay(line1, line2, line3, out_path, content_rect=None):
         STROKE_W = 9
         MAX_W    = cw - MARGIN * 2  # constrained to content width
 
-        def _fit(text, start_size):
+        def _fit(text, start_size=96):
             size = start_size
             while size >= 20:
                 f = _load(size)
