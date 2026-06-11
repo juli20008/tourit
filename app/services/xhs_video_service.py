@@ -400,14 +400,14 @@ def _generate_intro_overlay(line1, line2, line3, out_path, content_rect=None):
         f2 = _fit(line2, 76) if line2 else _load(76)
         f3 = _fit(line3) if line3 else _load(96)
 
-        # Lines 1 & 2 at top of content area
+        # Lines 1 & 2 stacked near top of content area
         spacing = 20
-        bottom_y = y_off + int(ch * 0.2)
+        y_cursor = y_off + int(ch * 0.05)
         for text, font in [(t, f) for t, f in [(line1, f1), (line2, f2)] if t]:
             bbox = draw.textbbox((0, 0), text, font=font, stroke_width=STROKE_W)
             h = bbox[3] - bbox[1]
-            _draw_centered(text, font, bottom_y + h // 2)
-            bottom_y += h + spacing
+            _draw_centered(text, font, y_cursor + h // 2)
+            y_cursor += h + spacing
 
         # Line 3 at bottom of content area
         if line3:
