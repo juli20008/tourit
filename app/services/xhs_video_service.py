@@ -433,7 +433,7 @@ def _transcode_intro(ffmpeg, src_path, out_path):
 
 
 def _composite_overlay(ffmpeg, video_path, overlay_png, out_path):
-    """Composite a transparent PNG overlay onto a video."""
+    """Composite a transparent PNG overlay onto a video (input is always audio-less)."""
     subprocess.run(
         [
             ffmpeg, "-y",
@@ -441,7 +441,7 @@ def _composite_overlay(ffmpeg, video_path, overlay_png, out_path):
             "-i", overlay_png,
             "-filter_complex", "[0:v][1:v]overlay=0:0",
             "-c:v", "libx264", "-crf", str(CRF), "-preset", PRESET,
-            "-c:a", "copy",
+            "-an",
             "-pix_fmt", "yuv420p",
             "-threads", "1",
             out_path,
