@@ -4,7 +4,7 @@ import apiFetch from "../../utils/apiFetch";
 const POLL_MS = 2500;
 const MAX_INTRO_MB = 50;
 const MAX_MAIN_MB  = 200;
-const MAX_INTRO_SECS = 10;
+const MAX_INTRO_SECS = 30;
 
 const STEP_LABELS = {
 	"Loading...":           "正在加载...",
