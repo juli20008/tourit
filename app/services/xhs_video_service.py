@@ -16,9 +16,9 @@ import requests
 OUTPUT_W = 720
 OUTPUT_H = 960
 PHOTO_DURATION = 3.0
-FPS = 20
-CRF = 28
-PRESET = "ultrafast"
+FPS = 30
+CRF = 23
+PRESET = "fast"
 ZOOM_START = 1.0
 ZOOM_END = 1.15
 MAX_PHOTOS = 20

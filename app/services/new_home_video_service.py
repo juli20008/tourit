@@ -13,9 +13,9 @@ import uuid
 
 OUTPUT_W = 720
 OUTPUT_H = 960
-FPS = 20
-CRF = 28
-PRESET = "ultrafast"
+FPS = 30
+CRF = 23
+PRESET = "fast"
 
 _JOBS: dict = {}
 _JOB_TTL = 600

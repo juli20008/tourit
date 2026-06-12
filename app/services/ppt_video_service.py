@@ -14,9 +14,9 @@ import uuid
 
 OUTPUT_W = 720
 OUTPUT_H = 960
-FPS = 20
-CRF = 28
-PRESET = "ultrafast"
+FPS = 30
+CRF = 23
+PRESET = "fast"
 MAX_SLIDES = 5
 MIN_SLIDE_DURATION = 2.0
 
