@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import apiFetch from "../../utils/apiFetch";
 
 const POLL_MS = 2500;
-const MAX_SLIDES = 5;
+const MAX_SLIDES = 30;
 const MAX_INTRO_MB = 50;
 const MAX_INTRO_SECS = 30;
 const MAX_IMG_MB = 10;
