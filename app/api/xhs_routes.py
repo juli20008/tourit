@@ -406,6 +406,7 @@ def generate_agent_video(mls_number):
             str(request.form.get('cover2', '') or '')[:40],
             str(request.form.get('cover3', '') or '')[:40],
         ]
+        cover_photo_index = max(0, int(request.form.get('cover_photo_index', 0) or 0))
         intro_file = request.files.get('intro_video')
         intro_bytes = intro_file.read() if intro_file and intro_file.filename else None
         cover_bg_file = request.files.get('cover_bg')
@@ -419,6 +420,7 @@ def generate_agent_video(mls_number):
             str(data.get('cover2', '') or '')[:40],
             str(data.get('cover3', '') or '')[:40],
         ]
+        cover_photo_index = max(0, int(data.get('cover_photo_index', 0) or 0))
         intro_bytes = None
         cover_bg_bytes = None
 
@@ -450,7 +452,8 @@ def generate_agent_video(mls_number):
 
         try:
             ensure_jobs_table()
-            create_job(job_id, mls_number, current_user.id, cover_lines, intro_r2_key, cover_bg_r2_key)
+            create_job(job_id, mls_number, current_user.id, cover_lines, intro_r2_key, cover_bg_r2_key,
+                       cover_photo_index=cover_photo_index)
         except Exception as e:
             return jsonify({'error': f'DB error: {e}'}), 500
 
@@ -466,6 +469,7 @@ def generate_agent_video(mls_number):
         current_app._get_current_object(),
         intro_bytes=intro_bytes,
         cover_bg_bytes=cover_bg_bytes,
+        cover_photo_index=cover_photo_index,
     )
     return jsonify({'job_id': job_id, 'status': 'processing'})
 

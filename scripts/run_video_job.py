@@ -43,13 +43,14 @@ def main():
         sys.exit(1)
 
     row = dict(row)
-    mls_number       = row['mls_number']
-    agent_id         = row['agent_id']
-    cover_lines      = [row.get('cover1') or '', row.get('cover2') or '', row.get('cover3') or '']
-    intro_r2_key     = row.get('intro_r2_key')
-    cover_bg_r2_key  = row.get('cover_bg_r2_key')
+    mls_number        = row['mls_number']
+    agent_id          = row['agent_id']
+    cover_lines       = [row.get('cover1') or '', row.get('cover2') or '', row.get('cover3') or '']
+    intro_r2_key      = row.get('intro_r2_key')
+    cover_bg_r2_key   = row.get('cover_bg_r2_key')
+    cover_photo_index = int(row.get('cover_photo_index') or 0)
 
-    print(f"[run_video_job] MLS={mls_number} agent={agent_id} intro_key={intro_r2_key} cover_bg_key={cover_bg_r2_key}")
+    print(f"[run_video_job] MLS={mls_number} agent={agent_id} intro_key={intro_r2_key} cover_bg_key={cover_bg_r2_key} cover_photo_index={cover_photo_index}")
 
     import boto3
     from botocore.config import Config
@@ -92,7 +93,9 @@ def main():
     register_job_callback(job_id, db_status_callback)
 
     print(f"[run_video_job] Launching pipeline...")
-    _run_pipeline(job_id, mls_number, agent_id, cover_lines, app, intro_bytes=intro_bytes, cover_bg_bytes=cover_bg_bytes)
+    _run_pipeline(job_id, mls_number, agent_id, cover_lines, app,
+                  intro_bytes=intro_bytes, cover_bg_bytes=cover_bg_bytes,
+                  cover_photo_index=cover_photo_index)
     print(f"[run_video_job] Pipeline finished for job {job_id}")
 
     # ── Clean up temp files from R2 ───────────────────────────────────────────

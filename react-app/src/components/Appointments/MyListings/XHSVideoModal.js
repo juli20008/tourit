@@ -180,12 +180,28 @@ const XHSVideoModal = ({ listing, onClose, onGenerated }) => {
 	const [videoUrl, setVideoUrl] = useState(null);
 	const [coverUrl, setCoverUrl] = useState(null);
 	const [errorMsg, setErrorMsg] = useState("");
+	const [listingImages, setListingImages] = useState([]);
+	const [coverPhotoIndex, setCoverPhotoIndex] = useState(0);
 	const pollRef = useRef(null);
 	const coverBgRef = useRef(null);
 
 	useEffect(() => {
 		return () => clearInterval(pollRef.current);
 	}, []);
+
+	// Fetch listing images for cover photo picker
+	useEffect(() => {
+		const mlsNum = listing.mls_number || listing.listing_id;
+		if (!mlsNum) return;
+		apiFetch(`/api/listings/${mlsNum}`)
+			.then(r => r.json())
+			.then(data => {
+				const src = data.listing || data;
+				const imgs = src.image_urls || src.images || [];
+				if (Array.isArray(imgs) && imgs.length > 0) setListingImages(imgs);
+			})
+			.catch(() => {});
+	}, [listing]);
 
 	const startGeneration = async () => {
 		if (!cover1.trim()) {
@@ -202,6 +218,7 @@ const XHSVideoModal = ({ listing, onClose, onGenerated }) => {
 		formData.append("cover1", cover1);
 		formData.append("cover2", cover2);
 		formData.append("cover3", cover3);
+		formData.append("cover_photo_index", coverPhotoIndex);
 		if (introBlob) {
 			const ext = introBlob.type?.includes("mp4") ? "mp4" : "webm";
 			formData.append("intro_video", introBlob, `intro.${ext}`);
@@ -300,6 +317,43 @@ const XHSVideoModal = ({ listing, onClose, onGenerated }) => {
 								/>
 							))}
 						</div>
+
+						{/* Cover photo selector */}
+						{listingImages.length > 1 && !coverBg && (
+							<div style={{ marginBottom: 16 }}>
+								<label style={{ display: "block", fontWeight: 600, marginBottom: 6, fontSize: "0.9rem" }}>
+									封面照片 / Cover Photo
+									<span style={{ color: "#94a3b8", fontWeight: 400, marginLeft: 8, fontSize: "0.78rem" }}>
+										第 {coverPhotoIndex + 1} 张
+									</span>
+								</label>
+								<div style={{
+									display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4,
+									scrollbarWidth: "thin",
+								}}>
+									{listingImages.map((url, idx) => (
+										<div
+											key={idx}
+											onClick={() => setCoverPhotoIndex(idx)}
+											style={{
+												flexShrink: 0, cursor: "pointer",
+												borderRadius: 6,
+												border: idx === coverPhotoIndex ? "2.5px solid #2563eb" : "2px solid transparent",
+												boxShadow: idx === coverPhotoIndex ? "0 0 0 1px #2563eb" : "none",
+												overflow: "hidden",
+											}}
+										>
+											<img
+												src={url}
+												alt={`Photo ${idx + 1}`}
+												style={{ width: 64, height: 48, objectFit: "cover", display: "block" }}
+												onError={e => { e.target.style.display = "none"; }}
+											/>
+										</div>
+									))}
+								</div>
+							</div>
+						)}
 
 						<IntroSection introBlob={introBlob} setIntroBlob={setIntroBlob} />
 

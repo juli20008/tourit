@@ -723,7 +723,7 @@ def get_job(job_id):
 
 # ── Main pipeline (runs in background thread) ──────────────────────────────────
 
-def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_bytes=None, cover_bg_bytes=None):
+def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_bytes=None, cover_bg_bytes=None, cover_photo_index=0):
     if not _GENERATION_LOCK.acquire(blocking=False):
         with flask_app.app_context():
             _job_set(job_id, {"status": "error", "message": "另一个视频正在生成中，完成后会发邮件通知您再来试 / Another video is already generating — you'll get an email when it's done, then try again"})
@@ -849,7 +849,8 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
             if downloaded or _cover_bg_path:
                 comp_png = os.path.join(tmpdir, "composite_cover.png")
                 intro_src = raw_intro if raw_intro and os.path.exists(raw_intro) else None
-                bg_photo = _cover_bg_path if _cover_bg_path else downloaded[0]
+                _idx = min(cover_photo_index, len(downloaded) - 1) if downloaded else 0
+                bg_photo = _cover_bg_path if _cover_bg_path else downloaded[_idx]
                 ok = _generate_composite_cover(
                     ffmpeg, intro_src, bg_photo,
                     cover_lines[0], cover_lines[1], cover_lines[2],
@@ -1072,7 +1073,8 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
             unregister_job_callback(job_id)
 
 
-def start_video_job(mls_number, agent_id, cover_lines, flask_app, intro_bytes=None, cover_bg_bytes=None):
+def start_video_job(mls_number, agent_id, cover_lines, flask_app, intro_bytes=None,
+                    cover_bg_bytes=None, cover_photo_index=0):
     """Start background video generation. Returns job_id."""
     _job_clean()
     job_id = uuid.uuid4().hex
@@ -1080,7 +1082,8 @@ def start_video_job(mls_number, agent_id, cover_lines, flask_app, intro_bytes=No
     t = threading.Thread(
         target=_run_pipeline,
         args=(job_id, mls_number, agent_id, cover_lines, flask_app),
-        kwargs={"intro_bytes": intro_bytes, "cover_bg_bytes": cover_bg_bytes},
+        kwargs={"intro_bytes": intro_bytes, "cover_bg_bytes": cover_bg_bytes,
+                "cover_photo_index": cover_photo_index},
         daemon=True,
     )
     t.start()

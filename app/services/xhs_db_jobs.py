@@ -45,18 +45,23 @@ def ensure_jobs_table():
                 ALTER TABLE xhs_video_jobs
                 ADD COLUMN IF NOT EXISTS cover_bg_r2_key TEXT
             """)
+            cur.execute("""
+                ALTER TABLE xhs_video_jobs
+                ADD COLUMN IF NOT EXISTS cover_photo_index INTEGER DEFAULT 0
+            """)
     finally:
         conn.close()
 
 
-def create_job(job_id, mls_number, agent_id, cover_lines, intro_r2_key=None, cover_bg_r2_key=None):
+def create_job(job_id, mls_number, agent_id, cover_lines, intro_r2_key=None, cover_bg_r2_key=None, cover_photo_index=0):
     conn = _conn()
     try:
         with conn, conn.cursor() as cur:
             cur.execute("""
                 INSERT INTO xhs_video_jobs
-                    (job_id, status, agent_id, mls_number, cover1, cover2, cover3, intro_r2_key, cover_bg_r2_key)
-                VALUES (%s, 'queued', %s, %s, %s, %s, %s, %s, %s)
+                    (job_id, status, agent_id, mls_number, cover1, cover2, cover3,
+                     intro_r2_key, cover_bg_r2_key, cover_photo_index)
+                VALUES (%s, 'queued', %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (job_id) DO NOTHING
             """, (
                 job_id, agent_id, mls_number,
@@ -65,6 +70,7 @@ def create_job(job_id, mls_number, agent_id, cover_lines, intro_r2_key=None, cov
                 cover_lines[2] if len(cover_lines) > 2 else '',
                 intro_r2_key,
                 cover_bg_r2_key,
+                cover_photo_index,
             ))
     finally:
         conn.close()
