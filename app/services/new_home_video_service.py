@@ -16,6 +16,7 @@ OUTPUT_H = 960
 FPS = 30
 CRF = 23
 PRESET = "fast"
+OUTRO_DURATION = 4.0
 
 _JOBS: dict = {}
 _JOB_TTL = 600
@@ -234,24 +235,42 @@ def _run_new_home_pipeline(job_id, agent_id, main_video_bytes, narration, cover_
             else:
                 main_for_concat = transcoded_main
 
-            if intro_clip_path and os.path.exists(intro_clip_path):
-                list_file = os.path.join(tmpdir, "clips.txt")
-                with open(list_file, "w", encoding="utf-8") as fh:
-                    fh.write(f"file '{intro_clip_path}'\n")
-                    fh.write(f"file '{main_for_concat}'\n")
-                silent_video = os.path.join(tmpdir, "silent_video.mp4")
+            # Outro clip (static, letterboxed)
+            _outro_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "outro.png")
+            outro_clip = None
+            if os.path.exists(_outro_path):
+                outro_clip = os.path.join(clips_dir, "clip_outro.mp4")
                 subprocess.run(
-                    [ffmpeg, "-y", "-f", "concat", "-safe", "0", "-i", list_file,
-                     "-c", "copy", silent_video],
+                    [ffmpeg, "-y", "-loop", "1", "-i", _outro_path,
+                     "-t", str(OUTRO_DURATION),
+                     "-vf", (f"scale={OUTPUT_W}:{OUTPUT_H}:force_original_aspect_ratio=decrease,"
+                             f"pad={OUTPUT_W}:{OUTPUT_H}:(ow-iw)/2:(oh-ih)/2:black"),
+                     "-c:v", "libx264", "-crf", str(CRF), "-preset", PRESET,
+                     "-r", str(FPS), "-pix_fmt", "yuv420p", "-threads", "1", outro_clip],
                     check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                 )
-            else:
-                silent_video = main_for_concat
+
+            clip_entries = []
+            if intro_clip_path and os.path.exists(intro_clip_path):
+                clip_entries.append(intro_clip_path)
+            clip_entries.append(main_for_concat)
+            if outro_clip and os.path.exists(outro_clip):
+                clip_entries.append(outro_clip)
+
+            list_file = os.path.join(tmpdir, "clips.txt")
+            with open(list_file, "w", encoding="utf-8") as fh:
+                for cp in clip_entries:
+                    fh.write(f"file '{cp}'\n")
+            silent_video = os.path.join(tmpdir, "silent_video.mp4")
+            subprocess.run(
+                [ffmpeg, "-y", "-f", "concat", "-safe", "0", "-i", list_file,
+                 "-c", "copy", silent_video],
+                check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
 
             # ── Step 5: Build full audio track then mix onto video ───────────
             _job_set(job_id, {"status": "processing", "step": "Mixing audio..."})
 
-            # Prepend intro's original audio (if any) before narration
             if intro_audio_path:
                 combined_audio = os.path.join(tmpdir, "combined_audio.aac")
                 subprocess.run(
@@ -266,50 +285,29 @@ def _run_new_home_pipeline(job_id, agent_id, main_video_bytes, narration, cover_
             else:
                 final_audio_path = audio_path
 
+            # Pad audio with silence so outro plays fully
+            padded_audio_path = os.path.join(tmpdir, "padded_audio.aac")
+            try:
+                subprocess.run(
+                    [ffmpeg, "-y", "-i", final_audio_path,
+                     "-af", f"apad=pad_dur={OUTRO_DURATION}",
+                     "-c:a", "aac", padded_audio_path],
+                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                )
+                final_audio_path = padded_audio_path
+            except Exception:
+                pass
+
             final_path = os.path.join(tmpdir, "final.mp4")
 
-            # Build subtitle file (offset by intro duration)
-            from app.services.xhs_video_service import _build_ass as _xhs_build_ass
-            _ass_path = os.path.join(tmpdir, "subs.ass")
-            _intro_sub_offset = 0.0
-            if intro_clip_path and os.path.exists(intro_clip_path):
-                try:
-                    _r2 = subprocess.run(
-                        [ffprobe, "-v", "quiet", "-show_entries", "format=duration",
-                         "-of", "default=noprint_wrappers=1:nokey=1", intro_clip_path],
-                        capture_output=True, text=True,
-                    )
-                    _intro_sub_offset = float(_r2.stdout.strip())
-                except Exception:
-                    pass
-            _subs_ok = False
-            if narr_dur > 0:
-                try:
-                    _xhs_build_ass(narration_text, narr_dur, None, _ass_path,
-                                   offset_secs=_intro_sub_offset)
-                    _subs_ok = os.path.exists(_ass_path)
-                except Exception:
-                    pass
-
             _job_set(job_id, {"status": "processing", "step": "Rendering final video..."})
-            if _subs_ok:
-                subprocess.run(
-                    [ffmpeg, "-y",
-                     "-i", silent_video, "-i", final_audio_path,
-                     "-vf", f"ass={_ass_path}",
-                     "-map", "0:v:0", "-map", "1:a:0",
-                     "-c:v", "libx264", "-crf", str(CRF), "-preset", PRESET,
-                     "-c:a", "aac", "-shortest", final_path],
-                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                )
-            else:
-                subprocess.run(
-                    [ffmpeg, "-y",
-                     "-i", silent_video, "-i", final_audio_path,
-                     "-map", "0:v:0", "-map", "1:a:0",
-                     "-c:v", "copy", "-c:a", "aac", "-shortest", final_path],
-                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                )
+            subprocess.run(
+                [ffmpeg, "-y",
+                 "-i", silent_video, "-i", final_audio_path,
+                 "-map", "0:v:0", "-map", "1:a:0",
+                 "-c:v", "copy", "-c:a", "aac", "-shortest", final_path],
+                check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
 
             # ── Step 6: Upload ────────────────────────────────────────────────
             _job_set(job_id, {"status": "processing", "step": "Uploading..."})

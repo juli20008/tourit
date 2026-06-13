@@ -16,12 +16,15 @@ import requests
 OUTPUT_W = 720
 OUTPUT_H = 960
 PHOTO_DURATION = 3.0
+OUTRO_DURATION = 4.0
 FPS = 30
 CRF = 23
 PRESET = "fast"
 ZOOM_START = 1.0
 ZOOM_END = 1.15
 MAX_PHOTOS = 50
+
+_OUTRO_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "outro.png")
 
 _JOBS: dict = {}
 _JOB_TTL = 600  # 10 minutes
@@ -595,10 +598,10 @@ def _generate_narration(listing_data, cover_lines=None):
 - 语言自然，像真人在视频里直接说话，无需标题或解释{cover_opener}
 - 不要用"大家好""我是地产经纪""今天带大家""今天介绍"等套话
 - 不要提及价格或售价
+- 不要提及任何地址、门牌号、街道名、邮编（不要说"在某某街""位于某路"等）
 - 中间详细介绍3-4个亮点（根据描述），语气真实平实
 - 结尾一句邀请预约看房
 - 不要夸大，不要使用"顶级""超值""绝对"等夸张词
-- 地址、路名、城市名保持英文原样，不要翻译（例如"Yonge Street"不要写成"扬街"）
 - 货币一律用加元，不要使用 $ 符号，不要用 M 缩写（例如不要写"1.07M"，要写"一百零七万加元"）
 - 只输出口播正文，不要任何额外说明"""
 
@@ -873,9 +876,6 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                 "list_price": listing.list_price,
                 "bed": listing.bed,
                 "bath": listing.bath,
-                "street_number": listing.street_number,
-                "street_name": listing.street_name,
-                "street_suffix": listing.street_suffix,
                 "city": listing.city,
                 "description": listing.description,
                 "style": listing.style,
@@ -913,9 +913,14 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                      "-of", "default=noprint_wrappers=1:nokey=1", audio_path],
                     capture_output=True, text=True,
                 )
-                narr_dur_for_subs = float(_dur_r.stdout.strip())
+                narr_dur = float(_dur_r.stdout.strip())
             except Exception:
-                narr_dur_for_subs = 0.0
+                narr_dur = 0.0
+
+            # Limit photos to narration duration (3 s each), leaving room for outro
+            if narr_dur > 0:
+                max_photos = max(1, int((narr_dur - OUTRO_DURATION) / PHOTO_DURATION))
+                all_images = all_images[:max_photos]
 
             # ── Step 5: Render video ──────────────────────────────────────────
             _job_set(job_id, {"status": "processing", "step": "Rendering video..."})
@@ -927,11 +932,24 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                 clip_path = os.path.join(clips_dir, f"clip_{i:04d}.mp4")
                 _make_clip(ffmpeg, ffprobe, img_path, clip_path, reverse=(i % 2 == 1))
                 clip_paths.append(clip_path)
-                # Free disk space: delete source image immediately after clip is made
                 try:
                     os.remove(img_path)
                 except OSError:
                     pass
+
+            # Outro clip (static, letterboxed)
+            if os.path.exists(_OUTRO_PATH):
+                outro_clip = os.path.join(clips_dir, "clip_outro.mp4")
+                subprocess.run(
+                    [ffmpeg, "-y", "-loop", "1", "-i", _OUTRO_PATH,
+                     "-t", str(OUTRO_DURATION),
+                     "-vf", (f"scale={OUTPUT_W}:{OUTPUT_H}:force_original_aspect_ratio=decrease,"
+                             f"pad={OUTPUT_W}:{OUTPUT_H}:(ow-iw)/2:(oh-ih)/2:black"),
+                     "-c:v", "libx264", "-crf", str(CRF), "-preset", PRESET,
+                     "-r", str(FPS), "-pix_fmt", "yuv420p", "-threads", "1", outro_clip],
+                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                )
+                clip_paths.append(outro_clip)
 
             list_file = os.path.join(tmpdir, "clips.txt")
             with open(list_file, "w", encoding="utf-8") as f:
@@ -945,7 +963,6 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )
 
-            # Free disk space: delete individual clips after concat
             for cp in clip_paths:
                 try:
                     os.remove(cp)
@@ -955,12 +972,10 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
             # ── Step 6: Mix audio ─────────────────────────────────────────────
             _job_set(job_id, {"status": "processing", "step": "Mixing audio..."})
 
-            # If intro had audio, prepend it before the narration
             final_audio_path = audio_path
             if intro_audio_path:
                 try:
                     combined_audio_path = os.path.join(tmpdir, "combined_audio.aac")
-                    # filter_complex concat handles mixed formats (AAC + MP3) correctly
                     subprocess.run(
                         [
                             ffmpeg, "-y",
@@ -975,51 +990,31 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                     )
                     final_audio_path = combined_audio_path
                 except Exception:
-                    final_audio_path = audio_path  # fallback to narration only
+                    final_audio_path = audio_path
+
+            # Pad audio with silence so outro plays fully
+            padded_audio_path = os.path.join(tmpdir, "padded_audio.aac")
+            try:
+                subprocess.run(
+                    [ffmpeg, "-y", "-i", final_audio_path,
+                     "-af", f"apad=pad_dur={OUTRO_DURATION}",
+                     "-c:a", "aac", "-threads", "1", padded_audio_path],
+                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                )
+                final_audio_path = padded_audio_path
+            except Exception:
+                pass
 
             final_path = os.path.join(tmpdir, "final.mp4")
 
-            # Build subtitle file (offset by intro duration so subs start after intro)
-            _ass_path = os.path.join(tmpdir, "subs.ass")
-            _intro_sub_offset = 0.0
-            if intro_clip_path and os.path.exists(intro_clip_path):
-                try:
-                    _r2 = subprocess.run(
-                        [ffprobe, "-v", "quiet", "-show_entries", "format=duration",
-                         "-of", "default=noprint_wrappers=1:nokey=1", intro_clip_path],
-                        capture_output=True, text=True,
-                    )
-                    _intro_sub_offset = float(_r2.stdout.strip())
-                except Exception:
-                    pass
-            _subs_ok = False
-            if narr_dur_for_subs > 0:
-                try:
-                    _build_ass(narration, narr_dur_for_subs, None, _ass_path,
-                               offset_secs=_intro_sub_offset)
-                    _subs_ok = os.path.exists(_ass_path)
-                except Exception:
-                    pass
-
             _job_set(job_id, {"status": "processing", "step": "Rendering final video..."})
-            if _subs_ok:
-                subprocess.run(
-                    [ffmpeg, "-y",
-                     "-i", silent_path, "-i", final_audio_path,
-                     "-vf", f"ass={_ass_path}",
-                     "-map", "0:v:0", "-map", "1:a:0",
-                     "-c:v", "libx264", "-crf", str(CRF), "-preset", PRESET,
-                     "-c:a", "aac", "-shortest", final_path],
-                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                )
-            else:
-                subprocess.run(
-                    [ffmpeg, "-y",
-                     "-i", silent_path, "-i", final_audio_path,
-                     "-map", "0:v:0", "-map", "1:a:0",
-                     "-c:v", "copy", "-c:a", "aac", "-shortest", final_path],
-                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                )
+            subprocess.run(
+                [ffmpeg, "-y",
+                 "-i", silent_path, "-i", final_audio_path,
+                 "-map", "0:v:0", "-map", "1:a:0",
+                 "-c:v", "copy", "-c:a", "aac", "-shortest", final_path],
+                check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
 
             # ── Step 7: Upload ────────────────────────────────────────────────
             _job_set(job_id, {"status": "processing", "step": "Uploading..."})
