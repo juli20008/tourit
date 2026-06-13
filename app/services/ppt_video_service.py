@@ -279,6 +279,8 @@ def _run_ppt_pipeline(job_id, agent_id, slide_images_bytes, slide_texts, cover_l
 
             slide_clip_paths = []
             slide_audio_paths = []
+            slide_narrations = []   # collected for subtitle generation
+            slide_durations = []    # audio durations per slide
 
             for i, (img_path, text) in enumerate(zip(slide_images, slide_texts)):
                 _job_set(job_id, {"status": "processing", "step": f"Generating voiceover {i+1}/{n}..."})
@@ -297,6 +299,8 @@ def _run_ppt_pipeline(job_id, agent_id, slide_images_bytes, slide_texts, cover_l
                     duration = MIN_SLIDE_DURATION
 
                 slide_audio_paths.append(audio_path)
+                slide_narrations.append(narration)
+                slide_durations.append(duration)
 
                 _job_set(job_id, {"status": "processing", "step": f"Rendering slide {i+1}/{n}..."})
                 clip_path = os.path.join(clips_dir, f"slide_{i:04d}.mp4")
@@ -347,14 +351,43 @@ def _run_ppt_pipeline(job_id, agent_id, slide_images_bytes, slide_texts, cover_l
                 final_audio_path = combined_audio_path
 
             final_path = os.path.join(tmpdir, "final.mp4")
-            subprocess.run(
-                [ffmpeg, "-y",
-                 "-i", silent_path, "-i", final_audio_path,
-                 "-map", "0:v:0", "-map", "1:a:0",
-                 "-c:v", "copy", "-c:a", "aac", "-shortest",
-                 final_path],
-                check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-            )
+
+            # Build multi-segment subtitle file
+            from app.services.xhs_video_service import _build_ppt_ass
+            _ass_path = os.path.join(tmpdir, "subs.ass")
+            _intro_sub_offset = 0.0
+            if intro_audio_path and os.path.exists(intro_audio_path):
+                _intro_sub_offset = _get_audio_duration(ffprobe, intro_audio_path)
+            _subs_ok = False
+            try:
+                _build_ppt_ass(
+                    list(zip(slide_narrations, slide_durations)),
+                    _ass_path,
+                    offset_secs=_intro_sub_offset,
+                )
+                _subs_ok = os.path.exists(_ass_path)
+            except Exception:
+                pass
+
+            _job_set(job_id, {"status": "processing", "step": "Rendering final video..."})
+            if _subs_ok:
+                subprocess.run(
+                    [ffmpeg, "-y",
+                     "-i", silent_path, "-i", final_audio_path,
+                     "-vf", f"ass={_ass_path}",
+                     "-map", "0:v:0", "-map", "1:a:0",
+                     "-c:v", "libx264", "-crf", str(CRF), "-preset", PRESET,
+                     "-c:a", "aac", "-shortest", final_path],
+                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                )
+            else:
+                subprocess.run(
+                    [ffmpeg, "-y",
+                     "-i", silent_path, "-i", final_audio_path,
+                     "-map", "0:v:0", "-map", "1:a:0",
+                     "-c:v", "copy", "-c:a", "aac", "-shortest", final_path],
+                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                )
 
             # ── Step 6: Upload ────────────────────────────────────────────────
             _job_set(job_id, {"status": "processing", "step": "Uploading..."})

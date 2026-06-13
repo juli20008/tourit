@@ -476,41 +476,8 @@ def _composite_overlay(ffmpeg, video_path, overlay_png, out_path):
 
 # ── Subtitle generation ────────────────────────────────────────────────────────
 
-def _build_ass(narration: str, audio_duration_secs: float, font_path: str | None, out_path: str):
-    """
-    Build an ASS subtitle file from narration text.
-    Segments text into ~20-char lines, estimates per-line timing from total duration.
-    """
-    import re
-
-    # Split at sentence boundaries and punctuation
-    raw = re.split(r'(?<=[，。！？、；：\n])', narration)
-    segments = []
-    for chunk in raw:
-        chunk = chunk.strip()
-        if not chunk:
-            continue
-        # Further split long chunks into ≤20 char pieces
-        while len(chunk) > 20:
-            segments.append(chunk[:20])
-            chunk = chunk[20:]
-        if chunk:
-            segments.append(chunk)
-
-    total_chars = max(sum(len(s) for s in segments), 1)
-
-    def _ts(secs):
-        h = int(secs // 3600)
-        m = int((secs % 3600) // 60)
-        s = secs % 60
-        return f"{h}:{m:02d}:{s:05.2f}"
-
-    font_name = "Noto Sans SC"
-    if font_path:
-        import os as _os
-        font_name = _os.path.splitext(_os.path.basename(font_path))[0].replace("-Regular", "").replace("-", " ")
-
-    header = f"""[Script Info]
+_ASS_HEADER_TMPL = """\
+[Script Info]
 ScriptType: v4.00+
 PlayResX: 720
 PlayResY: 960
@@ -518,25 +485,80 @@ WrapStyle: 1
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,{font_name},40,&H00FFFFFF,&H000000FF,&H00000000,&HAA000000,0,0,0,0,100,100,1,0,3,0,2,2,30,30,55,1
+Style: Default,Noto Sans CJK SC,40,&H00FFFFFF,&H000000FF,&H00000000,&HAA000000,0,0,0,0,100,100,1,0,3,0,2,2,30,30,55,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
+_ASS_ANIM = r"{\fad(120,80)\t(0,100,\fscx108\fscy108)\t(100,200,\fscx100\fscy100)}"
 
-    # 弹入 + 淡入淡出：每行字幕缩放弹出，出现/消失带渐变
-    _anim = r"{\fad(120,80)\t(0,100,\fscx108\fscy108)\t(100,200,\fscx100\fscy100)}"
 
+def _ass_ts(secs):
+    h = int(secs // 3600)
+    m = int((secs % 3600) // 60)
+    s = secs % 60
+    return f"{h}:{m:02d}:{s:05.2f}"
+
+
+def _narration_to_segments(narration):
+    import re
+    raw = re.split(r'(?<=[，。！？、；：\n])', narration)
+    segs = []
+    for chunk in raw:
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+        while len(chunk) > 20:
+            segs.append(chunk[:20])
+            chunk = chunk[20:]
+        if chunk:
+            segs.append(chunk)
+    return segs
+
+
+def _build_ass(narration: str, audio_duration_secs: float, font_path, out_path: str,
+               offset_secs: float = 0.0):
+    """
+    Build an ASS subtitle file from narration text.
+    offset_secs: shift all timestamps (e.g. by intro clip duration).
+    """
+    segs = _narration_to_segments(narration)
+    if not segs:
+        return
+    total_chars = max(sum(len(s) for s in segs), 1)
     lines = []
-    t = 0.0
-    for seg in segments:
-        duration = audio_duration_secs * (len(seg) / total_chars)
-        duration = max(duration, 0.5)
-        lines.append(f"Dialogue: 0,{_ts(t)},{_ts(t + duration)},Default,,0,0,0,,{_anim}{seg}")
-        t += duration
-
+    t = offset_secs
+    for seg in segs:
+        dur = max(audio_duration_secs * (len(seg) / total_chars), 0.5)
+        lines.append(f"Dialogue: 0,{_ass_ts(t)},{_ass_ts(t + dur)},Default,,0,0,0,,{_ASS_ANIM}{seg}")
+        t += dur
     with open(out_path, "w", encoding="utf-8") as f:
-        f.write(header)
+        f.write(_ASS_HEADER_TMPL)
+        f.write("\n".join(lines))
+
+
+def _build_ppt_ass(slide_segments, out_path: str, offset_secs: float = 0.0):
+    """
+    Build ASS for PPT: slide_segments = [(narration_text, audio_duration_secs), ...].
+    offset_secs: duration of intro clip prepended before slides.
+    """
+    lines = []
+    t = offset_secs
+    for narration, slide_dur in slide_segments:
+        if not narration or not narration.strip() or slide_dur <= 0:
+            t += slide_dur
+            continue
+        segs = _narration_to_segments(narration)
+        if not segs:
+            t += slide_dur
+            continue
+        total_chars = max(sum(len(s) for s in segs), 1)
+        for seg in segs:
+            dur = max(slide_dur * (len(seg) / total_chars), 0.5)
+            lines.append(f"Dialogue: 0,{_ass_ts(t)},{_ass_ts(t + dur)},Default,,0,0,0,,{_ASS_ANIM}{seg}")
+            t += dur
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(_ASS_HEADER_TMPL)
         f.write("\n".join(lines))
 
 
@@ -884,6 +906,15 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
             audio_path = os.path.join(tmpdir, "narration.mp3")
             with open(audio_path, "wb") as f:
                 f.write(audio_bytes)
+            try:
+                _dur_r = subprocess.run(
+                    [ffprobe, "-v", "quiet", "-show_entries", "format=duration",
+                     "-of", "default=noprint_wrappers=1:nokey=1", audio_path],
+                    capture_output=True, text=True,
+                )
+                narr_dur_for_subs = float(_dur_r.stdout.strip())
+            except Exception:
+                narr_dur_for_subs = 0.0
 
             # ── Step 5: Render video ──────────────────────────────────────────
             _job_set(job_id, {"status": "processing", "step": "Rendering video..."})
@@ -947,22 +978,47 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
 
             final_path = os.path.join(tmpdir, "final.mp4")
 
-            # Copy video stream — no re-encode (avoids OOM on 512MB)
-            subprocess.run(
-                [
-                    ffmpeg, "-y",
-                    "-i", silent_path,
-                    "-i", final_audio_path,
-                    "-map", "0:v:0",
-                    "-map", "1:a:0",
-                    "-c:v", "copy",
-                    "-c:a", "aac",
-                    "-shortest",
-                    final_path,
-                ],
-                check=True,
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-            )
+            # Build subtitle file (offset by intro duration so subs start after intro)
+            _ass_path = os.path.join(tmpdir, "subs.ass")
+            _intro_sub_offset = 0.0
+            if intro_clip_path and os.path.exists(intro_clip_path):
+                try:
+                    _r2 = subprocess.run(
+                        [ffprobe, "-v", "quiet", "-show_entries", "format=duration",
+                         "-of", "default=noprint_wrappers=1:nokey=1", intro_clip_path],
+                        capture_output=True, text=True,
+                    )
+                    _intro_sub_offset = float(_r2.stdout.strip())
+                except Exception:
+                    pass
+            _subs_ok = False
+            if narr_dur_for_subs > 0:
+                try:
+                    _build_ass(narration, narr_dur_for_subs, None, _ass_path,
+                               offset_secs=_intro_sub_offset)
+                    _subs_ok = os.path.exists(_ass_path)
+                except Exception:
+                    pass
+
+            _job_set(job_id, {"status": "processing", "step": "Rendering final video..."})
+            if _subs_ok:
+                subprocess.run(
+                    [ffmpeg, "-y",
+                     "-i", silent_path, "-i", final_audio_path,
+                     "-vf", f"ass={_ass_path}",
+                     "-map", "0:v:0", "-map", "1:a:0",
+                     "-c:v", "libx264", "-crf", str(CRF), "-preset", PRESET,
+                     "-c:a", "aac", "-shortest", final_path],
+                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                )
+            else:
+                subprocess.run(
+                    [ffmpeg, "-y",
+                     "-i", silent_path, "-i", final_audio_path,
+                     "-map", "0:v:0", "-map", "1:a:0",
+                     "-c:v", "copy", "-c:a", "aac", "-shortest", final_path],
+                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                )
 
             # ── Step 7: Upload ────────────────────────────────────────────────
             _job_set(job_id, {"status": "processing", "step": "Uploading..."})

@@ -267,14 +267,49 @@ def _run_new_home_pipeline(job_id, agent_id, main_video_bytes, narration, cover_
                 final_audio_path = audio_path
 
             final_path = os.path.join(tmpdir, "final.mp4")
-            subprocess.run(
-                [ffmpeg, "-y",
-                 "-i", silent_video, "-i", final_audio_path,
-                 "-map", "0:v:0", "-map", "1:a:0",
-                 "-c:v", "copy", "-c:a", "aac", "-shortest",
-                 final_path],
-                check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-            )
+
+            # Build subtitle file (offset by intro duration)
+            from app.services.xhs_video_service import _build_ass as _xhs_build_ass
+            _ass_path = os.path.join(tmpdir, "subs.ass")
+            _intro_sub_offset = 0.0
+            if intro_clip_path and os.path.exists(intro_clip_path):
+                try:
+                    _r2 = subprocess.run(
+                        [ffprobe, "-v", "quiet", "-show_entries", "format=duration",
+                         "-of", "default=noprint_wrappers=1:nokey=1", intro_clip_path],
+                        capture_output=True, text=True,
+                    )
+                    _intro_sub_offset = float(_r2.stdout.strip())
+                except Exception:
+                    pass
+            _subs_ok = False
+            if narr_dur > 0:
+                try:
+                    _xhs_build_ass(narration_text, narr_dur, None, _ass_path,
+                                   offset_secs=_intro_sub_offset)
+                    _subs_ok = os.path.exists(_ass_path)
+                except Exception:
+                    pass
+
+            _job_set(job_id, {"status": "processing", "step": "Rendering final video..."})
+            if _subs_ok:
+                subprocess.run(
+                    [ffmpeg, "-y",
+                     "-i", silent_video, "-i", final_audio_path,
+                     "-vf", f"ass={_ass_path}",
+                     "-map", "0:v:0", "-map", "1:a:0",
+                     "-c:v", "libx264", "-crf", str(CRF), "-preset", PRESET,
+                     "-c:a", "aac", "-shortest", final_path],
+                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                )
+            else:
+                subprocess.run(
+                    [ffmpeg, "-y",
+                     "-i", silent_video, "-i", final_audio_path,
+                     "-map", "0:v:0", "-map", "1:a:0",
+                     "-c:v", "copy", "-c:a", "aac", "-shortest", final_path],
+                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                )
 
             # ── Step 6: Upload ────────────────────────────────────────────────
             _job_set(job_id, {"status": "processing", "step": "Uploading..."})
