@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { NavLink } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { logout } from "../../../store/session";
@@ -12,6 +12,20 @@ const AgentBar = () => {
 	const user            = useSelector(s => s.session.user);
 	const brandAgent      = whitelabelAgent || (user?.agent ? user : null);
 	const [showMobileMenu, setShowMobileMenu] = useState(false);
+	const [showVideoMenu, setShowVideoMenu]   = useState(false);
+	const [showMobileVideo, setShowMobileVideo] = useState(false);
+	const videoMenuRef = useRef(null);
+
+	useEffect(() => {
+		if (!showVideoMenu) return;
+		const handler = (e) => {
+			if (videoMenuRef.current && !videoMenuRef.current.contains(e.target)) {
+				setShowVideoMenu(false);
+			}
+		};
+		document.addEventListener("mousedown", handler);
+		return () => document.removeEventListener("mousedown", handler);
+	}, [showVideoMenu]);
 
 	const onLogout = async () => {
 		setShowMobileMenu(false);
@@ -59,12 +73,38 @@ const AgentBar = () => {
 					<NavLink to="/appointments" exact={true} className="btn-font-lt nav-desktop-only">
 						Appointments
 					</NavLink>
-					<NavLink to="/ppt-video" exact={true} className="btn-font-lt nav-desktop-only">
-						数分视频
-					</NavLink>
-					<NavLink to="/new-home-video" exact={true} className="btn-font-lt nav-desktop-only">
-						新房视频
-					</NavLink>
+
+					{/* 视频 dropdown */}
+					<div className="nav-video-wrap nav-desktop-only" ref={videoMenuRef}>
+						<button
+							className="btn-font-lt nav-video-btn"
+							onClick={() => setShowVideoMenu((v) => !v)}
+						>
+							视频
+							<i className={`fa-solid fa-chevron-${showVideoMenu ? "up" : "down"} nav-video-chevron`} />
+						</button>
+						{showVideoMenu && (
+							<div className="nav-video-dropdown">
+								<NavLink
+									to="/ppt-video"
+									className="nav-video-item"
+									onClick={() => setShowVideoMenu(false)}
+								>
+									<i className="fa-solid fa-film nav-video-item-icon" />
+									数分视频
+								</NavLink>
+								<NavLink
+									to="/new-home-video"
+									className="nav-video-item"
+									onClick={() => setShowVideoMenu(false)}
+								>
+									<i className="fa-solid fa-house nav-video-item-icon" />
+									新房视频
+								</NavLink>
+							</div>
+						)}
+					</div>
+
 					<NavLink to="/profile" exact={true} className="btn-font-lt nav-desktop-only">
 						My Profile
 					</NavLink>
@@ -117,22 +157,37 @@ const AgentBar = () => {
 							<i className="fa-regular fa-calendar mr-3 text-[#94a3b8]" />
 							Appointments
 						</NavLink>
-						<NavLink
-							to="/ppt-video"
-							className="nav-mobile-item"
-							onClick={() => setShowMobileMenu(false)}
+
+						{/* 视频 expandable section */}
+						<button
+							className="nav-mobile-item nav-mobile-video-header"
+							onClick={() => setShowMobileVideo((v) => !v)}
 						>
-							<i className="fa-solid fa-film mr-3 text-[#94a3b8]" />
-							数分视频
-						</NavLink>
-						<NavLink
-							to="/new-home-video"
-							className="nav-mobile-item"
-							onClick={() => setShowMobileMenu(false)}
-						>
-							<i className="fa-solid fa-house mr-3 text-[#94a3b8]" />
-							新房视频
-						</NavLink>
+							<i className="fa-solid fa-video mr-3 text-[#94a3b8]" />
+							视频
+							<i className={`fa-solid fa-chevron-${showMobileVideo ? "up" : "down"} nav-mobile-video-chevron`} />
+						</button>
+						{showMobileVideo && (
+							<>
+								<NavLink
+									to="/ppt-video"
+									className="nav-mobile-item nav-mobile-subitem"
+									onClick={() => { setShowMobileMenu(false); setShowMobileVideo(false); }}
+								>
+									<i className="fa-solid fa-film mr-3 text-[#94a3b8]" />
+									数分视频
+								</NavLink>
+								<NavLink
+									to="/new-home-video"
+									className="nav-mobile-item nav-mobile-subitem"
+									onClick={() => { setShowMobileMenu(false); setShowMobileVideo(false); }}
+								>
+									<i className="fa-solid fa-house mr-3 text-[#94a3b8]" />
+									新房视频
+								</NavLink>
+							</>
+						)}
+
 						<NavLink
 							to="/profile"
 							className="nav-mobile-item"
