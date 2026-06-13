@@ -14,9 +14,12 @@ const STEP_LABELS = {
 	"Writing narration...": "撰写口播文案...",
 	"Generating voiceover...": "生成AI配音...",
 	"Rendering video...": "渲染视频...",
-	"Mixing audio & subtitles...": "混合音频与字幕...",
+	"Mixing audio...": "混合音频...",
 	"Uploading...": "上传视频...",
 };
+
+// ~4.5 chars/sec TTS × 3 sec/photo
+const estimatePhotos = (text) => Math.max(1, Math.floor((text.length / 4.5 - 4) / 3));
 
 // ── Inline intro recorder ─────────────────────────────────────────────────────
 
@@ -175,7 +178,8 @@ const XHSVideoModal = ({ listing, onClose, onGenerated }) => {
 	const [introBlob, setIntroBlob] = useState(null);
 	const [coverBg, setCoverBg] = useState(null);
 	const [coverBgPreview, setCoverBgPreview] = useState(null);
-	const [phase, setPhase] = useState("input");
+	const [phase, setPhase] = useState("input"); // input | drafting | draft | generating | done | error
+	const [narrationDraft, setNarrationDraft] = useState("");
 	const [step, setStep] = useState("");
 	const [videoUrl, setVideoUrl] = useState(null);
 	const [coverUrl, setCoverUrl] = useState(null);
@@ -203,22 +207,46 @@ const XHSVideoModal = ({ listing, onClose, onGenerated }) => {
 			.catch(() => {});
 	}, [listing]);
 
-	const startGeneration = async () => {
+	const mlsNumber = listing.mls_number || listing.listing_id;
+
+	const fetchDraft = async () => {
 		if (!cover1.trim()) {
 			setErrorMsg("请输入至少第一行封面文字 / Please enter at least line 1");
 			return;
 		}
 		setErrorMsg("");
+		setPhase("drafting");
+		try {
+			const resp = await apiFetch(`/api/xhs/agent/draft-narration/${mlsNumber}`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ cover1, cover2, cover3 }),
+			});
+			const d = await resp.json().catch(() => ({}));
+			if (!resp.ok) {
+				setPhase("input");
+				setErrorMsg(d.error || `Error ${resp.status}`);
+				return;
+			}
+			setNarrationDraft(d.narration || "");
+			setPhase("draft");
+		} catch (e) {
+			setPhase("input");
+			setErrorMsg(String(e));
+		}
+	};
+
+	const startGeneration = async () => {
+		setErrorMsg("");
 		setPhase("generating");
 		setStep("正在启动...");
-
-		const mlsNumber = listing.mls_number || listing.listing_id;
 
 		const formData = new FormData();
 		formData.append("cover1", cover1);
 		formData.append("cover2", cover2);
 		formData.append("cover3", cover3);
 		formData.append("cover_photo_index", coverPhotoIndex);
+		formData.append("narration_override", narrationDraft);
 		if (introBlob) {
 			const ext = introBlob.type?.includes("mp4") ? "mp4" : "webm";
 			formData.append("intro_video", introBlob, `intro.${ext}`);
@@ -234,7 +262,7 @@ const XHSVideoModal = ({ listing, onClose, onGenerated }) => {
 
 		if (!resp.ok) {
 			const d = await resp.json().catch(() => ({}));
-			setPhase("error");
+			setPhase("draft");
 			setErrorMsg(d.error || `Error ${resp.status}`);
 			return;
 		}
@@ -397,8 +425,61 @@ const XHSVideoModal = ({ listing, onClose, onGenerated }) => {
 
 						<div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
 							<button className="btn btn-bl" type="button" onClick={onClose}>取消</button>
-							<button className="btn" type="button" onClick={startGeneration}>
-								生成视频 Generate
+							<button className="btn" type="button" onClick={fetchDraft}>
+								预览稿子 Draft Script
+							</button>
+						</div>
+					</>
+				)}
+
+				{phase === "drafting" && (
+					<div style={{ textAlign: "center", padding: "32px 0" }}>
+						<div style={{
+							width: 32, height: 32,
+							border: "3px solid #e2e8f0", borderTop: "3px solid #3b82f6",
+							borderRadius: "50%", animation: "xhs-spin 0.8s linear infinite",
+							margin: "0 auto 14px",
+						}} />
+						<p style={{ color: "#64748b", fontSize: "0.9rem" }}>AI 正在撰写口播稿...</p>
+					</div>
+				)}
+
+				{phase === "draft" && (
+					<>
+						<div style={{ marginBottom: 10 }}>
+							<div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+								<label style={{ fontWeight: 600, fontSize: "0.9rem" }}>
+									口播稿 / Script
+								</label>
+								<span style={{ fontSize: "0.78rem", color: "#64748b" }}>
+									{narrationDraft.length} 字 · 预计展示 ~{Math.min(50, estimatePhotos(narrationDraft))} 张照片
+								</span>
+							</div>
+							<p style={{ color: "#64748b", fontSize: "0.75rem", margin: "0 0 8px" }}>
+								可直接编辑。字数越多展示的照片越多（每 3 秒一张，上限 50 张）。
+							</p>
+							<textarea
+								value={narrationDraft}
+								onChange={e => setNarrationDraft(e.target.value)}
+								rows={12}
+								style={{
+									width: "100%", boxSizing: "border-box",
+									border: "1.5px solid #e2e8f0", borderRadius: 8,
+									padding: "10px 12px", fontSize: "0.85rem", lineHeight: 1.7,
+									resize: "vertical", fontFamily: "inherit", outline: "none",
+								}}
+							/>
+						</div>
+						{errorMsg && (
+							<div style={{ color: "#dc2626", fontSize: "0.85rem", marginBottom: 10 }}>{errorMsg}</div>
+						)}
+						<div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+							<button className="btn btn-bl" type="button" onClick={() => { setPhase("input"); setErrorMsg(""); }}>
+								← 返回
+							</button>
+							<button className="btn" type="button" onClick={startGeneration}
+								disabled={!narrationDraft.trim()}>
+								确认生成视频 Generate
 							</button>
 						</div>
 					</>

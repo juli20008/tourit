@@ -384,6 +384,47 @@ def _trigger_github_actions(job_id):
         return False
 
 
+@xhs_routes.route('/agent/draft-narration/<mls_number>', methods=['POST'])
+def draft_narration(mls_number):
+    """Generate narration text only (no video) so the agent can review and edit before generating."""
+    from flask_login import current_user
+    from app.models.mls_listing import MlsListing
+    from app.services.xhs_video_service import _generate_narration
+
+    if not current_user.is_authenticated:
+        return jsonify({'error': 'Unauthorized'}), 401
+    if not current_user.agent:
+        return jsonify({'error': 'Agent account required'}), 403
+
+    data = request.get_json(silent=True) or {}
+    cover_lines = [
+        str(data.get('cover1', '') or '')[:40],
+        str(data.get('cover2', '') or '')[:40],
+        str(data.get('cover3', '') or '')[:40],
+    ]
+
+    listing = MlsListing.query.filter_by(mls_number=mls_number).first()
+    if not listing:
+        return jsonify({'error': f'Listing {mls_number} not found'}), 404
+
+    listing_data = {
+        'list_price': listing.list_price,
+        'bed': listing.bed,
+        'bath': listing.bath,
+        'city': listing.city,
+        'description': listing.description,
+        'style': listing.style,
+        'property_type': listing.property_type,
+        'sqft': listing.sqft,
+    }
+
+    narration = _generate_narration(listing_data, cover_lines=cover_lines)
+    if not narration:
+        return jsonify({'error': 'AI narration generation failed — check DEEPSEEK_API_KEY'}), 502
+
+    return jsonify({'narration': narration})
+
+
 @xhs_routes.route('/agent/video/<mls_number>', methods=['POST'])
 def generate_agent_video(mls_number):
     """Start XHS video generation. Accepts multipart/form-data with optional intro video."""
@@ -407,6 +448,7 @@ def generate_agent_video(mls_number):
             str(request.form.get('cover3', '') or '')[:40],
         ]
         cover_photo_index = max(0, int(request.form.get('cover_photo_index', 0) or 0))
+        narration_override = (request.form.get('narration_override') or '').strip() or None
         intro_file = request.files.get('intro_video')
         intro_bytes = intro_file.read() if intro_file and intro_file.filename else None
         cover_bg_file = request.files.get('cover_bg')
@@ -421,6 +463,7 @@ def generate_agent_video(mls_number):
             str(data.get('cover3', '') or '')[:40],
         ]
         cover_photo_index = max(0, int(data.get('cover_photo_index', 0) or 0))
+        narration_override = (data.get('narration_override') or '').strip() or None
         intro_bytes = None
         cover_bg_bytes = None
 
@@ -453,7 +496,7 @@ def generate_agent_video(mls_number):
         try:
             ensure_jobs_table()
             create_job(job_id, mls_number, current_user.id, cover_lines, intro_r2_key, cover_bg_r2_key,
-                       cover_photo_index=cover_photo_index)
+                       cover_photo_index=cover_photo_index, narration_text=narration_override)
         except Exception as e:
             return jsonify({'error': f'DB error: {e}'}), 500
 
@@ -470,6 +513,7 @@ def generate_agent_video(mls_number):
         intro_bytes=intro_bytes,
         cover_bg_bytes=cover_bg_bytes,
         cover_photo_index=cover_photo_index,
+        narration_override=narration_override,
     )
     return jsonify({'job_id': job_id, 'status': 'processing'})
 

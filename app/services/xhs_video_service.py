@@ -726,7 +726,7 @@ def get_job(job_id):
 
 # ── Main pipeline (runs in background thread) ──────────────────────────────────
 
-def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_bytes=None, cover_bg_bytes=None, cover_photo_index=0):
+def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_bytes=None, cover_bg_bytes=None, cover_photo_index=0, narration_override=None):
     if not _GENERATION_LOCK.acquire(blocking=False):
         with flask_app.app_context():
             _job_set(job_id, {"status": "error", "message": "另一个视频正在生成中，完成后会发邮件通知您再来试 / Another video is already generating — you'll get an email when it's done, then try again"})
@@ -882,7 +882,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                 "property_type": listing.property_type,
                 "sqft": listing.sqft,
             }
-            narration = _generate_narration(listing_data, cover_lines=cover_lines)
+            narration = narration_override or _generate_narration(listing_data, cover_lines=cover_lines)
             if not narration:
                 city = listing.city or "多伦多"
                 bed = listing.bed or "?"
@@ -1069,7 +1069,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
 
 
 def start_video_job(mls_number, agent_id, cover_lines, flask_app, intro_bytes=None,
-                    cover_bg_bytes=None, cover_photo_index=0):
+                    cover_bg_bytes=None, cover_photo_index=0, narration_override=None):
     """Start background video generation. Returns job_id."""
     _job_clean()
     job_id = uuid.uuid4().hex
@@ -1078,7 +1078,8 @@ def start_video_job(mls_number, agent_id, cover_lines, flask_app, intro_bytes=No
         target=_run_pipeline,
         args=(job_id, mls_number, agent_id, cover_lines, flask_app),
         kwargs={"intro_bytes": intro_bytes, "cover_bg_bytes": cover_bg_bytes,
-                "cover_photo_index": cover_photo_index},
+                "cover_photo_index": cover_photo_index,
+                "narration_override": narration_override},
         daemon=True,
     )
     t.start()

@@ -49,6 +49,7 @@ def main():
     intro_r2_key      = row.get('intro_r2_key')
     cover_bg_r2_key   = row.get('cover_bg_r2_key')
     cover_photo_index = int(row.get('cover_photo_index') or 0)
+    narration_override = row.get('narration_text') or None
 
     print(f"[run_video_job] MLS={mls_number} agent={agent_id} intro_key={intro_r2_key} cover_bg_key={cover_bg_r2_key} cover_photo_index={cover_photo_index}")
 
@@ -95,7 +96,8 @@ def main():
     print(f"[run_video_job] Launching pipeline...")
     _run_pipeline(job_id, mls_number, agent_id, cover_lines, app,
                   intro_bytes=intro_bytes, cover_bg_bytes=cover_bg_bytes,
-                  cover_photo_index=cover_photo_index)
+                  cover_photo_index=cover_photo_index,
+                  narration_override=narration_override)
     print(f"[run_video_job] Pipeline finished for job {job_id}")
 
     # ── Clean up temp files from R2 ───────────────────────────────────────────
