@@ -21,7 +21,7 @@ CRF = 23
 PRESET = "fast"
 ZOOM_START = 1.0
 ZOOM_END = 1.15
-MAX_PHOTOS = 30
+MAX_PHOTOS = 50
 
 _JOBS: dict = {}
 _JOB_TTL = 600  # 10 minutes
