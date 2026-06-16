@@ -24,7 +24,10 @@ ZOOM_START = 1.0
 ZOOM_END = 1.15
 MAX_PHOTOS = 50
 
-_OUTRO_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "outro.png")
+_ASSETS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets")
+_OUTRO_PATH = os.path.join(_ASSETS_DIR, "outro.png")
+_TEAM_PHOTO_PATH = os.path.join(_ASSETS_DIR, "team-photo.png")
+_TEAM_PHOTO_DURATION = 3.0
 
 _JOBS: dict = {}
 _JOB_TTL = 600  # 10 minutes
@@ -917,11 +920,6 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
             except Exception:
                 narr_dur = 0.0
 
-            # Limit photos to narration duration (3 s each), leaving room for outro
-            if narr_dur > 0:
-                max_photos = max(1, int((narr_dur - OUTRO_DURATION) / PHOTO_DURATION))
-                all_images = all_images[:max_photos]
-
             # ── Step 5: Render video ──────────────────────────────────────────
             _job_set(job_id, {"status": "processing", "step": "Rendering video..."})
 
@@ -936,6 +934,13 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                     os.remove(img_path)
                 except OSError:
                     pass
+
+            # Team photo clip (3 s, before outro)
+            if os.path.exists(_TEAM_PHOTO_PATH):
+                team_clip = os.path.join(clips_dir, "clip_team.mp4")
+                _make_clip(ffmpeg, ffprobe, _TEAM_PHOTO_PATH, team_clip,
+                           duration=_TEAM_PHOTO_DURATION, zoom_start=1.0, zoom_end=1.0)
+                clip_paths.append(team_clip)
 
             # Outro clip (static, letterboxed)
             if os.path.exists(_OUTRO_PATH):
@@ -992,12 +997,14 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                 except Exception:
                     final_audio_path = audio_path
 
-            # Pad audio with silence so outro plays fully
+            # Pad audio with silence so all photos + team photo + outro play fully.
+            # whole_dur=600 ensures audio is always longer than the video; -shortest
+            # in the final mux trims it to exact video length.
             padded_audio_path = os.path.join(tmpdir, "padded_audio.aac")
             try:
                 subprocess.run(
                     [ffmpeg, "-y", "-i", final_audio_path,
-                     "-af", f"apad=pad_dur={OUTRO_DURATION}",
+                     "-af", "apad=whole_dur=600",
                      "-c:a", "aac", "-threads", "1", padded_audio_path],
                     check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                 )
