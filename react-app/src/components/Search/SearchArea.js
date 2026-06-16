@@ -11,7 +11,7 @@ import * as propertyActions from "../../store/property";
 import apiFetch from "../../utils/apiFetch";
 import { hasConsented, saveConsent } from "../../utils/locationConsent";
 
-const TORONTO = { lat: 43.6532, lng: -79.3832 };
+const TORONTO = { lat: 43.9700, lng: -79.4500 };
 const GTA_BOUNDS = { latMin: 43.2, latMax: 44.5, lngMin: -80.5, lngMax: -78.2 };
 
 const SearchArea = () => {
@@ -51,7 +51,7 @@ const SearchArea = () => {
 	const [showConsent, setShowConsent] = useState(false);
 	const [mapBounds, setMapBounds] = useState(null);
 	const [over, setOver] = useState({ id: 0 });
-	const [zoom, setZoom] = useState(6);
+	const [zoom, setZoom] = useState(10);
 	const mapSyncTimer = useRef(null);
 
 	useEffect(() => {
