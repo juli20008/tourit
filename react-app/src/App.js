@@ -103,7 +103,7 @@ const AgentWhitelabelRedirect = () => {
 const WhitelabelTitle = () => {
 	const agent = useSelector((state) => state.whitelabel?.agent);
 	useEffect(() => {
-		document.title = "tourit.ca - Home Tour Simplified";
+		document.title = "tourit.ca — Canada Home Team";
 	}, [agent]);
 	return null;
 };
