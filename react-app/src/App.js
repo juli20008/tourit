@@ -26,6 +26,7 @@ import NewHomeVideo from "./components/NewHomeVideo";
 import Career from "./components/Career";
 import AgentLogin from "./components/AgentLogin";
 import ListingPage from "./components/Property/ListingPage";
+import VideoFromExtension from "./components/VideoFromExtension";
 import UnreadNotifier from "./components/NavBar/UnreadNotifier";
 import { ChatBubbleProvider } from "./context/ChatBubble";
 import ChatBubble from "./components/ChatBubble";
@@ -160,6 +161,9 @@ function App() {
 				</Route>
 				<Route path="/agent-login" exact={true}>
 					<AgentLogin />
+				</Route>
+				<Route path="/make-video" exact={true}>
+					<VideoFromExtension />
 				</Route>
 				<Route path="/a/:agentId/listing/:mlsNumber" exact={true}>
 					<ListingPage />

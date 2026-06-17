@@ -171,7 +171,7 @@ const IntroSection = ({ introBlob, setIntroBlob }) => {
 
 // ── Main modal ────────────────────────────────────────────────────────────────
 
-const XHSVideoModal = ({ listing, onClose, onGenerated }) => {
+const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 	const [cover1, setCover1] = useState("");
 	const [cover2, setCover2] = useState("");
 	const [cover3, setCover3] = useState("");
@@ -195,6 +195,10 @@ const XHSVideoModal = ({ listing, onClose, onGenerated }) => {
 
 	// Fetch listing images for cover photo picker
 	useEffect(() => {
+		if (externalListing?.images?.length) {
+			setListingImages(externalListing.images);
+			return;
+		}
 		const mlsNum = listing.mls_number || listing.listing_id;
 		if (!mlsNum) return;
 		apiFetch(`/api/listings/${mlsNum}`)
@@ -205,7 +209,7 @@ const XHSVideoModal = ({ listing, onClose, onGenerated }) => {
 				if (Array.isArray(imgs) && imgs.length > 0) setListingImages(imgs);
 			})
 			.catch(() => {});
-	}, [listing]);
+	}, [listing, externalListing]);
 
 	const mlsNumber = listing.mls_number || listing.listing_id;
 
@@ -220,7 +224,7 @@ const XHSVideoModal = ({ listing, onClose, onGenerated }) => {
 			const resp = await apiFetch(`/api/xhs/agent/draft-narration/${mlsNumber}`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ cover1, cover2, cover3 }),
+				body: JSON.stringify({ cover1, cover2, cover3, external_listing: externalListing || undefined }),
 			});
 			const d = await resp.json().catch(() => ({}));
 			if (!resp.ok) {
@@ -253,6 +257,9 @@ const XHSVideoModal = ({ listing, onClose, onGenerated }) => {
 		}
 		if (coverBg) {
 			formData.append("cover_bg", coverBg);
+		}
+		if (externalListing) {
+			formData.append("external_listing", JSON.stringify(externalListing));
 		}
 
 		const resp = await apiFetch(`/api/xhs/agent/video/${mlsNumber}`, {

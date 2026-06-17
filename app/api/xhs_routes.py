@@ -402,21 +402,33 @@ def draft_narration(mls_number):
         str(data.get('cover2', '') or '')[:40],
         str(data.get('cover3', '') or '')[:40],
     ]
+    external_listing = data.get('external_listing') or None
 
-    listing = MlsListing.query.filter_by(mls_number=mls_number).first()
-    if not listing:
-        return jsonify({'error': f'Listing {mls_number} not found'}), 404
-
-    listing_data = {
-        'list_price': listing.list_price,
-        'bed': listing.bed,
-        'bath': listing.bath,
-        'city': listing.city,
-        'description': listing.description,
-        'style': listing.style,
-        'property_type': listing.property_type,
-        'sqft': listing.sqft,
-    }
+    if external_listing:
+        listing_data = {
+            'list_price': external_listing.get('list_price'),
+            'bed':        external_listing.get('bed'),
+            'bath':       external_listing.get('bath'),
+            'city':       external_listing.get('city'),
+            'description': external_listing.get('description', ''),
+            'style':      external_listing.get('style'),
+            'property_type': external_listing.get('style'),
+            'sqft':       external_listing.get('sqft'),
+        }
+    else:
+        listing = MlsListing.query.filter_by(mls_number=mls_number).first()
+        if not listing:
+            return jsonify({'error': f'Listing {mls_number} not found'}), 404
+        listing_data = {
+            'list_price': listing.list_price,
+            'bed': listing.bed,
+            'bath': listing.bath,
+            'city': listing.city,
+            'description': listing.description,
+            'style': listing.style,
+            'property_type': listing.property_type,
+            'sqft': listing.sqft,
+        }
 
     narration = _generate_narration(listing_data, cover_lines=cover_lines)
     if not narration:
@@ -455,6 +467,9 @@ def generate_agent_video(mls_number):
         cover_bg_bytes = cover_bg_file.read(MAX_COVER_BG_BYTES + 1) if cover_bg_file and cover_bg_file.filename else None
         if cover_bg_bytes and len(cover_bg_bytes) > MAX_COVER_BG_BYTES:
             cover_bg_bytes = None
+        import json as _json
+        _ext = request.form.get('external_listing')
+        external_listing = _json.loads(_ext) if _ext else None
     else:
         data = request.get_json(silent=True) or {}
         cover_lines = [
@@ -466,6 +481,7 @@ def generate_agent_video(mls_number):
         narration_override = (data.get('narration_override') or '').strip() or None
         intro_bytes = None
         cover_bg_bytes = None
+        external_listing = data.get('external_listing') or None
 
     use_actions = bool(os.environ.get('GH_PAT'))
 
@@ -514,6 +530,7 @@ def generate_agent_video(mls_number):
         cover_bg_bytes=cover_bg_bytes,
         cover_photo_index=cover_photo_index,
         narration_override=narration_override,
+        external_listing=external_listing,
     )
     return jsonify({'job_id': job_id, 'status': 'processing'})
 
