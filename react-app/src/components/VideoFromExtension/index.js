@@ -11,24 +11,24 @@ const VideoFromExtension = () => {
 	const [listing, setListing] = useState(null);
 	const [error, setError] = useState("");
 
-	const token = new URLSearchParams(location.search).get("token");
+	const params = new URLSearchParams(location.search);
+	const mlsNumber = params.get("mls");
 
 	useEffect(() => {
-		if (!token) {
-			setError("No token provided.");
+		if (!mlsNumber) {
+			setError("No listing specified.");
 			return;
 		}
-		apiFetch(`/api/scrape/pending?token=${encodeURIComponent(token)}`)
+		apiFetch(`/api/listings/${encodeURIComponent(mlsNumber)}`)
 			.then((r) => {
-				if (!r.ok) throw new Error(r.status === 410 ? "Link expired." : "Listing not found.");
+				if (!r.ok) throw new Error("Listing not found.");
 				return r.json();
 			})
-			.then((data) => setListing(data.listing))
+			.then((data) => setListing(data.listing || data))
 			.catch((e) => setError(e.message));
-	}, [token]);
+	}, [mlsNumber]);
 
 	if (!user) {
-		// Save the current URL so we can come back after login
 		sessionStorage.setItem("tourReturn", location.pathname + location.search);
 		history.replace("/agent-login");
 		return null;
@@ -53,23 +53,9 @@ const VideoFromExtension = () => {
 		);
 	}
 
-	// Map external listing fields to what XHSVideoModal expects
-	const modalListing = {
-		mls_number: listing.mls_number,
-		listing_id: listing.mls_number,
-		street:     listing.street,
-		address:    listing.label,
-		city:       listing.city,
-		price:      listing.list_price,
-		bed:        listing.bed,
-		bath:       listing.bath,
-		front_img:  listing.images?.[0] || null,
-	};
-
 	return (
 		<XHSVideoModal
-			listing={modalListing}
-			externalListing={listing}
+			listing={listing}
 			onClose={() => history.push("/appointments")}
 			onGenerated={() => {}}
 		/>
