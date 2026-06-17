@@ -389,12 +389,13 @@ const MapCore = withGoogleMap((props) => {
 		// small box is the reliable way to both pan and zoom imperatively.
 		useEffect(() => {
 			props.onMapReady?.((lat, lng, bounds) => {
-				if (!mapRef.current) return;
+				const native = getNativeMap(mapRef);
+				if (!native) return;
 				if (bounds) {
-					mapRef.current.fitBounds(bounds);
+					native.fitBounds(bounds);
 				} else {
-					mapRef.current.setCenter({ lat, lng });
-					mapRef.current.setZoom(6);
+					native.setCenter({ lat, lng });
+					native.setZoom(14);
 				}
 			});
 		}, []); // eslint-disable-line react-hooks/exhaustive-deps
