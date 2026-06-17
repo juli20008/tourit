@@ -146,6 +146,20 @@ def health_check():
     return jsonify({'status': 'ok'}), 200
 
 
+@app.route('/dbcheck')
+def db_check():
+    import os
+    from sqlalchemy import text
+    db_url = os.environ.get('DATABASE_URL', '')
+    masked = db_url[:40] + '...' if len(db_url) > 40 else db_url
+    try:
+        db.session.execute(text('SELECT 1'))
+        db.session.remove()
+        return jsonify({'db': 'ok', 'url': masked})
+    except Exception as e:
+        return jsonify({'db': 'error', 'url': masked, 'detail': str(e)}), 500
+
+
 @app.route('/warmup')
 def warmup():
     """Pre-warm Flask + DB connection pool + default GTA map cache."""
