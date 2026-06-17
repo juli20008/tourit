@@ -729,7 +729,14 @@ def get_job(job_id):
 
 # ── Main pipeline (runs in background thread) ──────────────────────────────────
 
-def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_bytes=None, cover_bg_bytes=None, cover_photo_index=0, narration_override=None):
+def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_bytes=None,
+                  cover_bg_bytes=None, cover_photo_index=0, narration_override=None,
+                  external_listing=None):
+    """
+    external_listing: pre-scraped dict with keys bed, bath, sqft, city, description,
+                      style, list_price, images (list[str]), street, mls_number.
+                      When provided the DB lookup for MlsListing is skipped entirely.
+    """
     if not _GENERATION_LOCK.acquire(blocking=False):
         with flask_app.app_context():
             _job_set(job_id, {"status": "error", "message": "另一个视频正在生成中，完成后会发邮件通知您再来试 / Another video is already generating — you'll get an email when it's done, then try again"})
@@ -739,13 +746,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
         try:
             _job_set(job_id, {"status": "processing", "step": "Loading listing..."})
 
-            from app.models.mls_listing import MlsListing
             from app.models.user import User
-
-            listing = MlsListing.query.filter_by(mls_number=mls_number).first()
-            if not listing:
-                _job_set(job_id, {"status": "error", "message": f"Listing {mls_number} not found"})
-                return
 
             agent = User.query.get(agent_id)
             if not agent or not agent.elevenlabs_voice_id:
@@ -760,16 +761,25 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
 
             img_dir = os.path.join(tmpdir, "imgs")
             os.makedirs(img_dir, exist_ok=True)
-            all_images = listing.effective_images or []
-            if len(all_images) == 0:
-                image_urls = []
-            elif len(all_images) >= MAX_PHOTOS:
-                # Evenly sample MAX_PHOTOS from the full set
-                step = len(all_images) / MAX_PHOTOS
-                image_urls = [all_images[int(i * step)] for i in range(MAX_PHOTOS)]
+
+            if external_listing:
+                raw_images = external_listing.get("images") or []
             else:
-                # Fewer photos than needed — cycle to reach MAX_PHOTOS
-                image_urls = [all_images[i % len(all_images)] for i in range(MAX_PHOTOS)]
+                from app.models.mls_listing import MlsListing
+                listing = MlsListing.query.filter_by(mls_number=mls_number).first()
+                if not listing:
+                    _job_set(job_id, {"status": "error", "message": f"Listing {mls_number} not found"})
+                    return
+                raw_images = listing.effective_images or []
+
+            all_images_raw = raw_images
+            if len(all_images_raw) == 0:
+                image_urls = []
+            elif len(all_images_raw) >= MAX_PHOTOS:
+                step = len(all_images_raw) / MAX_PHOTOS
+                image_urls = [all_images_raw[int(i * step)] for i in range(MAX_PHOTOS)]
+            else:
+                image_urls = [all_images_raw[i % len(all_images_raw)] for i in range(MAX_PHOTOS)]
 
             downloaded = []
             for i, url in enumerate(image_urls):
@@ -1076,7 +1086,8 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
 
 
 def start_video_job(mls_number, agent_id, cover_lines, flask_app, intro_bytes=None,
-                    cover_bg_bytes=None, cover_photo_index=0, narration_override=None):
+                    cover_bg_bytes=None, cover_photo_index=0, narration_override=None,
+                    external_listing=None):
     """Start background video generation. Returns job_id."""
     _job_clean()
     job_id = uuid.uuid4().hex
@@ -1086,7 +1097,8 @@ def start_video_job(mls_number, agent_id, cover_lines, flask_app, intro_bytes=No
         args=(job_id, mls_number, agent_id, cover_lines, flask_app),
         kwargs={"intro_bytes": intro_bytes, "cover_bg_bytes": cover_bg_bytes,
                 "cover_photo_index": cover_photo_index,
-                "narration_override": narration_override},
+                "narration_override": narration_override,
+                "external_listing": external_listing},
         daemon=True,
     )
     t.start()

@@ -30,6 +30,7 @@ from .api.share_routes import share_routes
 from .api.agent_lead_routes import agent_lead_routes
 from .api.ppt_video_routes import ppt_video_routes
 from .api.new_home_video_routes import new_home_video_routes
+from .api.scraper_routes import scraper_routes
 
 from .seeds import seed_commands
 
@@ -85,6 +86,7 @@ app.register_blueprint(share_routes, url_prefix='/share')
 app.register_blueprint(agent_lead_routes, url_prefix='/api/agent-leads')
 app.register_blueprint(ppt_video_routes, url_prefix='/api/ppt-videos')
 app.register_blueprint(new_home_video_routes, url_prefix='/api/new-home-videos')
+app.register_blueprint(scraper_routes, url_prefix='/api/scrape')
 db.init_app(app)
 Migrate(app, db)
 socketio.init_app(app)
@@ -101,9 +103,11 @@ _allowed_origins = list({
     *[o.strip() for o in os.environ.get("FRONTEND_URL", "").split(",") if o.strip()],
 })
 CORS(app, resources={
-    r"/api/*":  {"origins": _allowed_origins},
-    r"/warmup": {"origins": _allowed_origins},
-    r"/health": {"origins": _allowed_origins},
+    r"/api/xhs/extension/*": {"origins": "*"},
+    r"/api/scrape/*":        {"origins": "*"},
+    r"/api/*":               {"origins": _allowed_origins},
+    r"/warmup":              {"origins": _allowed_origins},
+    r"/health":              {"origins": _allowed_origins},
 }, supports_credentials=True)
 
 

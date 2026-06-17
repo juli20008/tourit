@@ -576,6 +576,59 @@ def test_tts_models():
         return jsonify({'status': 'exception', 'error': str(e)}), 500
 
 
+@xhs_routes.route('/extension/video', methods=['POST', 'OPTIONS'])
+@cross_origin(origins='*')
+def extension_generate_video():
+    """Extension-triggered video generation — no browser session required."""
+    if request.method == 'OPTIONS':
+        return '', 204
+
+    expected_key = os.environ.get('EXTENSION_API_KEY', '')
+    data = request.get_json(silent=True) or {}
+
+    if expected_key and data.get('extension_key') != expected_key:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    listing = data.get('listing')
+    if not listing or not listing.get('images'):
+        return jsonify({'error': 'listing with images required'}), 400
+
+    agent_id = int(os.environ.get('EXTENSION_AGENT_ID', 0))
+    if not agent_id:
+        return jsonify({'error': 'EXTENSION_AGENT_ID not configured on server'}), 503
+
+    cover_lines = [
+        str(data.get('cover1', '') or '')[:40],
+        str(data.get('cover2', '') or '')[:40],
+        str(data.get('cover3', '') or '')[:40],
+    ]
+
+    from flask import current_app
+    from app.services.xhs_video_service import start_video_job
+
+    mls_number = listing.get('mls_number') or 'ext-listing'
+    job_id = start_video_job(
+        mls_number, agent_id, cover_lines,
+        current_app._get_current_object(),
+        external_listing=listing,
+    )
+    return jsonify({'job_id': job_id, 'status': 'processing'})
+
+
+@xhs_routes.route('/extension/video/status/<job_id>', methods=['GET', 'OPTIONS'])
+@cross_origin(origins='*')
+def extension_video_status(job_id):
+    """Poll video job status — no browser session required."""
+    if request.method == 'OPTIONS':
+        return '', 204
+
+    from app.services.xhs_video_service import get_job
+    job = get_job(job_id)
+    if not job:
+        return jsonify({'status': 'not_found'}), 404
+    return jsonify({k: v for k, v in job.items() if k != 'ts'})
+
+
 @xhs_routes.route('/rewrite', methods=['POST', 'OPTIONS'])
 @cross_origin(origins='*')
 def rewrite_for_xhs():
