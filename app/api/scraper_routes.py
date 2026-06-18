@@ -72,20 +72,27 @@ def _normalize_row(row: dict) -> dict:
     }
 
 
-def _geocode(street: str | None, city: str | None) -> tuple[float | None, float | None]:
-    """Best-effort geocode via Nominatim. Returns (lat, lng) or (None, None)."""
-    parts = [p for p in [street, city, "Ontario", "Canada"] if p]
-    if not parts:
-        return None, None
-    q = ", ".join(parts)
+def _nominatim(q: str) -> tuple[float | None, float | None]:
     params = urllib.parse.urlencode({"q": q, "format": "json", "limit": 1})
     url = f"https://nominatim.openstreetmap.org/search?{params}"
+    req = urllib.request.Request(url, headers={"User-Agent": "tourit.ca/1.0"})
+    with urllib.request.urlopen(req, timeout=8) as resp:
+        results = json.loads(resp.read())
+    if results:
+        return float(results[0]["lat"]), float(results[0]["lon"])
+    return None, None
+
+
+def _geocode(street: str | None, city: str | None) -> tuple[float | None, float | None]:
+    """Geocode via Nominatim; falls back to city-only if full address fails."""
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "tourit.ca/1.0"})
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            results = json.loads(resp.read())
-        if results:
-            return float(results[0]["lat"]), float(results[0]["lon"])
+        if street and city:
+            lat, lng = _nominatim(f"{street}, {city}, Ontario, Canada")
+            if lat is not None:
+                return lat, lng
+        # Fallback: city only
+        if city:
+            return _nominatim(f"{city}, Ontario, Canada")
     except Exception:
         pass
     return None, None
@@ -163,4 +170,6 @@ def push_listing():
     return jsonify({
         "mls_number":    mls_number,
         "make_video_url": f"https://tourit.ca/make-video?mls={mls_number}",
+        "lat":           float(row.lat) if row.lat is not None else None,
+        "lng":           float(row.lng) if row.lng is not None else None,
     })
