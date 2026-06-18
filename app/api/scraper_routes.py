@@ -87,6 +87,7 @@ def push_listing():
 
     try:
         row = MlsListing.query.filter_by(mls_number=mls_number).first()
+        street = listing.get("street_name") or listing.get("street")
         if row:
             # Update existing
             row.images      = listing["images"]
@@ -95,7 +96,7 @@ def push_listing():
             row.bath        = int(listing["bath"]) if listing.get("bath") else None
             row.sqft        = listing.get("sqft")
             row.city        = listing.get("city")
-            row.street_name = listing.get("street_name")
+            row.street_name = street
             row.description = listing.get("description")
             row.style       = listing.get("style")
             row.status      = "A"
@@ -110,7 +111,7 @@ def push_listing():
                 bath            = int(listing["bath"]) if listing.get("bath") else None,
                 sqft            = listing.get("sqft"),
                 city            = listing.get("city"),
-                street_name     = listing.get("street_name"),
+                street_name     = street,
                 description     = listing.get("description"),
                 style           = listing.get("style"),
                 images          = listing["images"],
