@@ -30,5 +30,4 @@ python-dateutil==2.9.0.post0
 email-validator==2.3.0
 Flask-Compress==1.17
 Pillow==11.2.1
-rembg==2.0.57
 ormsgpack==1.12.2
