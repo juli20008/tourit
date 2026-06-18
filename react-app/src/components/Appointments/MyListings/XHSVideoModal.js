@@ -214,10 +214,6 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 	const mlsNumber = listing.mls_number || listing.listing_id;
 
 	const fetchDraft = async () => {
-		if (!cover1.trim()) {
-			setErrorMsg("请输入至少第一行封面文字 / Please enter at least line 1");
-			return;
-		}
 		setErrorMsg("");
 		setPhase("drafting");
 		try {
@@ -336,9 +332,9 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 								第一、二行大字显示在人物上方，第三行小字显示在人物下方。
 							</p>
 							{[
-								[cover1, setCover1, "第一行（大字，人物上方）/ Line 1 (large, above)"],
-								[cover2, setCover2, "第二行（大字，人物上方）/ Line 2 (large, above)"],
-								[cover3, setCover3, "第三行（小字，人物下方）/ Line 3 (small, below)"],
+								[cover1, setCover1, "第一行（大字，人物上方，选填）/ Line 1 (large, above, optional)"],
+								[cover2, setCover2, "第二行（大字，人物上方，选填）/ Line 2 (large, above, optional)"],
+								[cover3, setCover3, "第三行（小字，人物下方，选填）/ Line 3 (small, below, optional)"],
 							].map(([val, setter, placeholder], i) => (
 								<input
 									key={i}
