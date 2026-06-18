@@ -3,6 +3,9 @@
                     returns mls_number so the dashboard can open the video UI.
 """
 import re
+import json
+import urllib.request
+import urllib.parse
 from flask import Blueprint, jsonify, request
 from app.models import db
 from app.models.mls_listing import MlsListing
@@ -67,6 +70,25 @@ def _normalize_row(row: dict) -> dict:
     }
 
 
+def _geocode(street: str | None, city: str | None) -> tuple[float | None, float | None]:
+    """Best-effort geocode via Nominatim. Returns (lat, lng) or (None, None)."""
+    parts = [p for p in [street, city, "Ontario", "Canada"] if p]
+    if not parts:
+        return None, None
+    q = ", ".join(parts)
+    params = urllib.parse.urlencode({"q": q, "format": "json", "limit": 1})
+    url = f"https://nominatim.openstreetmap.org/search?{params}"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "tourit.ca/1.0"})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            results = json.loads(resp.read())
+        if results:
+            return float(results[0]["lat"]), float(results[0]["lon"])
+    except Exception:
+        pass
+    return None, None
+
+
 @scraper_routes.route("/push", methods=["POST"])
 def push_listing():
     """Extension pushes a scraped Realm listing; upserts into mls_listings."""
@@ -84,23 +106,24 @@ def push_listing():
         return jsonify({"error": "Listing has no photos"}), 422
 
     mls_number = listing["mls_number"]
+    street = listing.get("street_name") or listing.get("street")
+    city   = listing.get("city")
 
     try:
         row = MlsListing.query.filter_by(mls_number=mls_number).first()
-        street = listing.get("street_name") or listing.get("street")
         if row:
-            # Update existing
             row.images      = listing["images"]
             row.list_price  = listing.get("list_price")
             row.bed         = listing.get("bed")
             row.bath        = int(listing["bath"]) if listing.get("bath") else None
             row.sqft        = listing.get("sqft")
-            row.city        = listing.get("city")
+            row.city        = city
             row.street_name = street
             row.description = listing.get("description")
             row.style       = listing.get("style")
             row.status      = "A"
             row.standard_status = "Active"
+            needs_geocode = (row.lat is None or row.lng is None)
         else:
             row = MlsListing(
                 mls_number      = mls_number,
@@ -110,7 +133,7 @@ def push_listing():
                 bed             = listing.get("bed"),
                 bath            = int(listing["bath"]) if listing.get("bath") else None,
                 sqft            = listing.get("sqft"),
-                city            = listing.get("city"),
+                city            = city,
                 street_name     = street,
                 description     = listing.get("description"),
                 style           = listing.get("style"),
@@ -118,10 +141,22 @@ def push_listing():
                 photos_count    = len(listing["images"]),
             )
             db.session.add(row)
+            needs_geocode = True
         db.session.commit()
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
+
+    # Geocode after commit so a geocoding failure never blocks the response
+    if needs_geocode:
+        lat, lng = _geocode(street, city)
+        if lat is not None:
+            try:
+                row.lat = lat
+                row.lng = lng
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
 
     return jsonify({
         "mls_number":    mls_number,
