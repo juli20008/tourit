@@ -103,6 +103,13 @@ def main():
                   intro_bytes=intro_bytes, cover_bg_bytes=cover_bg_bytes,
                   cover_photo_index=cover_photo_index,
                   narration_override=narration_override)
+
+    # Check final job status — exit non-zero so GitHub Actions shows red on failure
+    from app.services.xhs_db_jobs import get_job as _get_job
+    final = _get_job(job_id) or {}
+    if final.get('status') == 'error':
+        print(f"[run_video_job] Pipeline FAILED: {final.get('message', 'unknown error')}")
+        sys.exit(1)
     print(f"[run_video_job] Pipeline finished for job {job_id}")
 
     # ── Clean up temp files from R2 ───────────────────────────────────────────

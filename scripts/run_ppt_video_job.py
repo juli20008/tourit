@@ -114,6 +114,12 @@ def main():
         intro_bytes=intro_bytes,
         cover_bg_bytes=cover_bg_bytes,
     )
+
+    from app.services.ppt_db_jobs import get_job as _get_job
+    final = _get_job(job_id) or {}
+    if final.get('status') == 'error':
+        print(f"[run_ppt_video_job] Pipeline FAILED: {final.get('message', 'unknown error')}")
+        sys.exit(1)
     print(f"[run_ppt_video_job] Pipeline finished for job {job_id}")
 
     # ── Clean up temp R2 files ────────────────────────────────────────────────
