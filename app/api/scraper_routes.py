@@ -169,6 +169,7 @@ def push_listing():
 
     return jsonify({
         "mls_number":    mls_number,
+        "listing_url":   f"https://tourit.ca/listing/{mls_number}",
         "make_video_url": f"https://tourit.ca/make-video?mls={mls_number}",
         "lat":           float(row.lat) if row.lat is not None else None,
         "lng":           float(row.lng) if row.lng is not None else None,
