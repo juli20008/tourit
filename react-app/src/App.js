@@ -162,9 +162,9 @@ function App() {
 				<Route path="/agent-login" exact={true}>
 					<AgentLogin />
 				</Route>
-				<Route path="/make-video" exact={true}>
+				<ProtectedRoute path="/make-video" exact={true}>
 					<VideoFromExtension />
-				</Route>
+				</ProtectedRoute>
 				<Route path="/a/:agentId/listing/:mlsNumber" exact={true}>
 					<ListingPage />
 				</Route>
