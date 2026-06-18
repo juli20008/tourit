@@ -219,18 +219,13 @@ def _generate_composite_cover(ffmpeg, intro_path, photo_path, line1, line2, line
                 subprocess.run(
                     [ffmpeg, "-y", "-i", intro_path,
                      "-vframes", "1", "-q:v", "2", frame_png],
+                    timeout=120,
+
                     check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                 )
                 if os.path.exists(frame_png) and os.path.getsize(frame_png) > 1000:
-                    # ── 2. Background removal ─────────────────────────────────
-                    try:
-                        from rembg import remove as rembg_remove
-                        with open(frame_png, "rb") as _f:
-                            person_rgba = Image.open(
-                                _io.BytesIO(rembg_remove(_f.read()))
-                            ).convert("RGBA")
-                    except Exception:
-                        person_rgba = Image.open(frame_png).convert("RGBA")
+                    # rembg skipped — too slow on CPU-only server
+                    person_rgba = Image.open(frame_png).convert("RGBA")
             except Exception:
                 pass
             finally:
@@ -456,6 +451,8 @@ def _transcode_intro(ffmpeg, src_path, out_path):
             "-threads", "1",
             out_path,
         ],
+        timeout=120,
+
         check=True,
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
@@ -475,6 +472,8 @@ def _composite_overlay(ffmpeg, video_path, overlay_png, out_path):
             "-threads", "1",
             out_path,
         ],
+        timeout=120,
+
         check=True,
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
@@ -631,6 +630,8 @@ def _generate_narration(listing_data, cover_lines=None):
 def _probe_dimensions(ffprobe, path):
     r = subprocess.run(
         [ffprobe, "-v", "quiet", "-print_format", "json", "-show_streams", path],
+        timeout=60,
+
         capture_output=True, text=True,
     )
     for stream in json.loads(r.stdout).get("streams", []):
@@ -674,6 +675,8 @@ def _make_clip(ffmpeg, ffprobe, img_path, out_path, reverse=False,
             "-threads", "1",
             out_path,
         ],
+        timeout=120,
+
         check=True,
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
@@ -691,6 +694,8 @@ def _concat_clips(ffmpeg, clip_paths, out_path):
             [ffmpeg, "-y", "-f", "concat", "-safe", "0",
              "-i", list_file,
              "-c", "copy", out_path],
+            timeout=120,
+
             check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         )
         return out_path
@@ -784,7 +789,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
             downloaded = []
             for i, url in enumerate(image_urls):
                 try:
-                    r = requests.get(url, timeout=20, stream=True)
+                    r = requests.get(url, timeout=8, stream=True)
                     if r.ok:
                         ext = url.rsplit(".", 1)[-1].lower().split("?")[0]
                         if ext not in {"jpg", "jpeg", "png", "webp"}:
@@ -794,6 +799,8 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                             for chunk in r.iter_content(chunk_size=65536):
                                 f.write(chunk)
                         downloaded.append(path)
+                        if len(downloaded) >= MAX_PHOTOS:
+                            break
                 except Exception:
                     pass
 
@@ -823,6 +830,8 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                         [ffmpeg, "-y", "-i", raw_intro, "-vn",
                          "-af", "highpass=f=80,afftdn=nf=-25,loudnorm",
                          "-c:a", "aac", "-threads", "1", _intro_audio_tmp],
+                        timeout=120,
+
                         check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                     )
                     if os.path.exists(_intro_audio_tmp) and os.path.getsize(_intro_audio_tmp) > 100:
@@ -924,6 +933,8 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                 _dur_r = subprocess.run(
                     [ffprobe, "-v", "quiet", "-show_entries", "format=duration",
                      "-of", "default=noprint_wrappers=1:nokey=1", audio_path],
+                    timeout=60,
+
                     capture_output=True, text=True,
                 )
                 narr_dur = float(_dur_r.stdout.strip())
@@ -962,6 +973,8 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                              f"pad={OUTPUT_W}:{OUTPUT_H}:(ow-iw)/2:(oh-ih)/2:black"),
                      "-c:v", "libx264", "-crf", str(CRF), "-preset", PRESET,
                      "-r", str(FPS), "-pix_fmt", "yuv420p", "-threads", "1", outro_clip],
+                    timeout=120,
+
                     check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                 )
                 clip_paths.append(outro_clip)
@@ -974,6 +987,8 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
             silent_path = os.path.join(tmpdir, "silent.mp4")
             subprocess.run(
                 [ffmpeg, "-y", "-f", "concat", "-safe", "0", "-i", list_file, "-c", "copy", silent_path],
+                timeout=120,
+
                 check=True,
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )
@@ -1001,6 +1016,8 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                             "-c:a", "aac", "-threads", "1",
                             combined_audio_path,
                         ],
+                        timeout=120,
+
                         check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                     )
                     final_audio_path = combined_audio_path
@@ -1016,6 +1033,8 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                     [ffmpeg, "-y", "-i", final_audio_path,
                      "-af", "apad=whole_dur=600",
                      "-c:a", "aac", "-threads", "1", padded_audio_path],
+                    timeout=120,
+
                     check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                 )
                 final_audio_path = padded_audio_path
@@ -1030,6 +1049,8 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                  "-i", silent_path, "-i", final_audio_path,
                  "-map", "0:v:0", "-map", "1:a:0",
                  "-c:v", "copy", "-c:a", "aac", "-shortest", final_path],
+                timeout=120,
+
                 check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )
 
