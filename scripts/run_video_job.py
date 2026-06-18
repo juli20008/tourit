@@ -30,8 +30,13 @@ def main():
     # ── Load job from DB ──────────────────────────────────────────────────────
     import psycopg2
     import psycopg2.extras
+    from app.services.xhs_db_jobs import ensure_jobs_table
 
     db_url = os.environ.get("DATABASE_URL") or os.environ.get("NEON_DATABASE_URL")
+    if not db_url:
+        print("[run_video_job] ERROR: DATABASE_URL not set")
+        sys.exit(1)
+    ensure_jobs_table()
     conn = psycopg2.connect(db_url)
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         cur.execute("SELECT * FROM xhs_video_jobs WHERE job_id = %s", (job_id,))
@@ -39,7 +44,7 @@ def main():
     conn.close()
 
     if not row:
-        print(f"[run_video_job] Job {job_id} not found in DB")
+        print(f"[run_video_job] ERROR: Job {job_id} not found in xhs_video_jobs table")
         sys.exit(1)
 
     row = dict(row)
