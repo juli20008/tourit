@@ -121,33 +121,43 @@ def push_listing():
     try:
         row = MlsListing.query.filter_by(mls_number=mls_number).first()
         if row:
-            row.images      = listing["images"]
-            row.list_price  = listing.get("list_price")
-            row.bed         = listing.get("bed")
-            row.bath        = int(listing["bath"]) if listing.get("bath") else None
-            row.sqft        = listing.get("sqft")
-            row.city        = city
-            row.street_name = street
-            row.description = listing.get("description")
-            row.style       = listing.get("style")
-            row.status      = "A"
-            row.standard_status = "Active"
+            row.images           = listing["images"]
+            row.list_price       = listing.get("list_price")
+            row.bed              = listing.get("bed")
+            row.bath             = int(listing["bath"]) if listing.get("bath") else None
+            row.sqft             = listing.get("sqft")
+            row.city             = city
+            row.state            = listing.get("province")
+            row.zip              = listing.get("postal_code")
+            row.street_name      = street
+            row.neighborhood     = listing.get("neighborhood")
+            row.beds_above_grade = listing.get("beds_above_grade")
+            row.basement_beds    = listing.get("basement_beds")
+            row.description      = listing.get("description")
+            row.style            = listing.get("style")
+            row.status           = "A"
+            row.standard_status  = "Active"
             needs_geocode = (row.lat is None or row.lng is None)
         else:
             row = MlsListing(
-                mls_number      = mls_number,
-                status          = "A",
-                standard_status = "Active",
-                list_price      = listing.get("list_price"),
-                bed             = listing.get("bed"),
-                bath            = int(listing["bath"]) if listing.get("bath") else None,
-                sqft            = listing.get("sqft"),
-                city            = city,
-                street_name     = street,
-                description     = listing.get("description"),
-                style           = listing.get("style"),
-                images          = listing["images"],
-                photos_count    = len(listing["images"]),
+                mls_number       = mls_number,
+                status           = "A",
+                standard_status  = "Active",
+                list_price       = listing.get("list_price"),
+                bed              = listing.get("bed"),
+                bath             = int(listing["bath"]) if listing.get("bath") else None,
+                sqft             = listing.get("sqft"),
+                city             = city,
+                state            = listing.get("province"),
+                zip              = listing.get("postal_code"),
+                street_name      = street,
+                neighborhood     = listing.get("neighborhood"),
+                beds_above_grade = listing.get("beds_above_grade"),
+                basement_beds    = listing.get("basement_beds"),
+                description      = listing.get("description"),
+                style            = listing.get("style"),
+                images           = listing["images"],
+                photos_count     = len(listing["images"]),
             )
             db.session.add(row)
             needs_geocode = True
