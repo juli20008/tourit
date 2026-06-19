@@ -628,6 +628,155 @@ def _generate_narration(listing_data, cover_lines=None):
     return None
 
 
+# ── Floor-segmented narration ──────────────────────────────────────────────────
+
+_FLOOR_ORDER = ["exterior", "main_floor", "upper_floor", "basement"]
+_FLOOR_ZH    = {"exterior": "室外", "main_floor": "主层", "upper_floor": "上层", "basement": "地下室"}
+
+
+def _floor_heuristic(n):
+    labels = []
+    for i in range(n):
+        r = i / max(n - 1, 1)
+        if r < 0.12:
+            labels.append("exterior")
+        elif r < 0.55:
+            labels.append("main_floor")
+        elif r < 0.80:
+            labels.append("upper_floor")
+        else:
+            labels.append("basement")
+    return labels
+
+
+def _classify_photos_by_floor(photo_paths, api_key):
+    """Classify each photo into a floor group via DeepSeek-VL. Falls back to heuristic."""
+    import base64 as _b64, json as _json, re as _re
+    n = len(photo_paths)
+    if not api_key or not photo_paths:
+        return _floor_heuristic(n)
+
+    # Sample up to 15 photos evenly to keep payload small
+    if n <= 15:
+        indices = list(range(n))
+    else:
+        step = n / 15
+        indices = [int(i * step) for i in range(15)]
+
+    content = []
+    valid_indices = []
+    for idx in indices:
+        try:
+            with open(photo_paths[idx], "rb") as _f:
+                b64 = _b64.b64encode(_f.read()).decode()
+            ext = photo_paths[idx].rsplit(".", 1)[-1].lower()
+            mime = "image/png" if ext == "png" else "image/jpeg"
+            content.append({"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}})
+            valid_indices.append(idx)
+        except Exception:
+            pass
+
+    if not content:
+        return _floor_heuristic(n)
+
+    num = len(valid_indices)
+    content.append({"type": "text", "text": (
+        f"以上{num}张是一套房源照片，按播放顺序排列。"
+        "请将每张照片归类（只能选以下之一）：\n"
+        "exterior（室外/外观/车道/后院）\n"
+        "main_floor（主层：客厅/餐厅/厨房/入口大厅）\n"
+        "upper_floor（上层：卧室/浴室/走廊）\n"
+        "basement（地下室）\n"
+        f"只输出长度为{num}的JSON数组，例：[\"exterior\",\"main_floor\"]"
+    )})
+
+    try:
+        resp = requests.post(
+            "https://api.deepseek.com/v1/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={
+                "model": "deepseek-vl2",
+                "messages": [{"role": "user", "content": content}],
+                "max_tokens": 200,
+            },
+            timeout=60,
+        )
+        if resp.ok:
+            raw = resp.json().get("choices", [{}])[0].get("message", {}).get("content", "")
+            m = _re.search(r'\[.*?\]', raw, _re.DOTALL)
+            if m:
+                sample_labels = _json.loads(m.group())
+                sample_labels = [l if l in _FLOOR_ORDER else "main_floor" for l in sample_labels]
+                if len(sample_labels) == len(valid_indices):
+                    labels = []
+                    for i in range(n):
+                        nearest = min(range(len(valid_indices)), key=lambda j: abs(valid_indices[j] - i))
+                        labels.append(sample_labels[nearest])
+                    return labels
+    except Exception as e:
+        print(f"[XHS] Photo classification error ({e}), using heuristic")
+
+    return _floor_heuristic(n)
+
+
+def _generate_floor_narrations(listing_data, active_groups, cover_lines=None):
+    """Generate one narration segment per floor group. Returns [str] or None."""
+    import json as _json, re as _re
+    api_key = os.environ.get("DEEPSEEK_API_KEY", "")
+    if not api_key:
+        return None
+
+    beds  = listing_data.get("bed", "?")
+    baths = listing_data.get("bath", "?")
+    desc  = (listing_data.get("description") or "")[:400]
+    style = listing_data.get("style") or listing_data.get("property_type") or "住宅"
+    sqft  = listing_data.get("sqft", "")
+
+    sections = "\n".join(f"- {_FLOOR_ZH[floor]}：{count}张照片" for floor, count in active_groups)
+
+    cover_hints = ""
+    if cover_lines:
+        hints = [l for l in cover_lines if l and l.strip()]
+        if hints:
+            cover_hints = f"\n封面关键词（第一段开头自然融入）：{'、'.join(hints)}"
+
+    prompt = f"""你是加拿大华人房产经纪，为以下房源生成分段口播文案。
+
+房源：{listing_data.get('neighborhood') or listing_data.get('city', '')}，{style}，{beds}卧{baths}卫{f'，{sqft}平方英尺' if sqft else ''}
+描述：{desc or '暂无'}{cover_hints}
+
+视频分段（按播放顺序）：
+{sections}
+
+要求：
+- 为每段各写50-80字，语言自然平实，像真人直接说话
+- 各段自然衔接，不重复信息
+- 不要用"大家好""今天带大家""今天介绍"等套话
+- 不要提地址、价格、门牌号
+- 最后一段结尾加一句邀请预约看房
+- 不要夸大，不要使用"顶级""超值"等夸张词
+- 只输出JSON数组，长度={len(active_groups)}，每个元素是一段文案字符串"""
+
+    try:
+        resp = requests.post(
+            "https://api.deepseek.com/v1/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={"model": "deepseek-chat", "max_tokens": 800,
+                  "messages": [{"role": "user", "content": prompt}]},
+            timeout=30,
+        )
+        if resp.ok:
+            raw = resp.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+            m = _re.search(r'\[.*?\]', raw, _re.DOTALL)
+            if m:
+                result = _json.loads(m.group())
+                if isinstance(result, list) and len(result) == len(active_groups):
+                    return [str(s) for s in result]
+    except Exception as e:
+        print(f"[XHS] Floor narration generation failed: {e}")
+    return None
+
+
 # ── ffmpeg clip builder ────────────────────────────────────────────────────────
 
 def _probe_dimensions(ffprobe, path):
@@ -893,56 +1042,95 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                     except Exception:
                         pass
 
-            all_images = downloaded
-
-            # ── Step 3: Narration text ────────────────────────────────────────
-            _job_set(job_id, {"status": "processing", "step": "Writing narration..."})
             listing_data = {
                 "list_price": listing.list_price,
                 "bed": listing.bed,
                 "bath": listing.bath,
                 "city": listing.city,
+                "neighborhood": getattr(listing, "neighborhood", None),
                 "description": listing.description,
                 "style": listing.style,
                 "property_type": listing.property_type,
                 "sqft": listing.sqft,
             }
-            narration = narration_override or _generate_narration(listing_data, cover_lines=cover_lines)
-            if not narration:
-                city = listing.city or "多伦多"
-                bed = listing.bed or "?"
-                bath = listing.bath or "?"
-                price_str = f"{int(listing.list_price or 0):,}" if listing.list_price else "面议"
-                narration = (
-                    f"这套房子是{bed}卧{bath}卫的户型，空间布局非常合理，每个功能区划分清晰，住起来很舒适。"
-                    f"房屋的采光条件相当好，主要生活区域在白天都能享受到充足的自然光，整体氛围明亮通透。"
-                    f"厨房和卫浴的装修保持得很好，设施齐全，日常使用完全没有问题，入住即可。"
-                    f"主卧空间宽敞，有足够的储物空间，其他卧室也都能满足家庭日常居住需求。"
-                    f"{city}这个区域配套设施非常成熟，周边有超市、餐厅、公园，生活非常便利。"
-                    f"交通方面也很方便，无论是开车还是乘坐公共交通，通勤都比较顺畅。"
-                    f"学区方面，这里周边的学校口碑也不错，对于有孩子的家庭来说是一个加分项。"
-                    f"如果您对这套房源感兴趣，欢迎随时联系我预约实地看房，期待和您一起找到心仪的家。"
+
+            # ── Step 2.5: Classify photos by floor (skip if narration_override) ──
+            segment_audio_info = []  # [(audio_path, duration, [img_paths])]
+            use_segments = False
+
+            if not narration_override and downloaded:
+                _job_set(job_id, {"status": "processing", "step": "Classifying photos..."})
+                deepseek_key = os.environ.get("DEEPSEEK_API_KEY", "")
+                floor_labels = _classify_photos_by_floor(downloaded, deepseek_key)
+
+                from collections import defaultdict
+                floor_buckets = defaultdict(list)
+                for path, label in zip(downloaded, floor_labels):
+                    floor_buckets[label].append(path)
+                active_groups = [(fl, floor_buckets[fl]) for fl in _FLOOR_ORDER if floor_buckets.get(fl)]
+
+                # ── Step 3: Per-floor narration ────────────────────────────────
+                _job_set(job_id, {"status": "processing", "step": "Writing narration..."})
+                floor_texts = _generate_floor_narrations(
+                    listing_data,
+                    [(fl, len(photos)) for fl, photos in active_groups],
+                    cover_lines=cover_lines,
                 )
 
-            # ── Step 4: Voice narration ───────────────────────────────────────
-            _job_set(job_id, {"status": "processing", "step": "Generating voiceover..."})
-            from app.services.elevenlabs_service import generate_speech
+                if floor_texts:
+                    # ── Step 4: Per-floor TTS ──────────────────────────────────
+                    _job_set(job_id, {"status": "processing", "step": "Generating voiceover..."})
+                    from app.services.elevenlabs_service import generate_speech
+                    for (fl, photos), seg_text in zip(active_groups, floor_texts):
+                        audio_bytes = generate_speech(seg_text, fish_voice_id=minimax_voice_id)
+                        seg_path = os.path.join(tmpdir, f"narration_{fl}.mp3")
+                        with open(seg_path, "wb") as f:
+                            f.write(audio_bytes)
+                        try:
+                            dur_r = subprocess.run(
+                                [ffprobe, "-v", "quiet", "-show_entries", "format=duration",
+                                 "-of", "default=noprint_wrappers=1:nokey=1", seg_path],
+                                timeout=60, capture_output=True, text=True,
+                            )
+                            seg_dur = float(dur_r.stdout.strip())
+                        except Exception:
+                            seg_dur = 3.0 * len(photos)
+                        segment_audio_info.append((seg_path, seg_dur, photos))
+                    use_segments = True
 
-            audio_bytes = generate_speech(narration, fish_voice_id=minimax_voice_id)
-            audio_path = os.path.join(tmpdir, "narration.mp3")
-            with open(audio_path, "wb") as f:
-                f.write(audio_bytes)
-            try:
-                _dur_r = subprocess.run(
-                    [ffprobe, "-v", "quiet", "-show_entries", "format=duration",
-                     "-of", "default=noprint_wrappers=1:nokey=1", audio_path],
-                    timeout=60,
-
-                    capture_output=True, text=True,
-                )
-                narr_dur = float(_dur_r.stdout.strip())
-            except Exception:
-                narr_dur = 0.0
+            # ── Step 3 fallback: single narration ─────────────────────────────
+            if not use_segments:
+                _job_set(job_id, {"status": "processing", "step": "Writing narration..."})
+                narration = narration_override or _generate_narration(listing_data, cover_lines=cover_lines)
+                if not narration:
+                    city = listing.city or "多伦多"
+                    bed = listing.bed or "?"
+                    bath = listing.bath or "?"
+                    narration = (
+                        f"这套房子是{bed}卧{bath}卫的户型，空间布局非常合理，每个功能区划分清晰，住起来很舒适。"
+                        f"房屋的采光条件相当好，主要生活区域在白天都能享受到充足的自然光，整体氛围明亮通透。"
+                        f"厨房和卫浴的装修保持得很好，设施齐全，日常使用完全没有问题，入住即可。"
+                        f"主卧空间宽敞，有足够的储物空间，其他卧室也都能满足家庭日常居住需求。"
+                        f"{city}这个区域配套设施非常成熟，周边有超市、餐厅、公园，生活非常便利。"
+                        f"交通方面也很方便，无论是开车还是乘坐公共交通，通勤都比较顺畅。"
+                        f"学区方面，这里周边的学校口碑也不错，对于有孩子的家庭来说是一个加分项。"
+                        f"如果您对这套房源感兴趣，欢迎随时联系我预约实地看房，期待和您一起找到心仪的家。"
+                    )
+                _job_set(job_id, {"status": "processing", "step": "Generating voiceover..."})
+                from app.services.elevenlabs_service import generate_speech
+                audio_bytes = generate_speech(narration, fish_voice_id=minimax_voice_id)
+                audio_path = os.path.join(tmpdir, "narration.mp3")
+                with open(audio_path, "wb") as f:
+                    f.write(audio_bytes)
+                try:
+                    narr_dur = float(subprocess.run(
+                        [ffprobe, "-v", "quiet", "-show_entries", "format=duration",
+                         "-of", "default=noprint_wrappers=1:nokey=1", audio_path],
+                        timeout=60, capture_output=True, text=True,
+                    ).stdout.strip())
+                except Exception:
+                    narr_dur = 0.0
+                segment_audio_info = [(audio_path, narr_dur, downloaded)]
 
             # ── Step 5: Render video ──────────────────────────────────────────
             _job_set(job_id, {"status": "processing", "step": "Rendering video..."})
@@ -950,14 +1138,40 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
             clip_paths = []
             if intro_clip_path and os.path.exists(intro_clip_path):
                 clip_paths.append(intro_clip_path)
-            for i, img_path in enumerate(all_images):
-                clip_path = os.path.join(clips_dir, f"clip_{i:04d}.mp4")
-                _make_clip(ffmpeg, ffprobe, img_path, clip_path, reverse=(i % 2 == 1))
-                clip_paths.append(clip_path)
-                try:
-                    os.remove(img_path)
-                except OSError:
-                    pass
+
+            photo_idx = 0
+            for (seg_audio_path, seg_dur, seg_photos) in segment_audio_info:
+                clip_dur = seg_dur / max(len(seg_photos), 1) if use_segments else CLIP_DURATION
+                for img_path in seg_photos:
+                    clip_path = os.path.join(clips_dir, f"clip_{photo_idx:04d}.mp4")
+                    _make_clip(ffmpeg, ffprobe, img_path, clip_path,
+                               duration=clip_dur, reverse=(photo_idx % 2 == 1))
+                    clip_paths.append(clip_path)
+                    photo_idx += 1
+                    try:
+                        os.remove(img_path)
+                    except OSError:
+                        pass
+
+            # Build combined narration audio from all segments
+            if use_segments and len(segment_audio_info) > 1:
+                concat_inputs = []
+                for seg_path, _, _ in segment_audio_info:
+                    concat_inputs.extend(["-i", seg_path])
+                narr_concat_path = os.path.join(tmpdir, "narration_all.aac")
+                n_segs = len(segment_audio_info)
+                subprocess.run(
+                    [ffmpeg, "-y"] + concat_inputs + [
+                        "-filter_complex",
+                        "".join(f"[{k}:a]" for k in range(n_segs)) + f"concat=n={n_segs}:v=0:a=1[outa]",
+                        "-map", "[outa]", "-c:a", "aac", "-threads", "1", narr_concat_path,
+                    ],
+                    timeout=120, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                )
+                audio_path = narr_concat_path
+            else:
+                audio_path = segment_audio_info[0][0]
+            narr_dur = sum(d for _, d, _ in segment_audio_info)
 
             # Team photo clip (3 s, before outro)
             if os.path.exists(_TEAM_PHOTO_PATH):
