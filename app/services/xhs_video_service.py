@@ -1178,13 +1178,25 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
 
             photo_idx = 0
             for (seg_audio_path, seg_dur, seg_photos) in segment_audio_info:
-                clip_dur = seg_dur / max(len(seg_photos), 1) if use_segments else CLIP_DURATION
-                for img_path in seg_photos:
+                if use_segments:
+                    # Cap photos so each one gets at least CLIP_DURATION seconds
+                    max_keep = max(1, int(seg_dur / CLIP_DURATION))
+                    kept = seg_photos[:max_keep]
+                    clip_dur = seg_dur / len(kept)  # guaranteed >= CLIP_DURATION
+                    discarded = seg_photos[max_keep:]
+                else:
+                    kept = seg_photos
+                    clip_dur = CLIP_DURATION
+                    discarded = []
+
+                for img_path in kept:
                     clip_path = os.path.join(clips_dir, f"clip_{photo_idx:04d}.mp4")
                     _make_clip(ffmpeg, ffprobe, img_path, clip_path,
                                duration=clip_dur, reverse=(photo_idx % 2 == 1))
                     clip_paths.append(clip_path)
                     photo_idx += 1
+
+                for img_path in (kept + discarded):
                     try:
                         os.remove(img_path)
                     except OSError:
