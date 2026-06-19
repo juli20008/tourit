@@ -459,7 +459,7 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 								</span>
 							</div>
 							<p style={{ color: "#64748b", fontSize: "0.75rem", margin: "0 0 8px" }}>
-								可直接编辑。字数越多展示的照片越多（每 3 秒一张，上限 50 张）。
+								可直接编辑。【室外】【主层】【上层】【地下室】是分区标记，用 --- 分隔，每区单独配音，照片时长自动匹配。
 							</p>
 							<textarea
 								value={narrationDraft}

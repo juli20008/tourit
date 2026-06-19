@@ -389,7 +389,10 @@ def draft_narration(mls_number):
     """Generate narration text only (no video) so the agent can review and edit before generating."""
     from flask_login import current_user
     from app.models.mls_listing import MlsListing
-    from app.services.xhs_video_service import _generate_narration
+    from app.services.xhs_video_service import (
+        _generate_floor_narrations, _generate_narration,
+        _FLOOR_ORDER, _FLOOR_ZH, MAX_PHOTOS,
+    )
 
     if not current_user.is_authenticated:
         return jsonify({'error': 'Unauthorized'}), 401
@@ -410,11 +413,14 @@ def draft_narration(mls_number):
             'bed':        external_listing.get('bed'),
             'bath':       external_listing.get('bath'),
             'city':       external_listing.get('city'),
+            'neighborhood': external_listing.get('neighborhood') or external_listing.get('city'),
             'description': external_listing.get('description', ''),
             'style':      external_listing.get('style'),
             'property_type': external_listing.get('style'),
             'sqft':       external_listing.get('sqft'),
         }
+        n_photos = MAX_PHOTOS
+        has_basement = bool(external_listing.get('basement_beds'))
     else:
         listing = MlsListing.query.filter_by(mls_number=mls_number).first()
         if not listing:
@@ -424,13 +430,40 @@ def draft_narration(mls_number):
             'bed': listing.bed,
             'bath': listing.bath,
             'city': listing.city,
+            'neighborhood': getattr(listing, 'neighborhood', None) or listing.city,
             'description': listing.description,
             'style': listing.style,
             'property_type': listing.property_type,
             'sqft': listing.sqft,
         }
+        n_photos = min(len(listing.effective_images or []), MAX_PHOTOS) or MAX_PHOTOS
+        has_basement = bool(getattr(listing, 'basement_beds', None))
 
-    narration = _generate_narration(listing_data, cover_lines=cover_lines)
+    # Estimate photo counts per floor using heuristic proportions
+    ext_n   = max(1, int(n_photos * 0.12))
+    main_n  = max(2, int(n_photos * 0.43))
+    upper_n = max(2, int(n_photos * 0.25))
+    base_n  = n_photos - ext_n - main_n - upper_n
+
+    active_groups = [
+        ("exterior",    ext_n),
+        ("main_floor",  main_n),
+        ("upper_floor", upper_n),
+    ]
+    if has_basement and base_n > 0:
+        active_groups.append(("basement", base_n))
+
+    floor_texts = _generate_floor_narrations(listing_data, active_groups, cover_lines=cover_lines)
+    if floor_texts and len(floor_texts) == len(active_groups):
+        # Label each segment so user can see section boundaries
+        labeled = []
+        for (floor, _), text in zip(active_groups, floor_texts):
+            labeled.append(f"【{_FLOOR_ZH[floor]}】\n{text}")
+        narration = "\n\n---\n\n".join(labeled)
+    else:
+        # Fallback to single narration
+        narration = _generate_narration(listing_data, cover_lines=cover_lines)
+
     if not narration:
         return jsonify({'error': 'AI narration generation failed — check DEEPSEEK_API_KEY'}), 502
 

@@ -1054,11 +1054,45 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                 "sqft": listing.sqft,
             }
 
-            # ── Step 2.5: Classify photos by floor (skip if narration_override) ──
+            # ── Step 2.5: Classify photos by floor ───────────────────────────────
             segment_audio_info = []  # [(audio_path, duration, [img_paths])]
             use_segments = False
 
-            if not narration_override and downloaded:
+            # narration_override from the preview step uses "---" as segment separator
+            _SEG_SEP = "---"
+            override_segments = None
+            if narration_override and _SEG_SEP in narration_override:
+                # Strip 【floor】 labels the preview adds, keep only the narration text
+                import re as _re
+                raw_segs = [s.strip() for s in narration_override.split(_SEG_SEP) if s.strip()]
+                override_segments = [_re.sub(r'^【[^】]*】\s*', '', s).strip() for s in raw_segs]
+
+            if override_segments and downloaded:
+                # Split photos evenly across segments
+                n_segs = len(override_segments)
+                chunk = len(downloaded) / n_segs
+                _job_set(job_id, {"status": "processing", "step": "Generating voiceover..."})
+                from app.services.elevenlabs_service import generate_speech
+                for k, seg_text in enumerate(override_segments):
+                    start = int(k * chunk)
+                    end   = int((k + 1) * chunk) if k < n_segs - 1 else len(downloaded)
+                    photos = downloaded[start:end] or downloaded[-1:]
+                    audio_bytes = generate_speech(seg_text, fish_voice_id=minimax_voice_id)
+                    seg_path = os.path.join(tmpdir, f"narration_seg{k}.mp3")
+                    with open(seg_path, "wb") as f:
+                        f.write(audio_bytes)
+                    try:
+                        seg_dur = float(subprocess.run(
+                            [ffprobe, "-v", "quiet", "-show_entries", "format=duration",
+                             "-of", "default=noprint_wrappers=1:nokey=1", seg_path],
+                            timeout=60, capture_output=True, text=True,
+                        ).stdout.strip())
+                    except Exception:
+                        seg_dur = 3.0 * len(photos)
+                    segment_audio_info.append((seg_path, seg_dur, photos))
+                use_segments = True
+
+            elif not narration_override and downloaded:
                 _job_set(job_id, {"status": "processing", "step": "Classifying photos..."})
                 deepseek_key = os.environ.get("DEEPSEEK_API_KEY", "")
                 floor_labels = _classify_photos_by_floor(downloaded, deepseek_key)
