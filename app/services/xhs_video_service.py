@@ -224,8 +224,11 @@ def _generate_composite_cover(ffmpeg, intro_path, photo_path, line1, line2, line
                     check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                 )
                 if os.path.exists(frame_png) and os.path.getsize(frame_png) > 1000:
-                    # rembg skipped — too slow on CPU-only server
-                    person_rgba = Image.open(frame_png).convert("RGBA")
+                    from rembg import remove as rembg_remove
+                    with open(frame_png, "rb") as _rf:
+                        person_rgba = Image.open(
+                            __import__("io").BytesIO(rembg_remove(_rf.read()))
+                        ).convert("RGBA")
             except Exception:
                 pass
             finally:
