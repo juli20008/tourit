@@ -405,6 +405,9 @@ def draft_narration(mls_number):
         str(data.get('cover2', '') or '')[:40],
         str(data.get('cover3', '') or '')[:40],
     ]
+    photo_count = int(data.get('photo_count') or 30)
+    photo_count = 50 if photo_count >= 50 else 30
+    narration_style = "rich" if photo_count == 50 else "concise"
     external_listing = data.get('external_listing') or None
 
     if external_listing:
@@ -453,7 +456,8 @@ def draft_narration(mls_number):
     if has_basement and base_n > 0:
         active_groups.append(("basement", base_n))
 
-    floor_texts = _generate_floor_narrations(listing_data, active_groups, cover_lines=cover_lines)
+    floor_texts = _generate_floor_narrations(listing_data, active_groups, cover_lines=cover_lines,
+                                             style=narration_style)
     if floor_texts and len(floor_texts) == len(active_groups):
         # Label each segment so user can see section boundaries
         labeled = []
@@ -494,6 +498,8 @@ def generate_agent_video(mls_number):
         ]
         cover_photo_index = max(0, int(request.form.get('cover_photo_index', 0) or 0))
         narration_override = (request.form.get('narration_override') or '').strip() or None
+        photo_count = int(request.form.get('photo_count') or 30)
+        photo_count = 50 if photo_count >= 50 else 30
         intro_file = request.files.get('intro_video')
         intro_bytes = intro_file.read() if intro_file and intro_file.filename else None
         cover_bg_file = request.files.get('cover_bg')
@@ -545,7 +551,8 @@ def generate_agent_video(mls_number):
         try:
             ensure_jobs_table()
             create_job(job_id, mls_number, current_user.id, cover_lines, intro_r2_key, cover_bg_r2_key,
-                       cover_photo_index=cover_photo_index, narration_text=narration_override)
+                       cover_photo_index=cover_photo_index, narration_text=narration_override,
+                       photo_count=photo_count)
         except Exception as e:
             return jsonify({'error': f'DB error: {e}'}), 500
 
@@ -564,6 +571,7 @@ def generate_agent_video(mls_number):
         cover_photo_index=cover_photo_index,
         narration_override=narration_override,
         external_listing=external_listing,
+        photo_count=photo_count,
     )
     return jsonify({'job_id': job_id, 'status': 'processing'})
 

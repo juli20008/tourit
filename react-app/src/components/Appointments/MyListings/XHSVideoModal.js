@@ -178,6 +178,7 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 	const [introBlob, setIntroBlob] = useState(null);
 	const [coverBg, setCoverBg] = useState(null);
 	const [coverBgPreview, setCoverBgPreview] = useState(null);
+	const [photoCount, setPhotoCount] = useState(30); // 30 = concise, 50 = rich
 	const [phase, setPhase] = useState("input"); // input | drafting | draft | generating | done | error
 	const [narrationDraft, setNarrationDraft] = useState("");
 	const [step, setStep] = useState("");
@@ -220,7 +221,7 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 			const resp = await apiFetch(`/api/xhs/agent/draft-narration/${mlsNumber}`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ cover1, cover2, cover3, external_listing: externalListing || undefined }),
+				body: JSON.stringify({ cover1, cover2, cover3, photo_count: photoCount, external_listing: externalListing || undefined }),
 			});
 			const d = await resp.json().catch(() => ({}));
 			if (!resp.ok) {
@@ -246,6 +247,7 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 		formData.append("cover2", cover2);
 		formData.append("cover3", cover3);
 		formData.append("cover_photo_index", coverPhotoIndex);
+		formData.append("photo_count", photoCount);
 		formData.append("narration_override", narrationDraft);
 		if (introBlob) {
 			const ext = introBlob.type?.includes("mp4") ? "mp4" : "webm";
@@ -425,6 +427,23 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 						{errorMsg && (
 							<div style={{ color: "#dc2626", fontSize: "0.85rem", marginBottom: 12 }}>{errorMsg}</div>
 						)}
+
+						<div style={{ marginBottom: 16 }}>
+							<label style={{ display: "block", fontWeight: 600, marginBottom: 8, fontSize: "0.9rem" }}>
+								照片数量 / Photo Count
+							</label>
+							<div style={{ display: "flex", gap: 8 }}>
+								{[{ val: 30, label: "30张 · 简洁" }, { val: 50, label: "50张 · 丰富" }].map(({ val, label }) => (
+									<button key={val} type="button" onClick={() => setPhotoCount(val)} style={{
+										flex: 1, padding: "8px 0", borderRadius: 8, cursor: "pointer",
+										fontWeight: 600, fontSize: "0.85rem",
+										border: photoCount === val ? "2px solid #0f172a" : "1.5px solid #e2e8f0",
+										background: photoCount === val ? "#0f172a" : "white",
+										color: photoCount === val ? "white" : "#0f172a",
+									}}>{label}</button>
+								))}
+							</div>
+						</div>
 
 						<div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
 							<button className="btn btn-bl" type="button" onClick={onClose}>取消</button>

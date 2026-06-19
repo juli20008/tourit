@@ -719,18 +719,18 @@ def _classify_photos_by_floor(photo_paths, api_key):
     return _floor_heuristic(n)
 
 
-def _generate_floor_narrations(listing_data, active_groups, cover_lines=None):
+def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, style="concise"):
     """Generate one narration segment per floor group. Returns [str] or None."""
     import json as _json, re as _re
     api_key = os.environ.get("DEEPSEEK_API_KEY", "")
     if not api_key:
         return None
 
-    beds  = listing_data.get("bed", "?")
-    baths = listing_data.get("bath", "?")
-    desc  = (listing_data.get("description") or "")[:400]
-    style = listing_data.get("style") or listing_data.get("property_type") or "住宅"
-    sqft  = listing_data.get("sqft", "")
+    beds      = listing_data.get("bed", "?")
+    baths     = listing_data.get("bath", "?")
+    desc      = (listing_data.get("description") or "")[:400]
+    prop_style = listing_data.get("style") or listing_data.get("property_type") or "住宅"
+    sqft      = listing_data.get("sqft", "")
 
     sections = "\n".join(f"- {_FLOOR_ZH[floor]}：{count}张照片" for floor, count in active_groups)
 
@@ -740,16 +740,18 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None):
         if hints:
             cover_hints = f"\n封面关键词（第一段开头自然融入）：{'、'.join(hints)}"
 
+    word_range = "30-50字，语言简洁精炼" if style == "concise" else "60-90字，细节丰富，描述具体"
+
     prompt = f"""你是加拿大华人房产经纪，为以下房源生成分段口播文案。
 
-房源：{listing_data.get('neighborhood') or listing_data.get('city', '')}，{style}，{beds}卧{baths}卫{f'，{sqft}平方英尺' if sqft else ''}
+房源：{listing_data.get('neighborhood') or listing_data.get('city', '')}，{prop_style}，{beds}卧{baths}卫{f'，{sqft}平方英尺' if sqft else ''}
 描述：{desc or '暂无'}{cover_hints}
 
 视频分段（按播放顺序）：
 {sections}
 
 要求：
-- 为每段各写50-80字，语言自然平实，像真人直接说话
+- 为每段各写{word_range}，语言自然平实，像真人直接说话
 - 各段自然衔接，不重复信息
 - 不要用"大家好""今天带大家""今天介绍"等套话
 - 不要提地址、价格、门牌号
@@ -888,7 +890,7 @@ def get_job(job_id):
 
 def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_bytes=None,
                   cover_bg_bytes=None, cover_photo_index=0, narration_override=None,
-                  external_listing=None):
+                  external_listing=None, photo_count=30):
     """
     external_listing: pre-scraped dict with keys bed, bath, sqft, city, description,
                       style, list_price, images (list[str]), street, mls_number.
@@ -929,14 +931,15 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                     return
                 raw_images = listing.effective_images or []
 
+            n_photos = photo_count if photo_count in (30, 50) else 30
             all_images_raw = raw_images
             if len(all_images_raw) == 0:
                 image_urls = []
-            elif len(all_images_raw) >= MAX_PHOTOS:
-                step = len(all_images_raw) / MAX_PHOTOS
-                image_urls = [all_images_raw[int(i * step)] for i in range(MAX_PHOTOS)]
+            elif len(all_images_raw) >= n_photos:
+                step = len(all_images_raw) / n_photos
+                image_urls = [all_images_raw[int(i * step)] for i in range(n_photos)]
             else:
-                image_urls = [all_images_raw[i % len(all_images_raw)] for i in range(MAX_PHOTOS)]
+                image_urls = [all_images_raw[i % len(all_images_raw)] for i in range(n_photos)]
 
             downloaded = []
             for i, url in enumerate(image_urls):
@@ -951,7 +954,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                             for chunk in r.iter_content(chunk_size=65536):
                                 f.write(chunk)
                         downloaded.append(path)
-                        if len(downloaded) >= MAX_PHOTOS:
+                        if len(downloaded) >= n_photos:
                             break
                 except Exception:
                     pass
@@ -1359,7 +1362,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
 
 def start_video_job(mls_number, agent_id, cover_lines, flask_app, intro_bytes=None,
                     cover_bg_bytes=None, cover_photo_index=0, narration_override=None,
-                    external_listing=None):
+                    external_listing=None, photo_count=30):
     """Start background video generation. Returns job_id."""
     _job_clean()
     job_id = uuid.uuid4().hex
@@ -1370,7 +1373,8 @@ def start_video_job(mls_number, agent_id, cover_lines, flask_app, intro_bytes=No
         kwargs={"intro_bytes": intro_bytes, "cover_bg_bytes": cover_bg_bytes,
                 "cover_photo_index": cover_photo_index,
                 "narration_override": narration_override,
-                "external_listing": external_listing},
+                "external_listing": external_listing,
+                "photo_count": photo_count},
         daemon=True,
     )
     t.start()
