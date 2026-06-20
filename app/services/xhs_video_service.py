@@ -592,8 +592,8 @@ def _generate_narration(listing_data, cover_lines=None, photo_count=30):
             beds_detail += f"，地下{bsmt_beds}房"
         beds_detail += "）"
 
-    # Calibrate word count to photo count: ~4.5 chars/sec TTS × 3s/photo
-    target_chars = max(300, int(photo_count * 4.5 * 3 * 0.85))
+    # Word count to fill the video: 4.5 chars/sec × 3s/photo
+    target_chars = max(300, int(photo_count * 4.5 * 3))
 
     cover_hints = ""
     cover_opener = ""
@@ -603,7 +603,7 @@ def _generate_narration(listing_data, cover_lines=None, photo_count=30):
             cover_hints = f"\n封面关键词（开头前两句内自然融入）：{'、'.join(hints)}"
             cover_opener = f"\n- 开头前两句自然点出封面关键词：{'、'.join(hints)}"
 
-    prompt = f"""你是一位很会讲故事的加拿大华人房产经纪，正在为小红书拍看房视频口播，目标字数约{target_chars}字。
+    prompt = f"""你是一位很会讲故事的加拿大华人房产经纪，正在为小红书拍看房视频口播，至少{target_chars}字，字多不扣分。
 
 房源：{listing_data.get('neighborhood') or listing_data.get('city', '')}，{style}，{beds_detail}{f'，{sqft}平方英尺' if sqft else ''}
 Listing描述（重要！把里面的亮点、具体特征、装修细节都反映到口播里）：
@@ -750,12 +750,16 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
             beds_detail += f"，地下{bsmt_beds}房"
         beds_detail += "）"
 
-    # Per-segment word target: ~4.5 chars/sec at 1.2× × 3s/photo
-    def _target(n_photos):
-        return max(60, int(n_photos * 4.5 * 3 * 0.85))
+    # Total word target: 4.5 chars/sec × 3s/photo (no discount — write to fill the time)
+    total_photos = sum(count for _, count in active_groups)
+    total_target = max(250, int(total_photos * 4.5 * 3))
+
+    # Per-segment targets proportional to photo count, but minimum 80 chars each
+    def _seg_target(n):
+        return max(80, int(total_target * n / max(total_photos, 1)))
 
     sections = "\n".join(
-        f"- {_FLOOR_ZH[floor]}：{count}张照片，这段目标约{_target(count)}字"
+        f"- {_FLOOR_ZH[floor]}：{count}张照片 → 至少{_seg_target(count)}字（可以更多）"
         for floor, count in active_groups
     )
 
@@ -765,13 +769,13 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
         if hints:
             cover_hints = f"\n封面关键词（第一段开头自然融入）：{'、'.join(hints)}"
 
-    prompt = f"""你是一位很会讲故事的加拿大华人房产经纪，正在为小红书拍看房视频写分段口播。
+    prompt = f"""你是一位很会讲故事的加拿大华人房产经纪，正在为小红书拍看房视频写分段口播。整体口播需填满约{total_target}字，字多不扣分。
 
 房源：{listing_data.get('neighborhood') or listing_data.get('city', '')}，{prop_style}，{beds_detail}{f'，{sqft}平方英尺' if sqft else ''}
 Listing描述（重要！把里面的亮点、具体特征、装修细节都融入各段口播中）：
 {desc or '暂无'}{cover_hints}
 
-视频分段（按播放顺序，每段目标字数写在后面）：
+视频分段（按播放顺序，每段最少字数写在后面，多写更好）：
 {sections}
 
 写法要求：
