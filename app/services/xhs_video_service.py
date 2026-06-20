@@ -591,23 +591,19 @@ def _generate_narration(listing_data, cover_lines=None):
             cover_hints = f"\n封面关键词（必须在开头前两句内直接点出，不要拖到后面）：{'、'.join(hints)}"
             cover_opener = f"\n- 开头前两句必须直接点出封面关键词：{'、'.join(hints)}；这是观众第一眼看到的，要马上呼应"
 
-    prompt = f"""你是一位加拿大华人房产经纪，请用普通话为以下房源录制一段看房视频口播文案，时长大约60秒（约440-480字）。
+    prompt = f"""你是一位很会讲故事的加拿大华人房产经纪，正在为小红书拍看房视频，口播时长约60秒（约420-460字）。
 
-房源信息：
-社区：{listing_data.get('neighborhood') or listing_data.get('city', '')}
-房型：{style}，{beds}卧{baths}卫
-面积：{f'{sqft}平方英尺' if sqft else '未知'}
+房源：{listing_data.get('neighborhood') or listing_data.get('city', '')}，{style}，{beds}卧{baths}卫{f'，{sqft}平方英尺' if sqft else ''}
 描述：{desc if desc else '暂无'}{cover_hints}
 
-写作要求：
-- 语言自然，像真人在视频里直接说话，无需标题或解释{cover_opener}
-- 不要用"大家好""我是地产经纪""今天带大家""今天介绍"等套话
-- 不要提及价格或售价
-- 不要提及任何地址、门牌号、街道名、邮编（不要说"在某某街""位于某路"等）
-- 中间详细介绍3-4个亮点（根据描述），语气真实平实
-- 结尾一句邀请预约看房
-- 不要夸大，不要使用"顶级""超值""绝对"等夸张词
-- 货币一律用加元，不要使用 $ 符号，不要用 M 缩写（例如不要写"1.07M"，要写"一百零七万加元"）
+核心风格——让人看了忍不住想继续看：
+- 开头第一句必须是能抓住人的钩子：反问、意外细节、或说出观众心里的话{cover_opener}
+- 不描述房间，描述"住在里面的感觉"和生活场景（"想象周末早晨阳光从落地窗铺进来"，而不是"客厅采光好"）
+- 语气像朋友在跟你分享一个发现，不像经纪人在背稿
+- 2-3个具体生活细节，让人能脑补画面
+- 结尾让人想行动，但不要"欢迎联系我预约看房"这种套话
+- 不要用"大家好""今天带大家""空间宽敞""采光好""布局合理"等废话
+- 不要提地址、价格、门牌号、街道名
 - 只输出口播正文，不要任何额外说明"""
 
     try:
@@ -740,9 +736,9 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
         if hints:
             cover_hints = f"\n封面关键词（第一段开头自然融入）：{'、'.join(hints)}"
 
-    word_range = "30-50字，语言简洁精炼" if style == "concise" else "60-90字，细节丰富，描述具体"
+    word_range = "40-55字" if style == "concise" else "65-90字"
 
-    prompt = f"""你是加拿大华人房产经纪，为以下房源生成分段口播文案。
+    prompt = f"""你是一位很会讲故事的加拿大华人房产经纪，正在为小红书拍看房视频口播。
 
 房源：{listing_data.get('neighborhood') or listing_data.get('city', '')}，{prop_style}，{beds}卧{baths}卫{f'，{sqft}平方英尺' if sqft else ''}
 描述：{desc or '暂无'}{cover_hints}
@@ -750,13 +746,15 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
 视频分段（按播放顺序）：
 {sections}
 
-要求：
-- 为每段各写{word_range}，语言自然平实，像真人直接说话
-- 各段自然衔接，不重复信息
-- 不要用"大家好""今天带大家""今天介绍"等套话
+核心风格要求——让人看了忍不住想继续看：
+- 不描述房间，描述"住在里面的感觉"和生活场景（比如"想象一下周末早晨，阳光从落地窗铺进来，你在这里给家人做早饭"）
+- 每段开头用一句能抓住人的钩子：反问、意外的细节、或者直接说出观众心里的话
+- 语气像朋友在跟你分享一个发现，不像经纪人在背稿
+- 各段之间情绪递进，越看越想看
+- 每段{word_range}
+- 不要用"大家好""今天带大家""今天介绍""空间宽敞""采光好"等套话废话
 - 不要提地址、价格、门牌号
-- 最后一段结尾加一句邀请预约看房
-- 不要夸大，不要使用"顶级""超值"等夸张词
+- 最后一段自然收尾，加一句让人想行动的邀请（不要"欢迎联系我"这种套话）
 - 只输出JSON数组，长度={len(active_groups)}，每个元素是一段文案字符串"""
 
     try:
