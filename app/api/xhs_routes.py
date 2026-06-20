@@ -409,18 +409,24 @@ def draft_narration(mls_number):
     photo_count = 50 if photo_count >= 50 else 30
     narration_style = "rich" if photo_count == 50 else "concise"
     external_listing = data.get('external_listing') or None
+    # Manual floor break points: [upperStart, basementStart] — 1-indexed photo numbers
+    raw_breaks = data.get('floor_breaks') or []
+    upper_start_1  = int(raw_breaks[0]) if len(raw_breaks) > 0 and raw_breaks[0] else None
+    basement_start_1 = int(raw_breaks[1]) if len(raw_breaks) > 1 and raw_breaks[1] else None
 
     if external_listing:
         listing_data = {
-            'list_price': external_listing.get('list_price'),
-            'bed':        external_listing.get('bed'),
-            'bath':       external_listing.get('bath'),
-            'city':       external_listing.get('city'),
-            'neighborhood': external_listing.get('neighborhood') or external_listing.get('city'),
-            'description': external_listing.get('description', ''),
-            'style':      external_listing.get('style'),
-            'property_type': external_listing.get('style'),
-            'sqft':       external_listing.get('sqft'),
+            'list_price':       external_listing.get('list_price'),
+            'bed':              external_listing.get('bed'),
+            'bath':             external_listing.get('bath'),
+            'beds_above_grade': external_listing.get('beds_above_grade'),
+            'basement_beds':    external_listing.get('basement_beds'),
+            'city':             external_listing.get('city'),
+            'neighborhood':     external_listing.get('neighborhood') or external_listing.get('city'),
+            'description':      external_listing.get('description', ''),
+            'style':            external_listing.get('style'),
+            'property_type':    external_listing.get('style'),
+            'sqft':             external_listing.get('sqft'),
         }
         n_photos = MAX_PHOTOS
         has_basement = bool(external_listing.get('basement_beds'))
@@ -429,32 +435,54 @@ def draft_narration(mls_number):
         if not listing:
             return jsonify({'error': f'Listing {mls_number} not found'}), 404
         listing_data = {
-            'list_price': listing.list_price,
-            'bed': listing.bed,
-            'bath': listing.bath,
-            'city': listing.city,
-            'neighborhood': getattr(listing, 'neighborhood', None) or listing.city,
-            'description': listing.description,
-            'style': listing.style,
-            'property_type': listing.property_type,
-            'sqft': listing.sqft,
+            'list_price':       listing.list_price,
+            'bed':              listing.bed,
+            'bath':             listing.bath,
+            'beds_above_grade': getattr(listing, 'beds_above_grade', None),
+            'basement_beds':    getattr(listing, 'basement_beds', None),
+            'city':             listing.city,
+            'neighborhood':     getattr(listing, 'neighborhood', None) or listing.city,
+            'description':      listing.description,
+            'style':            listing.style,
+            'property_type':    listing.property_type,
+            'sqft':             listing.sqft,
         }
         n_photos = min(len(listing.effective_images or []), MAX_PHOTOS) or MAX_PHOTOS
         has_basement = bool(getattr(listing, 'basement_beds', None))
 
-    # Estimate photo counts per floor using heuristic proportions
-    ext_n   = max(1, int(n_photos * 0.12))
-    main_n  = max(2, int(n_photos * 0.43))
-    upper_n = max(2, int(n_photos * 0.25))
-    base_n  = n_photos - ext_n - main_n - upper_n
+    # Build floor groups: use manual break points if provided, else heuristic
+    if upper_start_1 and 2 <= upper_start_1 <= n_photos:
+        # Manual mode: exterior+main = photos 1..(upper_start-1), upper = upper_start..basement_start-1
+        main_end  = upper_start_1 - 1          # last photo of main floor (1-indexed)
+        upper_end = (basement_start_1 - 1) if (basement_start_1 and basement_start_1 > upper_start_1) else n_photos
+        base_end  = n_photos
 
-    active_groups = [
-        ("exterior",    ext_n),
-        ("main_floor",  main_n),
-        ("upper_floor", upper_n),
-    ]
-    if has_basement and base_n > 0:
-        active_groups.append(("basement", base_n))
+        ext_n   = max(1, int(main_end * 0.20))   # first ~20% of main block = exterior
+        main_n  = max(1, main_end - ext_n)
+        upper_n = max(1, upper_end - upper_start_1 + 1)
+        base_n  = max(0, base_end - upper_end) if basement_start_1 else 0
+
+        active_groups = [
+            ("exterior",    ext_n),
+            ("main_floor",  main_n),
+            ("upper_floor", upper_n),
+        ]
+        if base_n > 0:
+            active_groups.append(("basement", base_n))
+    else:
+        # Heuristic proportions
+        ext_n   = max(1, int(n_photos * 0.12))
+        main_n  = max(2, int(n_photos * 0.43))
+        upper_n = max(2, int(n_photos * 0.25))
+        base_n  = n_photos - ext_n - main_n - upper_n
+
+        active_groups = [
+            ("exterior",    ext_n),
+            ("main_floor",  main_n),
+            ("upper_floor", upper_n),
+        ]
+        if has_basement and base_n > 0:
+            active_groups.append(("basement", base_n))
 
     floor_texts = _generate_floor_narrations(listing_data, active_groups, cover_lines=cover_lines,
                                              style=narration_style)
@@ -466,7 +494,7 @@ def draft_narration(mls_number):
         narration = "\n\n---\n\n".join(labeled)
     else:
         # Fallback to single narration
-        narration = _generate_narration(listing_data, cover_lines=cover_lines)
+        narration = _generate_narration(listing_data, cover_lines=cover_lines, photo_count=photo_count)
 
     if not narration:
         return jsonify({'error': 'AI narration generation failed — check DEEPSEEK_API_KEY'}), 502

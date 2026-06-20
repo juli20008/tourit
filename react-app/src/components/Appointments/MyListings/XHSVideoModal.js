@@ -187,6 +187,8 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 	const [errorMsg, setErrorMsg] = useState("");
 	const [listingImages, setListingImages] = useState([]);
 	const [coverPhotoIndex, setCoverPhotoIndex] = useState(0);
+	const [upperStart, setUpperStart] = useState("");    // photo# where upper floor starts (1-indexed)
+	const [basementStart, setBasementStart] = useState(""); // photo# where basement starts (1-indexed)
 	const pollRef = useRef(null);
 	const coverBgRef = useRef(null);
 
@@ -221,7 +223,15 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 			const resp = await apiFetch(`/api/xhs/agent/draft-narration/${mlsNumber}`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ cover1, cover2, cover3, photo_count: photoCount, external_listing: externalListing || undefined }),
+				body: JSON.stringify({
+					cover1, cover2, cover3,
+					photo_count: photoCount,
+					external_listing: externalListing || undefined,
+					floor_breaks: [
+						upperStart ? parseInt(upperStart, 10) : null,
+						basementStart ? parseInt(basementStart, 10) : null,
+					],
+				}),
 			});
 			const d = await resp.json().catch(() => ({}));
 			if (!resp.ok) {
@@ -442,6 +452,47 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 										color: photoCount === val ? "white" : "#0f172a",
 									}}>{label}</button>
 								))}
+							</div>
+						</div>
+
+						{/* Floor break points */}
+						<div style={{ marginBottom: 16 }}>
+							<label style={{ display: "block", fontWeight: 600, marginBottom: 4, fontSize: "0.9rem" }}>
+								楼层分割 / Floor Split
+								<span style={{ color: "#94a3b8", fontWeight: 400, fontSize: "0.78rem", marginLeft: 8 }}>
+									（选填，不填 AI 自动判断）
+								</span>
+							</label>
+							<p style={{ color: "#64748b", fontSize: "0.76rem", margin: "0 0 8px" }}>
+								告诉 AI 哪张照片开始进入下一楼层，口播内容更准确。共 {photoCount} 张。
+							</p>
+							<div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+								<div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+									<span style={{ fontSize: "0.8rem", color: "#475569", whiteSpace: "nowrap" }}>上层从第</span>
+									<input
+										type="number"
+										min={2}
+										max={photoCount - 1}
+										value={upperStart}
+										onChange={e => setUpperStart(e.target.value)}
+										placeholder="—"
+										style={{ width: 56, padding: "4px 8px", borderRadius: 6, border: "1.5px solid #e2e8f0", fontSize: "0.85rem", textAlign: "center" }}
+									/>
+									<span style={{ fontSize: "0.8rem", color: "#475569" }}>张开始</span>
+								</div>
+								<div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+									<span style={{ fontSize: "0.8rem", color: "#475569", whiteSpace: "nowrap" }}>地下室从第</span>
+									<input
+										type="number"
+										min={2}
+										max={photoCount - 1}
+										value={basementStart}
+										onChange={e => setBasementStart(e.target.value)}
+										placeholder="—"
+										style={{ width: 56, padding: "4px 8px", borderRadius: 6, border: "1.5px solid #e2e8f0", fontSize: "0.85rem", textAlign: "center" }}
+									/>
+									<span style={{ fontSize: "0.8rem", color: "#475569" }}>张开始（无地下室留空）</span>
+								</div>
 							</div>
 						</div>
 

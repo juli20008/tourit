@@ -572,39 +572,52 @@ def _build_ppt_ass(slide_segments, out_path: str, offset_secs: float = 0.0):
 
 # ── Narration text ─────────────────────────────────────────────────────────────
 
-def _generate_narration(listing_data, cover_lines=None):
+def _generate_narration(listing_data, cover_lines=None, photo_count=30):
     api_key = os.environ.get("DEEPSEEK_API_KEY", "")
     if not api_key:
         return None
 
-    beds = listing_data.get("bed", "?")
+    beds  = listing_data.get("bed", "?")
     baths = listing_data.get("bath", "?")
-    desc = (listing_data.get("description") or "")[:600]
+    beds_above = listing_data.get("beds_above_grade")
+    bsmt_beds  = listing_data.get("basement_beds")
+    desc  = (listing_data.get("description") or "")[:1500]
     style = listing_data.get("style") or listing_data.get("property_type") or "住宅"
-    sqft = listing_data.get("sqft", "")
+    sqft  = listing_data.get("sqft", "")
+
+    beds_detail = f"{beds}卧{baths}卫"
+    if beds_above is not None:
+        beds_detail += f"（地上{beds_above}房"
+        if bsmt_beds:
+            beds_detail += f"，地下{bsmt_beds}房"
+        beds_detail += "）"
+
+    # Calibrate word count to photo count: ~4.5 chars/sec TTS × 3s/photo
+    target_chars = max(300, int(photo_count * 4.5 * 3 * 0.85))
 
     cover_hints = ""
     cover_opener = ""
     if cover_lines:
         hints = [l for l in cover_lines if l and l.strip()]
         if hints:
-            cover_hints = f"\n封面关键词（必须在开头前两句内直接点出，不要拖到后面）：{'、'.join(hints)}"
-            cover_opener = f"\n- 开头前两句必须直接点出封面关键词：{'、'.join(hints)}；这是观众第一眼看到的，要马上呼应"
+            cover_hints = f"\n封面关键词（开头前两句内自然融入）：{'、'.join(hints)}"
+            cover_opener = f"\n- 开头前两句自然点出封面关键词：{'、'.join(hints)}"
 
-    prompt = f"""你是一位很会讲故事的加拿大华人房产经纪，正在为小红书拍看房视频，口播时长约60秒（约420-460字）。
+    prompt = f"""你是一位很会讲故事的加拿大华人房产经纪，正在为小红书拍看房视频口播，目标字数约{target_chars}字。
 
-房源：{listing_data.get('neighborhood') or listing_data.get('city', '')}，{style}，{beds}卧{baths}卫{f'，{sqft}平方英尺' if sqft else ''}
-描述：{desc if desc else '暂无'}{cover_hints}
+房源：{listing_data.get('neighborhood') or listing_data.get('city', '')}，{style}，{beds_detail}{f'，{sqft}平方英尺' if sqft else ''}
+Listing描述（重要！把里面的亮点、具体特征、装修细节都反映到口播里）：
+{desc if desc else '暂无'}{cover_hints}
 
-核心风格——让人看了忍不住想继续看：
-- 开头第一句必须是能抓住人的钩子：反问、意外细节、或说出观众心里的话{cover_opener}
-- 不描述房间，描述"住在里面的感觉"和生活场景（"想象周末早晨阳光从落地窗铺进来"，而不是"客厅采光好"）
-- 语气像朋友在跟你分享一个发现，不像经纪人在背稿
-- 2-3个具体生活细节，让人能脑补画面
-- 结尾让人想行动，但不要"欢迎联系我预约看房"这种套话
-- 不要用"大家好""今天带大家""空间宽敞""采光好""布局合理"等废话
+写法要求：
+- 第一句必须是能抓住人的钩子：反问、意外细节、或说出观众心里的话{cover_opener}
+- 把listing描述里的具体亮点（比如翻新的厨房、大后院、新屋顶等）转化成生活场景——不是复读描述，是让人能脑补画面的句子
+- 语气像朋友私下跟你说"我发现了一套好房子"，不像经纪人在背稿
+- 各空间（主层、卧室、地下室）都要提到，给听众完整的居住感
+- 结尾加一句让人想约看的话，但不要"欢迎联系我预约看房"这种套话
+- 禁止："大家好""今天带大家""空间宽敞""采光好""布局合理""性价比高"等空洞词
 - 不要提地址、价格、门牌号、街道名
-- 只输出口播正文，不要任何额外说明"""
+- 只输出口播正文，不要任何标签或说明"""
 
     try:
         resp = requests.post(
@@ -612,7 +625,7 @@ def _generate_narration(listing_data, cover_lines=None):
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
             json={
                 "model": "deepseek-chat",
-                "max_tokens": 600,
+                "max_tokens": 1200,
                 "messages": [{"role": "user", "content": prompt}],
             },
             timeout=30,
@@ -722,13 +735,29 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
     if not api_key:
         return None
 
-    beds      = listing_data.get("bed", "?")
-    baths     = listing_data.get("bath", "?")
-    desc      = (listing_data.get("description") or "")[:400]
+    beds       = listing_data.get("bed", "?")
+    baths      = listing_data.get("bath", "?")
+    beds_above = listing_data.get("beds_above_grade")
+    bsmt_beds  = listing_data.get("basement_beds")
+    desc       = (listing_data.get("description") or "")[:1500]
     prop_style = listing_data.get("style") or listing_data.get("property_type") or "住宅"
-    sqft      = listing_data.get("sqft", "")
+    sqft       = listing_data.get("sqft", "")
 
-    sections = "\n".join(f"- {_FLOOR_ZH[floor]}：{count}张照片" for floor, count in active_groups)
+    beds_detail = f"{beds}卧{baths}卫"
+    if beds_above is not None:
+        beds_detail += f"（地上{beds_above}房"
+        if bsmt_beds:
+            beds_detail += f"，地下{bsmt_beds}房"
+        beds_detail += "）"
+
+    # Per-segment word target: ~4.5 chars/sec at 1.2× × 3s/photo
+    def _target(n_photos):
+        return max(60, int(n_photos * 4.5 * 3 * 0.85))
+
+    sections = "\n".join(
+        f"- {_FLOOR_ZH[floor]}：{count}张照片，这段目标约{_target(count)}字"
+        for floor, count in active_groups
+    )
 
     cover_hints = ""
     if cover_lines:
@@ -736,34 +765,32 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
         if hints:
             cover_hints = f"\n封面关键词（第一段开头自然融入）：{'、'.join(hints)}"
 
-    word_range = "40-55字" if style == "concise" else "65-90字"
+    prompt = f"""你是一位很会讲故事的加拿大华人房产经纪，正在为小红书拍看房视频写分段口播。
 
-    prompt = f"""你是一位很会讲故事的加拿大华人房产经纪，正在为小红书拍看房视频口播。
+房源：{listing_data.get('neighborhood') or listing_data.get('city', '')}，{prop_style}，{beds_detail}{f'，{sqft}平方英尺' if sqft else ''}
+Listing描述（重要！把里面的亮点、具体特征、装修细节都融入各段口播中）：
+{desc or '暂无'}{cover_hints}
 
-房源：{listing_data.get('neighborhood') or listing_data.get('city', '')}，{prop_style}，{beds}卧{baths}卫{f'，{sqft}平方英尺' if sqft else ''}
-描述：{desc or '暂无'}{cover_hints}
-
-视频分段（按播放顺序）：
+视频分段（按播放顺序，每段目标字数写在后面）：
 {sections}
 
-核心风格要求——让人看了忍不住想继续看：
-- 不描述房间，描述"住在里面的感觉"和生活场景（比如"想象一下周末早晨，阳光从落地窗铺进来，你在这里给家人做早饭"）
-- 每段开头用一句能抓住人的钩子：反问、意外的细节、或者直接说出观众心里的话
-- 语气像朋友在跟你分享一个发现，不像经纪人在背稿
-- 各段之间情绪递进，越看越想看
-- 每段{word_range}
-- 不要用"大家好""今天带大家""今天介绍""空间宽敞""采光好"等套话废话
+写法要求：
+- 每段开头用一句抓人的钩子：反问、意外细节、或者说出观众心里的话
+- 把listing描述里的具体亮点转化成生活场景——让人能脑补"住在这里是什么感觉"
+- 各段情绪递进，第一段最抓人，最后一段自然收尾+行动号召
+- 语气像朋友私下推荐，不像经纪人在背稿
+- 禁止："大家好""今天带大家""空间宽敞""采光好""布局合理""性价比高"等空洞词
 - 不要提地址、价格、门牌号
-- 最后一段自然收尾，加一句让人想行动的邀请（不要"欢迎联系我"这种套话）
-- 只输出JSON数组，长度={len(active_groups)}，每个元素是一段文案字符串"""
+- 最后一段结尾加一句让人想约看的话（不要"欢迎联系我预约看房"这种套话）
+- 只输出JSON数组，长度={len(active_groups)}，每个元素是一段文案字符串，不要任何其他内容"""
 
     try:
         resp = requests.post(
             "https://api.deepseek.com/v1/chat/completions",
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={"model": "deepseek-chat", "max_tokens": 800,
+            json={"model": "deepseek-chat", "max_tokens": 1500,
                   "messages": [{"role": "user", "content": prompt}]},
-            timeout=30,
+            timeout=40,
         )
         if resp.ok:
             raw = resp.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
@@ -1043,17 +1070,34 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                     except Exception:
                         pass
 
-            listing_data = {
-                "list_price": listing.list_price,
-                "bed": listing.bed,
-                "bath": listing.bath,
-                "city": listing.city,
-                "neighborhood": getattr(listing, "neighborhood", None),
-                "description": listing.description,
-                "style": listing.style,
-                "property_type": listing.property_type,
-                "sqft": listing.sqft,
-            }
+            if external_listing:
+                listing_data = {
+                    "list_price":       external_listing.get("list_price"),
+                    "bed":              external_listing.get("bed"),
+                    "bath":             external_listing.get("bath"),
+                    "beds_above_grade": external_listing.get("beds_above_grade"),
+                    "basement_beds":    external_listing.get("basement_beds"),
+                    "city":             external_listing.get("city"),
+                    "neighborhood":     external_listing.get("neighborhood"),
+                    "description":      external_listing.get("description"),
+                    "style":            external_listing.get("style"),
+                    "property_type":    external_listing.get("style"),
+                    "sqft":             external_listing.get("sqft"),
+                }
+            else:
+                listing_data = {
+                    "list_price":       listing.list_price,
+                    "bed":              listing.bed,
+                    "bath":             listing.bath,
+                    "beds_above_grade": getattr(listing, "beds_above_grade", None),
+                    "basement_beds":    getattr(listing, "basement_beds", None),
+                    "city":             listing.city,
+                    "neighborhood":     getattr(listing, "neighborhood", None),
+                    "description":      listing.description,
+                    "style":            listing.style,
+                    "property_type":    getattr(listing, "property_type", None),
+                    "sqft":             listing.sqft,
+                }
 
             # ── Step 2.5: Classify photos by floor ───────────────────────────────
             segment_audio_info = []  # [(audio_path, duration, [img_paths])]
@@ -1136,7 +1180,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
             # ── Step 3 fallback: single narration ─────────────────────────────
             if not use_segments:
                 _job_set(job_id, {"status": "processing", "step": "Writing narration..."})
-                narration = narration_override or _generate_narration(listing_data, cover_lines=cover_lines)
+                narration = narration_override or _generate_narration(listing_data, cover_lines=cover_lines, photo_count=n_photos)
                 if not narration:
                     city = listing.city or "多伦多"
                     bed = listing.bed or "?"
