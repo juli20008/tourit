@@ -601,7 +601,7 @@ def _generate_narration(listing_data, cover_lines=None, photo_count=30):
             cover_hints = f"\n封面关键词（开头前两句内自然融入）：{'、'.join(hints)}"
             cover_opener = f"\n- 开头前两句自然点出封面关键词：{'、'.join(hints)}"
 
-    prompt = f"""你是加拿大华人房产经纪，正在录制看房视频口播。字数要求：不得少于{target_chars}字，最多{target_chars + 60}字。
+    prompt = f"""你是加拿大华人房产经纪，正在录制看房视频口播。字数必须在{target_chars - 50}到{target_chars + 50}字之间，不能多也不能少。
 
 房源：{listing_data.get('neighborhood') or listing_data.get('city', '')}，{style}，{beds_detail}{f'，{sqft}平方英尺' if sqft else ''}
 Listing描述（把里面的具体细节、装修、特点都讲到）：
@@ -776,7 +776,7 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
         if hints:
             cover_hints = f"\n封面关键词（第一段开头自然融入）：{'、'.join(hints)}"
 
-    prompt = f"""你是加拿大华人房产经纪，正在录制看房视频分段口播。总字数要求：不得少于{total_target}字，最多{total_target + 60}字。
+    prompt = f"""你是加拿大华人房产经纪，正在录制看房视频分段口播。总字数必须在{total_target - 50}到{total_target + 50}字之间，不能多也不能少。
 
 房源：{listing_data.get('neighborhood') or listing_data.get('city', '')}，{prop_style}，{beds_detail}{f'，{sqft}平方英尺' if sqft else ''}
 Listing描述（把里面的具体细节、装修、特点都讲到）：
