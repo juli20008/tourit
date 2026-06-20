@@ -601,7 +601,7 @@ def _generate_narration(listing_data, cover_lines=None, photo_count=30):
             cover_hints = f"\n封面关键词（开头前两句内自然融入）：{'、'.join(hints)}"
             cover_opener = f"\n- 开头前两句自然点出封面关键词：{'、'.join(hints)}"
 
-    prompt = f"""你是加拿大华人房产经纪，正在录制看房视频口播，总字数控制在{target_chars}字左右（±50字以内）。
+    prompt = f"""你是加拿大华人房产经纪，正在录制看房视频口播。字数要求：不得少于{target_chars}字，最多{target_chars + 60}字。
 
 房源：{listing_data.get('neighborhood') or listing_data.get('city', '')}，{style}，{beds_detail}{f'，{sqft}平方英尺' if sqft else ''}
 Listing描述（把里面的具体细节、装修、特点都讲到）：
@@ -609,13 +609,13 @@ Listing描述（把里面的具体细节、装修、特点都讲到）：
 
 要求：
 - 第一句直接报基本信息：几室几卫、面积（一句话带过）{cover_opener}
-- 然后按空间顺序介绍：室外/入门只需两句话，主层（客厅厨房餐厅）、卧室层、地下室各展开讲
-- 把listing里的具体亮点讲出来，真实具体，不要说空话
+- 然后按空间顺序介绍：室外/入门只需两句话，主层（客厅厨房餐厅）、卧室层、地下室各展开讲，每个区域多说细节
+- 把listing描述里的具体亮点都讲到，真实具体，不要说空话
 - 语气自然，像带朋友看房
 - 结尾简单说一句值不值得来看
 - 禁止："大家好""今天带大家""空间宽敞""采光好""布局合理""性价比高"
 - 不要提地址、价格、门牌号
-- 只输出口播正文"""
+- 只输出口播正文，达到字数要求"""
 
     try:
         resp = requests.post(
@@ -623,10 +623,10 @@ Listing描述（把里面的具体细节、装修、特点都讲到）：
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
             json={
                 "model": "deepseek-chat",
-                "max_tokens": 1200,
+                "max_tokens": 2000,
                 "messages": [{"role": "user", "content": prompt}],
             },
-            timeout=30,
+            timeout=40,
         )
         if resp.ok:
             return resp.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
@@ -776,31 +776,31 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
         if hints:
             cover_hints = f"\n封面关键词（第一段开头自然融入）：{'、'.join(hints)}"
 
-    prompt = f"""你是加拿大华人房产经纪，正在录制看房视频分段口播，总字数控制在{total_target}字左右（±50字以内）。
+    prompt = f"""你是加拿大华人房产经纪，正在录制看房视频分段口播。总字数要求：不得少于{total_target}字，最多{total_target + 60}字。
 
 房源：{listing_data.get('neighborhood') or listing_data.get('city', '')}，{prop_style}，{beds_detail}{f'，{sqft}平方英尺' if sqft else ''}
 Listing描述（把里面的具体细节、装修、特点都讲到）：
 {desc or '暂无'}{cover_hints}
 
-视频分段（按播放顺序，每段最少字数）：
+视频分段（按播放顺序，每段字数要求）：
 {sections}
 
 要求：
 - 第一段第一句报基本信息：几室几卫、面积（一句话带过）
-- 各段按对应空间（室外、主层、卧室层、地下室）介绍，把listing里的具体亮点讲出来
+- 各段按对应空间介绍，展开说细节，把listing描述里的具体亮点都讲到
 - 真实具体，不要说空话，语气自然像带朋友看房
 - 最后一段简单说一句值不值得来看
 - 禁止："大家好""今天带大家""空间宽敞""采光好""布局合理""性价比高"
 - 不要提地址、价格、门牌号
-- 只输出JSON数组，长度={len(active_groups)}，每个元素是一段文案字符串，不要其他内容"""
+- 只输出JSON数组，长度={len(active_groups)}，每个元素是一段文案字符串，不要其他内容，达到字数要求"""
 
     try:
         resp = requests.post(
             "https://api.deepseek.com/v1/chat/completions",
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={"model": "deepseek-chat", "max_tokens": 1500,
+            json={"model": "deepseek-chat", "max_tokens": 2500,
                   "messages": [{"role": "user", "content": prompt}]},
-            timeout=40,
+            timeout=50,
         )
         if resp.ok:
             raw = resp.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
