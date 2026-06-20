@@ -85,16 +85,23 @@ def _nominatim(q: str) -> tuple[float | None, float | None]:
 
 def _geocode(street: str | None, city: str | None) -> tuple[float | None, float | None]:
     """Geocode via Nominatim; falls back to city-only if full address fails."""
+    print(f"[GEOCODE] street={street!r} city={city!r}")
     try:
         if street and city:
-            lat, lng = _nominatim(f"{street}, {city}, Ontario, Canada")
+            q = f"{street}, {city}, Ontario, Canada"
+            print(f"[GEOCODE] querying: {q}")
+            lat, lng = _nominatim(q)
+            print(f"[GEOCODE] result: {lat}, {lng}")
             if lat is not None:
                 return lat, lng
-        # Fallback: city only
         if city:
-            return _nominatim(f"{city}, Ontario, Canada")
-    except Exception:
-        pass
+            q = f"{city}, Ontario, Canada"
+            print(f"[GEOCODE] fallback: {q}")
+            lat, lng = _nominatim(q)
+            print(f"[GEOCODE] fallback result: {lat}, {lng}")
+            return lat, lng
+    except Exception as e:
+        print(f"[GEOCODE] error: {e}")
     return None, None
 
 
