@@ -577,20 +577,20 @@ def _generate_narration(listing_data, cover_lines=None, photo_count=30):
     if not api_key:
         return None
 
-    beds  = listing_data.get("bed", "?")
-    baths = listing_data.get("bath", "?")
+    baths      = listing_data.get("bath", "?")
     beds_above = listing_data.get("beds_above_grade")
     bsmt_beds  = listing_data.get("basement_beds")
     desc  = (listing_data.get("description") or "")[:1500]
     style = listing_data.get("style") or listing_data.get("property_type") or "住宅"
     sqft  = listing_data.get("sqft", "")
 
-    beds_detail = f"{beds}卧{baths}卫"
-    if beds_above is not None:
-        beds_detail += f"（地上{beds_above}房"
-        if bsmt_beds:
-            beds_detail += f"，地下{bsmt_beds}房"
-        beds_detail += "）"
+    if beds_above is not None and bsmt_beds:
+        beds_str = f"{beds_above}+{bsmt_beds}"
+    elif beds_above is not None:
+        beds_str = str(beds_above)
+    else:
+        beds_str = str(listing_data.get("bed", "?"))
+    beds_detail = f"{beds_str}室{baths}卫"
 
     # Word count to fill the video: 4.5 chars/sec × 3s/photo
     target_chars = max(300, int(photo_count * 4.5 * 3))
@@ -736,7 +736,6 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
     if not api_key:
         return None
 
-    beds       = listing_data.get("bed", "?")
     baths      = listing_data.get("bath", "?")
     beds_above = listing_data.get("beds_above_grade")
     bsmt_beds  = listing_data.get("basement_beds")
@@ -744,12 +743,13 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
     prop_style = listing_data.get("style") or listing_data.get("property_type") or "住宅"
     sqft       = listing_data.get("sqft", "")
 
-    beds_detail = f"{beds}卧{baths}卫"
-    if beds_above is not None:
-        beds_detail += f"（地上{beds_above}房"
-        if bsmt_beds:
-            beds_detail += f"，地下{bsmt_beds}房"
-        beds_detail += "）"
+    if beds_above is not None and bsmt_beds:
+        beds_str = f"{beds_above}+{bsmt_beds}"
+    elif beds_above is not None:
+        beds_str = str(beds_above)
+    else:
+        beds_str = str(listing_data.get("bed", "?"))
+    beds_detail = f"{beds_str}室{baths}卫"
 
     # Total word target: 4.5 chars/sec × 3s/photo (no discount — write to fill the time)
     total_photos = sum(count for _, count in active_groups)
