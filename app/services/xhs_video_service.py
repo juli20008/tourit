@@ -591,8 +591,7 @@ def _generate_narration(listing_data, cover_lines=None, photo_count=30):
     else:
         beds_detail = f"{listing_data.get('bed', '?')}室{baths}卫"
 
-    # Word count to fill the video: 4.5 chars/sec × 3s/photo
-    target_chars = max(300, int(photo_count * 4.5 * 3))
+    target_chars = 720 if photo_count >= 50 else 500
 
     cover_hints = ""
     cover_opener = ""
@@ -602,7 +601,7 @@ def _generate_narration(listing_data, cover_lines=None, photo_count=30):
             cover_hints = f"\n封面关键词（开头前两句内自然融入）：{'、'.join(hints)}"
             cover_opener = f"\n- 开头前两句自然点出封面关键词：{'、'.join(hints)}"
 
-    prompt = f"""你是加拿大华人房产经纪，正在录制看房视频口播，至少{target_chars}字。
+    prompt = f"""你是加拿大华人房产经纪，正在录制看房视频口播，总字数控制在{target_chars}字左右（±50字以内）。
 
 房源：{listing_data.get('neighborhood') or listing_data.get('city', '')}，{style}，{beds_detail}{f'，{sqft}平方英尺' if sqft else ''}
 Listing描述（把里面的具体细节、装修、特点都讲到）：
@@ -610,9 +609,9 @@ Listing描述（把里面的具体细节、装修、特点都讲到）：
 
 要求：
 - 第一句直接报基本信息：几室几卫、面积（一句话带过）{cover_opener}
-- 然后按空间顺序介绍这套房子：室外/入门、主层（客厅厨房餐厅）、卧室层、地下室
+- 然后按空间顺序介绍：室外/入门只需两句话，主层（客厅厨房餐厅）、卧室层、地下室各展开讲
 - 把listing里的具体亮点讲出来，真实具体，不要说空话
-- 语气自然，像带朋友看房，不需要用力过猛
+- 语气自然，像带朋友看房
 - 结尾简单说一句值不值得来看
 - 禁止："大家好""今天带大家""空间宽敞""采光好""布局合理""性价比高"
 - 不要提地址、价格、门牌号
@@ -748,16 +747,26 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
     else:
         beds_detail = f"{listing_data.get('bed', '?')}室{baths}卫"
 
-    # Total word target: 4.5 chars/sec × 3s/photo (no discount — write to fill the time)
     total_photos = sum(count for _, count in active_groups)
-    total_target = max(250, int(total_photos * 4.5 * 3))
+    # Fixed targets: 50 photos → 720 chars, 30 photos → 500 chars
+    total_target = 720 if total_photos >= 50 else 500
 
-    # Per-segment targets proportional to photo count, but minimum 80 chars each
-    def _seg_target(n):
-        return max(80, int(total_target * n / max(total_photos, 1)))
+    # Per-segment targets proportional to photo count (exterior capped at ~2 sentences)
+    def _seg_target(floor, n):
+        if floor == "exterior":
+            return 40  # 室外只说两句话
+        # Exclude exterior photos from proportional pool
+        non_ext = sum(c for f, c in active_groups if f != "exterior")
+        remaining = total_target - 40
+        return max(80, int(remaining * n / max(non_ext, 1))) if non_ext else max(80, int(total_target * n / max(total_photos, 1)))
+
+    def _seg_instruction(floor, n):
+        if floor == "exterior":
+            return f"- {_FLOOR_ZH[floor]}：{n}张照片 → 只说两句话（约40字），不要多说"
+        return f"- {_FLOOR_ZH[floor]}：{n}张照片 → 约{_seg_target(floor, n)}字"
 
     sections = "\n".join(
-        f"- {_FLOOR_ZH[floor]}：{count}张照片 → 至少{_seg_target(count)}字（可以更多）"
+        _seg_instruction(floor, count)
         for floor, count in active_groups
     )
 
@@ -767,7 +776,7 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
         if hints:
             cover_hints = f"\n封面关键词（第一段开头自然融入）：{'、'.join(hints)}"
 
-    prompt = f"""你是加拿大华人房产经纪，正在录制看房视频分段口播，总字数至少{total_target}字。
+    prompt = f"""你是加拿大华人房产经纪，正在录制看房视频分段口播，总字数控制在{total_target}字左右（±50字以内）。
 
 房源：{listing_data.get('neighborhood') or listing_data.get('city', '')}，{prop_style}，{beds_detail}{f'，{sqft}平方英尺' if sqft else ''}
 Listing描述（把里面的具体细节、装修、特点都讲到）：
