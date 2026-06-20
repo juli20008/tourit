@@ -43,7 +43,7 @@ def _normalize_row(row: dict) -> dict:
     baths_raw = _clean(row.get("baths") or row.get("headlineBaths") or "")
     beds  = _to_int(re.sub(r"\+.*", "", beds_raw)  if beds_raw  else "")
     baths = _to_float(re.sub(r"\+.*", "", baths_raw) if baths_raw else "")
-    sqft  = _to_int(row.get("squareFeet") or row.get("headlineSqFt") or "")
+    sqft  = str(row.get("squareFeet") or row.get("headlineSqFt") or "").replace(",", "").strip() or None
     price_raw = row.get("price") or row.get("summaryPrice") or ""
     price_match = re.search(r"\$?\s*([\d,]+)", price_raw) if price_raw else None
     price_int = _to_int(price_match.group(1).replace(",", "")) if price_match else None
