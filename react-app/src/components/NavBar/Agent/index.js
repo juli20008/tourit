@@ -86,6 +86,14 @@ const AgentBar = () => {
 						{showVideoMenu && (
 							<div className="nav-video-dropdown">
 								<NavLink
+									to="/make-video"
+									className="nav-video-item"
+									onClick={() => setShowVideoMenu(false)}
+								>
+									<i className="fa-solid fa-camera-house nav-video-item-icon" />
+									看房视频
+								</NavLink>
+								<NavLink
 									to="/ppt-video"
 									className="nav-video-item"
 									onClick={() => setShowVideoMenu(false)}
@@ -169,6 +177,14 @@ const AgentBar = () => {
 						</button>
 						{showMobileVideo && (
 							<>
+								<NavLink
+									to="/make-video"
+									className="nav-mobile-item nav-mobile-subitem"
+									onClick={() => { setShowMobileMenu(false); setShowMobileVideo(false); }}
+								>
+									<i className="fa-solid fa-camera-house mr-3 text-[#94a3b8]" />
+									看房视频
+								</NavLink>
 								<NavLink
 									to="/ppt-video"
 									className="nav-mobile-item nav-mobile-subitem"

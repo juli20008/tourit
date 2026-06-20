@@ -125,6 +125,15 @@ def push_listing():
     street = listing.get("street_name") or listing.get("street")
     city   = listing.get("city")
 
+    # Lat/lng sent directly from the extension (parsed from Realm's page)
+    pushed_lat = listing.get("lat")
+    pushed_lng = listing.get("lng")
+    try:
+        pushed_lat = float(pushed_lat) if pushed_lat is not None else None
+        pushed_lng = float(pushed_lng) if pushed_lng is not None else None
+    except (TypeError, ValueError):
+        pushed_lat = pushed_lng = None
+
     try:
         row = MlsListing.query.filter_by(mls_number=mls_number).first()
         if row:
@@ -144,6 +153,9 @@ def push_listing():
             row.style            = listing.get("style")
             row.status           = "A"
             row.standard_status  = "Active"
+            if pushed_lat is not None:
+                row.lat = pushed_lat
+                row.lng = pushed_lng
             needs_geocode = (row.lat is None or row.lng is None)
         else:
             row = MlsListing(
@@ -165,15 +177,17 @@ def push_listing():
                 style            = listing.get("style"),
                 images           = listing["images"],
                 photos_count     = len(listing["images"]),
+                lat              = pushed_lat,
+                lng              = pushed_lng,
             )
             db.session.add(row)
-            needs_geocode = True
+            needs_geocode = (pushed_lat is None)
         db.session.commit()
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
-    # Geocode after commit so a geocoding failure never blocks the response
+    # Geocode only if extension didn't send coordinates
     if needs_geocode:
         lat, lng = _geocode(street, city)
         if lat is not None:
@@ -184,6 +198,15 @@ def push_listing():
             except Exception:
                 db.session.rollback()
 
+    # Bust the map cache so the new listing appears immediately
+    try:
+        from app.api.mls_listing_routes import _cache, _pin_index_cache
+        _cache.clear()
+        _pin_index_cache['json'] = None
+        _pin_index_cache['ts'] = 0.0
+    except Exception:
+        pass
+
     return jsonify({
         "mls_number":    mls_number,
         "listing_url":   f"https://tourit.ca/listing/{mls_number}",
@@ -191,3 +214,37 @@ def push_listing():
         "lat":           float(row.lat) if row.lat is not None else None,
         "lng":           float(row.lng) if row.lng is not None else None,
     })
+
+
+@scraper_routes.route("/recent", methods=["GET"])
+def recent_listings():
+    """Return recently extension-pushed listings (identified by no external_id)."""
+    rows = (
+        MlsListing.query
+        .filter(
+            MlsListing.external_id.is_(None),
+            MlsListing.images.isnot(None),
+        )
+        .order_by(MlsListing.created_at.desc())
+        .limit(100)
+        .all()
+    )
+    result = []
+    for r in rows:
+        imgs = r.effective_images
+        result.append({
+            "mls_number":       r.mls_number,
+            "street":           r.street or "",
+            "city":             r.city or "",
+            "price":            r.list_price or 0,
+            "bed":              r.bed or 0,
+            "bath":             float(r.bath) if r.bath else 0,
+            "sqft":             str(r.sqft) if r.sqft else None,
+            "front_img":        imgs[0] if imgs else None,
+            "images":           imgs,
+            "description":      r.description or "",
+            "style":            r.style or "",
+            "beds_above_grade": r.beds_above_grade,
+            "basement_beds":    r.basement_beds,
+        })
+    return jsonify({"listings": result})
