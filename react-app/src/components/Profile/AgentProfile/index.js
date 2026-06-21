@@ -6,6 +6,7 @@ import { useNotification } from "../../../context/Notification";
 
 import UploadPhoto from "../UploadPhoto";
 import VoiceRecorder from "./VoiceRecorder";
+import BgMusicUpload from "./BgMusicUpload";
 
 import * as sessionActions from "../../../store/session";
 
@@ -161,6 +162,7 @@ const AgentProfile = () => {
 							</div>
 						</div>
 						<VoiceRecorder hasVoice={!!agent?.has_voice} voiceSampleUrl={agent?.voice_sample_url} />
+						<BgMusicUpload bgMusicUrl={agent?.bg_music_url} />
 					</div>
 					<div className="agent-profile gap40">
 						<div className="btn-wrap-rt">

@@ -425,14 +425,11 @@ def _generate_intro_overlay(line1, line2, line3, out_path, content_rect=None):
 
 # ── Intro video transcoder ─────────────────────────────────────────────────────
 
-def _transcode_intro(ffmpeg, src_path, out_path):
+def _transcode_intro(ffmpeg, src_path, out_path, speed=1.2):
     """
-    Resize/pad intro to 720×960 (portrait), re-encode. No duration limit.
-    Audio is stripped — narration track replaces it later.
+    Resize/pad intro to 720×960 (portrait), re-encode at `speed`x. Audio stripped.
     Input may be vertical (good) or landscape (pad with blurred background).
     """
-    # Pre-downscale to ≤720×960 first (caps 4K/1080p input before complex filter),
-    # then split into fg (padded) and bg (blurred) paths.
     vf = (
         f"[0:v]scale='min(iw,{OUTPUT_W})':'min(ih,{OUTPUT_H})'"
         f":force_original_aspect_ratio=decrease:flags=bilinear,split[a][b];"
@@ -440,7 +437,7 @@ def _transcode_intro(ffmpeg, src_path, out_path):
         f"pad={OUTPUT_W}:{OUTPUT_H}:(ow-iw)/2:(oh-ih)/2:color=black[fg];"
         f"[b]scale={OUTPUT_W}:{OUTPUT_H}:force_original_aspect_ratio=increase:flags=bilinear,"
         f"crop={OUTPUT_W}:{OUTPUT_H},boxblur=20:5[bg];"
-        f"[bg][fg]overlay=(W-w)/2:(H-h)/2"
+        f"[bg][fg]overlay=(W-w)/2:(H-h)/2,setpts=PTS/{speed}"
     )
     subprocess.run(
         [
@@ -948,6 +945,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                 return
 
             minimax_voice_id = agent.elevenlabs_voice_id
+            bg_music_url = getattr(agent, 'bg_music_url', None)
             tmpdir = tempfile.mkdtemp(prefix="xhsvid_")
 
             # ── Step 1: Download photos ────────────────────────────────────────
@@ -1014,11 +1012,11 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                         f.write(intro_bytes)
                     intro_bytes = None  # free memory immediately after writing to disk
 
-                    # Extract original audio (user's voice) before stripping for video
+                    # Extract + denoise + speed up intro audio to 1.2x
                     _intro_audio_tmp = os.path.join(tmpdir, "intro_audio.aac")
                     subprocess.run(
                         [ffmpeg, "-y", "-i", raw_intro, "-vn",
-                         "-af", "highpass=f=80,afftdn=nf=-25,loudnorm",
+                         "-af", "highpass=f=80,afftdn=nf=-25,atempo=1.2,loudnorm",
                          "-c:a", "aac", "-threads", "1", _intro_audio_tmp],
                         timeout=120,
 
@@ -1358,6 +1356,35 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                 final_audio_path = padded_audio_path
             except Exception:
                 pass
+
+            # ── Mix background music (low volume under voice) ─────────────────
+            if bg_music_url:
+                try:
+                    bg_ext = bg_music_url.rsplit('.', 1)[-1].lower().split('?')[0]
+                    if bg_ext not in {'mp3', 'wav', 'm4a', 'aac', 'ogg'}:
+                        bg_ext = 'mp3'
+                    bg_path = os.path.join(tmpdir, f"bgmusic.{bg_ext}")
+                    r = requests.get(bg_music_url, timeout=15, stream=True)
+                    if r.ok:
+                        with open(bg_path, "wb") as _f:
+                            for chunk in r.iter_content(65536):
+                                _f.write(chunk)
+                        mixed_path = os.path.join(tmpdir, "mixed_audio.aac")
+                        # Loop music to 600s, duck it to -22dB under voice
+                        subprocess.run(
+                            [ffmpeg, "-y",
+                             "-i", final_audio_path,
+                             "-stream_loop", "-1", "-i", bg_path,
+                             "-filter_complex",
+                             "[1:a]volume=0.12,apad=whole_dur=600[bg];"
+                             "[0:a][bg]amix=inputs=2:duration=first:dropout_transition=3[outa]",
+                             "-map", "[outa]", "-c:a", "aac", "-threads", "1", mixed_path],
+                            timeout=120, check=True,
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                        )
+                        final_audio_path = mixed_path
+                except Exception as _e:
+                    print(f"[XHS] BG music mix failed (non-fatal): {_e}")
 
             final_path = os.path.join(tmpdir, "final.mp4")
 

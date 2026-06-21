@@ -333,6 +333,53 @@ def delete_agent_voice():
 
 
 
+@xhs_routes.route('/agent/bg-music', methods=['POST'])
+def upload_bg_music():
+    """Upload background music for the agent's videos (stored in R2)."""
+    from flask_login import current_user
+    from app.models import db
+    from app.models.user import User
+    from app.s3_helpers import _upload_bytes
+
+    if not current_user.is_authenticated:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    audio_file = request.files.get('music')
+    if not audio_file:
+        return jsonify({'error': 'No file provided'}), 400
+
+    audio_bytes = audio_file.read()
+    content_type = audio_file.content_type or 'audio/mpeg'
+    ext = audio_file.filename.rsplit('.', 1)[-1].lower() if '.' in (audio_file.filename or '') else 'mp3'
+    if ext not in {'mp3', 'wav', 'm4a', 'aac', 'ogg'}:
+        ext = 'mp3'
+
+    key = f"bg-music/{uuid.uuid4().hex}.{ext}"
+    music_url = _upload_bytes(audio_bytes, key, content_type)
+
+    user = User.query.get(current_user.id)
+    user.bg_music_url = music_url
+    db.session.commit()
+
+    return jsonify({'bg_music_url': music_url})
+
+
+@xhs_routes.route('/agent/bg-music', methods=['DELETE'])
+def delete_bg_music():
+    """Remove the agent's background music."""
+    from flask_login import current_user
+    from app.models import db
+    from app.models.user import User
+
+    if not current_user.is_authenticated:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    user = User.query.get(current_user.id)
+    user.bg_music_url = None
+    db.session.commit()
+    return jsonify({'bg_music_url': None})
+
+
 @xhs_routes.route('/agent/videos', methods=['GET'])
 def get_agent_videos():
     """Return all non-expired XHS videos for the current agent."""

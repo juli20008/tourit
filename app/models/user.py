@@ -23,6 +23,7 @@ class User(db.Model, UserMixin):
     voice_sample_url = db.Column(db.String(500), nullable=True)
     elevenlabs_voice_id = db.Column(db.String(100), nullable=True)
     intro_video_url = db.Column(db.String(500), nullable=True)
+    bg_music_url = db.Column(db.String(500), nullable=True)
 
     properties = db.relationship("Property", back_populates="listing_agent")
     areas = db.relationship("AgentArea", back_populates="agent")
@@ -140,6 +141,7 @@ class User(db.Model, UserMixin):
                 "has_voice": bool(self.elevenlabs_voice_id),
                 "intro_video_url": self.intro_video_url,
                 "has_intro_video": bool(self.intro_video_url),
+                "bg_music_url": self.bg_music_url,
             }
         else:
             return {
