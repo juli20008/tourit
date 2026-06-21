@@ -40,7 +40,7 @@ const BgMusicUpload = ({ bgMusicUrl }) => {
 			if (!resp.ok) throw new Error(data.error || "上传失败");
 			setPreview(data.bg_music_url);
 			setStatus("saved");
-			dispatch(sessionActions.restoreUser());
+			dispatch(sessionActions.authenticate());
 		} catch (err) {
 			setStatus("error");
 			setErrorMsg(err.message);
@@ -57,7 +57,7 @@ const BgMusicUpload = ({ bgMusicUrl }) => {
 			await apiFetch("/api/xhs/agent/bg-music", { method: "DELETE" });
 			setPreview(null);
 			setStatus(null);
-			dispatch(sessionActions.restoreUser());
+			dispatch(sessionActions.authenticate());
 		} catch {
 			// ignore
 		} finally {
