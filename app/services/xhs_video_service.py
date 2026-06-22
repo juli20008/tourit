@@ -571,6 +571,54 @@ def _build_ppt_ass(slide_segments, out_path: str, offset_secs: float = 0.0):
         f.write("\n".join(lines))
 
 
+# ── Word-count enforcement helpers ────────────────────────────────────────────
+
+import re as _re_mod
+_SENT_END = _re_mod.compile(r'[。！？；]')
+
+def _trim_to_target(text, target, tolerance=20):
+    """Trim text to target±tolerance, cutting only at sentence boundaries."""
+    if len(text) <= target + tolerance:
+        return text
+    boundaries = [m.end() for m in _SENT_END.finditer(text)]
+    # Find the last boundary at or before target+tolerance
+    for pos in reversed(boundaries):
+        if pos <= target + tolerance:
+            return text[:pos]
+    # No boundary found — hard cut as last resort
+    return text[:target + tolerance]
+
+def _pad_to_target(text, target, tolerance=20, api_key="", context_hint=""):
+    """Append AI-generated continuation if text is below target-tolerance."""
+    if len(text) >= target - tolerance:
+        return text
+    deficit = target - len(text)
+    if not api_key:
+        return text
+    try:
+        pad_resp = requests.post(
+            "https://api.deepseek.com/v1/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={
+                "model": "deepseek-chat",
+                "max_tokens": deficit + 80,
+                "messages": [{"role": "user", "content":
+                    f"以下是看房视频口播{context_hint}，还差约{deficit}字。"
+                    f"请直接续写（不要重复已有内容，不要加标题，直接接着写）：\n\n{text}"
+                }],
+            },
+            timeout=30,
+        )
+        if pad_resp.ok:
+            extra = pad_resp.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+            if extra:
+                combined = text + extra
+                return _trim_to_target(combined, target, tolerance)
+    except Exception:
+        pass
+    return text
+
+
 # ── Narration text ─────────────────────────────────────────────────────────────
 
 def _generate_narration(listing_data, cover_lines=None, photo_count=30):
@@ -593,8 +641,6 @@ def _generate_narration(listing_data, cover_lines=None, photo_count=30):
         beds_detail = f"{listing_data.get('bed', '?')}室{baths}卫"
 
     target_chars = 14 * photo_count  # 14字/张
-    min_chars = target_chars - 30
-    max_chars = target_chars + 30
 
     cover_hints = ""
     cover_opener = ""
@@ -604,9 +650,7 @@ def _generate_narration(listing_data, cover_lines=None, photo_count=30):
             cover_hints = f"\n封面关键词（开头前两句内自然融入）：{'、'.join(hints)}"
             cover_opener = f"\n- 开头前两句自然点出封面关键词：{'、'.join(hints)}"
 
-    prompt = f"""你是加拿大华人房产经纪，正在录制看房视频口播。
-
-【字数硬性要求】：必须写{min_chars}到{max_chars}字，不多不少。写完后自己数字数，不够就补，超了就删。
+    prompt = f"""你是加拿大华人房产经纪，正在录制看房视频口播，目标约{target_chars}字。
 
 房源：{listing_data.get('neighborhood') or listing_data.get('city', '')}，{style}，{beds_detail}{f'，{sqft}平方英尺' if sqft else ''}
 Listing描述（以下内容全部要在口播中提到）：
@@ -624,54 +668,22 @@ Listing描述（以下内容全部要在口播中提到）：
 不要提地址、价格、门牌号
 只输出口播正文"""
 
-    def _call_api(messages):
+    try:
         resp = requests.post(
             "https://api.deepseek.com/v1/chat/completions",
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={"model": "deepseek-chat", "max_tokens": 2000, "messages": messages},
+            json={"model": "deepseek-chat", "max_tokens": 2000,
+                  "messages": [{"role": "user", "content": prompt}]},
             timeout=40,
         )
-        if resp.ok:
-            return resp.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
-        return None
-
-    try:
-        messages = [{"role": "user", "content": prompt}]
-        result = _call_api(messages)
+        if not resp.ok:
+            return None
+        result = resp.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
         if not result:
             return None
-
-        # Pass 2: retry with deficit
-        if len(result) < min_chars:
-            deficit = min_chars - len(result)
-            messages += [
-                {"role": "assistant", "content": result},
-                {"role": "user", "content": f"字数不够，你只写了{len(result)}字，要求{min_chars}到{max_chars}字，还差{deficit}字。请重写，每个空间多展开细节，只输出完整口播正文。"},
-            ]
-            expanded = _call_api(messages)
-            if expanded:
-                result = expanded
-
-        # Pass 3: force-append if still short
-        if len(result) < min_chars:
-            deficit = min_chars - len(result)
-            pad_resp = requests.post(
-                "https://api.deepseek.com/v1/chat/completions",
-                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                json={
-                    "model": "deepseek-chat",
-                    "max_tokens": deficit + 100,
-                    "messages": [{"role": "user", "content":
-                        f"以下是看房视频口播，还差{deficit}个字没写完。请直接续写{deficit}字左右（不要重复，不要加标题，直接续写正文）：\n\n{result}"
-                    }],
-                },
-                timeout=30,
-            )
-            if pad_resp.ok:
-                extra = pad_resp.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
-                if extra:
-                    result = result + extra
-
+        # Python enforces the length
+        result = _trim_to_target(result, target_chars)
+        result = _pad_to_target(result, target_chars, api_key=api_key)
         return result
     except Exception:
         pass
@@ -799,7 +811,7 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
     max_total = total_target + 30
 
     seg_lines = "\n".join(
-        f"- 【{_FLOOR_ZH[floor]}】{count}张照片 = {seg_targets[floor]}字（必须在{seg_targets[floor]-10}~{seg_targets[floor]+10}字之间）"
+        f"- 【{_FLOOR_ZH[floor]}】{count}张照片，约{seg_targets[floor]}字"
         for floor, count in active_groups
     )
 
@@ -809,11 +821,10 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
         if hints:
             cover_hints = f"\n封面关键词（第一段开头自然融入）：{'、'.join(hints)}"
 
-    prompt = f"""你是加拿大华人房产经纪，正在录制看房视频分段口播。
+    prompt = f"""你是加拿大华人房产经纪，正在录制看房视频分段口播，合计约{total_target}字。
 
-严格字数规定（每张照片配14个字，不得多也不得少）：
+各段参考字数：
 {seg_lines}
-合计目标：{total_target}字
 
 房源：{listing_data.get('neighborhood') or listing_data.get('city', '')}，{prop_style}，{beds_detail}{f'，{sqft}平方英尺' if sqft else ''}
 Listing描述（每一条细节都要出现在口播里）：
@@ -827,7 +838,7 @@ Listing描述（每一条细节都要出现在口播里）：
 - 禁止："大家好""今天带大家""空间宽敞""采光好""布局合理""性价比高"
 - 不要提地址、价格、门牌号
 
-输出格式：只输出JSON数组，长度={len(active_groups)}，每个元素是对应段落的字符串。写完后检查每段字数，不够的补足，超的删减。"""
+只输出JSON数组，长度={len(active_groups)}，每个元素是对应段落的字符串。"""
 
     def _call(messages):
         resp = requests.post(
@@ -850,63 +861,37 @@ Listing描述（每一条细节都要出现在口播里）：
             pass
         return None
 
-    def _short_segs(result):
-        return [
-            (i, _FLOOR_ZH[active_groups[i][0]], seg_targets[active_groups[i][0]], len(result[i]))
-            for i in range(len(result))
-            if len(result[i]) < seg_targets[active_groups[i][0]] - 10
-        ]
-
-    def _pad_segments(result):
-        """Force-pad any segment that's still short by appending more detail sentences."""
-        padded = list(result)
-        for i, floor_zh, target, actual in _short_segs(result):
-            deficit = target - actual
-            floor = active_groups[i][0]
-            # Ask AI to write only the missing portion for this segment
-            pad_resp = requests.post(
-                "https://api.deepseek.com/v1/chat/completions",
-                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                json={
-                    "model": "deepseek-chat",
-                    "max_tokens": deficit + 100,
-                    "messages": [{"role": "user", "content":
-                        f"以下是看房视频【{floor_zh}】段落，还差{deficit}个字没写完。"
-                        f"请继续补充{deficit}字左右的内容（不要重复已有内容，直接续写，不要加任何标题或前缀）：\n\n{padded[i]}"
-                    }],
-                },
-                timeout=30,
-            )
-            if pad_resp.ok:
-                extra = pad_resp.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
-                if extra:
-                    padded[i] = padded[i] + extra
-        return padded
-
     try:
         messages = [{"role": "user", "content": prompt}]
         result = _call(messages)
         if not result:
             return None
 
-        # Pass 2: targeted retry with exact deficit per segment
-        shorts = _short_segs(result)
-        if shorts:
+        # Retry only if a segment is catastrophically short (< 60% of target)
+        catastrophic = [
+            i for i in range(len(result))
+            if len(result[i]) < seg_targets[active_groups[i][0]] * 0.6
+        ]
+        if catastrophic:
             feedback = "\n".join(
-                f"【{zh}】要求{target}字，你写了{actual}字，必须再补{target - actual}字"
-                for _, zh, target, actual in shorts
+                f"【{_FLOOR_ZH[active_groups[i][0]]}】要求约{seg_targets[active_groups[i][0]]}字，只写了{len(result[i])}字，请补充"
+                for i in catastrophic
             )
             messages += [
                 {"role": "assistant", "content": _json.dumps(result, ensure_ascii=False)},
-                {"role": "user", "content": f"以下段落字数不足，请重写这些段落使其达标：\n{feedback}\n\n重新输出完整JSON数组。"},
+                {"role": "user", "content": f"以下段落内容太少：\n{feedback}\n\n重新输出完整JSON数组。"},
             ]
             retry = _call(messages)
             if retry:
                 result = retry
 
-        # Pass 3: force-pad any segment still short after retry
-        if _short_segs(result):
-            result = _pad_segments(result)
+        # Python enforces every segment to target±20
+        for i, (floor, _) in enumerate(active_groups):
+            target = seg_targets[floor]
+            floor_zh = _FLOOR_ZH[floor]
+            result[i] = _trim_to_target(result[i], target)
+            result[i] = _pad_to_target(result[i], target, api_key=api_key,
+                                       context_hint=f"【{floor_zh}】段落")
 
         return result
     except Exception as e:
