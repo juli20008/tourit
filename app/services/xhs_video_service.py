@@ -428,8 +428,11 @@ def _generate_intro_overlay(line1, line2, line3, out_path, content_rect=None):
 def _transcode_intro(ffmpeg, src_path, out_path, speed=1.2):
     """
     Resize/pad intro to 720×960 (portrait), re-encode at `speed`x. Audio stripped.
-    Input may be vertical (good) or landscape (pad with blurred background).
+    Pass 1: resize/pad. Pass 2: speed-up with setpts (two passes avoids -r overriding pts).
     """
+    import tempfile as _tf
+    tmp = out_path + "_nospeed.mp4"
+    # Pass 1: resize + pad
     vf = (
         f"[0:v]scale='min(iw,{OUTPUT_W})':'min(ih,{OUTPUT_H})'"
         f":force_original_aspect_ratio=decrease:flags=bilinear,split[a][b];"
@@ -437,25 +440,26 @@ def _transcode_intro(ffmpeg, src_path, out_path, speed=1.2):
         f"pad={OUTPUT_W}:{OUTPUT_H}:(ow-iw)/2:(oh-ih)/2:color=black[fg];"
         f"[b]scale={OUTPUT_W}:{OUTPUT_H}:force_original_aspect_ratio=increase:flags=bilinear,"
         f"crop={OUTPUT_W}:{OUTPUT_H},boxblur=20:5[bg];"
-        f"[bg][fg]overlay=(W-w)/2:(H-h)/2,setpts=PTS/{speed}"
+        f"[bg][fg]overlay=(W-w)/2:(H-h)/2"
     )
     subprocess.run(
-        [
-            ffmpeg, "-y",
-            "-i", src_path,
-            "-filter_complex", vf,
-            "-an",
-            "-r", str(FPS),
-            "-c:v", "libx264", "-crf", str(CRF), "-preset", PRESET,
-            "-pix_fmt", "yuv420p",
-            "-threads", "1",
-            out_path,
-        ],
-        timeout=120,
-
-        check=True,
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        [ffmpeg, "-y", "-i", src_path, "-filter_complex", vf, "-an",
+         "-r", str(FPS), "-c:v", "libx264", "-crf", str(CRF), "-preset", PRESET,
+         "-pix_fmt", "yuv420p", "-threads", "1", tmp],
+        timeout=120, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
+    # Pass 2: speed up video only (setpts without -r so pts are respected)
+    subprocess.run(
+        [ffmpeg, "-y", "-i", tmp,
+         "-vf", f"setpts=PTS/{speed}",
+         "-an", "-c:v", "libx264", "-crf", str(CRF), "-preset", PRESET,
+         "-pix_fmt", "yuv420p", "-threads", "1", out_path],
+        timeout=120, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+    try:
+        os.unlink(tmp)
+    except OSError:
+        pass
 
 
 def _composite_overlay(ffmpeg, video_path, overlay_png, out_path):
