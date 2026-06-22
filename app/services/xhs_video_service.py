@@ -588,9 +588,9 @@ def _generate_narration(listing_data, cover_lines=None, photo_count=30):
     else:
         beds_detail = f"{listing_data.get('bed', '?')}室{baths}卫"
 
-    target_chars = 720 if photo_count >= 50 else 500
-    min_chars = target_chars - 50
-    max_chars = target_chars + 50
+    target_chars = 14 * photo_count  # 14字/张
+    min_chars = target_chars - 30
+    max_chars = target_chars + 30
 
     cover_hints = ""
     cover_opener = ""
@@ -763,27 +763,16 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
     else:
         beds_detail = f"{listing_data.get('bed', '?')}室{baths}卫"
 
+    # 14字/张，每段各自算目标字数
+    CHARS_PER_PHOTO = 14
+    seg_targets = {floor: CHARS_PER_PHOTO * count for floor, count in active_groups}
     total_photos = sum(count for _, count in active_groups)
-    # Fixed targets: 50 photos → 720 chars, 30 photos → 500 chars
-    total_target = 720 if total_photos >= 50 else 500
-    min_total = total_target - 50
-    max_total = total_target + 50
-
-    # Per-segment targets proportional to photo count (exterior capped at ~2 sentences)
-    def _seg_target(floor, n):
-        if floor == "exterior":
-            return 40
-        non_ext = sum(c for f, c in active_groups if f != "exterior")
-        remaining = total_target - 40
-        return max(80, int(remaining * n / max(non_ext, 1))) if non_ext else max(80, int(total_target * n / max(total_photos, 1)))
-
-    def _seg_instruction(floor, n):
-        if floor == "exterior":
-            return f"- {_FLOOR_ZH[floor]}：{n}张照片 → 只说两句话（约40字），不要多说"
-        return f"- {_FLOOR_ZH[floor]}：{n}张照片 → 必须写{_seg_target(floor, n)}字左右"
+    total_target = CHARS_PER_PHOTO * total_photos
+    min_total = total_target - 30
+    max_total = total_target + 30
 
     sections = "\n".join(
-        _seg_instruction(floor, count)
+        f"- {_FLOOR_ZH[floor]}：{count}张照片 → 必须写{seg_targets[floor]}字（±10字以内）"
         for floor, count in active_groups
     )
 
@@ -795,31 +784,32 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
 
     prompt = f"""你是加拿大华人房产经纪，正在录制看房视频分段口播。
 
-【字数硬性要求】：所有段落合计必须在{min_total}到{max_total}字之间，写完后自己数字数，不够就补，超了就删。
+【字数硬性要求】每段必须严格按照下面的字数写，写完后自己数，不够就补到规定字数，超了就删到规定字数：
 
-房源：{listing_data.get('neighborhood') or listing_data.get('city', '')}，{prop_style}，{beds_detail}{f'，{sqft}平方英尺' if sqft else ''}
-Listing描述（以下内容全部要在口播中提到）：
-{desc or '暂无'}{cover_hints}
-
-视频分段（按播放顺序，每段字数）：
 {sections}
 
-要求：
+合计：{total_target}字
+
+房源：{listing_data.get('neighborhood') or listing_data.get('city', '')}，{prop_style}，{beds_detail}{f'，{sqft}平方英尺' if sqft else ''}
+Listing描述（以下每一个细节都要在对应的段落里说到）：
+{desc or '暂无'}{cover_hints}
+
+其他要求：
 - 第一段第一句报基本信息：几室几卫、面积
-- 各段按对应空间介绍，把listing描述里每一个细节都提到
-- 真实具体，语气自然像带朋友看房
-- 最后一段简单说一句值不值得来看
+- 各段按对应空间展开，把listing里每个细节都提到
+- 语气自然像带朋友看房
+- 最后一段结尾说一句值不值得来看
 - 禁止："大家好""今天带大家""空间宽敞""采光好""布局合理""性价比高"
 - 不要提地址、价格、门牌号
-- 只输出JSON数组，长度={len(active_groups)}，每个元素是一段文案字符串"""
+- 只输出JSON数组，长度={len(active_groups)}，每个元素是一段文案字符串，不要其他内容"""
 
     def _call(messages):
         resp = requests.post(
             "https://api.deepseek.com/v1/chat/completions",
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={"model": "deepseek-chat", "max_tokens": 2500,
+            json={"model": "deepseek-chat", "max_tokens": 3000,
                   "messages": messages},
-            timeout=50,
+            timeout=60,
         )
         if resp.ok:
             raw = resp.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
@@ -836,9 +826,14 @@ Listing描述（以下内容全部要在口播中提到）：
         if result:
             total_len = sum(len(s) for s in result)
             if total_len < min_total:
+                short_segs = [
+                    f"第{i+1}段（{_FLOOR_ZH[active_groups[i][0]]}）：你写了{len(result[i])}字，要求{seg_targets[active_groups[i][0]]}字"
+                    for i in range(len(result))
+                    if len(result[i]) < seg_targets[active_groups[i][0]] - 10
+                ]
                 messages += [
                     {"role": "assistant", "content": _json.dumps(result, ensure_ascii=False)},
-                    {"role": "user", "content": f"总字数只有{total_len}字，不够，要求{min_total}到{max_total}字。请对每个非室外段落补充更多细节，重新输出完整JSON数组。"},
+                    {"role": "user", "content": f"字数不够，问题段落：\n" + "\n".join(short_segs) + f"\n\n请对这些段落补充细节直到达到规定字数，重新输出完整JSON数组。"},
                 ]
                 retry = _call(messages)
                 if retry and sum(len(s) for s in retry) >= min_total:
