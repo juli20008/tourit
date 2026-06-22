@@ -178,7 +178,6 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 	const [introBlob, setIntroBlob] = useState(null);
 	const [coverBg, setCoverBg] = useState(null);
 	const [coverBgPreview, setCoverBgPreview] = useState(null);
-	const photoCount = listingImages.length || 30; // actual photo count drives word target
 	const [phase, setPhase] = useState("input"); // input | drafting | draft | generating | done | error
 	const [narrationDraft, setNarrationDraft] = useState("");
 	const [step, setStep] = useState("");
@@ -187,6 +186,7 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 	const [errorMsg, setErrorMsg] = useState("");
 	const [listingImages, setListingImages] = useState([]);
 	const [coverPhotoIndex, setCoverPhotoIndex] = useState(0);
+	const photoCount = listingImages.length || 30; // actual photo count drives word target
 	const [upperStart, setUpperStart] = useState("");    // photo# where upper floor starts (1-indexed)
 	const [basementStart, setBasementStart] = useState(""); // photo# where basement starts (1-indexed)
 	const pollRef = useRef(null);
