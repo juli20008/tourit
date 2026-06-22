@@ -577,18 +577,20 @@ def _generate_narration(listing_data, cover_lines=None, photo_count=30):
     baths      = listing_data.get("bath", "?")
     beds_above = listing_data.get("beds_above_grade")
     bsmt_beds  = listing_data.get("basement_beds")
-    desc  = (listing_data.get("description") or "")[:1500]
+    desc  = (listing_data.get("description") or "")[:5000]
     style = listing_data.get("style") or listing_data.get("property_type") or "住宅"
     sqft  = listing_data.get("sqft", "")
 
     if beds_above is not None and bsmt_beds:
-        beds_detail = f"3+1（地上{beds_above}个卧室，地下室{bsmt_beds}个卧室），{baths}卫"
+        beds_detail = f"{beds_above}+{bsmt_beds}（地上{beds_above}个卧室，地下室{bsmt_beds}个卧室），{baths}卫"
     elif beds_above is not None:
         beds_detail = f"{beds_above}室{baths}卫"
     else:
         beds_detail = f"{listing_data.get('bed', '?')}室{baths}卫"
 
     target_chars = 720 if photo_count >= 50 else 500
+    min_chars = target_chars - 50
+    max_chars = target_chars + 50
 
     cover_hints = ""
     cover_opener = ""
@@ -598,35 +600,52 @@ def _generate_narration(listing_data, cover_lines=None, photo_count=30):
             cover_hints = f"\n封面关键词（开头前两句内自然融入）：{'、'.join(hints)}"
             cover_opener = f"\n- 开头前两句自然点出封面关键词：{'、'.join(hints)}"
 
-    prompt = f"""你是加拿大华人房产经纪，正在录制看房视频口播。字数必须在{target_chars - 50}到{target_chars + 50}字之间，不能多也不能少。
+    prompt = f"""你是加拿大华人房产经纪，正在录制看房视频口播。
+
+【字数硬性要求】：必须写{min_chars}到{max_chars}字，不多不少。写完后自己数字数，不够就补，超了就删。
 
 房源：{listing_data.get('neighborhood') or listing_data.get('city', '')}，{style}，{beds_detail}{f'，{sqft}平方英尺' if sqft else ''}
-Listing描述（把里面的具体细节、装修、特点都讲到）：
+Listing描述（以下内容全部要在口播中提到）：
 {desc if desc else '暂无'}{cover_hints}
 
-要求：
-- 第一句直接报基本信息：几室几卫、面积（一句话带过）{cover_opener}
-- 然后按空间顺序介绍：室外/入门只需两句话，主层（客厅厨房餐厅）、卧室层、地下室各展开讲，每个区域多说细节
-- 把listing描述里的具体亮点都讲到，真实具体，不要说空话
-- 语气自然，像带朋友看房
-- 结尾简单说一句值不值得来看
-- 禁止："大家好""今天带大家""空间宽敞""采光好""布局合理""性价比高"
-- 不要提地址、价格、门牌号
-- 只输出口播正文，达到字数要求"""
+结构要求：
+- 第一句报基本信息：几室几卫、面积{cover_opener}
+- 室外/入门：两句话
+- 主层（客厅/厨房/餐厅）：展开说，把描述里的细节都提到
+- 卧室层：展开说
+- 地下室：展开说
+- 最后一句：值不值得来看
 
-    try:
+禁止词："大家好""今天带大家""空间宽敞""采光好""布局合理""性价比高"
+不要提地址、价格、门牌号
+只输出口播正文"""
+
+    def _call_api(messages):
         resp = requests.post(
             "https://api.deepseek.com/v1/chat/completions",
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={
-                "model": "deepseek-chat",
-                "max_tokens": 2000,
-                "messages": [{"role": "user", "content": prompt}],
-            },
+            json={"model": "deepseek-chat", "max_tokens": 2000, "messages": messages},
             timeout=40,
         )
         if resp.ok:
             return resp.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+        return None
+
+    try:
+        messages = [{"role": "user", "content": prompt}]
+        result = _call_api(messages)
+        if not result:
+            return None
+        # If too short, ask to expand
+        if len(result) < min_chars:
+            messages += [
+                {"role": "assistant", "content": result},
+                {"role": "user", "content": f"字数不够，你只写了{len(result)}字，要求{min_chars}到{max_chars}字。请继续补充每个空间的细节，直到达到字数要求，只输出完整的重写版本。"},
+            ]
+            expanded = _call_api(messages)
+            if expanded and len(expanded) >= min_chars:
+                result = expanded
+        return result
     except Exception:
         pass
     return None
@@ -733,12 +752,12 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
     baths      = listing_data.get("bath", "?")
     beds_above = listing_data.get("beds_above_grade")
     bsmt_beds  = listing_data.get("basement_beds")
-    desc       = (listing_data.get("description") or "")[:1500]
+    desc       = (listing_data.get("description") or "")[:5000]
     prop_style = listing_data.get("style") or listing_data.get("property_type") or "住宅"
     sqft       = listing_data.get("sqft", "")
 
     if beds_above is not None and bsmt_beds:
-        beds_detail = f"3+1（地上{beds_above}个卧室，地下室{bsmt_beds}个卧室），{baths}卫"
+        beds_detail = f"{beds_above}+{bsmt_beds}（地上{beds_above}个卧室，地下室{bsmt_beds}个卧室），{baths}卫"
     elif beds_above is not None:
         beds_detail = f"{beds_above}室{baths}卫"
     else:
@@ -747,12 +766,13 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
     total_photos = sum(count for _, count in active_groups)
     # Fixed targets: 50 photos → 720 chars, 30 photos → 500 chars
     total_target = 720 if total_photos >= 50 else 500
+    min_total = total_target - 50
+    max_total = total_target + 50
 
     # Per-segment targets proportional to photo count (exterior capped at ~2 sentences)
     def _seg_target(floor, n):
         if floor == "exterior":
-            return 40  # 室外只说两句话
-        # Exclude exterior photos from proportional pool
+            return 40
         non_ext = sum(c for f, c in active_groups if f != "exterior")
         remaining = total_target - 40
         return max(80, int(remaining * n / max(non_ext, 1))) if non_ext else max(80, int(total_target * n / max(total_photos, 1)))
@@ -760,7 +780,7 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
     def _seg_instruction(floor, n):
         if floor == "exterior":
             return f"- {_FLOOR_ZH[floor]}：{n}张照片 → 只说两句话（约40字），不要多说"
-        return f"- {_FLOOR_ZH[floor]}：{n}张照片 → 约{_seg_target(floor, n)}字"
+        return f"- {_FLOOR_ZH[floor]}：{n}张照片 → 必须写{_seg_target(floor, n)}字左右"
 
     sections = "\n".join(
         _seg_instruction(floor, count)
@@ -773,39 +793,57 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
         if hints:
             cover_hints = f"\n封面关键词（第一段开头自然融入）：{'、'.join(hints)}"
 
-    prompt = f"""你是加拿大华人房产经纪，正在录制看房视频分段口播。总字数必须在{total_target - 50}到{total_target + 50}字之间，不能多也不能少。
+    prompt = f"""你是加拿大华人房产经纪，正在录制看房视频分段口播。
+
+【字数硬性要求】：所有段落合计必须在{min_total}到{max_total}字之间，写完后自己数字数，不够就补，超了就删。
 
 房源：{listing_data.get('neighborhood') or listing_data.get('city', '')}，{prop_style}，{beds_detail}{f'，{sqft}平方英尺' if sqft else ''}
-Listing描述（把里面的具体细节、装修、特点都讲到）：
+Listing描述（以下内容全部要在口播中提到）：
 {desc or '暂无'}{cover_hints}
 
-视频分段（按播放顺序，每段字数要求）：
+视频分段（按播放顺序，每段字数）：
 {sections}
 
 要求：
-- 第一段第一句报基本信息：几室几卫、面积（一句话带过）
-- 各段按对应空间介绍，展开说细节，把listing描述里的具体亮点都讲到
-- 真实具体，不要说空话，语气自然像带朋友看房
+- 第一段第一句报基本信息：几室几卫、面积
+- 各段按对应空间介绍，把listing描述里每一个细节都提到
+- 真实具体，语气自然像带朋友看房
 - 最后一段简单说一句值不值得来看
 - 禁止："大家好""今天带大家""空间宽敞""采光好""布局合理""性价比高"
 - 不要提地址、价格、门牌号
-- 只输出JSON数组，长度={len(active_groups)}，每个元素是一段文案字符串，不要其他内容，达到字数要求"""
+- 只输出JSON数组，长度={len(active_groups)}，每个元素是一段文案字符串"""
 
-    try:
+    def _call(messages):
         resp = requests.post(
             "https://api.deepseek.com/v1/chat/completions",
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
             json={"model": "deepseek-chat", "max_tokens": 2500,
-                  "messages": [{"role": "user", "content": prompt}]},
+                  "messages": messages},
             timeout=50,
         )
         if resp.ok:
             raw = resp.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
             m = _re.search(r'\[.*?\]', raw, _re.DOTALL)
             if m:
-                result = _json.loads(m.group())
-                if isinstance(result, list) and len(result) == len(active_groups):
-                    return [str(s) for s in result]
+                parsed = _json.loads(m.group())
+                if isinstance(parsed, list) and len(parsed) == len(active_groups):
+                    return [str(s) for s in parsed]
+        return None
+
+    try:
+        messages = [{"role": "user", "content": prompt}]
+        result = _call(messages)
+        if result:
+            total_len = sum(len(s) for s in result)
+            if total_len < min_total:
+                messages += [
+                    {"role": "assistant", "content": _json.dumps(result, ensure_ascii=False)},
+                    {"role": "user", "content": f"总字数只有{total_len}字，不够，要求{min_total}到{max_total}字。请对每个非室外段落补充更多细节，重新输出完整JSON数组。"},
+                ]
+                retry = _call(messages)
+                if retry and sum(len(s) for s in retry) >= min_total:
+                    result = retry
+            return result
     except Exception as e:
         print(f"[XHS] Floor narration generation failed: {e}")
     return None
