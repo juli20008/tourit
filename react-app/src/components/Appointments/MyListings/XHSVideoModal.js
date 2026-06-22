@@ -3,8 +3,8 @@ import ReactDOM from "react-dom";
 import apiFetch from "../../../utils/apiFetch";
 
 const POLL_MS = 2500;
-const MAX_INTRO_MB = 50;
-const MAX_INTRO_SECS = 30;
+const MAX_INTRO_MB = 500;
+const MAX_INTRO_SECS = 300; // 5 minutes — no practical cap on recording
 
 const STEP_LABELS = {
 	"Starting...": "正在启动...",
@@ -96,7 +96,7 @@ const IntroSection = ({ introBlob, setIntroBlob }) => {
 		const file = e.target.files?.[0];
 		if (!file) return;
 		if (file.size > MAX_INTRO_MB * 1024 * 1024) {
-			setErr(`视频过大，请控制在 ${MAX_INTRO_MB}MB 以内`);
+			setErr(`视频文件过大，请控制在 ${MAX_INTRO_MB}MB 以内`);
 			e.target.value = "";
 			return;
 		}
@@ -112,7 +112,7 @@ const IntroSection = ({ introBlob, setIntroBlob }) => {
 				开场视频（选填）/ Intro Video (optional)
 			</label>
 			<p style={{ color: "#64748b", fontSize: "0.78rem", margin: "0 0 10px" }}>
-				录制或上传最多 30 秒竖屏自拍，封面文字会自动叠加。可先用美颜相机录好再从相册上传。
+				录制或上传竖屏自拍视频，封面文字会自动叠加。可先用美颜相机录好再从相册上传。
 			</p>
 
 			{recording && (
