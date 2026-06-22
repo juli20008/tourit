@@ -1049,7 +1049,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                     _intro_audio_tmp = os.path.join(tmpdir, "intro_audio.aac")
                     subprocess.run(
                         [ffmpeg, "-y", "-i", raw_intro, "-vn",
-                         "-af", "highpass=f=80,afftdn=nf=-25,atempo=1.2,loudnorm",
+                         "-af", "highpass=f=80,afftdn=nf=-25,atempo=1.2,loudnorm=I=-6:LRA=7:TP=-0.5",
                          "-c:a", "aac", "-threads", "1", _intro_audio_tmp],
                         timeout=120,
 
@@ -1380,7 +1380,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
             try:
                 subprocess.run(
                     [ffmpeg, "-y", "-i", final_audio_path,
-                     "-af", "loudnorm=I=-14:LRA=11:TP=-1,apad=whole_dur=600",
+                     "-af", "loudnorm=I=-6:LRA=7:TP=-0.5,apad=whole_dur=600",
                      "-c:a", "aac", "-threads", "1", padded_audio_path],
                     timeout=120,
 
