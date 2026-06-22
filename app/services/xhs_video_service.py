@@ -1001,7 +1001,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                     return
                 raw_images = listing.effective_images or []
 
-            n_photos = photo_count if photo_count in (30, 50) else 30
+            n_photos = max(1, int(photo_count)) if photo_count else len(all_images_raw) or 30
             all_images_raw = raw_images
             if len(all_images_raw) == 0:
                 image_urls = []
