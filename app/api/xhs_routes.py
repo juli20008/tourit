@@ -453,8 +453,7 @@ def draft_narration(mls_number):
         str(data.get('cover3', '') or '')[:40],
     ]
     photo_count = int(data.get('photo_count') or 30)
-    photo_count = 50 if photo_count >= 50 else 30
-    narration_style = "rich" if photo_count == 50 else "concise"
+    narration_style = "rich" if photo_count >= 50 else "concise"
     external_listing = data.get('external_listing') or None
     # Manual floor break points: [upperStart, basementStart] — 1-indexed photo numbers
     raw_breaks = data.get('floor_breaks') or []
@@ -475,7 +474,7 @@ def draft_narration(mls_number):
             'property_type':    external_listing.get('style'),
             'sqft':             external_listing.get('sqft'),
         }
-        n_photos = MAX_PHOTOS
+        n_photos = photo_count
         has_basement = bool(external_listing.get('basement_beds'))
     else:
         listing = MlsListing.query.filter_by(mls_number=mls_number).first()
@@ -541,7 +540,7 @@ def draft_narration(mls_number):
         narration = "\n\n---\n\n".join(labeled)
     else:
         # Fallback to single narration
-        narration = _generate_narration(listing_data, cover_lines=cover_lines, photo_count=photo_count)
+        narration = _generate_narration(listing_data, cover_lines=cover_lines, photo_count=n_photos)
 
     if not narration:
         return jsonify({'error': 'AI narration generation failed — check DEEPSEEK_API_KEY'}), 502
@@ -574,7 +573,6 @@ def generate_agent_video(mls_number):
         cover_photo_index = max(0, int(request.form.get('cover_photo_index', 0) or 0))
         narration_override = (request.form.get('narration_override') or '').strip() or None
         photo_count = int(request.form.get('photo_count') or 30)
-        photo_count = 50 if photo_count >= 50 else 30
         intro_file = request.files.get('intro_video')
         intro_bytes = intro_file.read() if intro_file and intro_file.filename else None
         cover_bg_file = request.files.get('cover_bg')

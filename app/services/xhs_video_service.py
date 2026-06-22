@@ -771,8 +771,8 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
     min_total = total_target - 30
     max_total = total_target + 30
 
-    sections = "\n".join(
-        f"- {_FLOOR_ZH[floor]}：{count}张照片 → 必须写{seg_targets[floor]}字（±10字以内）"
+    seg_lines = "\n".join(
+        f"- 【{_FLOOR_ZH[floor]}】{count}张照片 = {seg_targets[floor]}字（必须在{seg_targets[floor]-10}~{seg_targets[floor]+10}字之间）"
         for floor, count in active_groups
     )
 
@@ -784,61 +784,65 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
 
     prompt = f"""你是加拿大华人房产经纪，正在录制看房视频分段口播。
 
-【字数硬性要求】每段必须严格按照下面的字数写，写完后自己数，不够就补到规定字数，超了就删到规定字数：
-
-{sections}
-
-合计：{total_target}字
+严格字数规定（每张照片配14个字，不得多也不得少）：
+{seg_lines}
+合计目标：{total_target}字
 
 房源：{listing_data.get('neighborhood') or listing_data.get('city', '')}，{prop_style}，{beds_detail}{f'，{sqft}平方英尺' if sqft else ''}
-Listing描述（以下每一个细节都要在对应的段落里说到）：
+Listing描述（每一条细节都要出现在口播里）：
 {desc or '暂无'}{cover_hints}
 
-其他要求：
+写作要求：
 - 第一段第一句报基本信息：几室几卫、面积
-- 各段按对应空间展开，把listing里每个细节都提到
-- 语气自然像带朋友看房
-- 最后一段结尾说一句值不值得来看
+- 各段按对应空间展开介绍，把listing描述里所有细节都用上
+- 语气自然像带朋友看房，真实具体
+- 最后一段末尾说一句值不值得来看
 - 禁止："大家好""今天带大家""空间宽敞""采光好""布局合理""性价比高"
 - 不要提地址、价格、门牌号
-- 只输出JSON数组，长度={len(active_groups)}，每个元素是一段文案字符串，不要其他内容"""
+
+输出格式：只输出JSON数组，长度={len(active_groups)}，每个元素是对应段落的字符串。写完后检查每段字数，不够的补足，超的删减。"""
 
     def _call(messages):
         resp = requests.post(
             "https://api.deepseek.com/v1/chat/completions",
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={"model": "deepseek-chat", "max_tokens": 3000,
-                  "messages": messages},
+            json={"model": "deepseek-chat", "max_tokens": 3000, "messages": messages},
             timeout=60,
         )
-        if resp.ok:
-            raw = resp.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
-            m = _re.search(r'\[.*?\]', raw, _re.DOTALL)
-            if m:
-                parsed = _json.loads(m.group())
-                if isinstance(parsed, list) and len(parsed) == len(active_groups):
-                    return [str(s) for s in parsed]
+        if not resp.ok:
+            return None
+        raw = resp.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+        m = _re.search(r'\[.*?\]', raw, _re.DOTALL)
+        if not m:
+            return None
+        try:
+            parsed = _json.loads(m.group())
+            if isinstance(parsed, list) and len(parsed) == len(active_groups):
+                return [str(s) for s in parsed]
+        except Exception:
+            pass
         return None
 
     try:
         messages = [{"role": "user", "content": prompt}]
         result = _call(messages)
         if result:
-            total_len = sum(len(s) for s in result)
-            if total_len < min_total:
-                short_segs = [
-                    f"第{i+1}段（{_FLOOR_ZH[active_groups[i][0]]}）：你写了{len(result[i])}字，要求{seg_targets[active_groups[i][0]]}字"
-                    for i in range(len(result))
-                    if len(result[i]) < seg_targets[active_groups[i][0]] - 10
-                ]
+            # Check each segment; retry with specific feedback if any segment is short
+            short_segs = [
+                f"【{_FLOOR_ZH[active_groups[i][0]]}】要求{seg_targets[active_groups[i][0]]}字，你写了{len(result[i])}字，差{seg_targets[active_groups[i][0]] - len(result[i])}字，请扩充这段"
+                for i in range(len(result))
+                if len(result[i]) < seg_targets[active_groups[i][0]] - 10
+            ]
+            if short_segs:
+                feedback = "\n".join(short_segs)
                 messages += [
                     {"role": "assistant", "content": _json.dumps(result, ensure_ascii=False)},
-                    {"role": "user", "content": f"字数不够，问题段落：\n" + "\n".join(short_segs) + f"\n\n请对这些段落补充细节直到达到规定字数，重新输出完整JSON数组。"},
+                    {"role": "user", "content": f"字数不达标，需要修改：\n{feedback}\n\n重新输出完整JSON数组，确保每段字数达标。"},
                 ]
                 retry = _call(messages)
-                if retry and sum(len(s) for s in retry) >= min_total:
+                if retry:
                     result = retry
-            return result
+        return result
     except Exception as e:
         print(f"[XHS] Floor narration generation failed: {e}")
     return None
