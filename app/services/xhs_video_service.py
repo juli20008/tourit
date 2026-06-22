@@ -636,15 +636,38 @@ Listing描述（以下内容全部要在口播中提到）：
         result = _call_api(messages)
         if not result:
             return None
-        # If too short, ask to expand
+
+        # Pass 2: retry with deficit
         if len(result) < min_chars:
+            deficit = min_chars - len(result)
             messages += [
                 {"role": "assistant", "content": result},
-                {"role": "user", "content": f"字数不够，你只写了{len(result)}字，要求{min_chars}到{max_chars}字。请继续补充每个空间的细节，直到达到字数要求，只输出完整的重写版本。"},
+                {"role": "user", "content": f"字数不够，你只写了{len(result)}字，要求{min_chars}到{max_chars}字，还差{deficit}字。请重写，每个空间多展开细节，只输出完整口播正文。"},
             ]
             expanded = _call_api(messages)
-            if expanded and len(expanded) >= min_chars:
+            if expanded:
                 result = expanded
+
+        # Pass 3: force-append if still short
+        if len(result) < min_chars:
+            deficit = min_chars - len(result)
+            pad_resp = requests.post(
+                "https://api.deepseek.com/v1/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={
+                    "model": "deepseek-chat",
+                    "max_tokens": deficit + 100,
+                    "messages": [{"role": "user", "content":
+                        f"以下是看房视频口播，还差{deficit}个字没写完。请直接续写{deficit}字左右（不要重复，不要加标题，直接续写正文）：\n\n{result}"
+                    }],
+                },
+                timeout=30,
+            )
+            if pad_resp.ok:
+                extra = pad_resp.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+                if extra:
+                    result = result + extra
+
         return result
     except Exception:
         pass
@@ -823,25 +846,64 @@ Listing描述（每一条细节都要出现在口播里）：
             pass
         return None
 
+    def _short_segs(result):
+        return [
+            (i, _FLOOR_ZH[active_groups[i][0]], seg_targets[active_groups[i][0]], len(result[i]))
+            for i in range(len(result))
+            if len(result[i]) < seg_targets[active_groups[i][0]] - 10
+        ]
+
+    def _pad_segments(result):
+        """Force-pad any segment that's still short by appending more detail sentences."""
+        padded = list(result)
+        for i, floor_zh, target, actual in _short_segs(result):
+            deficit = target - actual
+            floor = active_groups[i][0]
+            # Ask AI to write only the missing portion for this segment
+            pad_resp = requests.post(
+                "https://api.deepseek.com/v1/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={
+                    "model": "deepseek-chat",
+                    "max_tokens": deficit + 100,
+                    "messages": [{"role": "user", "content":
+                        f"以下是看房视频【{floor_zh}】段落，还差{deficit}个字没写完。"
+                        f"请继续补充{deficit}字左右的内容（不要重复已有内容，直接续写，不要加任何标题或前缀）：\n\n{padded[i]}"
+                    }],
+                },
+                timeout=30,
+            )
+            if pad_resp.ok:
+                extra = pad_resp.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+                if extra:
+                    padded[i] = padded[i] + extra
+        return padded
+
     try:
         messages = [{"role": "user", "content": prompt}]
         result = _call(messages)
-        if result:
-            # Check each segment; retry with specific feedback if any segment is short
-            short_segs = [
-                f"【{_FLOOR_ZH[active_groups[i][0]]}】要求{seg_targets[active_groups[i][0]]}字，你写了{len(result[i])}字，差{seg_targets[active_groups[i][0]] - len(result[i])}字，请扩充这段"
-                for i in range(len(result))
-                if len(result[i]) < seg_targets[active_groups[i][0]] - 10
+        if not result:
+            return None
+
+        # Pass 2: targeted retry with exact deficit per segment
+        shorts = _short_segs(result)
+        if shorts:
+            feedback = "\n".join(
+                f"【{zh}】要求{target}字，你写了{actual}字，必须再补{target - actual}字"
+                for _, zh, target, actual in shorts
+            )
+            messages += [
+                {"role": "assistant", "content": _json.dumps(result, ensure_ascii=False)},
+                {"role": "user", "content": f"以下段落字数不足，请重写这些段落使其达标：\n{feedback}\n\n重新输出完整JSON数组。"},
             ]
-            if short_segs:
-                feedback = "\n".join(short_segs)
-                messages += [
-                    {"role": "assistant", "content": _json.dumps(result, ensure_ascii=False)},
-                    {"role": "user", "content": f"字数不达标，需要修改：\n{feedback}\n\n重新输出完整JSON数组，确保每段字数达标。"},
-                ]
-                retry = _call(messages)
-                if retry:
-                    result = retry
+            retry = _call(messages)
+            if retry:
+                result = retry
+
+        # Pass 3: force-pad any segment still short after retry
+        if _short_segs(result):
+            result = _pad_segments(result)
+
         return result
     except Exception as e:
         print(f"[XHS] Floor narration generation failed: {e}")
