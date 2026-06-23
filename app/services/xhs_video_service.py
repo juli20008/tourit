@@ -682,8 +682,7 @@ Listing描述（必须全部提到）：
         result = resp.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
         if not result:
             return None
-        # Python enforces the length
-        result = _trim_to_target(result, target_chars)
+        # Only pad if short; description content is never trimmed
         result = _pad_to_target(result, target_chars, api_key=api_key)
         return result
     except Exception:
@@ -822,27 +821,30 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
         if hints:
             cover_hints = f"\n封面关键词（第一段开头自然融入）：{'、'.join(hints)}"
 
-    prompt = f"""你是加拿大华人房产经纪，录制看房视频分段口播，合计约{total_target}字。
+    prompt = f"""你是加拿大华人房产经纪，录制看房视频分段口播。
 
-【核心原则】
-1. 优先把Listing描述里的每一句话都口语化说出来，按空间分配到各段，一条都不能漏。
-2. 说完所有描述内容后，若某段字数还不足目标，在该段补充自然的空间感受描述。
-3. 若某段描述内容超出段落目标字数，在句子结束处截断，剩余内容移到下一相关段。
+你的任务是【改写】，不是【创作】：把listing描述里的每一个信息点都改成口语说出来，按空间区域分配到对应段落。不允许省略任何一条信息。
 
-各段目标字数（严格遵守）：
+各段空间与最低字数：
 {seg_lines}
+（如果某段listing描述内容本身超过目标字数，保留全部内容，字数跟着内容走）
 
 房源：{listing_data.get('neighborhood') or listing_data.get('city', '')}，{prop_style}，{beds_detail}{f'，{sqft}平方英尺' if sqft else ''}
 
-Listing描述原文（每一条必须出现在某一段中）：
-{desc or '暂无'}{cover_hints}
+===== Listing描述（以下每一个信息点都必须出现在某一段中，不能遗漏，不能合并省略）=====
+{desc or '暂无'}
+====={cover_hints}
+
+分配规则（按信息内容判断放哪段，不一定按描述顺序）：
+- 室外相关→室外段，主层客厅厨房餐厅→主层段，卧室浴室→上层段，地下室→地下室段
+- 学区/交通/费用等放在最相关或最后一段
 
 其他要求：
 - 第一段第一句报基本信息：几室几卫、面积
-- 语气口语自然，像带朋友看房
+- 口语自然，像给朋友介绍房子，不要书面语
+- 地产行话一律用日常口语替换
 - 最后一段末尾说值不值得来看
-- 把listing描述里的地产行话改成普通人听得懂的口语（例："动线流畅"→"从厨房到餐厅很顺手"，"坐北朝南"→"正南朝向，阳光很好"，"功能分区"→"各个房间各有用途"）
-- 禁止："大家好""今天带大家""空间宽敞""采光好""布局合理""性价比高""动线""功能分区""坐北朝南""尊贵""奢华"
+- 禁止："大家好""今天带大家""空间宽敞""采光好""布局合理""性价比高""动线""功能分区""坐北朝南""尊贵""奢华""格局"
 - 不要提地址、价格、门牌号
 
 只输出JSON数组，长度={len(active_groups)}，每个元素是对应段落的字符串。"""
@@ -892,11 +894,10 @@ Listing描述原文（每一条必须出现在某一段中）：
             if retry:
                 result = retry
 
-        # Python enforces every segment to target±20
+        # Only pad if under target; never trim (description content must be preserved in full)
         for i, (floor, _) in enumerate(active_groups):
             target = seg_targets[floor]
             floor_zh = _FLOOR_ZH[floor]
-            result[i] = _trim_to_target(result[i], target)
             result[i] = _pad_to_target(result[i], target, api_key=api_key,
                                        context_hint=f"【{floor_zh}】段落")
 
