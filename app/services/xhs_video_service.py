@@ -603,8 +603,8 @@ def _pad_to_target(text, target, tolerance=20, api_key="", context_hint=""):
                 "model": "deepseek-chat",
                 "max_tokens": deficit + 80,
                 "messages": [{"role": "user", "content":
-                    f"以下是看房视频口播{context_hint}，还差约{deficit}字。"
-                    f"请直接续写（不要重复已有内容，不要加标题，直接接着写）：\n\n{text}"
+                    f"以下是看房视频口播{context_hint}，还差约{deficit}字才到目标字数。"
+                    f"请直接续写该空间的具体细节描述（不要重复已有内容，不要加标题，用普通日常口语，直接接着写）：\n\n{text}"
                 }],
             },
             timeout=30,
@@ -650,22 +650,23 @@ def _generate_narration(listing_data, cover_lines=None, photo_count=30):
             cover_hints = f"\n封面关键词（开头前两句内自然融入）：{'、'.join(hints)}"
             cover_opener = f"\n- 开头前两句自然点出封面关键词：{'、'.join(hints)}"
 
-    prompt = f"""你是加拿大华人房产经纪，正在录制看房视频口播，目标约{target_chars}字。
+    prompt = f"""你是加拿大华人房产经纪，录制看房视频口播。
+
+【第一步】把下面的Listing描述里每一句话都口语化说出来，逐条提到，不能遗漏任何细节。
+【第二步】说完所有描述内容后，如果字数还没到{target_chars}字，再自然补充一些对该房源空间感受的描述，凑够{target_chars}字左右。
+【第三步】如果描述内容本身已超过{target_chars}字，在合适的句子结束处截断。
 
 房源：{listing_data.get('neighborhood') or listing_data.get('city', '')}，{style}，{beds_detail}{f'，{sqft}平方英尺' if sqft else ''}
-Listing描述（以下内容全部要在口播中提到）：
+Listing描述（必须全部提到）：
 {desc if desc else '暂无'}{cover_hints}
 
-结构要求：
+格式要求：
 - 第一句报基本信息：几室几卫、面积{cover_opener}
-- 室外/入门：两句话
-- 主层（客厅/厨房/餐厅）：展开说，把描述里的细节都提到
-- 卧室层：展开说
-- 地下室：展开说
-- 最后一句：值不值得来看
-
-禁止词："大家好""今天带大家""空间宽敞""采光好""布局合理""性价比高"
-不要提地址、价格、门牌号
+- 语气自然口语化，像带朋友看房
+- 最后一句说值不值得来看
+- 用普通日常口语表达，地产行话一律改掉，听众是普通买家不是专业人士
+- 禁止词："大家好""今天带大家""空间宽敞""采光好""布局合理""性价比高""动线""功能分区""坐北朝南""尊贵""奢华""格局"
+- 不要提地址、价格、门牌号
 只输出口播正文"""
 
     try:
@@ -821,21 +822,27 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
         if hints:
             cover_hints = f"\n封面关键词（第一段开头自然融入）：{'、'.join(hints)}"
 
-    prompt = f"""你是加拿大华人房产经纪，正在录制看房视频分段口播，合计约{total_target}字。
+    prompt = f"""你是加拿大华人房产经纪，录制看房视频分段口播，合计约{total_target}字。
 
-各段参考字数：
+【核心原则】
+1. 优先把Listing描述里的每一句话都口语化说出来，按空间分配到各段，一条都不能漏。
+2. 说完所有描述内容后，若某段字数还不足目标，在该段补充自然的空间感受描述。
+3. 若某段描述内容超出段落目标字数，在句子结束处截断，剩余内容移到下一相关段。
+
+各段目标字数（严格遵守）：
 {seg_lines}
 
 房源：{listing_data.get('neighborhood') or listing_data.get('city', '')}，{prop_style}，{beds_detail}{f'，{sqft}平方英尺' if sqft else ''}
-Listing描述（每一条细节都要出现在口播里）：
+
+Listing描述原文（每一条必须出现在某一段中）：
 {desc or '暂无'}{cover_hints}
 
-写作要求：
+其他要求：
 - 第一段第一句报基本信息：几室几卫、面积
-- 各段按对应空间展开介绍，把listing描述里所有细节都用上
-- 语气自然像带朋友看房，真实具体
-- 最后一段末尾说一句值不值得来看
-- 禁止："大家好""今天带大家""空间宽敞""采光好""布局合理""性价比高"
+- 语气口语自然，像带朋友看房
+- 最后一段末尾说值不值得来看
+- 把listing描述里的地产行话改成普通人听得懂的口语（例："动线流畅"→"从厨房到餐厅很顺手"，"坐北朝南"→"正南朝向，阳光很好"，"功能分区"→"各个房间各有用途"）
+- 禁止："大家好""今天带大家""空间宽敞""采光好""布局合理""性价比高""动线""功能分区""坐北朝南""尊贵""奢华"
 - 不要提地址、价格、门牌号
 
 只输出JSON数组，长度={len(active_groups)}，每个元素是对应段落的字符串。"""
@@ -1129,14 +1136,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                     intro_clip_path = None
                     intro_audio_path = None
 
-            if not intro_clip_path:
-                # Fall back to static cover slide (dark background + text)
-                cover_path = os.path.join(tmpdir, "cover.png")
-                _generate_cover(cover_lines[0], cover_lines[1], cover_lines[2], cover_path)
-                if os.path.exists(cover_path):
-                    cover_clip_path = os.path.join(clips_dir, "clip_cover.mp4")
-                    _make_clip(ffmpeg, ffprobe, cover_path, cover_clip_path)
-                    intro_clip_path = cover_clip_path
+            # No intro provided — start directly with photos (no dark cover slide)
 
             # ── Generate composite cover image (property photo + agent cutout + text)
             # Uploaded to R2 as a separate asset — NOT inserted into the video timeline.
