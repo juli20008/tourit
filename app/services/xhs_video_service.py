@@ -652,9 +652,9 @@ def _generate_narration(listing_data, cover_lines=None, photo_count=30):
 
     prompt = f"""你是加拿大华人房产经纪，录制看房视频口播。
 
-【第一步】把下面的Listing描述里每一句话都口语化说出来，逐条提到，不能遗漏任何细节。
-【第二步】说完所有描述内容后，如果字数还没到{target_chars}字，再自然补充一些对该房源空间感受的描述，凑够{target_chars}字左右。
-【第三步】如果描述内容本身已超过{target_chars}字，在合适的句子结束处截断。
+目标字数：约{target_chars}字。
+- 描述内容不足{target_chars}字：把描述全部说出来，再自然补充到目标字数
+- 描述内容超过{target_chars}字：用简洁口语把所有要点都提到，控制在{target_chars}字内
 
 房源：{listing_data.get('neighborhood') or listing_data.get('city', '')}，{style}，{beds_detail}{f'，{sqft}平方英尺' if sqft else ''}
 Listing描述（必须全部提到）：
@@ -682,7 +682,8 @@ Listing描述（必须全部提到）：
         result = resp.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
         if not result:
             return None
-        # Only pad if short; description content is never trimmed
+        # Enforce target±20: trim if over, pad if under
+        result = _trim_to_target(result, target_chars)
         result = _pad_to_target(result, target_chars, api_key=api_key)
         return result
     except Exception:
@@ -825,9 +826,10 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
 
 你的任务是【改写】，不是【创作】：把listing描述里的每一个信息点都改成口语说出来，按空间区域分配到对应段落。不允许省略任何一条信息。
 
-各段空间与最低字数：
+各段空间与目标字数：
 {seg_lines}
-（如果某段listing描述内容本身超过目标字数，保留全部内容，字数跟着内容走）
+- 描述内容不足目标字数：把描述说完后自然补充到目标字数
+- 描述内容超过目标字数：用简洁口语把所有要点都提到，控制在目标字数内
 
 房源：{listing_data.get('neighborhood') or listing_data.get('city', '')}，{prop_style}，{beds_detail}{f'，{sqft}平方英尺' if sqft else ''}
 
@@ -894,10 +896,11 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
             if retry:
                 result = retry
 
-        # Only pad if under target; never trim (description content must be preserved in full)
+        # Enforce target±20 per segment: trim if over, pad if under
         for i, (floor, _) in enumerate(active_groups):
             target = seg_targets[floor]
             floor_zh = _FLOOR_ZH[floor]
+            result[i] = _trim_to_target(result[i], target)
             result[i] = _pad_to_target(result[i], target, api_key=api_key,
                                        context_hint=f"【{floor_zh}】段落")
 
