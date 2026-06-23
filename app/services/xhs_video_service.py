@@ -261,6 +261,21 @@ def _generate_composite_cover(ffmpeg, intro_path, photo_path, line1, line2, line
                 target_w = OUTPUT_W
                 target_h = int(ph * target_w / pw)
             person_rgba = person_rgba.resize((target_w, target_h), Image.LANCZOS)
+
+            # White stroke around person (自媒体白边效果)
+            import numpy as _np
+            from scipy.ndimage import binary_dilation as _dilate
+            _a = _np.array(person_rgba.split()[3])
+            _r = 12
+            _yi, _xi = _np.ogrid[-_r:_r+1, -_r:_r+1]
+            _struct = _xi**2 + _yi**2 <= _r**2
+            _dilated = _dilate(_a > 30, structure=_struct)
+            _stroke = _np.zeros((*_a.shape, 4), dtype=_np.uint8)
+            _stroke[_dilated] = [255, 255, 255, 255]
+            person_rgba = Image.alpha_composite(
+                Image.fromarray(_stroke, "RGBA"), person_rgba
+            )
+
             px = (OUTPUT_W - target_w) // 2
             py = OUTPUT_H - target_h
             canvas.paste(person_rgba, (px, py), person_rgba)
