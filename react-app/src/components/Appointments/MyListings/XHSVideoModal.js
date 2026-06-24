@@ -511,6 +511,29 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 									{narrationDraft.length} 字 · 预计展示 ~{Math.min(50, estimatePhotos(narrationDraft))} 张照片
 								</span>
 							</div>
+							{/* Per-layer photo estimate — updates as user types */}
+							{(() => {
+								const sections = narrationDraft.split(/---/).map(s => s.trim()).filter(Boolean);
+								if (sections.length <= 1) return null;
+								return (
+									<div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
+										{sections.map((sec, i) => {
+											const m = sec.match(/【([^】]+)】/);
+											const label = m ? m[1] : `段${i + 1}`;
+											const photos = estimatePhotos(sec);
+											return (
+												<span key={i} style={{
+													fontSize: "0.72rem", background: "#f1f5f9",
+													color: "#475569", padding: "2px 10px", borderRadius: 99,
+													border: "1px solid #e2e8f0",
+												}}>
+													【{label}】~{photos} 张
+												</span>
+											);
+										})}
+									</div>
+								);
+							})()}
 							<p style={{ color: "#64748b", fontSize: "0.75rem", margin: "0 0 8px" }}>
 								可直接编辑。【室外】【主层】【上层】【地下室】是分区标记，用 --- 分隔，每区单独配音，照片时长自动匹配。
 							</p>
