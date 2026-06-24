@@ -700,6 +700,7 @@ Listing描述（必须全部提到）：
         # Enforce target±20: trim if over, pad if under
         result = _trim_to_target(result, target_chars)
         result = _pad_to_target(result, target_chars, api_key=api_key)
+        result = result.replace("动线", "衔接")
         return result
     except Exception:
         pass
@@ -918,6 +919,7 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
             result[i] = _trim_to_target(result[i], target)
             result[i] = _pad_to_target(result[i], target, api_key=api_key,
                                        context_hint=f"【{floor_zh}】段落")
+            result[i] = result[i].replace("动线", "衔接")
 
         return result
     except Exception as e:
