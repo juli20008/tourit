@@ -3,6 +3,10 @@ import ReactDOM from "react-dom";
 import apiFetch from "../../../utils/apiFetch";
 
 const POLL_MS = 2500;
+
+// iOS Safari ignores `download` on cross-origin links — proxy through our API instead
+const dlUrl = (url, name) =>
+	`${process.env.REACT_APP_API_URL || ''}/api/xhs/download?url=${encodeURIComponent(url)}&name=${encodeURIComponent(name)}`;
 const MAX_INTRO_MB = 500;
 const MAX_INTRO_SECS = 300; // 5 minutes — no practical cap on recording
 
@@ -588,7 +592,7 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 						<p style={{ fontWeight: 600, marginBottom: 16 }}>视频已生成！/ Video ready!</p>
 						<video src={videoUrl} controls
 							style={{ width: "100%", borderRadius: 8, marginBottom: 12 }} />
-						<a href={videoUrl} download className="btn"
+						<a href={dlUrl(videoUrl, 'video.mp4')} className="btn"
 							style={{ display: "inline-block", textDecoration: "none", marginBottom: coverUrl ? 20 : 0 }}>
 							下载视频 Download Video
 						</a>
@@ -599,7 +603,7 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 								</p>
 								<img src={coverUrl} alt="cover"
 									style={{ width: "100%", borderRadius: 8, marginBottom: 10 }} />
-								<a href={coverUrl} download className="btn"
+								<a href={dlUrl(coverUrl, 'cover.jpg')} className="btn"
 									style={{ display: "inline-block", textDecoration: "none", background: "#f1f5f9", color: "#0f172a" }}>
 									下载封面 Download Cover
 								</a>

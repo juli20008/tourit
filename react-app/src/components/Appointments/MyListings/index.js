@@ -52,8 +52,7 @@ const ListingCard = ({ listing, existingVideo, onVideoGenerated }) => {
 							✓ 视频保存中 · 剩余 {daysLeft(existingVideo.expires_at)} 天
 						</span>
 						<a
-							href={existingVideo.video_url}
-							download
+							href={`${process.env.REACT_APP_API_URL || ''}/api/xhs/download?url=${encodeURIComponent(existingVideo.video_url)}&name=video.mp4`}
 							className="btn btn-sm"
 							style={{ fontSize: "0.75rem", textDecoration: "none" }}
 						>

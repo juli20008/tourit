@@ -669,6 +669,48 @@ def get_video_status(job_id):
     return jsonify({k: v for k, v in job.items() if k != 'ts'})
 
 
+@xhs_routes.route('/download', methods=['GET'])
+def proxy_download():
+    """
+    Proxy-download a file from R2 so iOS Safari gets Content-Disposition: attachment.
+    iOS ignores the HTML `download` attribute on cross-origin URLs, but respects
+    the header when the response comes from the same origin (api.tourit.ca).
+    """
+    from flask import Response, stream_with_context
+    from urllib.parse import urlparse
+
+    url  = request.args.get('url', '').strip()
+    name = request.args.get('name', 'video.mp4').strip()
+
+    if not url:
+        return jsonify({'error': 'missing url'}), 400
+
+    # Security: only proxy URLs from our own storage domains
+    allowed_hosts = {'media.tourit.ca', 'pub-'}
+    parsed = urlparse(url)
+    host = parsed.netloc
+    if not (host == 'media.tourit.ca' or host.endswith('.r2.dev') or host.endswith('.r2.cloudflarestorage.com')):
+        return jsonify({'error': 'forbidden'}), 403
+
+    try:
+        r = requests.get(url, stream=True, timeout=60)
+        r.raise_for_status()
+    except Exception as e:
+        return jsonify({'error': str(e)}), 502
+
+    content_type = r.headers.get('Content-Type', 'application/octet-stream')
+
+    def generate():
+        for chunk in r.iter_content(chunk_size=65536):
+            if chunk:
+                yield chunk
+
+    resp = Response(stream_with_context(generate()), content_type=content_type)
+    resp.headers['Content-Disposition'] = f'attachment; filename="{name}"'
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
+
+
 @xhs_routes.route('/test-tts', methods=['GET'])
 def test_tts_models():
     """Dev helper: probe MiniMax TTS connectivity."""

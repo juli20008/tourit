@@ -357,11 +357,11 @@ const NewHomeVideo = () => {
 					)}
 					<div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
 						{videoUrl && (
-							<a href={videoUrl} download target="_blank" rel="noopener noreferrer"
+							<a href={`${process.env.REACT_APP_API_URL || ''}/api/xhs/download?url=${encodeURIComponent(videoUrl)}&name=video.mp4`}
 								className="btn btn-sm" style={{ textDecoration: "none" }}>⬇ 下载视频</a>
 						)}
 						{coverUrl && (
-							<a href={coverUrl} download target="_blank" rel="noopener noreferrer"
+							<a href={`${process.env.REACT_APP_API_URL || ''}/api/xhs/download?url=${encodeURIComponent(coverUrl)}&name=cover.jpg`}
 								className="btn btn-sm" style={{ background: "#7c3aed", borderColor: "#7c3aed", textDecoration: "none" }}>⬇ 下载封面</a>
 						)}
 					</div>
