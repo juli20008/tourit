@@ -668,7 +668,8 @@ def _generate_narration(listing_data, cover_lines=None, photo_count=30):
     prompt = f"""你是加拿大华人房产经纪，录制看房视频口播。
 
 目标字数：约{target_chars}字。
-- 描述内容不足{target_chars}字：把描述全部说出来，再自然补充到目标字数
+- 只说listing里有的内容，严禁编造任何listing没提到的细节（例如储物间、阁楼、壁炉等）
+- 描述内容不足{target_chars}字：把描述全部说出来，剩余字数用邀请来看房的话自然收尾
 - 描述内容超过{target_chars}字：用简洁口语把所有要点都提到，控制在{target_chars}字内
 
 房源：{listing_data.get('neighborhood') or listing_data.get('city', '')}，{style}，{beds_detail}{f'，{sqft}平方英尺' if sqft else ''}
@@ -844,7 +845,8 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
 
 各段空间与目标字数：
 {seg_lines}
-- 描述内容不足目标字数：把描述说完后自然补充到目标字数
+- 只说listing里有的内容，严禁编造任何listing没提到的细节（例如储物间、阁楼、壁炉等）
+- 描述内容不足目标字数：把描述说完后，剩余字数用邀请来看房的话自然收尾，不要发明新细节
 - 描述内容超过目标字数：用简洁口语把所有要点都提到，控制在目标字数内
 
 房源：{listing_data.get('neighborhood') or listing_data.get('city', '')}，{prop_style}，{beds_detail}{f'，{sqft}平方英尺' if sqft else ''}
@@ -1452,11 +1454,14 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
             # Pad audio with silence so all photos + team photo + outro play fully.
             # whole_dur=600 ensures audio is always longer than the video; -shortest
             # in the final mux trims it to exact video length.
+            # When there's no intro video, prepend 0.8 s of silence so the first
+            # sentence isn't heard before the viewer has settled.
+            lead_silence = "" if intro_audio_path else "adelay=800|800,"
             padded_audio_path = os.path.join(tmpdir, "padded_audio.aac")
             try:
                 subprocess.run(
                     [ffmpeg, "-y", "-i", final_audio_path,
-                     "-af", "loudnorm=I=-6:LRA=7:TP=-0.5,apad=whole_dur=600",
+                     "-af", f"{lead_silence}loudnorm=I=-6:LRA=7:TP=-0.5,apad=whole_dur=600",
                      "-c:a", "aac", "-threads", "1", padded_audio_path],
                     timeout=120,
 
