@@ -179,7 +179,76 @@ class MlsListing(db.Model):
         from sqlalchemy import and_
         return and_(cls.has_photos_filter(), cls.is_active_filter())
     agent_email = db.Column(db.String(255))
+    agent_phone = db.Column(db.String(50), nullable=True)
     brokerage = db.Column(db.String(200))
+
+    # Systems
+    cooling          = db.Column(db.String(100), nullable=True)
+    heating          = db.Column(db.String(100), nullable=True)
+    heating_source   = db.Column(db.String(100), nullable=True)
+    water            = db.Column(db.String(100), nullable=True)
+    sewers           = db.Column(db.String(100), nullable=True)
+    pool             = db.Column(db.String(100), nullable=True)
+    basement         = db.Column(db.String(200), nullable=True)
+    exterior         = db.Column(db.String(200), nullable=True)
+    roof             = db.Column(db.String(100), nullable=True)
+    foundation       = db.Column(db.String(100), nullable=True)
+
+    # Parking / lot
+    parking_total        = db.Column(db.Integer, nullable=True)
+    garage_yn            = db.Column(db.Boolean, nullable=True)
+    garage_type          = db.Column(db.String(100), nullable=True)
+    garage_spaces        = db.Column(db.Integer, nullable=True)
+    drive_type           = db.Column(db.String(100), nullable=True)
+    parking_drive_spaces = db.Column(db.Integer, nullable=True)
+    fronting_on          = db.Column(db.String(50), nullable=True)
+    approx_age           = db.Column(db.String(50), nullable=True)
+
+    # Size / rooms
+    above_grade_sqft = db.Column(db.String(20), nullable=True)
+    rooms            = db.Column(db.Integer, nullable=True)
+    kitchens         = db.Column(db.Integer, nullable=True)
+    dom              = db.Column(db.Integer, nullable=True)
+
+    # Location extras
+    municipality = db.Column(db.String(100), nullable=True)
+    area         = db.Column(db.String(100), nullable=True)
+    cross_street = db.Column(db.String(200), nullable=True)
+    directions   = db.Column(db.Text, nullable=True)
+
+    # Features / remarks
+    features             = db.Column(db.Text, nullable=True)
+    interior_features    = db.Column(db.Text, nullable=True)
+    building_features    = db.Column(db.Text, nullable=True)
+    included_items       = db.Column(db.Text, nullable=True)
+    exclusions           = db.Column(db.Text, nullable=True)
+    rental_items         = db.Column(db.Text, nullable=True)
+    showing_requirements = db.Column(db.Text, nullable=True)
+    special_designations = db.Column(db.Text, nullable=True)
+    brokerage_remarks    = db.Column(db.Text, nullable=True)
+    room_info            = db.Column(db.Text, nullable=True)
+    washroom_info        = db.Column(db.Text, nullable=True)
+
+    # Listing contract
+    taxes              = db.Column(db.String(100), nullable=True)
+    tax_year           = db.Column(db.String(10), nullable=True)
+    pin                = db.Column(db.String(50), nullable=True)
+    legal_description  = db.Column(db.Text, nullable=True)
+    possession_remarks = db.Column(db.Text, nullable=True)
+    possession_type    = db.Column(db.String(100), nullable=True)
+    occupancy          = db.Column(db.String(100), nullable=True)
+    commission         = db.Column(db.String(100), nullable=True)
+    holdover           = db.Column(db.String(100), nullable=True)
+    expiry_date        = db.Column(db.String(30), nullable=True)
+    last_update_date   = db.Column(db.String(30), nullable=True)
+    hst_applicable     = db.Column(db.String(10), nullable=True)
+    sale_type          = db.Column(db.String(50), nullable=True)
+
+    # Photos
+    primary_photo_url = db.Column(db.Text, nullable=True)
+
+    # Scrape metadata
+    scraped_at = db.Column(db.String(50), nullable=True)
 
     last_seen_at = db.Column(db.DateTime, nullable=True)
 

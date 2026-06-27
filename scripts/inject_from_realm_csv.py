@@ -35,7 +35,7 @@ load_env(os.path.join(os.path.dirname(__file__), '..', '.env.local'))
 NEON_URL = (
     os.environ.get('NEON_DATABASE_URL') or
     os.environ.get('DATABASE_URL') or
-    "postgresql://neondb_owner:npg_jcMeU1KQ5FGo@ep-floral-hat-aqals0gl.c-8.us-east-1.aws.neon.tech/neondb?sslmode=require"
+    "postgresql://neondb_owner:npg_b6lcC0BeaRxn@ep-lucky-wildflower-at0z2w6v.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require"
 )
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -135,6 +135,18 @@ def collect_photos(row):
 
 # ── Mapping ───────────────────────────────────────────────────────────────────
 
+def collect_washroom_info(row):
+    """Collect washroomInfo_N_* into a JSON string."""
+    rooms = []
+    for i in range(1, 10):
+        pieces = clean(row.get(f'washroomInfo_{i}_pieces'))
+        level  = clean(row.get(f'washroomInfo_{i}_level'))
+        count  = clean(row.get(f'washroomInfo_{i}_of_washrooms'))
+        if not any([pieces, level, count]):
+            break
+        rooms.append({'count': count, 'pieces': pieces, 'level': level})
+    return json.dumps(rooms, ensure_ascii=False) if rooms else None
+
 def map_row(row):
     mls = clean(row.get('listingId') or row.get('mlsId') or row.get('mlsNumber'))
     if not mls:
@@ -164,60 +176,142 @@ def map_row(row):
     photos = collect_photos(row)
 
     return {
-        'mls_number':       mls,
-        'external_id':      mls,
-        'status':           'A',        # always Active
-        'standard_status':  'Active',   # always Active
-        'transaction_type': transaction_type,
-        'property_type':    property_type,
-        'category':         category,
-        'list_price':       to_price(row.get('listingInfo_list') or row.get('price') or row.get('summaryPrice')),
-        'original_price':   to_price(row.get('listingInfo_original_list')),
-        'list_date':        parse_date(row.get('listingInfo_contract_date')),
-        'last_status':      clean(row.get('listingInfo_status')),
-        'street_number':    street_num,
-        'street_name':      street_name,
-        'street_suffix':    street_suffix,
-        'unit_number':      None,
-        'city':             city,
-        'state':            'Ontario',
-        'zip':              postal,
-        'country':          'Canada',
-        'neighborhood':     clean(row.get('propertyInfo_community')),
-        'lat':              to_float(row.get('latitude')),
-        'lng':              to_float(row.get('longitude')),
-        'bed':              beds_above,
-        'bath':             to_int(row.get('propertyInfo_washrooms') or row.get('baths')),
-        'beds_above_grade': beds_above,
-        'basement_beds':    basement_beds,
-        'sqft':             clean(row.get('propertyInfo_square_feet') or row.get('squareFeet')),
-        'description':      clean(row.get('clientRemarks')),
-        'agent_name':       clean(row.get('listingAgentName')),
-        'agent_email':      clean(row.get('listingAgentEmail')),
-        'brokerage':        clean(row.get('listingBrokerageName')),
-        'cooling':          clean(row.get('propertyInfo_a_c')),
-        'heating':          clean(row.get('propertyInfo_heating_type')),
-        'parking_total':    to_int(row.get('propertyInfo_total_parking_spaces')),
-        'garage_yn':        bool(clean(row.get('propertyInfo_garage_type'))),
-        'lot_frontage':     clean(row.get('propertyInfo_lot_size')),
-        'photos_count':     len(photos),
-        'images':           photos,
-        'created_at':       datetime.now(timezone.utc).isoformat(),
-        'updated_at':       datetime.now(timezone.utc).isoformat(),
-        'last_seen_at':     datetime.now(timezone.utc).isoformat(),
+        # ── Core ─────────────────────────────────────────────────────────────
+        'mls_number':           mls,
+        'external_id':          mls,
+        'status':               'A',
+        'standard_status':      'Active',
+        'transaction_type':     transaction_type,
+        'property_type':        property_type,
+        'category':             category,
+        'list_price':           to_price(row.get('listingInfo_list') or row.get('price') or row.get('summaryPrice')),
+        'original_price':       to_price(row.get('listingInfo_original_list')),
+        'list_date':            parse_date(row.get('listingInfo_contract_date')),
+        'last_status':          clean(row.get('listingInfo_status')),
+        # ── Address ──────────────────────────────────────────────────────────
+        'street_number':        street_num,
+        'street_name':          street_name,
+        'street_suffix':        street_suffix,
+        'unit_number':          clean(row.get('addressLine2')),
+        'city':                 city,
+        'state':                'Ontario',
+        'zip':                  postal,
+        'country':              'Canada',
+        'neighborhood':         clean(row.get('propertyInfo_community')),
+        'municipality':         clean(row.get('propertyInfo_municipality')),
+        'area':                 clean(row.get('propertyInfo_area')),
+        'lat':                  to_float(row.get('latitude')),
+        'lng':                  to_float(row.get('longitude')),
+        'cross_street':         clean(row.get('propertyInfo_dir_cross_st')),
+        'directions':           clean(row.get('propertyInfo_directions')),
+        # ── Beds / baths / size ───────────────────────────────────────────────
+        'bed':                  beds_above,
+        'bath':                 to_int(row.get('propertyInfo_washrooms') or row.get('baths')),
+        'beds_above_grade':     beds_above,
+        'basement_beds':        basement_beds,
+        'sqft':                 clean(row.get('propertyInfo_square_feet') or row.get('squareFeet')),
+        'above_grade_sqft':     clean(row.get('propertyInfo_above_grade_finished_sqft')),
+        'rooms':                to_int(row.get('propertyInfo_rooms')),
+        'kitchens':             to_int(row.get('propertyInfo_kitchens')),
+        'dom':                  to_int(row.get('dom')),
+        # ── Description / remarks ─────────────────────────────────────────────
+        'description':          clean(row.get('clientRemarks')),
+        'brokerage_remarks':    clean(row.get('brokerageRemarks')),
+        'features':             clean(row.get('features')),
+        'interior_features':    clean(row.get('interiorFeatures')),
+        'building_features':    clean(row.get('buildingFeatures')),
+        'included_items':       clean(row.get('included') or row.get('includedItems')),
+        'exclusions':           clean(row.get('exclusions')),
+        'rental_items':         clean(row.get('rentalItems')),
+        'showing_requirements': clean(row.get('showingRequirements')),
+        'special_designations': clean(row.get('specialDesignations')),
+        'room_info':            clean(row.get('roomInfo')),
+        'washroom_info':        collect_washroom_info(row),
+        # ── Agent / brokerage ─────────────────────────────────────────────────
+        'agent_name':           clean(row.get('listingAgentName')),
+        'agent_email':          clean(row.get('listingAgentEmail')),
+        'agent_phone':          clean(row.get('listingAgentPhone')),
+        'brokerage':            clean(row.get('listingBrokerageName')),
+        # ── Systems ──────────────────────────────────────────────────────────
+        'cooling':              clean(row.get('propertyInfo_a_c')),
+        'heating':              clean(row.get('propertyInfo_heating_type')),
+        'heating_source':       clean(row.get('propertyInfo_heating_source')),
+        'water':                clean(row.get('propertyInfo_water')),
+        'sewers':               clean(row.get('propertyInfo_sewers')),
+        'pool':                 clean(row.get('propertyInfo_pool')),
+        'basement':             clean(row.get('propertyInfo_basement')),
+        'exterior':             clean(row.get('propertyInfo_exterior')),
+        'roof':                 clean(row.get('propertyInfo_roof')),
+        'foundation':           clean(row.get('propertyInfo_foundation')),
+        # ── Parking / lot ─────────────────────────────────────────────────────
+        'parking_total':        to_int(row.get('propertyInfo_total_parking_spaces')),
+        'garage_yn':            bool(clean(row.get('propertyInfo_garage_type'))),
+        'garage_type':          clean(row.get('propertyInfo_garage_type')),
+        'garage_spaces':        to_int(row.get('propertyInfo_garage_parking_spaces')),
+        'drive_type':           clean(row.get('propertyInfo_drive')),
+        'parking_drive_spaces': to_int(row.get('propertyInfo_parking_drive_spaces')),
+        'lot_frontage':         clean(row.get('propertyInfo_lot_size')),
+        'fronting_on':          clean(row.get('propertyInfo_fronting_on')),
+        'approx_age':           clean(row.get('propertyInfo_approx_age')),
+        # ── Listing contract info ─────────────────────────────────────────────
+        'taxes':                clean(row.get('listingInfo_taxes')),
+        'tax_year':             clean(row.get('listingInfo_tax_year')),
+        'pin':                  clean(row.get('listingInfo_pin')),
+        'legal_description':    clean(row.get('listingInfo_legal_description')),
+        'possession_remarks':   clean(row.get('listingInfo_possession_remarks')),
+        'possession_type':      clean(row.get('listingInfo_possession_type')),
+        'occupancy':            clean(row.get('listingInfo_occupancy')),
+        'commission':           clean(row.get('listingInfo_commission_co_op_brokerage')),
+        'holdover':             clean(row.get('listingInfo_holdover')),
+        'expiry_date':          clean(row.get('listingInfo_expiry_date')),
+        'last_update_date':     clean(row.get('listingInfo_last_update')),
+        'hst_applicable':       clean(row.get('propertyInfo_hst_applicable_to_sale_price')),
+        'sale_type':            clean(row.get('saleType')),
+        # ── Photos ───────────────────────────────────────────────────────────
+        'photos_count':         len(photos),
+        'images':               photos,
+        'primary_photo_url':    clean(row.get('primaryPhotoUrl')),
+        # ── Metadata ─────────────────────────────────────────────────────────
+        'scraped_at':           clean(row.get('scrapedAt')),
+        'created_at':           datetime.now(timezone.utc).isoformat(),
+        'updated_at':           datetime.now(timezone.utc).isoformat(),
+        'last_seen_at':         datetime.now(timezone.utc).isoformat(),
     }
 
 # ── Neon upsert ───────────────────────────────────────────────────────────────
 
 COLUMNS = [
+    # Core
     'mls_number', 'external_id', 'status', 'standard_status', 'transaction_type',
     'property_type', 'category', 'list_price', 'original_price', 'list_date',
-    'last_status', 'street_number', 'street_name', 'street_suffix', 'unit_number',
-    'city', 'state', 'zip', 'country', 'neighborhood', 'lat', 'lng',
-    'bed', 'bath', 'beds_above_grade', 'basement_beds', 'sqft', 'description',
-    'agent_name', 'agent_email', 'brokerage', 'cooling', 'heating',
-    'parking_total', 'garage_yn', 'lot_frontage', 'photos_count', 'images',
-    'created_at', 'updated_at', 'last_seen_at',
+    'last_status',
+    # Address
+    'street_number', 'street_name', 'street_suffix', 'unit_number',
+    'city', 'state', 'zip', 'country', 'neighborhood', 'municipality', 'area',
+    'lat', 'lng', 'cross_street', 'directions',
+    # Beds / baths / size
+    'bed', 'bath', 'beds_above_grade', 'basement_beds', 'sqft', 'above_grade_sqft',
+    'rooms', 'kitchens', 'dom',
+    # Description / remarks
+    'description', 'brokerage_remarks', 'features', 'interior_features',
+    'building_features', 'included_items', 'exclusions', 'rental_items',
+    'showing_requirements', 'special_designations', 'room_info', 'washroom_info',
+    # Agent / brokerage
+    'agent_name', 'agent_email', 'agent_phone', 'brokerage',
+    # Systems
+    'cooling', 'heating', 'heating_source', 'water', 'sewers', 'pool',
+    'basement', 'exterior', 'roof', 'foundation',
+    # Parking / lot
+    'parking_total', 'garage_yn', 'garage_type', 'garage_spaces',
+    'drive_type', 'parking_drive_spaces', 'lot_frontage', 'fronting_on', 'approx_age',
+    # Listing contract
+    'taxes', 'tax_year', 'pin', 'legal_description', 'possession_remarks',
+    'possession_type', 'occupancy', 'commission', 'holdover',
+    'expiry_date', 'last_update_date', 'hst_applicable', 'sale_type',
+    # Photos
+    'photos_count', 'images', 'primary_photo_url',
+    # Metadata
+    'scraped_at', 'created_at', 'updated_at', 'last_seen_at',
 ]
 
 # created_at should not be overwritten on conflict
