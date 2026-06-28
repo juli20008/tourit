@@ -284,13 +284,19 @@ class MlsListing(db.Model):
         Priority:
         1. Stored images if they contain real (non-sample) URLs.
         2. Dynamically generated Realtor.ca CDN URLs.
-        3. Empty list (fallback; UI should show placeholder).
+        3. primary_photo_url (Realm-imported listings).
+        4. Empty list (fallback; UI should show placeholder).
         """
         stored = self.images or []
         real = [img for img in stored if img and not str(img).startswith('sample/') and 'unsplash.com' not in str(img)]
         if real:
             return real
-        return self.cdn_image_urls
+        cdn = self.cdn_image_urls
+        if cdn:
+            return cdn
+        if self.primary_photo_url:
+            return [self.primary_photo_url]
+        return []
 
     @property
     def front_img(self):
@@ -323,7 +329,10 @@ class MlsListing(db.Model):
         for img in (self.images or []):
             if img and not str(img).startswith('sample/') and 'unsplash.com' not in str(img):
                 return img
-        return _build_cdn_image_url(self.external_id, self.photos_timestamp, 1)
+        cdn = _build_cdn_image_url(self.external_id, self.photos_timestamp, 1)
+        if cdn:
+            return cdn
+        return self.primary_photo_url or None
 
     def _base_frontend_dict(self):
         imgs = self.effective_images
@@ -440,6 +449,7 @@ class MlsListing(db.Model):
             'office':           self.brokerage or '',
             'front_img':        front,
             'image_url':        front,
+            'image_urls':       [front] if front else [],
             'ownership_type':   self.ownership_type or None,
         }
 

@@ -624,6 +624,7 @@ def pin_index():
                 MlsListing.brokerage,
                 MlsListing.external_id,
                 MlsListing.photos_timestamp,
+                MlsListing.primary_photo_url,
             )
             .filter(
                 MlsListing.lat.between(GTA_LAT_MIN, GTA_LAT_MAX),
@@ -638,7 +639,7 @@ def pin_index():
         for r in rows:
             cat    = _determine_category(r.property_class, r.unit_number)
             street = ' '.join(p for p in [r.street_number, r.street_name, r.street_suffix] if p)
-            front  = _build_cdn_image_url(r.external_id, r.photos_timestamp, 1)
+            front  = _build_cdn_image_url(r.external_id, r.photos_timestamp, 1) or r.primary_photo_url
             sqft   = None
             if r.sqft:
                 s = str(r.sqft)
@@ -660,6 +661,7 @@ def pin_index():
                 'street':           street,
                 'city':             r.city or '',
                 'front_img':        front,
+                'image_urls':       [front] if front else [],
                 'status':           r.standard_status or 'Active',
                 'brokerage':        r.brokerage or '',
             })
