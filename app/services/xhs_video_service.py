@@ -807,15 +807,18 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
     if not api_key:
         return None
 
-    baths      = listing_data.get("bath", "?")
+    def _f(key):
+        v = listing_data.get(key)
+        return str(v).strip() if v else ""
+
+    baths      = _f("bath") or "?"
     beds_above = listing_data.get("beds_above_grade")
     bsmt_beds  = listing_data.get("basement_beds")
-    desc       = (listing_data.get("description") or "")[:5000]
-    prop_style = listing_data.get("style") or listing_data.get("property_type") or "住宅"
-    sqft       = listing_data.get("sqft", "")
+    prop_style = _f("style") or _f("property_type") or "住宅"
+    sqft       = _f("sqft")
 
     if beds_above is not None and bsmt_beds:
-        beds_detail = f"{beds_above}+{bsmt_beds}（地上{beds_above}个卧室，地下室{bsmt_beds}个卧室），{baths}卫"
+        beds_detail = f"{beds_above}+{bsmt_beds}卧（地上{beds_above}个，地下室{bsmt_beds}个），{baths}卫"
     elif beds_above is not None:
         beds_detail = f"{beds_above}室{baths}卫"
     else:
@@ -824,10 +827,6 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
     # 14字/张，每段各自算目标字数
     CHARS_PER_PHOTO = 14
     seg_targets = {floor: CHARS_PER_PHOTO * count for floor, count in active_groups}
-    total_photos = sum(count for _, count in active_groups)
-    total_target = CHARS_PER_PHOTO * total_photos
-    min_total = total_target - 30
-    max_total = total_target + 30
 
     seg_lines = "\n".join(
         f"- 【{_FLOOR_ZH[floor]}】{count}张照片，约{seg_targets[floor]}字"
@@ -840,32 +839,100 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
         if hints:
             cover_hints = f"\n封面关键词（第一段开头自然融入）：{'、'.join(hints)}"
 
+    # Build structured property info from all available fields
+    def _section(label, *values):
+        parts = [v for v in values if v]
+        return f"【{label}】{' / '.join(parts)}" if parts else ""
+
+    info_blocks = []
+    if _f("description"):
+        info_blocks.append(f"【主要描述】\n{_f('description')}")
+    if _f("brokerage_remarks"):
+        info_blocks.append(f"【经纪备注】\n{_f('brokerage_remarks')}")
+    if _f("features"):
+        info_blocks.append(f"【特色】{_f('features')}")
+    if _f("interior_features"):
+        info_blocks.append(f"【室内特色】{_f('interior_features')}")
+    if _f("building_features"):
+        info_blocks.append(f"【建筑特色】{_f('building_features')}")
+    if _f("included_items"):
+        info_blocks.append(f"【包含物品】{_f('included_items')}")
+    if _f("exclusions"):
+        info_blocks.append(f"【不含物品】{_f('exclusions')}")
+    if _f("rental_items"):
+        info_blocks.append(f"【租用设备】{_f('rental_items')}")
+    if _f("room_info"):
+        info_blocks.append(f"【房间详情】{_f('room_info')}")
+    if _f("washroom_info"):
+        info_blocks.append(f"【洗手间详情】{_f('washroom_info')}")
+    s = _section("停车/车库",
+        f"车库：{_f('garage_type')}" if _f("garage_type") else "",
+        f"{_f('garage_spaces')}个车位" if _f("garage_spaces") else "",
+        f"总停车：{_f('parking_total')}" if _f("parking_total") else "",
+        f"车道：{_f('drive_type')}" if _f("drive_type") else "",
+    )
+    if s: info_blocks.append(s)
+    s = _section("地块",
+        f"地块：{_f('lot_frontage')}" if _f("lot_frontage") else "",
+        f"朝向：{_f('fronting_on')}" if _f("fronting_on") else "",
+        f"泳池：{_f('pool')}" if _f("pool") else "",
+    )
+    if s: info_blocks.append(s)
+    s = _section("房屋系统",
+        f"冷气：{_f('cooling')}" if _f("cooling") else "",
+        f"暖气：{_f('heating')}" if _f("heating") else "",
+        f"热源：{_f('heating_source')}" if _f("heating_source") else "",
+        f"供水：{_f('water')}" if _f("water") else "",
+        f"下水：{_f('sewers')}" if _f("sewers") else "",
+    )
+    if s: info_blocks.append(s)
+    s = _section("建材",
+        f"外墙：{_f('exterior')}" if _f("exterior") else "",
+        f"屋顶：{_f('roof')}" if _f("roof") else "",
+        f"地基：{_f('foundation')}" if _f("foundation") else "",
+        f"地下室：{_f('basement')}" if _f("basement") else "",
+        f"房龄：{_f('approx_age')}" if _f("approx_age") else "",
+    )
+    if s: info_blocks.append(s)
+    s = _section("税务/其他",
+        f"税：{_f('taxes')}（{_f('tax_year')}年）" if _f("taxes") else "",
+        f"入住：{_f('possession_type')}" if _f("possession_type") else "",
+        f"面积（地上）：{_f('above_grade_sqft')} sqft" if _f("above_grade_sqft") else "",
+    )
+    if s: info_blocks.append(s)
+    if _f("special_designations"):
+        info_blocks.append(f"【特殊条款】{_f('special_designations')}")
+
+    property_info = "\n".join(info_blocks) or "暂无"
+
     prompt = f"""你是加拿大华人房产经纪，录制看房视频分段口播。
 
-你的任务是【改写】，不是【创作】：把listing描述里的每一个信息点都改成口语说出来，按空间区域分配到对应段落。不允许省略任何一条信息。
+任务：根据下方的【房源完整信息】，写分段口播旁白。每条信息都必须放进最合适的段落里，不能省略。严禁编造任何房源信息里没有提到的细节。
 
-各段空间与目标字数：
+各段与目标字数：
 {seg_lines}
-- 只说listing里有的内容，严禁编造任何listing没提到的细节（例如储物间、阁楼、壁炉等）
-- 描述内容不足目标字数：把描述说完后，剩余字数用邀请来看房的话自然收尾，不要发明新细节
-- 描述内容超过目标字数：用简洁口语把所有要点都提到，控制在目标字数内
+- 字数不够：把所有信息说完后，用邀请来看房的话自然补足，不要发明新细节
+- 字数超出：精简口语，把所有要点都提到，控制在目标字数内
 
-房源：{listing_data.get('neighborhood') or listing_data.get('city', '')}，{prop_style}，{beds_detail}{f'，{sqft}平方英尺' if sqft else ''}
+房源：{listing_data.get('neighborhood') or listing_data.get('city', '')}，{prop_style}，{beds_detail}{f'，{sqft} sqft' if sqft else ''}{cover_hints}
 
-===== Listing描述（以下每一个信息点都必须出现在某一段中，不能遗漏，不能合并省略）=====
-{desc or '暂无'}
-====={cover_hints}
+===== 房源完整信息（以下每一条都必须在某段中体现，不能遗漏）=====
+{property_info}
+=====
 
-分配规则（按信息内容判断放哪段，不一定按描述顺序）：
-- 室外相关→室外段，主层客厅厨房餐厅→主层段，卧室浴室→上层段，地下室→地下室段
-- 学区/交通/费用等放在最相关或最后一段
+分配规则：
+- 室外/车库/地块/外观/泳池 → 室外及主层段
+- 客厅/餐厅/厨房/主层特色 → 室外及主层段
+- 卧室/主卧/洗手间/上层特色 → 上层段
+- 地下室相关 → 地下室段
+- 税务/学区/交通/费用/入住 → 最后一段结尾
 
 其他要求：
 - 第一段第一句报基本信息：几室几卫、面积
 - 口语自然，像给朋友介绍房子，不要书面语
 - 地产行话一律用日常口语替换
 - 最后一段末尾说值不值得来看
-- 禁止："大家好""今天带大家""空间宽敞""采光好""布局合理""性价比高""动线""功能分区""坐北朝南""尊贵""奢华""格局"
+- 禁止词："大家好""今天带大家""空间宽敞""采光好""布局合理""性价比高""动线""功能分区""坐北朝南""尊贵""奢华""格局"
 - 不要提地址、价格、门牌号
 
 只输出JSON数组，长度={len(active_groups)}，每个元素是对应段落的字符串。"""
@@ -1190,34 +1257,67 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                     except Exception:
                         pass
 
+            def _build_listing_data(src, is_orm=False):
+                def g(key):
+                    return getattr(src, key, None) if is_orm else src.get(key)
+                return {
+                    "list_price":          g("list_price"),
+                    "bed":                 g("bed"),
+                    "bath":                g("bath"),
+                    "beds_above_grade":    g("beds_above_grade"),
+                    "basement_beds":       g("basement_beds"),
+                    "city":                g("city"),
+                    "neighborhood":        g("neighborhood"),
+                    "description":         g("description"),
+                    "brokerage_remarks":   g("brokerage_remarks"),
+                    "style":               g("style"),
+                    "property_type":       g("property_type"),
+                    "sqft":                g("sqft"),
+                    "above_grade_sqft":    g("above_grade_sqft"),
+                    "rooms":               g("rooms"),
+                    "kitchens":            g("kitchens"),
+                    "dom":                 g("dom"),
+                    # Systems
+                    "cooling":             g("cooling"),
+                    "heating":             g("heating"),
+                    "heating_source":      g("heating_source"),
+                    "water":               g("water"),
+                    "sewers":              g("sewers"),
+                    "pool":                g("pool"),
+                    "basement":            g("basement"),
+                    "exterior":            g("exterior"),
+                    "roof":                g("roof"),
+                    "foundation":          g("foundation"),
+                    # Parking / lot
+                    "parking_total":       g("parking_total"),
+                    "garage_type":         g("garage_type"),
+                    "garage_spaces":       g("garage_spaces"),
+                    "drive_type":          g("drive_type"),
+                    "parking_drive_spaces": g("parking_drive_spaces"),
+                    "lot_frontage":        g("lot_frontage"),
+                    "fronting_on":         g("fronting_on"),
+                    "approx_age":          g("approx_age"),
+                    # Features / remarks
+                    "features":            g("features"),
+                    "interior_features":   g("interior_features"),
+                    "building_features":   g("building_features"),
+                    "included_items":      g("included_items"),
+                    "exclusions":          g("exclusions"),
+                    "rental_items":        g("rental_items"),
+                    "special_designations": g("special_designations"),
+                    "room_info":           g("room_info"),
+                    "washroom_info":       g("washroom_info"),
+                    # Contract
+                    "taxes":               g("taxes"),
+                    "tax_year":            g("tax_year"),
+                    "possession_type":     g("possession_type"),
+                    "occupancy":           g("occupancy"),
+                }
+
             if external_listing:
-                listing_data = {
-                    "list_price":       external_listing.get("list_price"),
-                    "bed":              external_listing.get("bed"),
-                    "bath":             external_listing.get("bath"),
-                    "beds_above_grade": external_listing.get("beds_above_grade"),
-                    "basement_beds":    external_listing.get("basement_beds"),
-                    "city":             external_listing.get("city"),
-                    "neighborhood":     external_listing.get("neighborhood"),
-                    "description":      external_listing.get("description"),
-                    "style":            external_listing.get("style"),
-                    "property_type":    external_listing.get("style"),
-                    "sqft":             external_listing.get("sqft"),
-                }
+                listing_data = _build_listing_data(external_listing, is_orm=False)
             else:
-                listing_data = {
-                    "list_price":       listing.list_price,
-                    "bed":              listing.bed,
-                    "bath":             listing.bath,
-                    "beds_above_grade": getattr(listing, "beds_above_grade", None),
-                    "basement_beds":    getattr(listing, "basement_beds", None),
-                    "city":             listing.city,
-                    "neighborhood":     getattr(listing, "neighborhood", None),
-                    "description":      listing.description,
-                    "style":            listing.style,
-                    "property_type":    getattr(listing, "property_type", None),
-                    "sqft":             listing.sqft,
-                }
+                listing_data = _build_listing_data(listing, is_orm=True)
 
             # ── Step 2.5: Classify photos by floor ───────────────────────────────
             segment_audio_info = []  # [(audio_path, duration, [img_paths])]
