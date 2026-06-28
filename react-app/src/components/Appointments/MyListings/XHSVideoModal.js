@@ -194,6 +194,7 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 	const photoCount = listingImages.length || 30; // actual photo count drives word target
 	const [upperStart, setUpperStart] = useState("");        // photo# where upper floor starts (1-indexed)
 	const [basementStart, setBasementStart] = useState("");  // photo# where basement starts (1-indexed)
+	const [livingStart, setLivingStart] = useState("");      // photo# where 客厅 starts within 主层
 	const [kitchenStart, setKitchenStart] = useState("");    // photo# where 厨房餐厅 starts within 主层
 	const [masterBathStart, setMasterBathStart] = useState(""); // photo# where 主卧卫浴 starts within 上层
 	const pollRef = useRef(null);
@@ -239,6 +240,7 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 						basementStart ? parseInt(basementStart, 10) : null,
 					],
 					room_breaks: {
+						living_start:      livingStart     ? parseInt(livingStart, 10)     : null,
 						kitchen_start:     kitchenStart    ? parseInt(kitchenStart, 10)    : null,
 						master_bath_start: masterBathStart ? parseInt(masterBathStart, 10) : null,
 					},
@@ -285,6 +287,7 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 			basementStart ? parseInt(basementStart, 10) : null,
 		]));
 		formData.append("room_breaks", JSON.stringify({
+			living_start:      livingStart     ? parseInt(livingStart, 10)     : null,
 			kitchen_start:     kitchenStart    ? parseInt(kitchenStart, 10)    : null,
 			master_bath_start: masterBathStart ? parseInt(masterBathStart, 10) : null,
 		}));
@@ -474,8 +477,13 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 								<div style={{ fontSize: "0.78rem", fontWeight: 700, color: "#334155", marginBottom: 5 }}>主层</div>
 								<div style={{ display: "flex", gap: 12, flexWrap: "wrap", paddingLeft: 10 }}>
 									<div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-										<span style={{ fontSize: "0.76rem", color: "#64748b", whiteSpace: "nowrap" }}>客厅</span>
-										<span style={{ fontSize: "0.76rem", color: "#94a3b8" }}>第 1 张起</span>
+										<span style={{ fontSize: "0.76rem", color: "#64748b", whiteSpace: "nowrap" }}>客厅从第</span>
+										<input type="number" min={1} max={photoCount - 1}
+											value={livingStart} onChange={e => setLivingStart(e.target.value)}
+											placeholder="—"
+											style={{ width: 48, padding: "3px 6px", borderRadius: 6, border: "1.5px solid #e2e8f0", fontSize: "0.82rem", textAlign: "center" }}
+										/>
+										<span style={{ fontSize: "0.76rem", color: "#64748b" }}>张</span>
 									</div>
 									<div style={{ display: "flex", alignItems: "center", gap: 5 }}>
 										<span style={{ fontSize: "0.76rem", color: "#64748b", whiteSpace: "nowrap" }}>厨房餐厅从第</span>
@@ -570,6 +578,7 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 
 								// Collect photo counts from the room/floor break inputs
 								const allBreaks = [
+									livingStart     ? parseInt(livingStart, 10)     : null,
 									kitchenStart    ? parseInt(kitchenStart, 10)    : null,
 									upperStart      ? parseInt(upperStart, 10)      : null,
 									masterBathStart ? parseInt(masterBathStart, 10) : null,

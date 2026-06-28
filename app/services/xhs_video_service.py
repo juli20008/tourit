@@ -759,14 +759,15 @@ def _photo_boundaries(n_photos, floor_breaks, room_breaks, n_segs):
         try: return int(v) if v else None
         except Exception: return None
 
-    upper_1   = _i(floor_breaks[0]) if len(floor_breaks) > 0 else None
+    upper_1    = _i(floor_breaks[0]) if len(floor_breaks) > 0 else None
     basement_1 = _i(floor_breaks[1]) if len(floor_breaks) > 1 else None
+    living_1   = _i(room_breaks.get("living_start"))
     kitchen_1  = _i(room_breaks.get("kitchen_start"))
     bath_1     = _i(room_breaks.get("master_bath_start"))
 
     # Sort the valid break points (1-indexed photo numbers)
-    raw = sorted(b for b in [kitchen_1, upper_1, bath_1, basement_1]
-                 if b is not None and 2 <= b <= n_photos)
+    raw = sorted(b for b in [living_1, kitchen_1, upper_1, bath_1, basement_1]
+                 if b is not None and 1 <= b <= n_photos)
     if not raw:
         return None
 

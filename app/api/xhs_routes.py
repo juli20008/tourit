@@ -477,7 +477,8 @@ def draft_narration(mls_number):
     basement_start_1 = int(raw_breaks[1]) if len(raw_breaks) > 1 and raw_breaks[1] else None
     # Room-level breaks within each floor
     raw_room = data.get('room_breaks') or {}
-    kitchen_start_1    = int(raw_room['kitchen_start'])    if raw_room.get('kitchen_start')    else None
+    living_start_1      = int(raw_room['living_start'])      if raw_room.get('living_start')      else None
+    kitchen_start_1     = int(raw_room['kitchen_start'])     if raw_room.get('kitchen_start')     else None
     master_bath_start_1 = int(raw_room['master_bath_start']) if raw_room.get('master_bath_start') else None
 
     if external_listing:
@@ -524,15 +525,31 @@ def draft_narration(mls_number):
         active_groups = []
 
         # ── Main floor ──────────────────────────────────────────────────────────
-        main_total = upper_start_1 - 1  # total photos on main floor (1-indexed count)
-        if kitchen_start_1 and 2 <= kitchen_start_1 < upper_start_1:
-            # Split main floor: 客厅 (photos 1..kitchen_start-1) + 厨房餐厅 (kitchen_start..upper_start-1)
+        main_total = upper_start_1 - 1  # total photos before upper floor (1-indexed count)
+        if living_start_1 and kitchen_start_1 and living_start_1 < kitchen_start_1 < upper_start_1:
+            # 3-way split: 室外 (before living) + 客厅 + 厨房餐厅
+            ext_n     = max(1, living_start_1 - 1)
+            living_n  = max(1, kitchen_start_1 - living_start_1)
+            kitchen_n = max(1, upper_start_1 - kitchen_start_1)
+            if ext_n > 0:
+                active_groups.append(("exterior",     ext_n))
+            active_groups.append(("main_living",  living_n))
+            active_groups.append(("main_kitchen", kitchen_n))
+        elif living_start_1 and living_start_1 < upper_start_1:
+            # 室外 + 客厅 (no kitchen split)
+            ext_n    = max(1, living_start_1 - 1)
+            living_n = max(1, upper_start_1 - living_start_1)
+            if ext_n > 0:
+                active_groups.append(("exterior",    ext_n))
+            active_groups.append(("main_living", living_n))
+        elif kitchen_start_1 and 2 <= kitchen_start_1 < upper_start_1:
+            # 客厅+室外 合并 + 厨房餐厅
             living_n  = max(1, kitchen_start_1 - 1)
             kitchen_n = max(1, upper_start_1 - kitchen_start_1)
             active_groups.append(("main_living",  living_n))
             active_groups.append(("main_kitchen", kitchen_n))
         else:
-            # No kitchen split — keep exterior heuristic + full main floor
+            # No room split — exterior heuristic + full main floor
             ext_n  = max(1, int(main_total * 0.20))
             main_n = max(1, main_total - ext_n)
             active_groups.append(("exterior",   ext_n))
