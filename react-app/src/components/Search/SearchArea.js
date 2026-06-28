@@ -128,13 +128,14 @@ const SearchArea = () => {
 
 	// Seed: full pin index (8000 listings) — supersedes everything if it loads.
 	useEffect(() => {
-		dispatch(propertyActions.fetchPinIndex()).then((pins) => {
+		const applyPins = (pins) => {
 			if (Array.isArray(pins) && pins.length) {
-				// Pin index is authoritative — replace accumulated map entirely.
 				mapPinsRef.current = new Map(pins.map((p) => [p.id, p]));
 				setMapPins(pins);
 			}
-		});
+		};
+		// Pass applyPins as onFresh so background refresh updates the map on this load too.
+		dispatch(propertyActions.fetchPinIndex(applyPins)).then(applyPins);
 	}, [dispatch]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	useEffect(() => {

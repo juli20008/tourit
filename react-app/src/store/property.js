@@ -101,9 +101,8 @@ export const areaProperties = (payload) => async (dispatch) => {
 	}
 };
 
-export const fetchPinIndex = () => async () => {
+export const fetchPinIndex = (onFresh) => async () => {
 	const stale = _lsGetStale("pin_index");
-	const fresh = _lsGet("pin_index"); // null if expired or absent
 
 	const fetchFresh = async () => {
 		try {
@@ -111,21 +110,24 @@ export const fetchPinIndex = () => async () => {
 			if (!response.ok) return null;
 			const data = await response.json();
 			const pins = Array.isArray(data.pins) ? data.pins : [];
-			if (pins.length > 0) _lsSet("pin_index", pins);
+			if (pins.length > 0) {
+				_lsSet("pin_index", pins);
+				onFresh?.(pins);
+			}
 			return pins;
 		} catch {
 			return null;
 		}
 	};
 
-	// Stale-while-revalidate: return cached data instantly (even if expired),
-	// fire a background refresh so the next load gets fresh data.
+	// Stale-while-revalidate: return cached instantly, always background-refresh
+	// so the map updates on the same page load when fresh data arrives.
 	if (stale && stale.length > 0) {
-		if (!fresh) fetchFresh(); // cache expired — refresh quietly in background
+		fetchFresh();
 		return stale;
 	}
 
-	// No cache at all (first ever visit) — must wait for the API.
+	// No cache at all — must wait for the API.
 	return (await fetchFresh()) ?? [];
 };
 
