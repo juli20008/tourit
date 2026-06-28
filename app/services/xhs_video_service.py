@@ -711,7 +711,8 @@ Listing描述（必须全部提到）：
 # ── Floor-segmented narration ──────────────────────────────────────────────────
 
 _FLOOR_ORDER = ["exterior", "main_floor", "upper_floor", "basement"]
-_FLOOR_ZH    = {"exterior": "室外", "main_floor": "主层", "upper_floor": "上层", "basement": "地下室"}
+_FLOOR_ZH    = {"exterior": "室外", "main_floor": "主层", "upper_floor": "上层", "basement": "地下室",
+                "exterior_main": "室外及主层"}
 
 
 def _floor_heuristic(n):
@@ -1266,6 +1267,13 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                 for path, label in zip(downloaded, floor_labels):
                     floor_buckets[label].append(path)
                 active_groups = [(fl, floor_buckets[fl]) for fl in _FLOOR_ORDER if floor_buckets.get(fl)]
+
+                # Merge exterior + main_floor into one continuous segment
+                ext   = next((p for fl, p in active_groups if fl == "exterior"),   [])
+                main  = next((p for fl, p in active_groups if fl == "main_floor"), [])
+                rest  = [(fl, p) for fl, p in active_groups if fl not in ("exterior", "main_floor")]
+                if ext or main:
+                    active_groups = [("exterior_main", ext + main)] + rest
 
                 # ── Step 3: Per-floor narration ────────────────────────────────
                 _job_set(job_id, {"status": "processing", "step": "Writing narration..."})
