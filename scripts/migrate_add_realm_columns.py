@@ -28,6 +28,11 @@ NEON_URL = (
 NEW_COLUMNS = [
     # Agent / brokerage
     ("agent_phone",           "TEXT"),
+    # Systems (missed in first migration)
+    ("cooling",               "TEXT"),
+    ("heating",               "TEXT"),
+    ("parking_total",         "INTEGER"),
+    ("garage_yn",             "BOOLEAN"),
     # Listing info
     ("dom",                   "INTEGER"),
     ("sale_type",             "TEXT"),

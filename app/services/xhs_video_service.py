@@ -1340,11 +1340,10 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
             photo_idx = 0
             for (seg_audio_path, seg_dur, seg_photos) in segment_audio_info:
                 if use_segments:
-                    # Cap photos so each one gets at least PHOTO_DURATION seconds
-                    max_keep = max(1, int(seg_dur / PHOTO_DURATION))
-                    kept = seg_photos[:max_keep]
-                    clip_dur = seg_dur / len(kept)  # guaranteed >= PHOTO_DURATION
-                    discarded = seg_photos[max_keep:]
+                    # Show all photos; give each at least 1.5 s, spread evenly across seg_dur
+                    kept = seg_photos
+                    clip_dur = max(1.5, seg_dur / len(kept)) if kept else PHOTO_DURATION
+                    discarded = []
                 else:
                     kept = seg_photos
                     clip_dur = PHOTO_DURATION
