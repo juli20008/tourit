@@ -23,7 +23,7 @@ const Search = () => {
 	const [strataMax, setStrataMax] = useState(999999);
 	const [titleStatus, setTitleStatus] = useState("");
 	const [transactionType, setTransactionType] = useState("For Sale");
-	const [center] = useState({ lat: 43.7417, lng: -79.3733 });
+	const [center] = useState({ lat: 43.875, lng: -79.35 }); // Markham / Richmond Hill
 	const [propArr, setPropArr] = useState([]);
 	const [over, setOver] = useState({ id: 0 });
 	const [isMapSyncing, setIsMapSyncing] = useState(false);
