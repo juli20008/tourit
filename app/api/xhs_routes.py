@@ -474,8 +474,6 @@ def draft_narration(mls_number):
     # Floor breaks (1-indexed photo numbers)
     upper_start    = int(data.get('upper_start'))    if data.get('upper_start')    else None
     basement_start = int(data.get('basement_start')) if data.get('basement_start') else None
-    # Room ranges within floors — for word-count targets and AI guidance only
-    photo_ranges = data.get('photo_ranges') or {}
 
     if external_listing:
         listing_data = {
@@ -570,7 +568,7 @@ def draft_narration(mls_number):
             active_groups.append(("basement", base_n))
 
     floor_texts = _generate_floor_narrations(listing_data, active_groups, cover_lines=cover_lines,
-                                             style=narration_style, room_ranges=photo_ranges or None)
+                                             style=narration_style)
     if floor_texts and len(floor_texts) == len(active_groups):
         # Label each segment so user can see section boundaries
         labeled = []
@@ -621,8 +619,6 @@ def generate_agent_video(mls_number):
         import json as _json
         _ext = request.form.get('external_listing')
         external_listing = _json.loads(_ext) if _ext else None
-        _pr = request.form.get('photo_ranges')
-        photo_ranges  = _json.loads(_pr) if _pr else None
         _us = request.form.get('upper_start')
         upper_start   = int(_us) if _us else None
         _bs = request.form.get('basement_start')
@@ -639,7 +635,6 @@ def generate_agent_video(mls_number):
         intro_bytes = None
         cover_bg_bytes = None
         external_listing = data.get('external_listing') or None
-        photo_ranges   = data.get('photo_ranges') or None
         upper_start    = int(data.get('upper_start'))    if data.get('upper_start')    else None
         basement_start = int(data.get('basement_start')) if data.get('basement_start') else None
 
@@ -695,7 +690,6 @@ def generate_agent_video(mls_number):
         photo_count=photo_count,
         upper_start=upper_start,
         basement_start=basement_start,
-        photo_ranges=photo_ranges,
     )
     return jsonify({'job_id': job_id, 'status': 'processing'})
 
