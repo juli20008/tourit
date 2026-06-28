@@ -352,10 +352,13 @@ def recent_listings():
         MlsListing.query
         .filter(
             MlsListing.external_id.is_(None),
-            MlsListing.images.isnot(None),
+            db.or_(
+                MlsListing.images.isnot(None),
+                MlsListing.primary_photo_url.isnot(None),
+            ),
         )
         .order_by(MlsListing.created_at.desc())
-        .limit(100)
+        .limit(500)
         .all()
     )
     result = []
