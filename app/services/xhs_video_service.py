@@ -641,21 +641,24 @@ def _generate_narration(listing_data, cover_lines=None, photo_count=30):
     if not api_key:
         return None
 
-    baths      = listing_data.get("bath", "?")
+    def _fv(key):
+        v = listing_data.get(key)
+        return str(v).strip() if v else ""
+
+    baths      = _fv("bath") or "?"
     beds_above = listing_data.get("beds_above_grade")
     bsmt_beds  = listing_data.get("basement_beds")
-    desc  = (listing_data.get("description") or "")[:5000]
-    style = listing_data.get("style") or listing_data.get("property_type") or "住宅"
-    sqft  = listing_data.get("sqft", "")
+    style = _fv("style") or _fv("property_type") or "住宅"
+    sqft  = _fv("sqft")
 
     if beds_above is not None and bsmt_beds:
-        beds_detail = f"{beds_above}+{bsmt_beds}（地上{beds_above}个卧室，地下室{bsmt_beds}个卧室），{baths}卫"
+        beds_detail = f"{beds_above}+{bsmt_beds}卧（地上{beds_above}个，地下室{bsmt_beds}个），{baths}卫"
     elif beds_above is not None:
         beds_detail = f"{beds_above}室{baths}卫"
     else:
         beds_detail = f"{listing_data.get('bed', '?')}室{baths}卫"
 
-    target_chars = 14 * photo_count  # 14字/张
+    target_chars = 14 * photo_count
 
     cover_hints = ""
     cover_opener = ""
@@ -665,22 +668,44 @@ def _generate_narration(listing_data, cover_lines=None, photo_count=30):
             cover_hints = f"\n封面关键词（开头前两句内自然融入）：{'、'.join(hints)}"
             cover_opener = f"\n- 开头前两句自然点出封面关键词：{'、'.join(hints)}"
 
-    prompt = f"""你是加拿大华人房产经纪，录制看房视频口播。
+    # Build full property info block
+    info_parts = []
+    for label, key in [
+        ("主要描述", "description"), ("经纪备注", "brokerage_remarks"),
+        ("特色", "features"), ("室内特色", "interior_features"),
+        ("建筑特色", "building_features"), ("包含物品", "included_items"),
+        ("不含物品", "exclusions"), ("租用设备", "rental_items"),
+        ("房间详情", "room_info"), ("洗手间详情", "washroom_info"),
+        ("地下室", "basement"), ("外墙", "exterior"), ("屋顶", "roof"),
+        ("地基", "foundation"), ("冷气", "cooling"), ("暖气", "heating"),
+        ("热源", "heating_source"), ("供水", "water"), ("下水", "sewers"),
+        ("泳池", "pool"), ("车库", "garage_type"), ("总停车", "parking_total"),
+        ("地块", "lot_frontage"), ("朝向", "fronting_on"), ("房龄", "approx_age"),
+        ("税务", "taxes"), ("入住", "possession_type"), ("特殊条款", "special_designations"),
+    ]:
+        v = _fv(key)
+        if v:
+            info_parts.append(f"【{label}】{v}")
+    property_info = "\n".join(info_parts) or "暂无"
+
+    prompt = f"""你是加拿大华人房产经纪，录制小红书看房视频口播。
+
+任务：阅读下方【房源完整信息】，自动提炼这套房子最值得说的卖点，写一段流畅的口播旁白。只说listing里有的内容，严禁编造任何未提到的细节。
 
 目标字数：约{target_chars}字。
-- 只说listing里有的内容，严禁编造任何listing没提到的细节（例如储物间、阁楼、壁炉等）
-- 描述内容不足{target_chars}字：把描述全部说出来，剩余字数用邀请来看房的话自然收尾
-- 描述内容超过{target_chars}字：用简洁口语把所有要点都提到，控制在{target_chars}字内
+- 字数不够：卖点说完后用邀请来看房的话自然补足
+- 字数超出：优先说最有价值的卖点，口语精简
 
-房源：{listing_data.get('neighborhood') or listing_data.get('city', '')}，{style}，{beds_detail}{f'，{sqft}平方英尺' if sqft else ''}
-Listing描述（必须全部提到）：
-{desc if desc else '暂无'}{cover_hints}
+房源：{listing_data.get('neighborhood') or listing_data.get('city', '')}，{style}，{beds_detail}{f'，{sqft} sqft' if sqft else ''}{cover_hints}
+
+===== 房源完整信息 =====
+{property_info}
+=====
 
 格式要求：
 - 第一句报基本信息：几室几卫、面积{cover_opener}
-- 语气自然口语化，像带朋友看房
+- 口语自然，像带朋友看房
 - 最后一句说值不值得来看
-- 用普通日常口语表达，地产行话一律改掉，听众是普通买家不是专业人士
 - 禁止词："大家好""今天带大家""空间宽敞""采光好""布局合理""性价比高""动线""功能分区""坐北朝南""尊贵""奢华""格局"
 - 不要提地址、价格、门牌号
 只输出口播正文"""
@@ -905,32 +930,31 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
 
     property_info = "\n".join(info_blocks) or "暂无"
 
-    prompt = f"""你是加拿大华人房产经纪，录制看房视频分段口播。
+    prompt = f"""你是加拿大华人房产经纪，正在录制小红书看房视频口播。
 
-任务：根据下方的【房源完整信息】，写分段口播旁白。每条信息都必须放进最合适的段落里，不能省略。严禁编造任何房源信息里没有提到的细节。
+任务：阅读下方【房源完整信息】，自动提炼这套房子最值得说的卖点，然后按楼层分布到各段旁白里。只说listing里有的内容，严禁编造任何未提到的细节。
 
 各段与目标字数：
 {seg_lines}
-- 字数不够：把所有信息说完后，用邀请来看房的话自然补足，不要发明新细节
-- 字数超出：精简口语，把所有要点都提到，控制在目标字数内
+- 每段字数必须达到目标：信息说完后用邀请看房的话自然补足，不要发明新细节
+- 信息量超出目标字数：优先说最有价值的卖点，口语精简，控制在目标字数内
 
 房源：{listing_data.get('neighborhood') or listing_data.get('city', '')}，{prop_style}，{beds_detail}{f'，{sqft} sqft' if sqft else ''}{cover_hints}
 
-===== 房源完整信息（以下每一条都必须在某段中体现，不能遗漏）=====
+===== 房源完整信息 =====
 {property_info}
 =====
 
-分配规则：
-- 室外/车库/地块/外观/泳池 → 室外及主层段
-- 客厅/餐厅/厨房/主层特色 → 室外及主层段
-- 卧室/主卧/洗手间/上层特色 → 上层段
-- 地下室相关 → 地下室段
-- 税务/学区/交通/费用/入住 → 最后一段结尾
+卖点提炼与分配规则：
+- 室外及主层段：外观/车库/地块/泳池/客厅/餐厅/厨房/主层亮点/停车
+- 上层段：主卧/次卧/卫浴详情/上层亮点
+- 地下室段（如有）：地下室类型/地下室卧室/地下室特色
+- 学区/税务/交通/费用/入住安排 → 放在最后一段结尾自然带出
 
-其他要求：
+写作要求：
 - 第一段第一句报基本信息：几室几卫、面积
-- 口语自然，像给朋友介绍房子，不要书面语
-- 地产行话一律用日常口语替换
+- 口语自然，像给朋友介绍房子，不用书面语
+- 地产行话一律换成日常口语
 - 最后一段末尾说值不值得来看
 - 禁止词："大家好""今天带大家""空间宽敞""采光好""布局合理""性价比高""动线""功能分区""坐北朝南""尊贵""奢华""格局"
 - 不要提地址、价格、门牌号
