@@ -1468,7 +1468,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
 
                 if floor_texts:
                     # Append closing line to the last segment
-                    floor_texts[-1] = floor_texts[-1] + "如果觉得视频做的不错，欢迎点赞关注。"
+                    floor_texts[-1] = floor_texts[-1] + "记得点赞关注哦。"
                     # ── Step 4: Per-floor TTS ──────────────────────────────────
                     _job_set(job_id, {"status": "processing", "step": "Generating voiceover..."})
                     from app.services.elevenlabs_service import generate_speech
