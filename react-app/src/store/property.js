@@ -5,6 +5,8 @@ const GET_PROPERTY = "properties/GET_PROPERTY";
 
 const _r = (x) => Math.round(x * 100) / 100;
 const LS_TTL = 4 * 60 * 60 * 1000; // 4 hours
+// Bump this when pin_index payload shape changes — old cache is auto-discarded.
+const PIN_INDEX_VERSION = "2";
 
 function _lsGet(key) {
 	try {
@@ -29,6 +31,12 @@ function _lsGetStale(key) {
 function _lsSet(key, data) {
 	try { localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data })); } catch {}
 }
+
+// Versioned helpers for pin_index — old entries from a different version are discarded.
+const _pinKey = () => `pin_index_v${PIN_INDEX_VERSION}`;
+function _lsGetPin() { return _lsGet(_pinKey()); }
+function _lsGetPinStale() { return _lsGetStale(_pinKey()); }
+function _lsSetPin(data) { _lsSet(_pinKey(), data); }
 
 // Action Creators
 export const getProperties = (properties) => ({
@@ -102,7 +110,7 @@ export const areaProperties = (payload) => async (dispatch) => {
 };
 
 export const fetchPinIndex = (onFresh) => async () => {
-	const stale = _lsGetStale("pin_index");
+	const stale = _lsGetPinStale();
 
 	const fetchFresh = async () => {
 		try {
@@ -111,7 +119,7 @@ export const fetchPinIndex = (onFresh) => async () => {
 			const data = await response.json();
 			const pins = Array.isArray(data.pins) ? data.pins : [];
 			if (pins.length > 0) {
-				_lsSet("pin_index", pins);
+				_lsSetPin(pins);
 				onFresh?.(pins);
 			}
 			return pins;
@@ -127,7 +135,7 @@ export const fetchPinIndex = (onFresh) => async () => {
 		return stale;
 	}
 
-	// No cache at all — must wait for the API.
+	// No cache at all (first visit or version bumped) — must wait for the API.
 	return (await fetchFresh()) ?? [];
 };
 
