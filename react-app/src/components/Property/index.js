@@ -11,6 +11,7 @@ import XHSVideoModal from "../Appointments/MyListings/XHSVideoModal";
 import * as propertyImgActions from "../../store/property_img";
 import * as agentActions from "../../store/agent";
 import { getWhitelabelSlug } from "../../utils/whitelabel";
+import apiFetch from "../../utils/apiFetch";
 
 // Injects listing JSON for the Tourit→FBMP Chrome extension.
 // Runs on every listing open (modal AND standalone page).
@@ -56,6 +57,7 @@ const Property = ({ property, onClose, referralAgent = null, isPage = false }) =
 	const [showMobileTour, setShowMobileTour] = useState(false);
 	const [showShare, setShowShare] = useState(false);
 	const [showXhsModal, setShowXhsModal] = useState(false);
+	const [listingVideoUrl, setListingVideoUrl] = useState(null);
 
 	useFbmpEmbed(property);
 
@@ -81,6 +83,16 @@ const Property = ({ property, onClose, referralAgent = null, isPage = false }) =
 			dispatch(agentActions.getThisAgent(property.listing_agent_id));
 		}
 	}, [property, dispatch]);
+
+	useEffect(() => {
+		const mls = property?.mls_number;
+		if (!mls) return;
+		setListingVideoUrl(null);
+		apiFetch(`/api/xhs/listing-video/${encodeURIComponent(mls)}`)
+			.then(r => r.json())
+			.then(d => { if (d.video_url) setListingVideoUrl(d.video_url); })
+			.catch(() => {});
+	}, [property?.mls_number]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	return (
 		<div className="relative bg-white w-[96vw] max-w-[1350px] max-h-[92vh] rounded-2xl flex flex-col">
@@ -122,6 +134,18 @@ const Property = ({ property, onClose, referralAgent = null, isPage = false }) =
 					{/* Left: gallery + detail */}
 					<div className="flex-1 min-w-0">
 						<Images property={property} />
+						{listingVideoUrl && (
+							<div className="px-6 pt-5 pb-2">
+								<p className="text-sm font-semibold text-[#1a1a1a] mb-2 notranslate">房源视频</p>
+								<video
+									src={listingVideoUrl}
+									controls
+									playsInline
+									className="w-full rounded-xl bg-black"
+									style={{ maxHeight: 500 }}
+								/>
+							</div>
+						)}
 						<div className="px-6 py-6">
 							<Detail property={property} />
 						</div>

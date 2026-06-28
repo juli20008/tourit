@@ -409,6 +409,22 @@ def get_agent_videos():
         return jsonify([])
 
 
+@xhs_routes.route('/listing-video/<mls_number>', methods=['GET'])
+@cross_origin()
+def get_listing_video(mls_number):
+    """Most recent non-expired video for a listing. Public — no auth required."""
+    try:
+        row = db.session.execute(
+            text("""SELECT video_url FROM xhs_videos
+                    WHERE mls_number=:mls AND expires_at > NOW()
+                    ORDER BY created_at DESC LIMIT 1"""),
+            {'mls': mls_number}
+        ).mappings().first()
+        return jsonify({'video_url': row['video_url'] if row else None})
+    except Exception:
+        return jsonify({'video_url': None})
+
+
 def _trigger_github_actions(job_id):
     """Fire a repository_dispatch to start the Actions video workflow."""
     gh_pat  = os.environ.get('GH_PAT', '')
