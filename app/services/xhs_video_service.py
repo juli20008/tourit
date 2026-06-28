@@ -1475,13 +1475,12 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
             photo_idx = 0
             for (seg_audio_path, seg_dur, seg_photos) in segment_audio_info:
                 if use_segments:
-                    # Each photo gets exactly PHOTO_DURATION seconds; extras are dropped.
-                    # Narration is generated at 14 chars/photo so if text is complete
-                    # all photos will fit.
-                    max_keep = max(1, int(seg_dur / PHOTO_DURATION))
-                    kept = seg_photos[:max_keep]
-                    clip_dur = seg_dur / len(kept)
-                    discarded = seg_photos[max_keep:]
+                    # Use ALL photos — never drop any. Divide segment duration equally.
+                    # If audio is slightly shorter than n×3s, each clip shortens a bit;
+                    # if audio is longer, clips stretch. Both are better than dropping photos.
+                    kept = seg_photos
+                    clip_dur = seg_dur / len(kept) if kept else PHOTO_DURATION
+                    discarded = []
                 else:
                     kept = seg_photos
                     clip_dur = PHOTO_DURATION
