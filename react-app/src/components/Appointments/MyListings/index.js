@@ -104,14 +104,30 @@ const MyListings = () => {
 		setVideos((prev) => ({ ...prev, [mlsNumber]: { ...video, mls_number: mlsNumber } }));
 	};
 
-	// Collect unique properties from agent's appointments
+	// Collect unique properties from agent's appointments.
+	// Use full Redux property when loaded; fall back to the embedded listing snapshot
+	// so listings always appear even if the detail page was never opened.
 	const seen = new Set();
 	const listings = [];
 	Object.values(appointments || {}).forEach((appt) => {
 		const propId = appt.property_id;
-		if (propId && !seen.has(propId) && properties[propId]) {
-			seen.add(propId);
+		if (!propId || seen.has(propId)) return;
+		seen.add(propId);
+		if (properties[propId]) {
 			listings.push(properties[propId]);
+		} else if (appt.listing) {
+			listings.push({
+				id: propId,
+				mls_number: appt.listing.mls_number || appt.mls_number,
+				street: appt.listing.street,
+				city: appt.listing.city,
+				state: appt.listing.state,
+				front_img: appt.listing.image,
+				price: null,
+				bed: null,
+				bath: null,
+				is_mls: true,
+			});
 		}
 	});
 
