@@ -1284,6 +1284,8 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                 )
 
                 if floor_texts:
+                    # Append closing line to the last segment
+                    floor_texts[-1] = floor_texts[-1] + "如果你觉得我视频做的不错，欢迎点赞订阅。"
                     # ── Step 4: Per-floor TTS ──────────────────────────────────
                     _job_set(job_id, {"status": "processing", "step": "Generating voiceover..."})
                     from app.services.elevenlabs_service import generate_speech
@@ -1322,6 +1324,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                         f"学区方面，这里周边的学校口碑也不错，对于有孩子的家庭来说是一个加分项。"
                         f"如果您对这套房源感兴趣，欢迎随时联系我预约实地看房，期待和您一起找到心仪的家。"
                     )
+                narration += "如果你觉得我视频做的不错，欢迎点赞订阅。"
                 _job_set(job_id, {"status": "processing", "step": "Generating voiceover..."})
                 from app.services.elevenlabs_service import generate_speech
                 audio_bytes = generate_speech(narration, fish_voice_id=minimax_voice_id)
