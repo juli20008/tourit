@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 
 function currentLang() {
   const s = localStorage.getItem('tourit_lang');
-  return s === 'zh' ? 'zh' : 'en';
+  return s === 'en' ? 'en' : 'zh';  // default Chinese; only explicit 'en' opt-out stays English
 }
 
 function setCookie(val) {
