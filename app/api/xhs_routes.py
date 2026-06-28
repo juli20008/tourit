@@ -447,6 +447,92 @@ def _trigger_github_actions(job_id):
         return False
 
 
+@xhs_routes.route('/agent/suggest-cover/<mls_number>', methods=['POST'])
+def suggest_cover(mls_number):
+    """Use AI to suggest 3 cover lines (max 7 chars each) based on listing data."""
+    from flask_login import current_user
+    from app.models.mls_listing import MlsListing
+    import requests as _req, os as _os, re as _re
+
+    if not current_user.is_authenticated:
+        return jsonify({'error': 'Unauthorized'}), 401
+    if not current_user.agent:
+        return jsonify({'error': 'Agent account required'}), 403
+
+    data = request.get_json(silent=True) or {}
+    external_listing = data.get('external_listing') or None
+
+    if external_listing:
+        bed   = external_listing.get('bed', '')
+        bath  = external_listing.get('bath', '')
+        sqft  = external_listing.get('sqft', '')
+        style = external_listing.get('style', '')
+        city  = external_listing.get('city', '')
+        desc  = (external_listing.get('description') or '')[:300]
+        beds_above = external_listing.get('beds_above_grade')
+        bsmt_beds  = external_listing.get('basement_beds')
+    else:
+        listing = MlsListing.query.filter_by(mls_number=mls_number).first()
+        if not listing:
+            return jsonify({'error': f'Listing {mls_number} not found'}), 404
+        def _ga(a): return getattr(listing, a, None)
+        bed   = listing.bed or ''
+        bath  = listing.bath or ''
+        sqft  = listing.sqft or ''
+        style = listing.style or listing.property_type or ''
+        city  = listing.city or ''
+        desc  = (listing.description or '')[:300]
+        beds_above = _ga('beds_above_grade')
+        bsmt_beds  = _ga('basement_beds')
+
+    if beds_above and bsmt_beds:
+        bed_str = f"{beds_above}+{bsmt_beds}卧"
+    elif beds_above:
+        bed_str = f"{beds_above}室"
+    else:
+        bed_str = f"{bed}室" if bed else ""
+
+    api_key = _os.environ.get("DEEPSEEK_API_KEY", "")
+    if not api_key:
+        return jsonify({'error': 'AI not configured'}), 502
+
+    prompt = f"""你是小红书房产内容创作者。根据以下房源信息，推荐3行封面文字。
+
+规则（非常严格）：
+- 每行最多7个汉字，标点不计
+- 突出最吸引眼球的卖点：户型、面积、特色配置、地段
+- 口语化、有冲击力，像小红书爆款标题
+- 禁止用"性价比""大空间""采光好""格局好"等空洞词
+- 不要提价格
+
+房源信息：{style}，{bed_str}{bath}卫{f'，{sqft} sqft' if sqft else ''}，{city}
+描述摘要：{desc}
+
+只输出JSON数组，3个字符串，例如：["独栋4卧联排", "超大主卧套间", "步入式衣帽间"]"""
+
+    try:
+        resp = _req.post(
+            "https://api.deepseek.com/v1/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={"model": "deepseek-chat", "max_tokens": 200,
+                  "messages": [{"role": "user", "content": prompt}]},
+            timeout=30,
+        )
+        raw = resp.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+        m = _re.search(r'\[.*?\]', raw, _re.DOTALL)
+        if not m:
+            return jsonify({'error': 'AI returned unexpected format'}), 502
+        import json as _json
+        lines = _json.loads(m.group())
+        # Enforce 7-char limit
+        lines = [(l[:7] if isinstance(l, str) else '') for l in lines[:3]]
+        while len(lines) < 3:
+            lines.append('')
+        return jsonify({'lines': lines})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 502
+
+
 @xhs_routes.route('/agent/draft-narration/<mls_number>', methods=['POST'])
 def draft_narration(mls_number):
     """Generate narration text only (no video) so the agent can review and edit before generating."""

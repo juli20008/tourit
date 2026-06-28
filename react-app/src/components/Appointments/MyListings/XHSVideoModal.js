@@ -191,6 +191,7 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 	const [errorMsg, setErrorMsg] = useState("");
 	const [listingImages, setListingImages] = useState([]);
 	const [coverPhotoIndex, setCoverPhotoIndex] = useState(0);
+	const [suggestingCover, setSuggestingCover] = useState(false);
 	const photoCount = listingImages.length || 30; // actual photo count drives word target
 
 	// Floor breaks — which photo number starts the upper floor / basement
@@ -251,6 +252,24 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 			setPhase("input");
 			setErrorMsg(String(e));
 		}
+	};
+
+	const suggestCover = async () => {
+		setSuggestingCover(true);
+		try {
+			const resp = await apiFetch(`/api/xhs/agent/suggest-cover/${mlsNumber}`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ external_listing: externalListing || undefined }),
+			});
+			const d = await resp.json().catch(() => ({}));
+			if (resp.ok && d.lines) {
+				setCover1(d.lines[0] || "");
+				setCover2(d.lines[1] || "");
+				setCover3(d.lines[2] || "");
+			}
+		} catch {}
+		setSuggestingCover(false);
 	};
 
 	const startGeneration = async () => {
@@ -345,11 +364,18 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 				{phase === "input" && (
 					<>
 						<div style={{ marginBottom: 16 }}>
-							<label style={{ display: "block", fontWeight: 600, marginBottom: 8, fontSize: "0.9rem" }}>
-								封面文字 / Cover Text
-							</label>
+							<div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+								<label style={{ fontWeight: 600, fontSize: "0.9rem" }}>
+									封面文字 / Cover Text
+								</label>
+								<button type="button" className="btn btn-sm"
+									style={{ fontSize: "0.75rem", padding: "3px 10px", background: "#7c3aed", borderColor: "#7c3aed" }}
+									onClick={suggestCover} disabled={suggestingCover}>
+									{suggestingCover ? "AI生成中..." : "✨ AI推荐"}
+								</button>
+							</div>
 							<p style={{ color: "#64748b", fontSize: "0.78rem", marginTop: 0, marginBottom: 10 }}>
-								第一、二行大字显示在人物上方，第三行小字显示在人物下方。
+								第一、二行大字显示在人物上方，第三行小字显示在人物下方。每行最多7字。
 							</p>
 							{[
 								[cover1, setCover1, "第一行（大字，人物上方，选填）/ Line 1 (large, above, optional)"],
