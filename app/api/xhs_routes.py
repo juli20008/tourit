@@ -497,21 +497,54 @@ def draft_narration(mls_number):
         listing = MlsListing.query.filter_by(mls_number=mls_number).first()
         if not listing:
             return jsonify({'error': f'Listing {mls_number} not found'}), 404
+        def _ga(attr):
+            return getattr(listing, attr, None)
         listing_data = {
-            'list_price':       listing.list_price,
-            'bed':              listing.bed,
-            'bath':             listing.bath,
-            'beds_above_grade': getattr(listing, 'beds_above_grade', None),
-            'basement_beds':    getattr(listing, 'basement_beds', None),
-            'city':             listing.city,
-            'neighborhood':     getattr(listing, 'neighborhood', None) or listing.city,
-            'description':      listing.description,
-            'style':            listing.style,
-            'property_type':    listing.property_type,
-            'sqft':             listing.sqft,
+            'list_price':          listing.list_price,
+            'bed':                 listing.bed,
+            'bath':                listing.bath,
+            'beds_above_grade':    _ga('beds_above_grade'),
+            'basement_beds':       _ga('basement_beds'),
+            'city':                listing.city,
+            'neighborhood':        _ga('neighborhood') or listing.city,
+            'description':         listing.description,
+            'brokerage_remarks':   _ga('brokerage_remarks'),
+            'style':               listing.style,
+            'property_type':       listing.property_type,
+            'sqft':                listing.sqft,
+            'above_grade_sqft':    _ga('above_grade_sqft'),
+            'features':            _ga('features'),
+            'interior_features':   _ga('interior_features'),
+            'building_features':   _ga('building_features'),
+            'included_items':      _ga('included_items'),
+            'exclusions':          _ga('exclusions'),
+            'rental_items':        _ga('rental_items'),
+            'room_info':           _ga('room_info'),
+            'washroom_info':       _ga('washroom_info'),
+            'garage_type':         _ga('garage_type'),
+            'garage_spaces':       _ga('garage_spaces'),
+            'parking_total':       _ga('parking_total'),
+            'drive_type':          _ga('drive_type'),
+            'lot_frontage':        _ga('lot_frontage'),
+            'fronting_on':         _ga('fronting_on'),
+            'pool':                _ga('pool'),
+            'cooling':             _ga('cooling'),
+            'heating':             _ga('heating'),
+            'heating_source':      _ga('heating_source'),
+            'water':               _ga('water'),
+            'sewers':              _ga('sewers'),
+            'exterior':            _ga('exterior'),
+            'roof':                _ga('roof'),
+            'foundation':          _ga('foundation'),
+            'basement':            _ga('basement'),
+            'approx_age':          _ga('approx_age'),
+            'taxes':               _ga('taxes'),
+            'tax_year':            _ga('tax_year'),
+            'possession_type':     _ga('possession_type'),
+            'special_designations':_ga('special_designations'),
         }
         n_photos = min(len(listing.effective_images or []), MAX_PHOTOS) or MAX_PHOTOS
-        has_basement = bool(getattr(listing, 'basement_beds', None))
+        has_basement = bool(_ga('basement_beds'))
 
     # Build floor-level active_groups from floor breaks
     if upper_start and 2 <= upper_start <= n_photos:

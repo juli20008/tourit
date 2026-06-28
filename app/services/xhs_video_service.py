@@ -693,8 +693,8 @@ def _generate_narration(listing_data, cover_lines=None, photo_count=30):
 任务：阅读下方【房源完整信息】，自动提炼这套房子最值得说的卖点，写一段流畅的口播旁白。只说listing里有的内容，严禁编造任何未提到的细节。
 
 目标字数：约{target_chars}字。
-- 字数不够：卖点说完后用邀请来看房的话自然补足
-- 字数超出：优先说最有价值的卖点，口语精简
+- 字数不够：在listing已有信息中找更多细节展开（尺寸、材质、配置等），绝不补充套话
+- 字数超出：保留最有价值的细节，删去泛泛描述，口语精简
 
 房源：{listing_data.get('neighborhood') or listing_data.get('city', '')}，{style}，{beds_detail}{f'，{sqft} sqft' if sqft else ''}{cover_hints}
 
@@ -704,8 +704,9 @@ def _generate_narration(listing_data, cover_lines=None, photo_count=30):
 
 格式要求：
 - 第一句报基本信息：几室几卫、面积{cover_opener}
-- 口语自然，像带朋友看房
-- 最后一句说值不值得来看
+- 口语自然，像给朋友介绍
+- 严格只说listing里实际记载的内容
+- 禁止任何招客套话："欢迎来看房""感兴趣联系我""值不值得来看"等
 - 禁止词："大家好""今天带大家""空间宽敞""采光好""布局合理""性价比高""动线""功能分区""坐北朝南""尊贵""奢华""格局"
 - 不要提地址、价格、门牌号
 只输出口播正文"""
@@ -1020,12 +1021,12 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
 
     prompt = f"""你是加拿大华人房产经纪，正在录制小红书看房视频口播。
 
-任务：阅读下方【房源完整信息】，自动提炼这套房子最值得说的卖点，然后按楼层分布到各段旁白里。只说listing里有的内容，严禁编造任何未提到的细节。
+任务：阅读下方【房源完整信息】，提炼真实卖点，按楼层写旁白。严格基于listing内容，绝不编造任何未提及的设施、特点或评价。
 
-各段与目标字数（字数要求极其严格，每段必须精确达到目标）：
+各段目标字数：
 {seg_lines}
-- 每段字数必须达到目标：信息说完后用邀请看房的话自然补足，绝不发明新细节
-- 信息量超出目标字数：优先说最有价值的卖点，口语精简，严格控制在目标字数内{room_hint}
+- 字数不足：在listing已有信息中找更多细节继续展开（具体尺寸、材质、配置、收纳等），绝不补充"欢迎来看房""感兴趣联系我"之类的套话
+- 字数超出：保留最有价值的细节，删去泛泛而谈的部分，口语精简{room_hint}
 
 房源：{listing_data.get('neighborhood') or listing_data.get('city', '')}，{prop_style}，{beds_detail}{f'，{sqft} sqft' if sqft else ''}{cover_hints}
 
@@ -1033,21 +1034,17 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
 {property_info}
 =====
 
-卖点提炼与分配规则（按段名对应）：
-- 室外/室外及主层/客厅段：外观/车库/地块/泳池/入口/客厅亮点/停车
-- 厨房餐厅段：厨房设施/餐厅/岛台/收纳
-- 主层段（无细分时）：外观/客厅/餐厅/厨房/主层整体亮点
-- 主卧段：主卧面积/主卧亮点/walk-in closet
-- 主卧卫浴段：主卧浴室详情/次卧简要介绍
-- 上层段（无细分时）：主卧/次卧/卫浴详情/上层亮点
-- 地下室段（如有）：地下室类型/地下室卧室/地下室特色
-- 学区/税务/交通/费用/入住安排 → 放在最后一段结尾自然带出
+卖点分配参考（严格基于listing已有信息）：
+- 主层段：室外外观、车库/停车、地块、入口、客厅、餐厅、厨房、主层卫浴
+- 上层段：主卧（面积/walk-in/套浴）、次卧数量和特色、上层卫浴
+- 地下室段：地下室类型、地下室卧室、额外空间、户外（如有）
+- 学区/税务/交通/入住 → 放最后一段末尾，有才说，没有就不提
 
 写作要求：
 - 第一段第一句报基本信息：几室几卫、面积
-- 口语自然，像给朋友介绍房子，不用书面语
-- 地产行话一律换成日常口语
-- 最后一段末尾说值不值得来看
+- 口语自然，像给朋友介绍，不用书面语
+- 严格只说listing里实际记载的内容，哪怕字数不够也不能编造
+- 禁止任何招客套话：不能写"欢迎来看房""感兴趣可以联系我""期待与您相遇""值不值得来看"等
 - 禁止词："大家好""今天带大家""空间宽敞""采光好""布局合理""性价比高""动线""功能分区""坐北朝南""尊贵""奢华""格局"
 - 不要提地址、价格、门牌号
 
@@ -1527,7 +1524,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
 
                 if floor_texts:
                     # Append closing line to the last segment
-                    floor_texts[-1] = floor_texts[-1] + "如果你觉得我视频做的不错，欢迎点赞订阅。"
+                    pass  # no forced closing line — agent edits narration manually
                     # ── Step 4: Per-floor TTS ──────────────────────────────────
                     _job_set(job_id, {"status": "processing", "step": "Generating voiceover..."})
                     from app.services.elevenlabs_service import generate_speech
@@ -1566,7 +1563,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                         f"学区方面，这里周边的学校口碑也不错，对于有孩子的家庭来说是一个加分项。"
                         f"如果您对这套房源感兴趣，欢迎随时联系我预约实地看房，期待和您一起找到心仪的家。"
                     )
-                narration += "如果你觉得我视频做的不错，欢迎点赞订阅。"
+                pass  # no forced closing — agent edits narration manually
                 _job_set(job_id, {"status": "processing", "step": "Generating voiceover..."})
                 from app.services.elevenlabs_service import generate_speech
                 audio_bytes = generate_speech(narration, fish_voice_id=minimax_voice_id)
