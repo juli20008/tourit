@@ -695,6 +695,7 @@ def _generate_narration(listing_data, cover_lines=None, photo_count=30):
 目标字数：约{target_chars}字。
 - 字数不够：在listing已有信息中找更多细节展开（尺寸、材质、配置等），绝不补充套话
 - 字数超出：保留最有价值的细节，删去泛泛描述，口语精简
+- 所有尺寸数字精确到小数点后一位，不要四舍五入成整数
 
 房源：{listing_data.get('neighborhood') or listing_data.get('city', '')}，{style}，{beds_detail}{f'，{sqft} sqft' if sqft else ''}{cover_hints}
 
@@ -1002,6 +1003,7 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
 - 禁止任何招客套话：不能写"欢迎来看房""感兴趣可以联系我""期待与您相遇""值不值得来看"等
 - 禁止词："大家好""今天带大家""空间宽敞""采光好""布局合理""性价比高""动线""功能分区""坐北朝南""尊贵""奢华""格局"
 - 不要提地址、价格、门牌号
+- 所有尺寸数字精确到小数点后一位（如 2,450.0 sqft、15.0 米、6.1 米），不要四舍五入成整数
 
 只输出JSON数组，长度={len(active_groups)}，每个元素是对应段落的字符串。"""
 
