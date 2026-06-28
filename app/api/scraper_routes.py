@@ -351,7 +351,12 @@ def recent_listings():
     rows = (
         MlsListing.query
         .filter(
-            MlsListing.external_id.is_(None),
+            # extension-pushed (external_id NULL) OR csv-injected (external_id = mls_number)
+            # excludes DDF sync listings whose external_id is a CREA UUID different from mls_number
+            db.or_(
+                MlsListing.external_id.is_(None),
+                MlsListing.external_id == MlsListing.mls_number,
+            ),
             db.or_(
                 MlsListing.images.isnot(None),
                 MlsListing.primary_photo_url.isnot(None),
