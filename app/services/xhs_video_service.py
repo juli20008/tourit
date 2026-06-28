@@ -742,6 +742,9 @@ _FLOOR_ZH    = {
     "exterior_main": "室外及主层",
     "main_living":   "客厅",       "main_kitchen": "厨房餐厅",
     "upper_master":  "主卧",       "upper_bath":   "主卧卫浴",
+    # keys used when photo_ranges is provided from the frontend
+    "living":        "客厅",       "kitchen":      "厨房餐厅",
+    "master_suite":  "主卧套件",
 }
 
 
@@ -1177,7 +1180,7 @@ def get_job(job_id):
 def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_bytes=None,
                   cover_bg_bytes=None, cover_photo_index=0, narration_override=None,
                   external_listing=None, photo_count=30,
-                  floor_breaks=None, room_breaks=None):
+                  photo_ranges=None):
     """
     external_listing: pre-scraped dict with keys bed, bath, sqft, city, description,
                       style, list_price, images (list[str]), street, mls_number.
@@ -1403,9 +1406,21 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
 
             if override_segments and downloaded:
                 n_segs = len(override_segments)
-                # Use explicit photo boundaries from room/floor breaks if provided and count matches;
-                # fall back to even split when breaks are absent or count mismatches.
-                boundaries = _photo_boundaries(len(downloaded), floor_breaks, room_breaks, n_segs)
+                # Build 0-indexed (start, end-exclusive) boundaries from photo_ranges if provided
+                boundaries = None
+                if photo_ranges:
+                    filled = {
+                        k: {'start': int(v['start']), 'end': int(v['end'])}
+                        for k, v in photo_ranges.items()
+                        if v.get('start') and v.get('end') and int(v['end']) >= int(v['start'])
+                    }
+                    sorted_pr = sorted(filled.items(), key=lambda x: x[1]['start'])
+                    if len(sorted_pr) == n_segs:
+                        n_dl = len(downloaded)
+                        boundaries = [
+                            (max(0, v['start'] - 1), min(n_dl, v['end']))
+                            for _, v in sorted_pr
+                        ]
                 _job_set(job_id, {"status": "processing", "step": "Generating voiceover..."})
                 from app.services.elevenlabs_service import generate_speech
                 for k, seg_text in enumerate(override_segments):
@@ -1754,7 +1769,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
 def start_video_job(mls_number, agent_id, cover_lines, flask_app, intro_bytes=None,
                     cover_bg_bytes=None, cover_photo_index=0, narration_override=None,
                     external_listing=None, photo_count=30,
-                    floor_breaks=None, room_breaks=None):
+                    photo_ranges=None):
     """Start background video generation. Returns job_id."""
     _job_clean()
     job_id = uuid.uuid4().hex
@@ -1767,8 +1782,7 @@ def start_video_job(mls_number, agent_id, cover_lines, flask_app, intro_bytes=No
                 "narration_override": narration_override,
                 "external_listing": external_listing,
                 "photo_count": photo_count,
-                "floor_breaks": floor_breaks,
-                "room_breaks": room_breaks},
+                "photo_ranges": photo_ranges},
         daemon=True,
     )
     t.start()

@@ -192,11 +192,20 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 	const [listingImages, setListingImages] = useState([]);
 	const [coverPhotoIndex, setCoverPhotoIndex] = useState(0);
 	const photoCount = listingImages.length || 30; // actual photo count drives word target
-	const [upperStart, setUpperStart] = useState("");        // photo# where upper floor starts (1-indexed)
-	const [basementStart, setBasementStart] = useState("");  // photo# where basement starts (1-indexed)
-	const [livingStart, setLivingStart] = useState("");      // photo# where 客厅 starts within 主层
-	const [kitchenStart, setKitchenStart] = useState("");    // photo# where 厨房餐厅 starts within 主层
-	const [masterBathStart, setMasterBathStart] = useState(""); // photo# where 主卧卫浴 starts within 上层
+
+	// Explicit photo ranges per room — each { start, end } is 1-indexed
+	const ROOMS = [
+		{ key: "exterior",     label: "室外" },
+		{ key: "living",       label: "客厅" },
+		{ key: "kitchen",      label: "厨房餐厅" },
+		{ key: "master_suite", label: "主卧套件" },
+		{ key: "basement",     label: "地下室" },
+	];
+	const [ranges, setRanges] = useState(() =>
+		Object.fromEntries(ROOMS.map(r => [r.key, { start: "", end: "" }]))
+	);
+	const setRange = (key, field, val) =>
+		setRanges(prev => ({ ...prev, [key]: { ...prev[key], [field]: val } }));
 	const pollRef = useRef(null);
 	const coverBgRef = useRef(null);
 
@@ -235,15 +244,11 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 					cover1, cover2, cover3,
 					photo_count: photoCount,
 					external_listing: externalListing || undefined,
-					floor_breaks: [
-						upperStart ? parseInt(upperStart, 10) : null,
-						basementStart ? parseInt(basementStart, 10) : null,
-					],
-					room_breaks: {
-						living_start:      livingStart     ? parseInt(livingStart, 10)     : null,
-						kitchen_start:     kitchenStart    ? parseInt(kitchenStart, 10)    : null,
-						master_bath_start: masterBathStart ? parseInt(masterBathStart, 10) : null,
-					},
+					photo_ranges: Object.fromEntries(
+						Object.entries(ranges)
+							.filter(([, v]) => v.start && v.end)
+							.map(([k, v]) => [k, { start: parseInt(v.start, 10), end: parseInt(v.end, 10) }])
+					),
 				}),
 			});
 			const d = await resp.json().catch(() => ({}));
@@ -282,15 +287,14 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 		if (externalListing) {
 			formData.append("external_listing", JSON.stringify(externalListing));
 		}
-		formData.append("floor_breaks", JSON.stringify([
-			upperStart ? parseInt(upperStart, 10) : null,
-			basementStart ? parseInt(basementStart, 10) : null,
-		]));
-		formData.append("room_breaks", JSON.stringify({
-			living_start:      livingStart     ? parseInt(livingStart, 10)     : null,
-			kitchen_start:     kitchenStart    ? parseInt(kitchenStart, 10)    : null,
-			master_bath_start: masterBathStart ? parseInt(masterBathStart, 10) : null,
-		}));
+		const filledRanges = Object.fromEntries(
+			Object.entries(ranges)
+				.filter(([, v]) => v.start && v.end && parseInt(v.end, 10) >= parseInt(v.start, 10))
+				.map(([k, v]) => [k, { start: parseInt(v.start, 10), end: parseInt(v.end, 10) }])
+		);
+		if (Object.keys(filledRanges).length > 0) {
+			formData.append("photo_ranges", JSON.stringify(filledRanges));
+		}
 
 		const resp = await apiFetch(`/api/xhs/agent/video/${mlsNumber}`, {
 			method: "POST",
@@ -460,7 +464,7 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 							<div style={{ color: "#dc2626", fontSize: "0.85rem", marginBottom: 12 }}>{errorMsg}</div>
 						)}
 
-						{/* Room-level photo breaks */}
+						{/* Room-level photo ranges */}
 						<div style={{ marginBottom: 16 }}>
 							<label style={{ display: "block", fontWeight: 600, marginBottom: 4, fontSize: "0.9rem" }}>
 								照片分区 / Room Photo Ranges
@@ -469,74 +473,47 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 								</span>
 							</label>
 							<p style={{ color: "#64748b", fontSize: "0.76rem", margin: "0 0 10px" }}>
-								指定每个区域从第几张照片开始，文字自动按 14 字/张 对齐。
+								指定每个区域的照片范围（含首尾），文字自动按 14 字/张 对齐。无地下室则留空。
 							</p>
-
-							{/* 主层 */}
-							<div style={{ marginBottom: 8, paddingLeft: 0 }}>
-								<div style={{ fontSize: "0.78rem", fontWeight: 700, color: "#334155", marginBottom: 5 }}>主层</div>
-								<div style={{ display: "flex", gap: 12, flexWrap: "wrap", paddingLeft: 10 }}>
-									<div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-										<span style={{ fontSize: "0.76rem", color: "#64748b", whiteSpace: "nowrap" }}>客厅从第</span>
-										<input type="number" min={1} max={photoCount - 1}
-											value={livingStart} onChange={e => setLivingStart(e.target.value)}
-											placeholder="—"
-											style={{ width: 48, padding: "3px 6px", borderRadius: 6, border: "1.5px solid #e2e8f0", fontSize: "0.82rem", textAlign: "center" }}
-										/>
-										<span style={{ fontSize: "0.76rem", color: "#64748b" }}>张</span>
-									</div>
-									<div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-										<span style={{ fontSize: "0.76rem", color: "#64748b", whiteSpace: "nowrap" }}>厨房餐厅从第</span>
-										<input type="number" min={2} max={photoCount - 1}
-											value={kitchenStart} onChange={e => setKitchenStart(e.target.value)}
-											placeholder="—"
-											style={{ width: 48, padding: "3px 6px", borderRadius: 6, border: "1.5px solid #e2e8f0", fontSize: "0.82rem", textAlign: "center" }}
-										/>
-										<span style={{ fontSize: "0.76rem", color: "#64748b" }}>张</span>
-									</div>
-								</div>
-							</div>
-
-							{/* 上层 */}
-							<div style={{ marginBottom: 8 }}>
-								<div style={{ fontSize: "0.78rem", fontWeight: 700, color: "#334155", marginBottom: 5 }}>上层</div>
-								<div style={{ display: "flex", gap: 12, flexWrap: "wrap", paddingLeft: 10 }}>
-									<div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-										<span style={{ fontSize: "0.76rem", color: "#64748b", whiteSpace: "nowrap" }}>上层从第</span>
-										<input type="number" min={2} max={photoCount - 1}
-											value={upperStart} onChange={e => setUpperStart(e.target.value)}
-											placeholder="—"
-											style={{ width: 48, padding: "3px 6px", borderRadius: 6, border: "1.5px solid #e2e8f0", fontSize: "0.82rem", textAlign: "center" }}
-										/>
-										<span style={{ fontSize: "0.76rem", color: "#64748b" }}>张</span>
-									</div>
-									<div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-										<span style={{ fontSize: "0.76rem", color: "#64748b", whiteSpace: "nowrap" }}>主卧卫浴从第</span>
-										<input type="number" min={2} max={photoCount - 1}
-											value={masterBathStart} onChange={e => setMasterBathStart(e.target.value)}
-											placeholder="—"
-											style={{ width: 48, padding: "3px 6px", borderRadius: 6, border: "1.5px solid #e2e8f0", fontSize: "0.82rem", textAlign: "center" }}
-										/>
-										<span style={{ fontSize: "0.76rem", color: "#64748b" }}>张</span>
-									</div>
-								</div>
-							</div>
-
-							{/* 地下室 */}
-							<div>
-								<div style={{ fontSize: "0.78rem", fontWeight: 700, color: "#334155", marginBottom: 5 }}>地下室</div>
-								<div style={{ display: "flex", gap: 12, flexWrap: "wrap", paddingLeft: 10 }}>
-									<div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-										<span style={{ fontSize: "0.76rem", color: "#64748b", whiteSpace: "nowrap" }}>地下室从第</span>
-										<input type="number" min={2} max={photoCount - 1}
-											value={basementStart} onChange={e => setBasementStart(e.target.value)}
-											placeholder="—"
-											style={{ width: 48, padding: "3px 6px", borderRadius: 6, border: "1.5px solid #e2e8f0", fontSize: "0.82rem", textAlign: "center" }}
-										/>
-										<span style={{ fontSize: "0.76rem", color: "#64748b" }}>张（无地下室留空）</span>
-									</div>
-								</div>
-							</div>
+							<table style={{ width: "100%", borderCollapse: "separate", borderSpacing: "0 5px" }}>
+								<tbody>
+									{ROOMS.map(({ key, label }) => {
+										const s = ranges[key].start ? parseInt(ranges[key].start, 10) : null;
+										const e = ranges[key].end   ? parseInt(ranges[key].end,   10) : null;
+										const valid = s && e && e >= s;
+										const count = valid ? e - s + 1 : null;
+										return (
+											<tr key={key}>
+												<td style={{ fontSize: "0.8rem", fontWeight: 600, color: "#334155", paddingRight: 8, whiteSpace: "nowrap", width: 72, verticalAlign: "middle" }}>
+													{label}
+												</td>
+												<td style={{ verticalAlign: "middle" }}>
+													<span style={{ fontSize: "0.76rem", color: "#64748b" }}>从第</span>
+													<input type="number" min={1} max={photoCount}
+														value={ranges[key].start}
+														onChange={ev => setRange(key, "start", ev.target.value)}
+														placeholder="—"
+														style={{ width: 44, margin: "0 4px", padding: "3px 5px", borderRadius: 6, border: "1.5px solid #e2e8f0", fontSize: "0.82rem", textAlign: "center" }}
+													/>
+													<span style={{ fontSize: "0.76rem", color: "#64748b" }}>张 到第</span>
+													<input type="number" min={1} max={photoCount}
+														value={ranges[key].end}
+														onChange={ev => setRange(key, "end", ev.target.value)}
+														placeholder="—"
+														style={{ width: 44, margin: "0 4px", padding: "3px 5px", borderRadius: 6, border: "1.5px solid #e2e8f0", fontSize: "0.82rem", textAlign: "center" }}
+													/>
+													<span style={{ fontSize: "0.76rem", color: "#64748b" }}>张</span>
+													{valid && (
+														<span style={{ fontSize: "0.72rem", color: "#7c3aed", marginLeft: 6 }}>
+															{count}张·目标{count * CHARS_PER_PHOTO}字
+														</span>
+													)}
+												</td>
+											</tr>
+										);
+									})}
+								</tbody>
+							</table>
 						</div>
 
 						<div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
@@ -576,23 +553,12 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 								const sections = narrationDraft.split(/---/).map(s => s.trim()).filter(Boolean);
 								if (sections.length <= 1) return null;
 
-								// Collect photo counts from the room/floor break inputs
-								const allBreaks = [
-									livingStart     ? parseInt(livingStart, 10)     : null,
-									kitchenStart    ? parseInt(kitchenStart, 10)    : null,
-									upperStart      ? parseInt(upperStart, 10)      : null,
-									masterBathStart ? parseInt(masterBathStart, 10) : null,
-									basementStart   ? parseInt(basementStart, 10)   : null,
-								].filter(Boolean).sort((a, b) => a - b);
-
-								// Build photo counts per segment from break points
-								const segPhotos = [];
-								if (allBreaks.length === sections.length - 1) {
-									const edges = [1, ...allBreaks, photoCount + 1];
-									for (let i = 0; i < sections.length; i++) {
-										segPhotos.push(edges[i + 1] - edges[i]);
-									}
-								}
+								// Map Chinese labels to room keys so we can look up the user-set range
+								const LABEL_TO_KEY = {
+									"室外": "exterior", "客厅": "living", "厨房餐厅": "kitchen",
+									"主卧套件": "master_suite", "地下室": "basement",
+									"主卧": "master_suite", "主卧卫浴": "master_suite",
+								};
 
 								return (
 									<div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
@@ -601,8 +567,14 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 											const label = m ? m[1] : `段${i + 1}`;
 											const bodyText = sec.replace(/^【[^】]*】\s*/, '').trim();
 											const chars = bodyText.length;
-											const target = segPhotos[i] != null ? segPhotos[i] * CHARS_PER_PHOTO : null;
-											const ok = target == null || (chars >= target * 0.8 && chars <= target * 1.3);
+
+											const rKey = LABEL_TO_KEY[label] || null;
+											const rng  = rKey ? ranges[rKey] : null;
+											const s    = rng?.start ? parseInt(rng.start, 10) : null;
+											const e    = rng?.end   ? parseInt(rng.end,   10) : null;
+											const target = (s && e && e >= s) ? (e - s + 1) * CHARS_PER_PHOTO : null;
+
+											const ok       = target == null || (chars >= target * 0.8 && chars <= target * 1.3);
 											const tooShort = target != null && chars < target * 0.8;
 											const tooLong  = target != null && chars > target * 1.3;
 											return (

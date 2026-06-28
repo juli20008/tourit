@@ -471,15 +471,16 @@ def draft_narration(mls_number):
     photo_count = int(data.get('photo_count') or 30)
     narration_style = "rich" if photo_count >= 50 else "concise"
     external_listing = data.get('external_listing') or None
-    # Manual floor break points: [upperStart, basementStart] — 1-indexed photo numbers
-    raw_breaks = data.get('floor_breaks') or []
-    upper_start_1    = int(raw_breaks[0]) if len(raw_breaks) > 0 and raw_breaks[0] else None
-    basement_start_1 = int(raw_breaks[1]) if len(raw_breaks) > 1 and raw_breaks[1] else None
-    # Room-level breaks within each floor
-    raw_room = data.get('room_breaks') or {}
-    living_start_1      = int(raw_room['living_start'])      if raw_room.get('living_start')      else None
-    kitchen_start_1     = int(raw_room['kitchen_start'])     if raw_room.get('kitchen_start')     else None
-    master_bath_start_1 = int(raw_room['master_bath_start']) if raw_room.get('master_bath_start') else None
+    # Explicit per-room photo ranges: {key: {start, end}} — 1-indexed, inclusive
+    photo_ranges = data.get('photo_ranges') or {}
+    # Maps frontend room keys → _FLOOR_ZH keys used in active_groups
+    _RANGE_KEY_MAP = {
+        'exterior':    'exterior',
+        'living':      'living',
+        'kitchen':     'kitchen',
+        'master_suite':'master_suite',
+        'basement':    'basement',
+    }
 
     if external_listing:
         listing_data = {
@@ -517,58 +518,21 @@ def draft_narration(mls_number):
         n_photos = min(len(listing.effective_images or []), MAX_PHOTOS) or MAX_PHOTOS
         has_basement = bool(getattr(listing, 'basement_beds', None))
 
-    # Build floor/room groups
-    if upper_start_1 and 2 <= upper_start_1 <= n_photos:
-        upper_end  = (basement_start_1 - 1) if (basement_start_1 and basement_start_1 > upper_start_1) else n_photos
-        base_n     = max(0, n_photos - upper_end) if basement_start_1 else 0
+    # Build floor/room groups from explicit photo_ranges (sorted by start position)
+    filled_ranges = {
+        k: {'start': int(v['start']), 'end': int(v['end'])}
+        for k, v in photo_ranges.items()
+        if v.get('start') and v.get('end') and int(v['end']) >= int(v['start'])
+    }
 
-        active_groups = []
-
-        # ── Main floor ──────────────────────────────────────────────────────────
-        main_total = upper_start_1 - 1  # total photos before upper floor (1-indexed count)
-        if living_start_1 and kitchen_start_1 and living_start_1 < kitchen_start_1 < upper_start_1:
-            # 3-way split: 室外 (before living) + 客厅 + 厨房餐厅
-            ext_n     = max(1, living_start_1 - 1)
-            living_n  = max(1, kitchen_start_1 - living_start_1)
-            kitchen_n = max(1, upper_start_1 - kitchen_start_1)
-            if ext_n > 0:
-                active_groups.append(("exterior",     ext_n))
-            active_groups.append(("main_living",  living_n))
-            active_groups.append(("main_kitchen", kitchen_n))
-        elif living_start_1 and living_start_1 < upper_start_1:
-            # 室外 + 客厅 (no kitchen split)
-            ext_n    = max(1, living_start_1 - 1)
-            living_n = max(1, upper_start_1 - living_start_1)
-            if ext_n > 0:
-                active_groups.append(("exterior",    ext_n))
-            active_groups.append(("main_living", living_n))
-        elif kitchen_start_1 and 2 <= kitchen_start_1 < upper_start_1:
-            # 客厅+室外 合并 + 厨房餐厅
-            living_n  = max(1, kitchen_start_1 - 1)
-            kitchen_n = max(1, upper_start_1 - kitchen_start_1)
-            active_groups.append(("main_living",  living_n))
-            active_groups.append(("main_kitchen", kitchen_n))
-        else:
-            # No room split — exterior heuristic + full main floor
-            ext_n  = max(1, int(main_total * 0.20))
-            main_n = max(1, main_total - ext_n)
-            active_groups.append(("exterior",   ext_n))
-            active_groups.append(("main_floor", main_n))
-
-        # ── Upper floor ─────────────────────────────────────────────────────────
-        upper_n = max(1, upper_end - upper_start_1 + 1)
-        if master_bath_start_1 and upper_start_1 < master_bath_start_1 <= upper_end:
-            master_n = max(1, master_bath_start_1 - upper_start_1)
-            bath_n   = max(1, upper_end - master_bath_start_1 + 1)
-            active_groups.append(("upper_master", master_n))
-            active_groups.append(("upper_bath",   bath_n))
-        else:
-            active_groups.append(("upper_floor", upper_n))
-
-        if base_n > 0:
-            active_groups.append(("basement", base_n))
+    if filled_ranges:
+        sorted_ranges = sorted(filled_ranges.items(), key=lambda x: x[1]['start'])
+        active_groups = [
+            (_RANGE_KEY_MAP.get(k, k), max(1, v['end'] - v['start'] + 1))
+            for k, v in sorted_ranges
+        ]
     else:
-        # Heuristic proportions
+        # Heuristic proportions when no ranges provided
         ext_n   = max(1, int(n_photos * 0.12))
         main_n  = max(2, int(n_photos * 0.43))
         upper_n = max(2, int(n_photos * 0.25))
@@ -634,10 +598,8 @@ def generate_agent_video(mls_number):
         import json as _json
         _ext = request.form.get('external_listing')
         external_listing = _json.loads(_ext) if _ext else None
-        _fb = request.form.get('floor_breaks')
-        floor_breaks = _json.loads(_fb) if _fb else None
-        _rb = request.form.get('room_breaks')
-        room_breaks = _json.loads(_rb) if _rb else None
+        _pr = request.form.get('photo_ranges')
+        photo_ranges = _json.loads(_pr) if _pr else None
     else:
         data = request.get_json(silent=True) or {}
         cover_lines = [
@@ -650,8 +612,7 @@ def generate_agent_video(mls_number):
         intro_bytes = None
         cover_bg_bytes = None
         external_listing = data.get('external_listing') or None
-        floor_breaks = data.get('floor_breaks') or None
-        room_breaks  = data.get('room_breaks')  or None
+        photo_ranges = data.get('photo_ranges') or None
 
     use_actions = bool(os.environ.get('GH_PAT'))
 
@@ -703,8 +664,7 @@ def generate_agent_video(mls_number):
         narration_override=narration_override,
         external_listing=external_listing,
         photo_count=photo_count,
-        floor_breaks=floor_breaks,
-        room_breaks=room_breaks,
+        photo_ranges=photo_ranges,
     )
     return jsonify({'job_id': job_id, 'status': 'processing'})
 
