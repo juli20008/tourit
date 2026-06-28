@@ -221,7 +221,7 @@ def push_listing():
         """Write all listing fields onto a MlsListing ORM row (create or update)."""
         row.images               = listing["images"]
         row.photos_count         = len(listing["images"])
-        row.primary_photo_url    = listing.get("primary_photo_url")
+        row.primary_photo_url    = listing.get("primary_photo_url") or (listing["images"][0] if listing.get("images") else None)
         row.list_price           = listing.get("list_price")
         row.bed                  = listing.get("bed")
         row.bath                 = int(listing["bath"]) if listing.get("bath") else None

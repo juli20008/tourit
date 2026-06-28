@@ -192,7 +192,7 @@ def map_row(row):
         'street_number':        street_num,
         'street_name':          street_name,
         'street_suffix':        street_suffix,
-        'unit_number':          clean(row.get('addressLine2')),
+        'unit_number':          None,  # addressLine2 is full address in Realm CSV, not unit
         'city':                 city,
         'state':                'Ontario',
         'zip':                  postal,
@@ -270,7 +270,7 @@ def map_row(row):
         # ── Photos ───────────────────────────────────────────────────────────
         'photos_count':         len(photos),
         'images':               photos,
-        'primary_photo_url':    clean(row.get('primaryPhotoUrl')),
+        'primary_photo_url':    clean(row.get('primaryPhotoUrl')) or (photos[0] if photos else None),
         # ── Metadata ─────────────────────────────────────────────────────────
         'scraped_at':           clean(row.get('scrapedAt')),
         'created_at':           datetime.now(timezone.utc).isoformat(),
