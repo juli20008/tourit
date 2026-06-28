@@ -198,12 +198,32 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 	const [basementStart, setBasementStart] = useState("");
 
 	// Room ranges within floors — { start, end } 1-indexed, for word-count alignment
-	const ROOMS = [
-		{ key: "exterior",     label: "室外" },
-		{ key: "living",       label: "客厅" },
-		{ key: "kitchen",      label: "厨房餐厅" },
-		{ key: "master_suite", label: "主卧套件" },
+	const ROOM_GROUPS = [
+		{
+			floor: "main", label: "主层",
+			rooms: [
+				{ key: "exterior",   label: "室外" },
+				{ key: "living",     label: "客厅" },
+				{ key: "kitchen",    label: "厨房餐厅" },
+				{ key: "main_other", label: "其他主层" },
+			],
+		},
+		{
+			floor: "upper", label: "上层",
+			rooms: [
+				{ key: "master_suite", label: "主卧套件" },
+				{ key: "upper_other",  label: "其他房间" },
+			],
+		},
+		{
+			floor: "basement", label: "地下室",
+			rooms: [
+				{ key: "basement", label: "地下室" },
+				{ key: "other",    label: "其他（户外）" },
+			],
+		},
 	];
+	const ROOMS = ROOM_GROUPS.flatMap(g => g.rooms);
 	const [ranges, setRanges] = useState(() =>
 		Object.fromEntries(ROOMS.map(r => [r.key, { start: "", end: "" }]))
 	);
@@ -511,48 +531,55 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 									（选填，帮助字数精准对齐）
 								</span>
 							</label>
-							<p style={{ color: "#64748b", fontSize: "0.75rem", margin: "0 0 8px" }}>
-								指定每个房间的起止照片，编辑器会实时显示每楼层应写多少字。
+							<p style={{ color: "#64748b", fontSize: "0.75rem", margin: "0 0 10px" }}>
+								指定每个区域的起止照片，编辑器会实时显示每楼层应写多少字。留空的区域不影响生成。
 							</p>
-							<table style={{ width: "100%", borderCollapse: "separate", borderSpacing: "0 5px" }}>
-								<tbody>
-									{ROOMS.map(({ key, label }) => {
-										const s = ranges[key].start ? parseInt(ranges[key].start, 10) : null;
-										const e = ranges[key].end   ? parseInt(ranges[key].end,   10) : null;
-										const valid = s && e && e >= s;
-										const count = valid ? e - s + 1 : null;
-										return (
-											<tr key={key}>
-												<td style={{ fontSize: "0.8rem", fontWeight: 600, color: "#334155", paddingRight: 8, whiteSpace: "nowrap", width: 72, verticalAlign: "middle" }}>
-													{label}
-												</td>
-												<td style={{ verticalAlign: "middle" }}>
-													<span style={{ fontSize: "0.76rem", color: "#64748b" }}>从第</span>
-													<input type="number" min={1} max={photoCount}
-														value={ranges[key].start}
-														onChange={ev => setRange(key, "start", ev.target.value)}
-														placeholder="—"
-														style={{ width: 44, margin: "0 4px", padding: "3px 5px", borderRadius: 6, border: "1.5px solid #e2e8f0", fontSize: "0.82rem", textAlign: "center" }}
-													/>
-													<span style={{ fontSize: "0.76rem", color: "#64748b" }}>张 到第</span>
-													<input type="number" min={1} max={photoCount}
-														value={ranges[key].end}
-														onChange={ev => setRange(key, "end", ev.target.value)}
-														placeholder="—"
-														style={{ width: 44, margin: "0 4px", padding: "3px 5px", borderRadius: 6, border: "1.5px solid #e2e8f0", fontSize: "0.82rem", textAlign: "center" }}
-													/>
-													<span style={{ fontSize: "0.76rem", color: "#64748b" }}>张</span>
-													{valid && (
-														<span style={{ fontSize: "0.72rem", color: "#7c3aed", marginLeft: 6 }}>
-															{count}张·目标{count * CHARS_PER_PHOTO}字
-														</span>
-													)}
-												</td>
-											</tr>
-										);
-									})}
-								</tbody>
-							</table>
+							{ROOM_GROUPS.map(({ floor, label: floorLabel, rooms }) => (
+								<div key={floor} style={{ marginBottom: 10 }}>
+									<div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#7c3aed", marginBottom: 4, letterSpacing: 0.3 }}>
+										▸ {floorLabel}
+									</div>
+									<table style={{ width: "100%", borderCollapse: "separate", borderSpacing: "0 4px", paddingLeft: 8 }}>
+										<tbody>
+											{rooms.map(({ key, label }) => {
+												const s = ranges[key].start ? parseInt(ranges[key].start, 10) : null;
+												const e = ranges[key].end   ? parseInt(ranges[key].end,   10) : null;
+												const valid = s && e && e >= s;
+												const count = valid ? e - s + 1 : null;
+												return (
+													<tr key={key}>
+														<td style={{ fontSize: "0.78rem", fontWeight: 600, color: "#334155", paddingRight: 8, whiteSpace: "nowrap", width: 76, verticalAlign: "middle" }}>
+															{label}
+														</td>
+														<td style={{ verticalAlign: "middle" }}>
+															<span style={{ fontSize: "0.74rem", color: "#64748b" }}>从第</span>
+															<input type="number" min={1} max={photoCount}
+																value={ranges[key].start}
+																onChange={ev => setRange(key, "start", ev.target.value)}
+																placeholder="—"
+																style={{ width: 42, margin: "0 3px", padding: "2px 4px", borderRadius: 6, border: "1.5px solid #e2e8f0", fontSize: "0.82rem", textAlign: "center" }}
+															/>
+															<span style={{ fontSize: "0.74rem", color: "#64748b" }}>张 到第</span>
+															<input type="number" min={1} max={photoCount}
+																value={ranges[key].end}
+																onChange={ev => setRange(key, "end", ev.target.value)}
+																placeholder="—"
+																style={{ width: 42, margin: "0 3px", padding: "2px 4px", borderRadius: 6, border: "1.5px solid #e2e8f0", fontSize: "0.82rem", textAlign: "center" }}
+															/>
+															<span style={{ fontSize: "0.74rem", color: "#64748b" }}>张</span>
+															{valid && (
+																<span style={{ fontSize: "0.71rem", color: "#7c3aed", marginLeft: 5 }}>
+																	{count}张·{count * CHARS_PER_PHOTO}字
+																</span>
+															)}
+														</td>
+													</tr>
+												);
+											})}
+										</tbody>
+									</table>
+								</div>
+							))}
 						</div>
 
 						<div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
@@ -606,25 +633,33 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 									const isMain     = ["主层", "室外及主层", "主层及室外"].includes(label);
 									const isUpper    = label === "上层";
 									const isBasement = label === "地下室";
+
+									const sumRooms = keys => {
+										const filled = keys.map(rc).filter(Boolean);
+										if (!filled.length) return null;
+										return {
+											n:    filled.reduce((a, b) => a + b.n, 0),
+											from: Math.min(...filled.map(x => x.s)),
+											to:   Math.max(...filled.map(x => x.e)),
+										};
+									};
+
 									if (isMain) {
-										const filled = ["exterior", "living", "kitchen"].map(rc).filter(Boolean);
-										if (filled.length > 0) {
-											const n    = filled.reduce((a, b) => a + b.n, 0);
-											const from = Math.min(...filled.map(x => x.s));
-											const to   = Math.max(...filled.map(x => x.e));
-											return { from, to, target: n * CHARS_PER_PHOTO };
-										}
+										const r = sumRooms(["exterior", "living", "kitchen", "main_other"]);
+										if (r) return { from: r.from, to: r.to, target: r.n * CHARS_PER_PHOTO };
 										if (us) return { from: 1, to: us - 1, target: (us - 1) * CHARS_PER_PHOTO };
 										return null;
 									}
 									if (isUpper) {
-										const suite = rc("master_suite");
-										if (suite) return { from: suite.s, to: suite.e, target: suite.n * CHARS_PER_PHOTO };
+										const r = sumRooms(["master_suite", "upper_other"]);
+										if (r) return { from: r.from, to: r.to, target: r.n * CHARS_PER_PHOTO };
 										if (us && bs) return { from: us, to: bs - 1, target: (bs - us) * CHARS_PER_PHOTO };
 										if (us) return { from: us, to: photoCount, target: (photoCount - us + 1) * CHARS_PER_PHOTO };
 										return null;
 									}
 									if (isBasement) {
+										const r = sumRooms(["basement", "other"]);
+										if (r) return { from: r.from, to: r.to, target: r.n * CHARS_PER_PHOTO };
 										if (bs) return { from: bs, to: photoCount, target: (photoCount - bs + 1) * CHARS_PER_PHOTO };
 										return null;
 									}

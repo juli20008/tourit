@@ -901,14 +901,21 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
         s, e = r.get('start'), r.get('end')
         return (int(e) - int(s) + 1) if (s and e and int(e) >= int(s)) else None
 
+    def _sum_rooms(*keys):
+        ns = [_room_n(k) for k in keys if _room_n(k)]
+        return sum(ns) if ns else None
+
     seg_targets = {}
     for floor, count in active_groups:
-        if floor == "main_floor" and room_ranges:
-            ns = [_room_n(k) for k in ("exterior", "living", "kitchen") if _room_n(k)]
-            seg_targets[floor] = (sum(ns) if ns else count) * CHARS_PER_PHOTO
+        if floor in ("main_floor", "exterior") and room_ranges:
+            n = _sum_rooms("exterior", "living", "kitchen", "main_other")
+            seg_targets[floor] = (n or count) * CHARS_PER_PHOTO
         elif floor == "upper_floor" and room_ranges:
-            n = _room_n("master_suite")
-            seg_targets[floor] = (n if n else count) * CHARS_PER_PHOTO
+            n = _sum_rooms("master_suite", "upper_other")
+            seg_targets[floor] = (n or count) * CHARS_PER_PHOTO
+        elif floor == "basement" and room_ranges:
+            n = _sum_rooms("basement", "other")
+            seg_targets[floor] = (n or count) * CHARS_PER_PHOTO
         else:
             seg_targets[floor] = count * CHARS_PER_PHOTO
 
@@ -918,7 +925,16 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
     )
 
     # Room detail hint for the AI prompt
-    _KEY_ZH_LOCAL = {"exterior": "室外", "living": "客厅", "kitchen": "厨房餐厅", "master_suite": "主卧套件"}
+    _KEY_ZH_LOCAL = {
+        "exterior":    "室外",
+        "living":      "客厅",
+        "kitchen":     "厨房餐厅",
+        "main_other":  "其他主层区域",
+        "master_suite":"主卧套件",
+        "upper_other": "其他上层房间",
+        "basement":    "地下室",
+        "other":       "其他（户外）",
+    }
     room_hint = ""
     if room_ranges:
         lines = []
@@ -928,7 +944,7 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
                 zh = _KEY_ZH_LOCAL.get(k, k)
                 lines.append(f"  {zh}（第{v['start']}～{v['end']}张，建议约{n * CHARS_PER_PHOTO}字）")
         if lines:
-            room_hint = "\n照片房间分布（仅供参考，勿在段落中提及张数）：\n" + "\n".join(lines)
+            room_hint = "\n照片房间分布（仅供参考，按此比例在各楼层段落内分配描述重点，勿提及张数）：\n" + "\n".join(lines)
 
     cover_hints = ""
     if cover_lines:
