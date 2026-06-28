@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 
 const LogoBrand = ({ agentName, agentPhoto }) => {
-	const [lang, setLang] = useState(() => localStorage.getItem('tourit_lang') || 'en');
+	const [lang, setLang] = useState(() => { const s = localStorage.getItem('tourit_lang'); return s === 'en' ? 'en' : 'zh'; });
 
 	useEffect(() => {
 		const handler = (e) => setLang(e.detail);
@@ -46,16 +46,13 @@ const LogoBrand = ({ agentName, agentPhoto }) => {
 
 	return (
 		<div className="flex flex-col items-center md:flex-row md:items-baseline md:gap-3">
-			<div className="flex items-center gap-2">
-				<span
-					style={{ ...brandStyle, fontWeight: 400 }}
-					className={spanCls}
-				>
-					tourit.ca
+			<div className="flex items-center gap-2 notranslate">
+				<span style={{ ...brandStyle, fontWeight: 400 }} className={spanCls}>
+					{lang === 'zh' ? '加家地产团队' : 'tourit.ca'}
 				</span>
 			</div>
 			{lang === 'zh'
-				? <span className="nav-slogan notranslate">轻松看房，省心安家。</span>
+				? <span className="nav-slogan notranslate">万锦列治文山精选房源</span>
 				: <span className="nav-slogan">Home Tour Simplified.</span>
 			}
 		</div>
