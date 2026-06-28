@@ -473,8 +473,12 @@ def draft_narration(mls_number):
     external_listing = data.get('external_listing') or None
     # Manual floor break points: [upperStart, basementStart] — 1-indexed photo numbers
     raw_breaks = data.get('floor_breaks') or []
-    upper_start_1  = int(raw_breaks[0]) if len(raw_breaks) > 0 and raw_breaks[0] else None
+    upper_start_1    = int(raw_breaks[0]) if len(raw_breaks) > 0 and raw_breaks[0] else None
     basement_start_1 = int(raw_breaks[1]) if len(raw_breaks) > 1 and raw_breaks[1] else None
+    # Room-level breaks within each floor
+    raw_room = data.get('room_breaks') or {}
+    kitchen_start_1    = int(raw_room['kitchen_start'])    if raw_room.get('kitchen_start')    else None
+    master_bath_start_1 = int(raw_room['master_bath_start']) if raw_room.get('master_bath_start') else None
 
     if external_listing:
         listing_data = {
@@ -512,23 +516,38 @@ def draft_narration(mls_number):
         n_photos = min(len(listing.effective_images or []), MAX_PHOTOS) or MAX_PHOTOS
         has_basement = bool(getattr(listing, 'basement_beds', None))
 
-    # Build floor groups: use manual break points if provided, else heuristic
+    # Build floor/room groups
     if upper_start_1 and 2 <= upper_start_1 <= n_photos:
-        # Manual mode: exterior+main = photos 1..(upper_start-1), upper = upper_start..basement_start-1
-        main_end  = upper_start_1 - 1          # last photo of main floor (1-indexed)
-        upper_end = (basement_start_1 - 1) if (basement_start_1 and basement_start_1 > upper_start_1) else n_photos
-        base_end  = n_photos
+        upper_end  = (basement_start_1 - 1) if (basement_start_1 and basement_start_1 > upper_start_1) else n_photos
+        base_n     = max(0, n_photos - upper_end) if basement_start_1 else 0
 
-        ext_n   = max(1, int(main_end * 0.20))   # first ~20% of main block = exterior
-        main_n  = max(1, main_end - ext_n)
+        active_groups = []
+
+        # ── Main floor ──────────────────────────────────────────────────────────
+        main_total = upper_start_1 - 1  # total photos on main floor (1-indexed count)
+        if kitchen_start_1 and 2 <= kitchen_start_1 < upper_start_1:
+            # Split main floor: 客厅 (photos 1..kitchen_start-1) + 厨房餐厅 (kitchen_start..upper_start-1)
+            living_n  = max(1, kitchen_start_1 - 1)
+            kitchen_n = max(1, upper_start_1 - kitchen_start_1)
+            active_groups.append(("main_living",  living_n))
+            active_groups.append(("main_kitchen", kitchen_n))
+        else:
+            # No kitchen split — keep exterior heuristic + full main floor
+            ext_n  = max(1, int(main_total * 0.20))
+            main_n = max(1, main_total - ext_n)
+            active_groups.append(("exterior",   ext_n))
+            active_groups.append(("main_floor", main_n))
+
+        # ── Upper floor ─────────────────────────────────────────────────────────
         upper_n = max(1, upper_end - upper_start_1 + 1)
-        base_n  = max(0, base_end - upper_end) if basement_start_1 else 0
+        if master_bath_start_1 and upper_start_1 < master_bath_start_1 <= upper_end:
+            master_n = max(1, master_bath_start_1 - upper_start_1)
+            bath_n   = max(1, upper_end - master_bath_start_1 + 1)
+            active_groups.append(("upper_master", master_n))
+            active_groups.append(("upper_bath",   bath_n))
+        else:
+            active_groups.append(("upper_floor", upper_n))
 
-        active_groups = [
-            ("exterior",    ext_n),
-            ("main_floor",  main_n),
-            ("upper_floor", upper_n),
-        ]
         if base_n > 0:
             active_groups.append(("basement", base_n))
     else:
@@ -598,6 +617,10 @@ def generate_agent_video(mls_number):
         import json as _json
         _ext = request.form.get('external_listing')
         external_listing = _json.loads(_ext) if _ext else None
+        _fb = request.form.get('floor_breaks')
+        floor_breaks = _json.loads(_fb) if _fb else None
+        _rb = request.form.get('room_breaks')
+        room_breaks = _json.loads(_rb) if _rb else None
     else:
         data = request.get_json(silent=True) or {}
         cover_lines = [
@@ -610,6 +633,8 @@ def generate_agent_video(mls_number):
         intro_bytes = None
         cover_bg_bytes = None
         external_listing = data.get('external_listing') or None
+        floor_breaks = data.get('floor_breaks') or None
+        room_breaks  = data.get('room_breaks')  or None
 
     use_actions = bool(os.environ.get('GH_PAT'))
 
@@ -661,6 +686,8 @@ def generate_agent_video(mls_number):
         narration_override=narration_override,
         external_listing=external_listing,
         photo_count=photo_count,
+        floor_breaks=floor_breaks,
+        room_breaks=room_breaks,
     )
     return jsonify({'job_id': job_id, 'status': 'processing'})
 

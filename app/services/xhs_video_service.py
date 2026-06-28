@@ -736,8 +736,47 @@ def _generate_narration(listing_data, cover_lines=None, photo_count=30):
 # ── Floor-segmented narration ──────────────────────────────────────────────────
 
 _FLOOR_ORDER = ["exterior", "main_floor", "upper_floor", "basement"]
-_FLOOR_ZH    = {"exterior": "室外", "main_floor": "主层", "upper_floor": "上层", "basement": "地下室",
-                "exterior_main": "室外及主层"}
+_FLOOR_ZH    = {
+    "exterior":      "室外",       "main_floor":   "主层",
+    "upper_floor":   "上层",       "basement":     "地下室",
+    "exterior_main": "室外及主层",
+    "main_living":   "客厅",       "main_kitchen": "厨房餐厅",
+    "upper_master":  "主卧",       "upper_bath":   "主卧卫浴",
+}
+
+
+def _photo_boundaries(n_photos, floor_breaks, room_breaks, n_segs):
+    """
+    Build explicit (start, end) photo ranges (0-indexed, end exclusive) for each
+    narration segment using floor_breaks + room_breaks.
+    Returns list of tuples if the break count matches n_segs, else None (caller
+    falls back to even split).
+    """
+    floor_breaks = floor_breaks or []
+    room_breaks  = room_breaks  or {}
+
+    def _i(v):
+        try: return int(v) if v else None
+        except Exception: return None
+
+    upper_1   = _i(floor_breaks[0]) if len(floor_breaks) > 0 else None
+    basement_1 = _i(floor_breaks[1]) if len(floor_breaks) > 1 else None
+    kitchen_1  = _i(room_breaks.get("kitchen_start"))
+    bath_1     = _i(room_breaks.get("master_bath_start"))
+
+    # Sort the valid break points (1-indexed photo numbers)
+    raw = sorted(b for b in [kitchen_1, upper_1, bath_1, basement_1]
+                 if b is not None and 2 <= b <= n_photos)
+    if not raw:
+        return None
+
+    # Build (start, end) pairs using 0-indexed slicing
+    edges = [0] + [b - 1 for b in raw] + [n_photos]
+    pairs = [(edges[i], edges[i + 1]) for i in range(len(edges) - 1)]
+
+    if len(pairs) != n_segs:
+        return None  # mismatch — caller uses even split
+    return pairs
 
 
 def _floor_heuristic(n):
@@ -945,9 +984,13 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
 {property_info}
 =====
 
-卖点提炼与分配规则：
-- 室外及主层段：外观/车库/地块/泳池/客厅/餐厅/厨房/主层亮点/停车
-- 上层段：主卧/次卧/卫浴详情/上层亮点
+卖点提炼与分配规则（按段名对应）：
+- 室外/室外及主层/客厅段：外观/车库/地块/泳池/入口/客厅亮点/停车
+- 厨房餐厅段：厨房设施/餐厅/岛台/收纳
+- 主层段（无细分时）：外观/客厅/餐厅/厨房/主层整体亮点
+- 主卧段：主卧面积/主卧亮点/walk-in closet
+- 主卧卫浴段：主卧浴室详情/次卧简要介绍
+- 上层段（无细分时）：主卧/次卧/卫浴详情/上层亮点
 - 地下室段（如有）：地下室类型/地下室卧室/地下室特色
 - 学区/税务/交通/费用/入住安排 → 放在最后一段结尾自然带出
 
@@ -1132,7 +1175,8 @@ def get_job(job_id):
 
 def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_bytes=None,
                   cover_bg_bytes=None, cover_photo_index=0, narration_override=None,
-                  external_listing=None, photo_count=30):
+                  external_listing=None, photo_count=30,
+                  floor_breaks=None, room_breaks=None):
     """
     external_listing: pre-scraped dict with keys bed, bath, sqft, city, description,
                       style, list_price, images (list[str]), street, mls_number.
@@ -1357,14 +1401,19 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                 override_segments = [_re.sub(r'^【[^】]*】\s*', '', s).strip() for s in raw_segs]
 
             if override_segments and downloaded:
-                # Split photos evenly across segments
                 n_segs = len(override_segments)
-                chunk = len(downloaded) / n_segs
+                # Use explicit photo boundaries from room/floor breaks if provided and count matches;
+                # fall back to even split when breaks are absent or count mismatches.
+                boundaries = _photo_boundaries(len(downloaded), floor_breaks, room_breaks, n_segs)
                 _job_set(job_id, {"status": "processing", "step": "Generating voiceover..."})
                 from app.services.elevenlabs_service import generate_speech
                 for k, seg_text in enumerate(override_segments):
-                    start = int(k * chunk)
-                    end   = int((k + 1) * chunk) if k < n_segs - 1 else len(downloaded)
+                    if boundaries:
+                        start, end = boundaries[k]
+                    else:
+                        chunk = len(downloaded) / n_segs
+                        start = int(k * chunk)
+                        end   = int((k + 1) * chunk) if k < n_segs - 1 else len(downloaded)
                     photos = downloaded[start:end] or downloaded[-1:]
                     audio_bytes = generate_speech(seg_text, fish_voice_id=minimax_voice_id)
                     seg_path = os.path.join(tmpdir, f"narration_seg{k}.mp3")
@@ -1703,7 +1752,8 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
 
 def start_video_job(mls_number, agent_id, cover_lines, flask_app, intro_bytes=None,
                     cover_bg_bytes=None, cover_photo_index=0, narration_override=None,
-                    external_listing=None, photo_count=30):
+                    external_listing=None, photo_count=30,
+                    floor_breaks=None, room_breaks=None):
     """Start background video generation. Returns job_id."""
     _job_clean()
     job_id = uuid.uuid4().hex
@@ -1715,7 +1765,9 @@ def start_video_job(mls_number, agent_id, cover_lines, flask_app, intro_bytes=No
                 "cover_photo_index": cover_photo_index,
                 "narration_override": narration_override,
                 "external_listing": external_listing,
-                "photo_count": photo_count},
+                "photo_count": photo_count,
+                "floor_breaks": floor_breaks,
+                "room_breaks": room_breaks},
         daemon=True,
     )
     t.start()
