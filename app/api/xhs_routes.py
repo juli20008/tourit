@@ -471,16 +471,11 @@ def draft_narration(mls_number):
     photo_count = int(data.get('photo_count') or 30)
     narration_style = "rich" if photo_count >= 50 else "concise"
     external_listing = data.get('external_listing') or None
-    # Explicit per-room photo ranges: {key: {start, end}} — 1-indexed, inclusive
+    # Floor breaks (1-indexed photo numbers)
+    upper_start    = int(data.get('upper_start'))    if data.get('upper_start')    else None
+    basement_start = int(data.get('basement_start')) if data.get('basement_start') else None
+    # Room ranges within floors — for word-count targets and AI guidance only
     photo_ranges = data.get('photo_ranges') or {}
-    # Maps frontend room keys → _FLOOR_ZH keys used in active_groups
-    _RANGE_KEY_MAP = {
-        'exterior':    'exterior',
-        'living':      'living',
-        'kitchen':     'kitchen',
-        'master_suite':'master_suite',
-        'basement':    'basement',
-    }
 
     if external_listing:
         listing_data = {
@@ -518,26 +513,21 @@ def draft_narration(mls_number):
         n_photos = min(len(listing.effective_images or []), MAX_PHOTOS) or MAX_PHOTOS
         has_basement = bool(getattr(listing, 'basement_beds', None))
 
-    # Build floor/room groups from explicit photo_ranges (sorted by start position)
-    filled_ranges = {
-        k: {'start': int(v['start']), 'end': int(v['end'])}
-        for k, v in photo_ranges.items()
-        if v.get('start') and v.get('end') and int(v['end']) >= int(v['start'])
-    }
-
-    if filled_ranges:
-        sorted_ranges = sorted(filled_ranges.items(), key=lambda x: x[1]['start'])
-        active_groups = [
-            (_RANGE_KEY_MAP.get(k, k), max(1, v['end'] - v['start'] + 1))
-            for k, v in sorted_ranges
-        ]
+    # Build floor-level active_groups from floor breaks
+    if upper_start and 2 <= upper_start <= n_photos:
+        upper_end  = (basement_start - 1) if (basement_start and basement_start > upper_start) else n_photos
+        main_n     = upper_start - 1
+        upper_n    = max(1, upper_end - upper_start + 1)
+        base_n     = max(0, n_photos - basement_start + 1) if basement_start else 0
+        active_groups = [("main_floor", max(1, main_n)), ("upper_floor", upper_n)]
+        if base_n > 0:
+            active_groups.append(("basement", base_n))
     else:
-        # Heuristic proportions when no ranges provided
+        # Heuristic proportions when no floor breaks provided
         ext_n   = max(1, int(n_photos * 0.12))
         main_n  = max(2, int(n_photos * 0.43))
         upper_n = max(2, int(n_photos * 0.25))
         base_n  = n_photos - ext_n - main_n - upper_n
-
         active_groups = [
             ("exterior",    ext_n),
             ("main_floor",  main_n),
@@ -547,7 +537,7 @@ def draft_narration(mls_number):
             active_groups.append(("basement", base_n))
 
     floor_texts = _generate_floor_narrations(listing_data, active_groups, cover_lines=cover_lines,
-                                             style=narration_style)
+                                             style=narration_style, room_ranges=photo_ranges or None)
     if floor_texts and len(floor_texts) == len(active_groups):
         # Label each segment so user can see section boundaries
         labeled = []
@@ -599,7 +589,11 @@ def generate_agent_video(mls_number):
         _ext = request.form.get('external_listing')
         external_listing = _json.loads(_ext) if _ext else None
         _pr = request.form.get('photo_ranges')
-        photo_ranges = _json.loads(_pr) if _pr else None
+        photo_ranges  = _json.loads(_pr) if _pr else None
+        _us = request.form.get('upper_start')
+        upper_start   = int(_us) if _us else None
+        _bs = request.form.get('basement_start')
+        basement_start = int(_bs) if _bs else None
     else:
         data = request.get_json(silent=True) or {}
         cover_lines = [
@@ -612,7 +606,9 @@ def generate_agent_video(mls_number):
         intro_bytes = None
         cover_bg_bytes = None
         external_listing = data.get('external_listing') or None
-        photo_ranges = data.get('photo_ranges') or None
+        photo_ranges   = data.get('photo_ranges') or None
+        upper_start    = int(data.get('upper_start'))    if data.get('upper_start')    else None
+        basement_start = int(data.get('basement_start')) if data.get('basement_start') else None
 
     use_actions = bool(os.environ.get('GH_PAT'))
 
@@ -664,6 +660,8 @@ def generate_agent_video(mls_number):
         narration_override=narration_override,
         external_listing=external_listing,
         photo_count=photo_count,
+        upper_start=upper_start,
+        basement_start=basement_start,
         photo_ranges=photo_ranges,
     )
     return jsonify({'job_id': job_id, 'status': 'processing'})

@@ -868,7 +868,8 @@ def _classify_photos_by_floor(photo_paths, api_key):
     return _floor_heuristic(n)
 
 
-def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, style="concise"):
+def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, style="concise",
+                               room_ranges=None):
     """Generate one narration segment per floor group. Returns [str] or None."""
     import json as _json, re as _re
     api_key = os.environ.get("DEEPSEEK_API_KEY", "")
@@ -892,14 +893,42 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
     else:
         beds_detail = f"{listing_data.get('bed', '?')}室{baths}卫"
 
-    # 14字/张，每段各自算目标字数
     CHARS_PER_PHOTO = 14
-    seg_targets = {floor: CHARS_PER_PHOTO * count for floor, count in active_groups}
+
+    # Compute per-floor word count targets, refined by room_ranges when available
+    def _room_n(key):
+        r = (room_ranges or {}).get(key, {})
+        s, e = r.get('start'), r.get('end')
+        return (int(e) - int(s) + 1) if (s and e and int(e) >= int(s)) else None
+
+    seg_targets = {}
+    for floor, count in active_groups:
+        if floor == "main_floor" and room_ranges:
+            ns = [_room_n(k) for k in ("exterior", "living", "kitchen") if _room_n(k)]
+            seg_targets[floor] = (sum(ns) if ns else count) * CHARS_PER_PHOTO
+        elif floor == "upper_floor" and room_ranges:
+            n = _room_n("master_suite")
+            seg_targets[floor] = (n if n else count) * CHARS_PER_PHOTO
+        else:
+            seg_targets[floor] = count * CHARS_PER_PHOTO
 
     seg_lines = "\n".join(
         f"- 【{_FLOOR_ZH[floor]}】{count}张照片，约{seg_targets[floor]}字"
         for floor, count in active_groups
     )
+
+    # Room detail hint for the AI prompt
+    _KEY_ZH_LOCAL = {"exterior": "室外", "living": "客厅", "kitchen": "厨房餐厅", "master_suite": "主卧套件"}
+    room_hint = ""
+    if room_ranges:
+        lines = []
+        for k, v in sorted(room_ranges.items(), key=lambda x: x[1].get('start', 0)):
+            if v.get('start') and v.get('end'):
+                n = int(v['end']) - int(v['start']) + 1
+                zh = _KEY_ZH_LOCAL.get(k, k)
+                lines.append(f"  {zh}（第{v['start']}～{v['end']}张，建议约{n * CHARS_PER_PHOTO}字）")
+        if lines:
+            room_hint = "\n照片房间分布（仅供参考，勿在段落中提及张数）：\n" + "\n".join(lines)
 
     cover_hints = ""
     if cover_lines:
@@ -977,10 +1006,10 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
 
 任务：阅读下方【房源完整信息】，自动提炼这套房子最值得说的卖点，然后按楼层分布到各段旁白里。只说listing里有的内容，严禁编造任何未提到的细节。
 
-各段与目标字数：
+各段与目标字数（字数要求极其严格，每段必须精确达到目标）：
 {seg_lines}
-- 每段字数必须达到目标：信息说完后用邀请看房的话自然补足，不要发明新细节
-- 信息量超出目标字数：优先说最有价值的卖点，口语精简，控制在目标字数内
+- 每段字数必须达到目标：信息说完后用邀请看房的话自然补足，绝不发明新细节
+- 信息量超出目标字数：优先说最有价值的卖点，口语精简，严格控制在目标字数内{room_hint}
 
 房源：{listing_data.get('neighborhood') or listing_data.get('city', '')}，{prop_style}，{beds_detail}{f'，{sqft} sqft' if sqft else ''}{cover_hints}
 
@@ -1180,7 +1209,7 @@ def get_job(job_id):
 def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_bytes=None,
                   cover_bg_bytes=None, cover_photo_index=0, narration_override=None,
                   external_listing=None, photo_count=30,
-                  photo_ranges=None):
+                  upper_start=None, basement_start=None, photo_ranges=None):
     """
     external_listing: pre-scraped dict with keys bed, bath, sqft, city, description,
                       style, list_price, images (list[str]), street, mls_number.
@@ -1406,9 +1435,18 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
 
             if override_segments and downloaded:
                 n_segs = len(override_segments)
-                # Build 0-indexed (start, end-exclusive) boundaries from photo_ranges if provided
+                n_dl   = len(downloaded)
+                # Prefer floor-break boundaries (upper_start / basement_start)
                 boundaries = None
-                if photo_ranges:
+                if upper_start:
+                    us = upper_start - 1  # 0-indexed start of upper floor
+                    if basement_start and n_segs == 3:
+                        bs = basement_start - 1
+                        boundaries = [(0, us), (us, bs), (bs, n_dl)]
+                    elif not basement_start and n_segs == 2:
+                        boundaries = [(0, us), (us, n_dl)]
+                # Fall back to explicit photo_ranges if floor breaks don't match segment count
+                if boundaries is None and photo_ranges:
                     filled = {
                         k: {'start': int(v['start']), 'end': int(v['end'])}
                         for k, v in photo_ranges.items()
@@ -1416,7 +1454,6 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                     }
                     sorted_pr = sorted(filled.items(), key=lambda x: x[1]['start'])
                     if len(sorted_pr) == n_segs:
-                        n_dl = len(downloaded)
                         boundaries = [
                             (max(0, v['start'] - 1), min(n_dl, v['end']))
                             for _, v in sorted_pr
@@ -1769,7 +1806,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
 def start_video_job(mls_number, agent_id, cover_lines, flask_app, intro_bytes=None,
                     cover_bg_bytes=None, cover_photo_index=0, narration_override=None,
                     external_listing=None, photo_count=30,
-                    photo_ranges=None):
+                    upper_start=None, basement_start=None, photo_ranges=None):
     """Start background video generation. Returns job_id."""
     _job_clean()
     job_id = uuid.uuid4().hex
@@ -1782,6 +1819,8 @@ def start_video_job(mls_number, agent_id, cover_lines, flask_app, intro_bytes=No
                 "narration_override": narration_override,
                 "external_listing": external_listing,
                 "photo_count": photo_count,
+                "upper_start": upper_start,
+                "basement_start": basement_start,
                 "photo_ranges": photo_ranges},
         daemon=True,
     )

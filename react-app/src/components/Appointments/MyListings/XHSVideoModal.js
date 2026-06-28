@@ -193,13 +193,16 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 	const [coverPhotoIndex, setCoverPhotoIndex] = useState(0);
 	const photoCount = listingImages.length || 30; // actual photo count drives word target
 
-	// Explicit photo ranges per room — each { start, end } is 1-indexed
+	// Floor breaks — which photo number starts the upper floor / basement
+	const [upperStart, setUpperStart] = useState("");
+	const [basementStart, setBasementStart] = useState("");
+
+	// Room ranges within floors — { start, end } 1-indexed, for word-count alignment
 	const ROOMS = [
 		{ key: "exterior",     label: "室外" },
 		{ key: "living",       label: "客厅" },
 		{ key: "kitchen",      label: "厨房餐厅" },
 		{ key: "master_suite", label: "主卧套件" },
-		{ key: "basement",     label: "地下室" },
 	];
 	const [ranges, setRanges] = useState(() =>
 		Object.fromEntries(ROOMS.map(r => [r.key, { start: "", end: "" }]))
@@ -244,9 +247,11 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 					cover1, cover2, cover3,
 					photo_count: photoCount,
 					external_listing: externalListing || undefined,
+					upper_start:    upperStart    ? parseInt(upperStart,    10) : null,
+					basement_start: basementStart ? parseInt(basementStart, 10) : null,
 					photo_ranges: Object.fromEntries(
 						Object.entries(ranges)
-							.filter(([, v]) => v.start && v.end)
+							.filter(([, v]) => v.start && v.end && parseInt(v.end, 10) >= parseInt(v.start, 10))
 							.map(([k, v]) => [k, { start: parseInt(v.start, 10), end: parseInt(v.end, 10) }])
 					),
 				}),
@@ -287,6 +292,8 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 		if (externalListing) {
 			formData.append("external_listing", JSON.stringify(externalListing));
 		}
+		if (upperStart)    formData.append("upper_start",    upperStart);
+		if (basementStart) formData.append("basement_start", basementStart);
 		const filledRanges = Object.fromEntries(
 			Object.entries(ranges)
 				.filter(([, v]) => v.start && v.end && parseInt(v.end, 10) >= parseInt(v.start, 10))
@@ -464,16 +471,48 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 							<div style={{ color: "#dc2626", fontSize: "0.85rem", marginBottom: 12 }}>{errorMsg}</div>
 						)}
 
-						{/* Room-level photo ranges */}
-						<div style={{ marginBottom: 16 }}>
-							<label style={{ display: "block", fontWeight: 600, marginBottom: 4, fontSize: "0.9rem" }}>
-								照片分区 / Room Photo Ranges
+						{/* ── 楼层分界 (Floor Breaks) ────────────────────────────── */}
+						<div style={{ marginBottom: 12 }}>
+							<label style={{ display: "block", fontWeight: 600, marginBottom: 6, fontSize: "0.9rem" }}>
+								楼层分界 / Floor Breaks
 								<span style={{ color: "#94a3b8", fontWeight: 400, fontSize: "0.78rem", marginLeft: 8 }}>
-									（选填，不填 AI 自动判断）共 {photoCount} 张
+									共 {photoCount} 张
 								</span>
 							</label>
-							<p style={{ color: "#64748b", fontSize: "0.76rem", margin: "0 0 10px" }}>
-								指定每个区域的照片范围（含首尾），文字自动按 14 字/张 对齐。无地下室则留空。
+							<p style={{ color: "#64748b", fontSize: "0.75rem", margin: "0 0 8px" }}>
+								填写上层和地下室的起始张数，AI 将按楼层分段生成口播稿。
+							</p>
+							<div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+								{[
+									["上层", upperStart, setUpperStart],
+									["地下室", basementStart, setBasementStart],
+								].map(([label, val, setter]) => (
+									<div key={label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+										<span style={{ fontSize: "0.8rem", fontWeight: 700, color: "#334155", minWidth: 32 }}>{label}</span>
+										<span style={{ fontSize: "0.76rem", color: "#64748b" }}>从第</span>
+										<input type="number" min={2} max={photoCount}
+											value={val} onChange={e => setter(e.target.value)}
+											placeholder="—"
+											style={{ width: 50, padding: "3px 6px", borderRadius: 6, border: "1.5px solid #e2e8f0", fontSize: "0.82rem", textAlign: "center" }}
+										/>
+										<span style={{ fontSize: "0.76rem", color: "#64748b" }}>
+											张起{label === "地下室" ? "（无则留空）" : ""}
+										</span>
+									</div>
+								))}
+							</div>
+						</div>
+
+						{/* ── 照片细分 (Room Ranges for word-count alignment) ─────── */}
+						<div style={{ marginBottom: 16 }}>
+							<label style={{ display: "block", fontWeight: 600, marginBottom: 4, fontSize: "0.9rem" }}>
+								照片细分 / Room Ranges
+								<span style={{ color: "#94a3b8", fontWeight: 400, fontSize: "0.78rem", marginLeft: 8 }}>
+									（选填，帮助字数精准对齐）
+								</span>
+							</label>
+							<p style={{ color: "#64748b", fontSize: "0.75rem", margin: "0 0 8px" }}>
+								指定每个房间的起止照片，编辑器会实时显示每楼层应写多少字。
 							</p>
 							<table style={{ width: "100%", borderCollapse: "separate", borderSpacing: "0 5px" }}>
 								<tbody>
@@ -553,43 +592,78 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 								const sections = narrationDraft.split(/---/).map(s => s.trim()).filter(Boolean);
 								if (sections.length <= 1) return null;
 
-								// Map Chinese labels to room keys so we can look up the user-set range
-								const LABEL_TO_KEY = {
-									"室外": "exterior", "客厅": "living", "厨房餐厅": "kitchen",
-									"主卧套件": "master_suite", "地下室": "basement",
-									"主卧": "master_suite", "主卧卫浴": "master_suite",
+								const us = upperStart    ? parseInt(upperStart,    10) : null;
+								const bs = basementStart ? parseInt(basementStart, 10) : null;
+
+								const rc = key => {
+									const r = ranges[key];
+									const s = r?.start ? parseInt(r.start, 10) : null;
+									const e = r?.end   ? parseInt(r.end,   10) : null;
+									return (s && e && e >= s) ? { s, e, n: e - s + 1 } : null;
+								};
+
+								const getFloorInfo = label => {
+									const isMain     = ["主层", "室外及主层", "主层及室外"].includes(label);
+									const isUpper    = label === "上层";
+									const isBasement = label === "地下室";
+									if (isMain) {
+										const filled = ["exterior", "living", "kitchen"].map(rc).filter(Boolean);
+										if (filled.length > 0) {
+											const n    = filled.reduce((a, b) => a + b.n, 0);
+											const from = Math.min(...filled.map(x => x.s));
+											const to   = Math.max(...filled.map(x => x.e));
+											return { from, to, target: n * CHARS_PER_PHOTO };
+										}
+										if (us) return { from: 1, to: us - 1, target: (us - 1) * CHARS_PER_PHOTO };
+										return null;
+									}
+									if (isUpper) {
+										const suite = rc("master_suite");
+										if (suite) return { from: suite.s, to: suite.e, target: suite.n * CHARS_PER_PHOTO };
+										if (us && bs) return { from: us, to: bs - 1, target: (bs - us) * CHARS_PER_PHOTO };
+										if (us) return { from: us, to: photoCount, target: (photoCount - us + 1) * CHARS_PER_PHOTO };
+										return null;
+									}
+									if (isBasement) {
+										if (bs) return { from: bs, to: photoCount, target: (photoCount - bs + 1) * CHARS_PER_PHOTO };
+										return null;
+									}
+									return null;
 								};
 
 								return (
-									<div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
+									<div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 10 }}>
 										{sections.map((sec, i) => {
 											const m = sec.match(/【([^】]+)】/);
-											const label = m ? m[1] : `段${i + 1}`;
+											const label    = m ? m[1] : `段${i + 1}`;
 											const bodyText = sec.replace(/^【[^】]*】\s*/, '').trim();
-											const chars = bodyText.length;
-
-											const rKey = LABEL_TO_KEY[label] || null;
-											const rng  = rKey ? ranges[rKey] : null;
-											const s    = rng?.start ? parseInt(rng.start, 10) : null;
-											const e    = rng?.end   ? parseInt(rng.end,   10) : null;
-											const target = (s && e && e >= s) ? (e - s + 1) * CHARS_PER_PHOTO : null;
-
-											const ok       = target == null || (chars >= target * 0.8 && chars <= target * 1.3);
+											const chars    = bodyText.length;
+											const info     = getFloorInfo(label);
+											const target   = info?.target ?? null;
 											const tooShort = target != null && chars < target * 0.8;
 											const tooLong  = target != null && chars > target * 1.3;
+											const ok       = !tooShort && !tooLong;
 											return (
-												<span key={i} style={{
-													fontSize: "0.72rem",
-													background: tooShort ? "#fff7ed" : tooLong ? "#fef2f2" : "#f1f5f9",
-													color: tooShort ? "#c2410c" : tooLong ? "#dc2626" : "#475569",
-													padding: "2px 10px", borderRadius: 99,
-													border: `1px solid ${tooShort ? "#fed7aa" : tooLong ? "#fecaca" : "#e2e8f0"}`,
-													fontWeight: ok ? 400 : 600,
+												<div key={i} style={{
+													display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8,
+													fontSize: "0.78rem",
+													background: tooShort ? "#fff7ed" : tooLong ? "#fef2f2" : "#f0fdf4",
+													border: `1px solid ${tooShort ? "#fed7aa" : tooLong ? "#fecaca" : "#bbf7d0"}`,
+													borderRadius: 8, padding: "5px 12px",
 												}}>
-													【{label}】{chars}字{target != null ? `／目标${target}` : ""}
-													{tooShort && " ↑少了"}
-													{tooLong  && " ↓多了"}
-												</span>
+													<span style={{ fontWeight: 700, color: "#334155" }}>【{label}】</span>
+													{info && (
+														<span style={{ color: "#64748b", fontSize: "0.73rem" }}>
+															第{info.from}–{info.to}张 · 目标{info.target}字
+														</span>
+													)}
+													<span style={{ fontWeight: 600, color: tooShort ? "#c2410c" : tooLong ? "#dc2626" : "#16a34a" }}>
+														已写{chars}字
+														{tooShort && ` ↑ 还差约${info.target - chars}字`}
+														{tooLong  && ` ↓ 超出约${chars - info.target}字`}
+														{ok && target != null && " ✓"}
+													</span>
+												</div>
 											);
 										})}
 									</div>
