@@ -5,13 +5,10 @@ import { useDispatch } from "react-redux";
 import List from "./List";
 import MyMap from "./Map";
 import MapSearchBar from "./Map/MapSearchBar";
-import LocationConsent from "../LocationConsent";
-
 import * as propertyActions from "../../store/property";
 import apiFetch from "../../utils/apiFetch";
-import { hasConsented, saveConsent } from "../../utils/locationConsent";
 
-const TORONTO = { lat: 43.9700, lng: -79.4500 };
+const TORONTO = { lat: 43.8700, lng: -79.3800 }; // Markham / Richmond Hill
 const GTA_BOUNDS = { latMin: 43.2, latMax: 44.5, lngMin: -80.5, lngMax: -78.2 };
 
 const SearchArea = () => {
@@ -48,27 +45,11 @@ const SearchArea = () => {
 	const flyTargetRef = useRef(null);
 	const flyTargetTimerRef = useRef(null);
 	const [mapIsReady, setMapIsReady] = useState(false);
-	const [showConsent, setShowConsent] = useState(false);
 	const [mapBounds, setMapBounds] = useState(null);
 	const [over, setOver] = useState({ id: 0 });
 	const [zoom, setZoom] = useState(9);
 	const mapSyncTimer = useRef(null);
 
-	useEffect(() => {
-		if (!hasConsented()) setShowConsent(true);
-	}, []);
-
-	const handleAccept = () => { saveConsent(); setShowConsent(false); requestLocation(); };
-	const handleDecline = () => setShowConsent(false);
-
-	const requestLocation = () => {
-		if (!navigator.geolocation) return;
-		navigator.geolocation.getCurrentPosition(
-			(pos) => mapFlyToRef.current?.(pos.coords.latitude, pos.coords.longitude),
-			() => mapFlyToRef.current?.(TORONTO.lat, TORONTO.lng),
-			{ timeout: 8000 }
-		);
-	};
 
 	useEffect(() => {
 		if (areaParam) {
@@ -339,9 +320,7 @@ const SearchArea = () => {
 					setShowFilters={setShowFilters}
 				/>
 			</main>
-			{showConsent && (
-				<LocationConsent onAccept={handleAccept} onDecline={handleDecline} />
-			)}
+
 			<footer className="search-pg-footer">
 				<p>The information provided herein is deemed reliable but is not guaranteed accurate by PROPTX.</p>
 				<p>The information provided herein must only be used by consumers that have a bona fide interest in the purchase, sale, or lease of real estate and may not be used for any commercial purpose or any other purpose.</p>
