@@ -1531,17 +1531,12 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
 
             photo_idx = 0
             for (seg_audio_path, seg_dur, seg_photos) in segment_audio_info:
-                if use_segments:
-                    # Use ALL photos — never drop any. Divide segment duration equally.
-                    # If audio is slightly shorter than n×3s, each clip shortens a bit;
-                    # if audio is longer, clips stretch. Both are better than dropping photos.
-                    kept = seg_photos
-                    clip_dur = seg_dur / len(kept) if kept else PHOTO_DURATION
-                    discarded = []
-                else:
-                    kept = seg_photos
-                    clip_dur = PHOTO_DURATION
-                    discarded = []
+                # Every photo is exactly PHOTO_DURATION (3 s) — no exceptions.
+                # Audio shorter than n×3 s plays out then the video continues in silence;
+                # audio longer than n×3 s gets cut off at the video end. Never skip photos.
+                kept = seg_photos
+                clip_dur = PHOTO_DURATION
+                discarded = []
 
                 for img_path in kept:
                     clip_path = os.path.join(clips_dir, f"clip_{photo_idx:04d}.mp4")
