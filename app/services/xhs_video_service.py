@@ -636,6 +636,12 @@ def _pad_to_target(text, target, tolerance=20, api_key="", context_hint=""):
 
 # ── Narration text ─────────────────────────────────────────────────────────────
 
+def _round_dims(text):
+    """Force all decimal numbers with 2+ decimal places to exactly 1 decimal place."""
+    import re as _re
+    return _re.sub(r'\d+\.\d{2,}', lambda m: f"{float(m.group()):.1f}", text)
+
+
 def _generate_narration(listing_data, cover_lines=None, photo_count=30):
     api_key = os.environ.get("DEEPSEEK_API_KEY", "")
     if not api_key:
@@ -729,6 +735,7 @@ def _generate_narration(listing_data, cover_lines=None, photo_count=30):
         result = _trim_to_target(result, target_chars)
         result = _pad_to_target(result, target_chars, api_key=api_key)
         result = result.replace("动线", "衔接")
+        result = _round_dims(result)
         return result
     except Exception:
         pass
@@ -1060,6 +1067,7 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
             result[i] = _pad_to_target(result[i], target, api_key=api_key,
                                        context_hint=f"【{floor_zh}】段落")
             result[i] = result[i].replace("动线", "衔接")
+            result[i] = _round_dims(result[i])
 
         return result
     except Exception as e:
