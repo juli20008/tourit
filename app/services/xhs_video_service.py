@@ -658,7 +658,7 @@ def _generate_narration(listing_data, cover_lines=None, photo_count=30):
     else:
         beds_detail = f"{listing_data.get('bed', '?')}室{baths}卫"
 
-    target_chars = 14 * photo_count
+    target_chars = 15 * photo_count
 
     cover_hints = ""
     cover_opener = ""
@@ -894,7 +894,7 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
     else:
         beds_detail = f"{listing_data.get('bed', '?')}室{baths}卫"
 
-    CHARS_PER_PHOTO = 14
+    CHARS_PER_PHOTO = 15
 
     seg_targets = {floor: count * CHARS_PER_PHOTO for floor, count in active_groups}
 
