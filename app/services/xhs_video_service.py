@@ -1404,8 +1404,6 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                 override_segments = [_re.sub(r'^【[^】]*】\s*', '', s).strip() for s in raw_segs]
 
             if override_segments and downloaded:
-                # Append closing line to the last segment
-                override_segments[-1] = override_segments[-1] + "如果你觉得我挑的房子不错，记得点赞订阅，或者找我定制私人找房服务。"
                 n_segs = len(override_segments)
                 n_dl   = len(downloaded)
                 # Prefer floor-break boundaries (upper_start / basement_start)

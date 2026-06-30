@@ -653,17 +653,20 @@ def draft_narration(mls_number):
         if has_basement and base_n > 0:
             active_groups.append(("basement", base_n))
 
+    CLOSING = "如果你觉得我挑的房子不错，记得点赞订阅，或者找我定制私人找房服务。"
+
     floor_texts = _generate_floor_narrations(listing_data, active_groups, cover_lines=cover_lines,
                                              style=narration_style)
     if floor_texts and len(floor_texts) == len(active_groups):
-        # Label each segment so user can see section boundaries
+        floor_texts[-1] = floor_texts[-1] + CLOSING
         labeled = []
         for (floor, _), text in zip(active_groups, floor_texts):
             labeled.append(f"【{_FLOOR_ZH[floor]}】\n{text}")
         narration = "\n\n---\n\n".join(labeled)
     else:
-        # Fallback to single narration
         narration = _generate_narration(listing_data, cover_lines=cover_lines, photo_count=n_photos)
+        if narration:
+            narration = narration + CLOSING
 
     if not narration:
         return jsonify({'error': 'AI narration generation failed — check DEEPSEEK_API_KEY'}), 502
