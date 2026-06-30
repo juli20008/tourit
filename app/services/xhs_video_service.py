@@ -1404,6 +1404,8 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                 override_segments = [_re.sub(r'^【[^】]*】\s*', '', s).strip() for s in raw_segs]
 
             if override_segments and downloaded:
+                # Append closing line to the last segment
+                override_segments[-1] = override_segments[-1] + "如果你觉得我挑的房子不错，记得点赞订阅，或者找我定制私人找房服务。"
                 n_segs = len(override_segments)
                 n_dl   = len(downloaded)
                 # Prefer floor-break boundaries (upper_start / basement_start)
@@ -1507,7 +1509,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                         f"学区方面，这里周边的学校口碑也不错，对于有孩子的家庭来说是一个加分项。"
                         f"如果您对这套房源感兴趣，欢迎随时联系我预约实地看房，期待和您一起找到心仪的家。"
                     )
-                pass  # no forced closing — agent edits narration manually
+                narration = narration + "如果你觉得我挑的房子不错，记得点赞订阅，或者找我定制私人找房服务。"
                 _job_set(job_id, {"status": "processing", "step": "Generating voiceover..."})
                 from app.services.elevenlabs_service import generate_speech
                 audio_bytes = generate_speech(narration, fish_voice_id=minimax_voice_id)
