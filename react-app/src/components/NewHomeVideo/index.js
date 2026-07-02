@@ -120,7 +120,6 @@ const NewHomeVideo = () => {
 	const [cover3, setCover3]       = useState("");
 	const [introBlob, setIntroBlob]       = useState(null);
 	const [coverBg, setCoverBg]           = useState(null);
-	const [aiOptimizing, setAiOptimizing] = useState(false);
 	const [coverBgPreview, setCoverBgPreview] = useState(null);
 	const [step, setStep]                 = useState("");
 	const [videoUrl, setVideoUrl]         = useState(null);
@@ -190,7 +189,7 @@ const NewHomeVideo = () => {
 		clearInterval(pollRef.current);
 		if (coverBgPreview) URL.revokeObjectURL(coverBgPreview);
 		setPhase("input"); setMainFile(null); setIntroBlob(null);
-		setCoverBg(null); setCoverBgPreview(null); setAiOptimizing(false);
+		setCoverBg(null); setCoverBgPreview(null);
 		setNarration(""); setCover1(""); setCover2(""); setCover3("");
 		setStep(""); setVideoUrl(null); setCoverUrl(null); setExpiresAt(null);
 		setErrMsg(""); setMainErr("");
@@ -246,31 +245,16 @@ const NewHomeVideo = () => {
 							旁白讲解 / Narration
 						</label>
 						<p style={{ color: "#64748b", fontSize: "0.78rem", margin: "0 0 8px" }}>
-							输入您的讲解文字，将由您的克隆声音朗读并替换视频原有声音。留空则使用默认问候语。离开输入框后 AI 自动优化文字。
+							输入您的讲解文字，将由您的克隆声音朗读并替换视频原有声音。留空则使用默认问候语。
 						</p>
 						<textarea
 							rows={6}
 							value={narration}
 							onChange={e => setNarration(e.target.value)}
-							onBlur={async () => {
-								if (!narration.trim() || aiOptimizing) return;
-								setAiOptimizing(true);
-								try {
-									const res = await apiFetch("/api/new-home-videos/narration-hint", {
-										method: "POST",
-										headers: { "Content-Type": "application/json" },
-										body: JSON.stringify({ cover1, cover2, cover3, existing: narration }),
-									});
-									const d = await res.json();
-									if (d.narration) setNarration(d.narration);
-								} catch {}
-								setAiOptimizing(false);
-							}}
 							placeholder="输入旁白内容，例如：这套房子位于 Markham 核心地段，三卧两卫，宽敞的开放式厨房......"
 							className="agent-profile-input"
 							style={{ width: "100%", resize: "vertical", fontFamily: "inherit" }}
 						/>
-						{aiOptimizing && <div style={{ color: "#7c3aed", fontSize: "0.75rem", marginTop: 4 }}>✨ AI 优化中...</div>}
 					</div>
 
 					{/* Cover lines */}
