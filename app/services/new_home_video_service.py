@@ -91,7 +91,19 @@ def _run_new_home_pipeline(job_id, agent_id, main_video_bytes, narration, cover_
             )
 
             transcoded_main = os.path.join(tmpdir, "main_base.mp4")
-            _transcode_intro(ffmpeg, raw_main, transcoded_main)
+            # Use a longer timeout (600 s) — main video can be large (up to 200 MB).
+            # No speed-up pass needed for main video.
+            subprocess.run(
+                [ffmpeg, "-y", "-i", raw_main,
+                 "-filter_complex",
+                 "[0:v]scale='min(iw,720)':'min(ih,960)':force_original_aspect_ratio=decrease:flags=bilinear,split[a][b];"
+                 "[a]scale=720:960:force_original_aspect_ratio=decrease:flags=bilinear,pad=720:960:(ow-iw)/2:(oh-ih)/2:color=black[fg];"
+                 "[b]scale=720:960:force_original_aspect_ratio=increase:flags=bilinear,crop=720:960,boxblur=20:5[bg];"
+                 "[bg][fg]overlay=(W-w)/2:(H-h)/2",
+                 "-an", "-r", "30", "-c:v", "libx264", "-crf", "23", "-preset", "fast",
+                 "-pix_fmt", "yuv420p", "-threads", "1", transcoded_main],
+                timeout=600, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
 
             # ── Step 2: Generate TTS narration ───────────────────────────────
             _job_set(job_id, {"status": "processing", "step": "Generating voiceover..."})
