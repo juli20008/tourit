@@ -409,6 +409,27 @@ def get_agent_videos():
         return jsonify([])
 
 
+@xhs_routes.route('/listing-videos', methods=['POST'])
+@cross_origin()
+def get_listing_videos():
+    """Batch: given {mls_numbers:[...]} return {mls_number: video_url} for those with active videos."""
+    data = request.get_json(silent=True) or {}
+    mls_list = [str(m) for m in (data.get('mls_numbers') or [])[:200]]
+    if not mls_list:
+        return jsonify({})
+    try:
+        rows = db.session.execute(
+            text("""SELECT DISTINCT ON (mls_number) mls_number, video_url
+                    FROM xhs_videos
+                    WHERE mls_number = ANY(:mls) AND expires_at > NOW()
+                    ORDER BY mls_number, created_at DESC"""),
+            {'mls': mls_list}
+        ).mappings().all()
+        return jsonify({r['mls_number']: r['video_url'] for r in rows})
+    except Exception:
+        return jsonify({})
+
+
 @xhs_routes.route('/listing-video/<mls_number>', methods=['GET'])
 @cross_origin()
 def get_listing_video(mls_number):

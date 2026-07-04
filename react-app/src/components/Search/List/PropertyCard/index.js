@@ -6,7 +6,7 @@ import { hydrateMlsListing } from "../../../../utils/mlsListingHydrator";
 
 import PropertyTop from "./PropertyTop";
 
-const PropertyCard = ({ property, setOver }) => {
+const PropertyCard = ({ property, setOver, videoUrl }) => {
 	const [showModal, setShowModal] = useState(false);
 	const [activeProperty, setActiveProperty] = useState(property);
 	const prevUrl = useRef(null);
@@ -44,7 +44,7 @@ const PropertyCard = ({ property, setOver }) => {
 			onMouseOver={() => setOver({ id: property.id })}
 			onMouseOut={() => setOver({ id: 0 })}
 		>
-			<PropertyTop property={property} />
+			<PropertyTop property={property} videoUrl={videoUrl} />
 			<div className="card-btm space-y-0.5 px-3 py-2.5">
 				<div className="card-price text-[26px] font-semibold leading-tight tracking-tight text-[#1f1f1d]">
 					{"$" +

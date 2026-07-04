@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { resolvePropertyImage } from "../../../../utils/imageResolver";
 
-const PropertyTop = ({ property }) => {
+const PropertyTop = ({ property, videoUrl }) => {
 	const resolved = resolvePropertyImage(property);
 	const [src, setSrc] = useState(resolved);
 	useEffect(() => { setSrc(resolved); }, [resolved]);
@@ -30,6 +30,17 @@ const PropertyTop = ({ property }) => {
 			<span className="absolute top-2 left-2 bg-black/55 text-white text-[9px] font-semibold uppercase tracking-wide px-1.5 py-[2px] rounded-full leading-tight">
 				{label}
 			</span>
+			{videoUrl && (
+				<a
+					href={videoUrl}
+					target="_blank"
+					rel="noopener noreferrer"
+					onClick={e => e.stopPropagation()}
+					className="absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-black/70 px-2 py-1 text-white text-[10px] font-semibold hover:bg-black/90 transition"
+				>
+					▶ 视频
+				</a>
+			)}
 		</div>
 	);
 };

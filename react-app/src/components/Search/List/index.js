@@ -72,6 +72,7 @@ const List = ({
 
 	const [pageSize, setPageSize] = useState(20);
 	const [currentPage, setCurrentPage] = useState(1);
+	const [videoMap, setVideoMap] = useState({});
 	const searchDivRef = useRef();
 	const searchDDRef = useRef();
 
@@ -121,6 +122,22 @@ const List = ({
 	}, [propArr, pageSize]);
 
 	const RESULT_CAP = 100;
+
+	// Fetch video URLs for current page listings
+	useEffect(() => {
+		const mlsNums = pagedProperties
+			.map(p => p.mls_number || p.listing_id)
+			.filter(Boolean);
+		if (!mlsNums.length) return;
+		apiFetch("/api/xhs/listing-videos", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ mls_numbers: mlsNums }),
+		})
+			.then(r => r.json())
+			.then(data => setVideoMap(prev => ({ ...prev, ...data })))
+			.catch(() => {});
+	}, [pagedProperties]); // eslint-disable-line react-hooks/exhaustive-deps
 	const cappedArr = propArr.slice(0, RESULT_CAP);
 	const totalResults = cappedArr.length;
 	const totalPages = Math.min(5, Math.max(1, Math.ceil(totalResults / pageSize)));
@@ -206,6 +223,7 @@ const List = ({
 								key={`${property.id}-${index}`}
 								property={property}
 								setOver={setOver}
+								videoUrl={videoMap[property.mls_number || property.listing_id] || null}
 							/>
 						))}
 					</div>
