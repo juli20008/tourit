@@ -31,7 +31,7 @@ import UnreadNotifier from "./components/NavBar/UnreadNotifier";
 import { ChatBubbleProvider } from "./context/ChatBubble";
 import ChatBubble from "./components/ChatBubble";
 
-const DEFAULT_AREA = "/area/neLat=43.96&neLng=-79.15&swLat=43.79&swLng=-79.55&zoom=50"; // Markham / Richmond Hill only
+const DEFAULT_AREA = "/area/neLat=43.885&neLng=-79.285&swLat=43.850&swLng=-79.335&zoom=14"; // Unionville
 
 // Keeps a hidden DOM element in sync with agent login status so the
 // Tourit Chrome extension content script can read it.
