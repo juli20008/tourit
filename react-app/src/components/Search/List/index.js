@@ -122,6 +122,12 @@ const List = ({
 	}, [propArr, pageSize]);
 
 	const RESULT_CAP = 100;
+	const cappedArr = propArr.slice(0, RESULT_CAP);
+	const totalResults = cappedArr.length;
+	const totalPages = Math.min(5, Math.max(1, Math.ceil(totalResults / pageSize)));
+	const safePage = Math.min(currentPage, totalPages);
+	const startIndex = (safePage - 1) * pageSize;
+	const pagedProperties = cappedArr.slice(startIndex, startIndex + pageSize);
 
 	// Fetch video URLs for current page listings
 	useEffect(() => {
@@ -138,12 +144,6 @@ const List = ({
 			.then(data => setVideoMap(prev => ({ ...prev, ...data })))
 			.catch(() => {});
 	}, [pagedProperties]); // eslint-disable-line react-hooks/exhaustive-deps
-	const cappedArr = propArr.slice(0, RESULT_CAP);
-	const totalResults = cappedArr.length;
-	const totalPages = Math.min(5, Math.max(1, Math.ceil(totalResults / pageSize)));
-	const safePage = Math.min(currentPage, totalPages);
-	const startIndex = (safePage - 1) * pageSize;
-	const pagedProperties = cappedArr.slice(startIndex, startIndex + pageSize);
 
 	return (
 		<div className="search-wrap bg-[#f3f3f1] text-[#1f1f1f]">
