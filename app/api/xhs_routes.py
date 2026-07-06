@@ -560,7 +560,7 @@ def draft_narration(mls_number):
     from flask_login import current_user
     from app.models.mls_listing import MlsListing
     from app.services.xhs_video_service import (
-        _generate_floor_narrations, _generate_narration,
+        _generate_floor_narrations, _generate_narration, _generate_per_photo_narrations,
         _FLOOR_ORDER, _FLOOR_ZH, MAX_PHOTOS, _build_photo_sequence_hint,
     )
 
@@ -717,6 +717,34 @@ def draft_narration(mls_number):
             photo_map[floor] = {"from": cursor + 1, "to": cursor + count, "rooms": rooms}
             cursor += count
 
+    # Try per-photo narration first (requires Vision labels)
+    per_photo = None
+    if all_labels:
+        per_photo = _generate_per_photo_narrations(
+            listing_data, all_labels, active_groups=active_groups, cover_lines=cover_lines
+        )
+
+    if per_photo:
+        # Append CTAs to last photo of each floor segment
+        if active_groups:
+            cursor = 0
+            for _floor, _count in active_groups:
+                last_idx = cursor + _count - 1
+                if _floor == "upper_floor":
+                    per_photo[last_idx] = per_photo[last_idx] + UPPER_CTA
+                elif _floor == "basement":
+                    per_photo[last_idx] = per_photo[last_idx] + BASEMENT_CTA
+                cursor += _count
+        else:
+            per_photo[-1] = per_photo[-1] + CLOSING
+
+        return jsonify({
+            'per_photo': per_photo,
+            'photo_labels': all_labels,
+            'photo_map': photo_map,
+        })
+
+    # Fallback: floor-level narration (no Vision labels)
     floor_texts = _generate_floor_narrations(listing_data, active_groups, cover_lines=cover_lines,
                                              style=narration_style, photo_sequence=photo_seq)
     if floor_texts and len(floor_texts) == len(active_groups):
@@ -778,6 +806,30 @@ def generate_agent_video(mls_number):
         upper_start   = int(_us) if _us else None
         _bs = request.form.get('basement_start')
         basement_start = int(_bs) if _bs else None
+        # Per-photo narration: reconstruct floor-level narration_override
+        _pp = request.form.get('per_photo')
+        if _pp and not narration_override:
+            from app.services.xhs_video_service import _FLOOR_ZH
+            _UPPER_CTA   = "喜欢这套房，点赞关注我，或私信定制你的专属找房方案。"
+            _BASEMENT_CTA = "打算卖房，联系我，用小红书爆款视频，把你的房子送上全网热门。"
+            _CLOSING     = "如果你觉得我挑的房子不错，记得点赞订阅，或者找我定制私人找房服务。"
+            per_photo = _json.loads(_pp)
+            n = len(per_photo)
+            segs = []
+            if upper_start and 2 <= upper_start <= n:
+                us = upper_start - 1  # 0-indexed boundary
+                bs = (basement_start - 1) if (basement_start and basement_start > upper_start) else None
+                main_text  = "".join(per_photo[:us])
+                upper_text = "".join(per_photo[us:bs]) + _UPPER_CTA
+                segs.append(("main_floor",  main_text))
+                segs.append(("upper_floor", upper_text))
+                if bs is not None:
+                    segs.append(("basement", "".join(per_photo[bs:]) + _BASEMENT_CTA))
+            else:
+                segs.append(("main_floor", "".join(per_photo) + _CLOSING))
+            narration_override = "\n\n---\n\n".join(
+                f"【{_FLOOR_ZH.get(fl, fl)}】\n{txt}" for fl, txt in segs
+            )
     else:
         data = request.get_json(silent=True) or {}
         cover_lines = [

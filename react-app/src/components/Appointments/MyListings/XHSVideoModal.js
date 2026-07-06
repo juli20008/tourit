@@ -185,6 +185,8 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 	const [coverBgPreview, setCoverBgPreview] = useState(null);
 	const [phase, setPhase] = useState("input"); // input | drafting | draft | generating | done | error
 	const [narrationDraft, setNarrationDraft] = useState("");
+	const [perPhoto, setPerPhoto] = useState(null);   // array mode: one string per photo
+	const [photoLabels, setPhotoLabels] = useState([]);
 	const [photoMap, setPhotoMap] = useState({});
 	const [step, setStep] = useState("");
 	const [videoUrl, setVideoUrl] = useState(null);
@@ -247,7 +249,15 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 				setErrorMsg(d.error || `Error ${resp.status}`);
 				return;
 			}
-			setNarrationDraft(d.narration || "");
+			if (d.per_photo) {
+				setPerPhoto(d.per_photo);
+				setPhotoLabels(d.photo_labels || []);
+				setNarrationDraft("");
+			} else {
+				setNarrationDraft(d.narration || "");
+				setPerPhoto(null);
+				setPhotoLabels([]);
+			}
 			setPhotoMap(d.photo_map || {});
 			setPhase("draft");
 		} catch (e) {
@@ -285,7 +295,11 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 		formData.append("cover3", cover3);
 		formData.append("cover_photo_index", coverPhotoIndex);
 		formData.append("photo_count", photoCount);
-		formData.append("narration_override", narrationDraft);
+		if (perPhoto) {
+			formData.append("per_photo", JSON.stringify(perPhoto));
+		} else {
+			formData.append("narration_override", narrationDraft);
+		}
 		if (introBlob) {
 			const ext = introBlob.type?.includes("mp4") ? "mp4" : "webm";
 			formData.append("intro_video", introBlob, `intro.${ext}`);
@@ -531,101 +545,83 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 				{phase === "draft" && (
 					<>
 						<div style={{ marginBottom: 10 }}>
-							<div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
-								<label style={{ fontWeight: 600, fontSize: "0.9rem" }}>
-									口播稿 / Script
-								</label>
+							<div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+								<label style={{ fontWeight: 600, fontSize: "0.9rem" }}>口播稿 / Script</label>
 								<span style={{ fontSize: "0.78rem", color: "#64748b" }}>
-									{narrationDraft.length} 字 · 预计展示 ~{Math.min(50, estimatePhotos(narrationDraft))} 张照片
+									{perPhoto ? `${perPhoto.length} 张照片，逐张对应` : `${narrationDraft.length} 字`}
 								</span>
 							</div>
-							{/* Per-section char count vs target — updates live as user types */}
-							{(() => {
-								const sections = narrationDraft.split(/---/).map(s => s.trim()).filter(Boolean);
-								if (sections.length <= 1) return null;
 
+							{/* Per-photo list editor */}
+							{perPhoto ? (() => {
 								const us = upperStart    ? parseInt(upperStart,    10) : null;
 								const bs = basementStart ? parseInt(basementStart, 10) : null;
-
-								const LABEL_TO_KEY = {
-									"主层": "main_floor", "室外及主层": "main_floor", "主层及室外": "main_floor",
-									"上层": "upper_floor",
-									"地下室": "basement",
-									"室外": "exterior",
-								};
-
-								const getFloorInfo = label => {
-									const isMain     = ["主层", "室外及主层", "主层及室外"].includes(label);
-									const isUpper    = label === "上层";
-									const isBasement = label === "地下室";
-									if (isMain && us)       return { from: 1,  to: us - 1,     target: (us - 1) * CHARS_PER_PHOTO };
-									if (isUpper && us && bs) return { from: us, to: bs - 1,     target: (bs - us) * CHARS_PER_PHOTO };
-									if (isUpper && us)       return { from: us, to: photoCount, target: (photoCount - us + 1) * CHARS_PER_PHOTO };
-									if (isBasement && bs)    return { from: bs, to: photoCount, target: (photoCount - bs + 1) * CHARS_PER_PHOTO };
-									return null;
-								};
-
 								return (
-									<div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 10 }}>
-										{sections.map((sec, i) => {
-											const m = sec.match(/【([^】]+)】/);
-											const label    = m ? m[1] : `段${i + 1}`;
-											const bodyText = sec.replace(/^【[^】]*】\s*/, '').trim();
-											const chars    = bodyText.length;
-											const info     = getFloorInfo(label);
-											const target   = info?.target ?? null;
-											const tooShort = target != null && chars < target * 0.8;
-											const tooLong  = target != null && chars > target * 1.3;
-											const ok       = !tooShort && !tooLong;
-											const floorKey = LABEL_TO_KEY[label];
-											const pmInfo   = floorKey && photoMap[floorKey];
-											return (
-												<div key={i} style={{
-													display: "flex", flexDirection: "column", gap: 3,
-													fontSize: "0.78rem",
-													background: tooShort ? "#fff7ed" : tooLong ? "#fef2f2" : "#f0fdf4",
-													border: `1px solid ${tooShort ? "#fed7aa" : tooLong ? "#fecaca" : "#bbf7d0"}`,
-													borderRadius: 8, padding: "6px 12px",
-												}}>
-													<div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-														<span style={{ fontWeight: 700, color: "#334155" }}>【{label}】</span>
-														{info && (
-															<span style={{ color: "#64748b", fontSize: "0.73rem" }}>
-																第{info.from}–{info.to}张 · 目标{info.target}字
-															</span>
+									<div style={{ border: "1.5px solid #e2e8f0", borderRadius: 8, overflow: "hidden" }}>
+										<div style={{ maxHeight: 420, overflowY: "auto" }}>
+											{perPhoto.map((text, i) => {
+												const photoNum = i + 1;
+												const isUpperDivider   = us && photoNum === us;
+												const isBasementDivider = bs && photoNum === bs;
+												const label = photoLabels[i] || "";
+												const tooShort = text.length < 8;
+												const tooLong  = text.length > 25;
+												return (
+													<div key={i}>
+														{isUpperDivider && (
+															<div style={{ background: "#f1f5f9", padding: "4px 10px", fontSize: "0.72rem", fontWeight: 700, color: "#475569", borderTop: "1px solid #e2e8f0", borderBottom: "1px solid #e2e8f0" }}>
+																── 上层 Upper Floor ──
+															</div>
 														)}
-														<span style={{ fontWeight: 600, color: tooShort ? "#c2410c" : tooLong ? "#dc2626" : "#16a34a" }}>
-															已写{chars}字
-															{tooShort && ` ↑ 还差约${info.target - chars}字`}
-															{tooLong  && ` ↓ 超出约${chars - info.target}字`}
-															{ok && target != null && " ✓"}
-														</span>
-													</div>
-													{pmInfo && pmInfo.rooms && pmInfo.rooms.length > 0 && (
-														<div style={{ color: "#475569", fontSize: "0.71rem", paddingLeft: 2 }}>
-															📷 第{pmInfo.from}–{pmInfo.to}张识别：{pmInfo.rooms.join(" → ")}
+														{isBasementDivider && (
+															<div style={{ background: "#f1f5f9", padding: "4px 10px", fontSize: "0.72rem", fontWeight: 700, color: "#475569", borderTop: "1px solid #e2e8f0", borderBottom: "1px solid #e2e8f0" }}>
+																── 地下室 Basement ──
+															</div>
+														)}
+														<div style={{
+															display: "flex", alignItems: "center", gap: 6,
+															padding: "4px 8px",
+															borderBottom: "1px solid #f1f5f9",
+															background: tooLong ? "#fff5f5" : tooShort ? "#fffbf0" : "#fff",
+														}}>
+															<span style={{ minWidth: 22, fontSize: "0.68rem", color: "#94a3b8", textAlign: "right", flexShrink: 0 }}>{photoNum}</span>
+															<span style={{ minWidth: 72, fontSize: "0.68rem", color: "#64748b", flexShrink: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+															<input
+																value={text}
+																onChange={e => {
+																	const next = [...perPhoto];
+																	next[i] = e.target.value;
+																	setPerPhoto(next);
+																}}
+																style={{
+																	flex: 1, fontSize: "0.82rem", border: "none", outline: "none",
+																	background: "transparent", fontFamily: "inherit", minWidth: 0,
+																}}
+															/>
+															<span style={{ minWidth: 28, fontSize: "0.68rem", textAlign: "right", flexShrink: 0, color: tooLong ? "#dc2626" : tooShort ? "#f97316" : "#94a3b8" }}>
+																{text.length}字
+															</span>
 														</div>
-													)}
-												</div>
-											);
-										})}
+													</div>
+												);
+											})}
+										</div>
 									</div>
 								);
-							})()}
-							<p style={{ color: "#64748b", fontSize: "0.75rem", margin: "0 0 8px" }}>
-								可直接编辑。用 --- 分隔各段，每段独立配音。标记变橙色 = 字数不足（补内容），变红色 = 字数超出（删减），绿色 = 刚好匹配。
-							</p>
-							<textarea
-								value={narrationDraft}
-								onChange={e => setNarrationDraft(e.target.value)}
-								rows={12}
-								style={{
-									width: "100%", boxSizing: "border-box",
-									border: "1.5px solid #e2e8f0", borderRadius: 8,
-									padding: "10px 12px", fontSize: "0.85rem", lineHeight: 1.7,
-									resize: "vertical", fontFamily: "inherit", outline: "none",
-								}}
-							/>
+							})() : (
+								/* Fallback: plain textarea */
+								<textarea
+									value={narrationDraft}
+									onChange={e => setNarrationDraft(e.target.value)}
+									rows={12}
+									style={{
+										width: "100%", boxSizing: "border-box",
+										border: "1.5px solid #e2e8f0", borderRadius: 8,
+										padding: "10px 12px", fontSize: "0.85rem", lineHeight: 1.7,
+										resize: "vertical", fontFamily: "inherit", outline: "none",
+									}}
+								/>
+							)}
 						</div>
 						{errorMsg && (
 							<div style={{ color: "#dc2626", fontSize: "0.85rem", marginBottom: 10 }}>{errorMsg}</div>
@@ -635,7 +631,7 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 								← 返回
 							</button>
 							<button className="btn" type="button" onClick={startGeneration}
-								disabled={!narrationDraft.trim()}>
+								disabled={perPhoto ? perPhoto.length === 0 : !narrationDraft.trim()}>
 								确认生成视频 Generate
 							</button>
 						</div>

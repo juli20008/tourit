@@ -642,6 +642,129 @@ def _round_dims(text):
     return _re.sub(r'\d+\.\d{2,}', lambda m: f"{float(m.group()):.1f}", text)
 
 
+def _generate_per_photo_narrations(listing_data, photo_labels, active_groups=None, cover_lines=None):
+    """
+    Generate one narration sentence per photo (~15 chars each).
+    photo_labels: list of N room-type strings (from _build_photo_sequence_hint).
+    Returns list[str] of length N, or None on failure.
+    """
+    import json as _json, re as _re
+    api_key = os.environ.get("DEEPSEEK_API_KEY", "")
+    n = len(photo_labels)
+    if not api_key or not n:
+        return None
+
+    def _f(key):
+        v = listing_data.get(key)
+        return str(v).strip() if v else ""
+
+    baths = _f("bath") or "?"
+    beds_above = listing_data.get("beds_above_grade")
+    bsmt_beds = listing_data.get("basement_beds")
+    prop_style = _f("style") or _f("property_type") or "住宅"
+    sqft = _f("sqft")
+    city = listing_data.get("neighborhood") or listing_data.get("city", "")
+
+    if beds_above is not None and bsmt_beds:
+        beds_detail = f"{beds_above}+{bsmt_beds}卧（地上{beds_above}个，地下室{bsmt_beds}个），{baths}卫"
+    elif beds_above is not None:
+        beds_detail = f"{beds_above}室{baths}卫"
+    else:
+        beds_detail = f"{listing_data.get('bed', '?')}室{baths}卫"
+
+    cover_hints = ""
+    if cover_lines:
+        hints = [l for l in cover_lines if l and l.strip()]
+        if hints:
+            cover_hints = f"\n封面关键词（第1张旁白自然融入）：{'、'.join(hints)}"
+
+    info_parts = []
+    for field, label in [
+        ("description", "主要描述"), ("brokerage_remarks", "经纪备注"),
+        ("features", "特色"), ("interior_features", "室内特色"),
+        ("building_features", "建筑特色"), ("included_items", "包含物品"),
+        ("room_info", "房间详情"), ("washroom_info", "洗手间详情"),
+    ]:
+        if _f(field):
+            info_parts.append(f"【{label}】{_f(field)}")
+    def _sec(*vs):
+        ps = [v for v in vs if v]
+        return " / ".join(ps) if ps else ""
+    s = _sec(
+        f"车库：{_f('garage_type')}" if _f("garage_type") else "",
+        f"{_f('garage_spaces')}个车位" if _f("garage_spaces") else "",
+        f"总停车：{_f('parking_total')}" if _f("parking_total") else "",
+    )
+    if s: info_parts.append(f"【停车】{s}")
+    s = _sec(
+        f"地块：{_f('lot_frontage')}" if _f("lot_frontage") else "",
+        f"泳池：{_f('pool')}" if _f("pool") else "",
+    )
+    if s: info_parts.append(f"【地块】{s}")
+    if _f("taxes"):
+        info_parts.append(f"【税务】{_f('taxes')}（{_f('tax_year')}年）")
+    property_info = "\n".join(info_parts) or "暂无"
+
+    floor_context = ""
+    if active_groups:
+        cursor = 0
+        parts = []
+        for floor, count in active_groups:
+            parts.append(f"第{cursor+1}-{cursor+count}张={_FLOOR_ZH.get(floor, floor)}")
+            cursor += count
+        floor_context = "楼层划分：" + "；".join(parts) + "\n"
+
+    label_lines = "\n".join(f"  第{i+1}张：{lbl}" for i, lbl in enumerate(photo_labels))
+
+    prompt = f"""你是一位在小红书上专门做看房视频的华人房产经纪，说话积极阳光有个性。
+
+任务：为这套房子的{n}张照片各写一句旁白。
+输出格式：JSON数组，长度严格等于{n}，第i个元素是第i张照片的旁白。
+
+每句话规则：
+- 约15字（10-20字之间，绝不超过22字）
+- 根据该照片房间类型写对应内容，不要写与画面无关的内容
+- 连续同一房间多张照片：第一张说主要亮点，后续展开不同细节，不要重复同一句话
+- 第1张必须自然融入基本规格（几室几卫、面积）
+- 语气积极阳光像朋友聊天，禁止「不是X而是Y」「并非」「别小看」等否定句式
+- 只说listing里有的内容，严禁编造
+- 2-3处轻松幽默的顺口评论（不是段子，是顺口说出来的）：
+  例：「这个衣柜，进去你就明白为什么这是刚需。」「两个车位，以后谁也不用等谁挪车了。」
+
+{floor_context}照片房间识别（按播放顺序）：
+{label_lines}
+
+房源：{city}，{prop_style}，{beds_detail}{f'，{sqft} sqft' if sqft else ''}{cover_hints}
+
+===== 房源完整信息 =====
+{property_info}
+=====
+
+只输出JSON数组，不要其他任何文字。"""
+
+    try:
+        resp = requests.post(
+            "https://api.deepseek.com/v1/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={"model": "deepseek-chat", "max_tokens": 4000,
+                  "messages": [{"role": "user", "content": prompt}]},
+            timeout=60,
+        )
+        if not resp.ok:
+            return None
+        raw = resp.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+        m = _re.search(r'\[[\s\S]*\]', raw)
+        if not m:
+            return None
+        result = _json.loads(m.group())
+        if not isinstance(result, list) or len(result) != n:
+            return None
+        return [_round_dims(str(item)) for item in result]
+    except Exception as e:
+        print(f"[XHS] Per-photo narration error: {e}")
+        return None
+
+
 def _generate_narration(listing_data, cover_lines=None, photo_count=30):
     api_key = os.environ.get("DEEPSEEK_API_KEY", "")
     if not api_key:
