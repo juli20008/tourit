@@ -635,7 +635,11 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 															padding: "4px 8px 2px",
 															background: tooLong ? "#fff5f5" : tooShort ? "#fffbf0" : "#fff",
 														}}>
-															<span style={{ minWidth: 22, fontSize: "0.68rem", color: "#94a3b8", textAlign: "right", flexShrink: 0 }}>{photoNum}</span>
+															{listingImages[i] ? (
+																<img src={listingImages[i]} alt="" style={{ width: 48, height: 36, objectFit: "cover", borderRadius: 4, flexShrink: 0, border: "1px solid #e2e8f0" }} onError={e => { e.target.style.display = "none"; }} />
+															) : (
+																<span style={{ minWidth: 22, fontSize: "0.68rem", color: "#94a3b8", textAlign: "right", flexShrink: 0 }}>{photoNum}</span>
+															)}
 															<input
 																value={text}
 																onChange={e => {
@@ -649,7 +653,7 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 																{text.length}字
 															</span>
 														</div>
-														<div style={{ display: "flex", flexWrap: "wrap", gap: 3, padding: "2px 8px 5px 30px" }}>
+														<div style={{ display: "flex", flexWrap: "wrap", gap: 3, padding: "2px 8px 5px 62px" }}>
 															{opts.map(opt => {
 																const sel = label === opt;
 																return (
