@@ -810,7 +810,7 @@ def _generate_per_photo_narrations(listing_data, photo_labels, active_groups=Non
 【铁律】下方每张照片的房间标注是用户亲自确认的，必须以该房间为写作背景，绝不能写成别的房间的内容。
 
 每句话规则：
-- 每句话10-14字，全篇句子长度保持一致，不要有的句子很长有的很短
+- 每句话严格11-14字，不能少也不能多，全篇保持一致长度
 - 每张以对应标注的房间为背景写，内容必须符合那个房间
 - 连续同一房间多张照片：文字里只在第一张带出房间名，后续几张直接描述细节（不重复说房间名，但内容仍然是那个房间）。每张从不同角度切入：①整体空间感②采光/窗户③具体细节（材质/家具/工艺）④住感⑤与其他空间的关系
 - 第1张必须自然融入基本规格（几室几卫、面积）
@@ -849,7 +849,12 @@ def _generate_per_photo_narrations(listing_data, photo_labels, active_groups=Non
         if not isinstance(result, list) or len(result) != n:
             print(f"[XHS] Per-photo narration: expected {n} items, got {len(result) if isinstance(result, list) else type(result)}")
             return None
-        return [_round_dims(str(item)) for item in result]
+        def _fix(s):
+            s = _round_dims(str(s)).strip()
+            if s and s[-1] not in '。！？…,.!?':
+                s += '。'
+            return s
+        return [_fix(item) for item in result]
     except Exception as e:
         print(f"[XHS] Per-photo narration error: {e}")
         return None
