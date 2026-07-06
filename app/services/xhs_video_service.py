@@ -702,23 +702,25 @@ def _labels_from_room_info(room_info, active_groups, n_photos):
         for floor, count in active_groups:
             opts = FLOOR_LABEL_OPTIONS.get(floor, ["主层"])
             if parsed_rooms:
-                # Proportional slice of parsed rooms for this floor
                 share = max(1, round(total_rooms * count / n_photos))
-                floor_rooms = parsed_rooms[room_cursor:room_cursor + share] or [opts[0]]
+                floor_rooms = parsed_rooms[room_cursor:room_cursor + share] or opts
                 room_cursor += share
             else:
-                floor_rooms = opts[:1]
-            # Spread floor_rooms across 'count' photos
+                # No room_info — cycle through the floor's full option list
+                floor_rooms = opts
             for i in range(count):
                 idx = min(i * len(floor_rooms) // max(count, 1), len(floor_rooms) - 1)
                 all_labels.append(floor_rooms[idx])
     else:
+        # No floor breaks — cycle through main floor options
+        opts = FLOOR_LABEL_OPTIONS.get("main_floor", ["主层"])
         if parsed_rooms:
             for i in range(n_photos):
                 idx = min(i * len(parsed_rooms) // max(n_photos, 1), len(parsed_rooms) - 1)
                 all_labels.append(parsed_rooms[idx])
         else:
-            all_labels = ["主层"] * n_photos
+            for i in range(n_photos):
+                all_labels.append(opts[i % len(opts)])
 
     # Pad/trim to exactly n_photos
     while len(all_labels) < n_photos:
