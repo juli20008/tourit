@@ -1019,78 +1019,91 @@ def _build_photo_sequence_hint(photo_inputs, api_key):
     if not api_key or not photo_inputs:
         return None, None
 
-    # Send ALL photos — no sampling, so every photo gets its own label (no interpolation error)
-    content = []
-    valid_indices = []
-    for idx in range(n):
-        try:
-            inp = photo_inputs[idx]
-            if isinstance(inp, str):
-                with open(inp, "rb") as _f:
-                    data = _f.read()
-                ext = inp.rsplit(".", 1)[-1].lower()
-            else:
-                data = inp[1]
-                ext = "jpg"
-            mime = "image/png" if ext == "png" else "image/jpeg"
-            b64 = _b64.b64encode(data).decode()
-            content.append({"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}})
-            valid_indices.append(idx)
-        except Exception:
-            pass
-
-    if not content:
-        return None, None
-
-    num = len(valid_indices)
     _ROOM_OPTS = (
         "室外/车道/车库, 客厅, 餐厅, 厨房, 早餐区, 书房/多功能室, "
         "主卧, 主浴/套浴, 次卧, 浴室/卫生间, 洗衣房, 地下室客厅, 地下室卧室, 户外后院/泳池"
     )
-    content.append({"type": "text", "text": (
-        f"以上{num}张是一套房源的照片，按播放顺序排列，第1张最先播放。\n"
-        f"请为每一张照片选择最准确的标签（从下方选项中选一个，原文照抄）：\n{_ROOM_OPTS}\n\n"
-        f"区分提示：\n"
-        f"- 客厅：有沙发/电视/茶几，开放空间\n"
-        f"- 餐厅：有餐桌和椅子，可能有吊灯\n"
-        f"- 厨房：有灶台/橱柜/油烟机/水槽\n"
-        f"- 早餐区：厨房旁边的小桌子或岛台旁的吧台椅\n"
-        f"- 主浴/套浴：通常较大，有双台盆或独立浴缸\n"
-        f"- 浴室/卫生间：较小的公共卫生间\n"
-        f"- 书房/多功能室：无床，有书桌或办公区\n"
-        f"- 地下室客厅：明显在地下层（天花板低或窗户小），有休闲区\n"
-        f"- 地下室卧室：明显在地下层，有床\n\n"
-        f"只输出长度严格等于{num}的JSON数组，每个元素是对应照片的标签原文，不要任何其他文字。"
-    )})
+    _ROOM_HINTS = (
+        "区分提示：客厅=沙发/电视；餐厅=餐桌椅；厨房=灶台/橱柜/水槽；"
+        "早餐区=岛台旁吧台椅；主浴=较大/双台盆/浴缸；卫生间=较小公共；"
+        "书房=无床有书桌；地下室客厅/卧室=天花板低或小窗"
+    )
 
-    try:
-        resp = requests.post(
-            "https://api.deepseek.com/v1/chat/completions",
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={"model": "deepseek-vl2",
-                  "messages": [{"role": "user", "content": content}],
-                  "max_tokens": 800},
-            timeout=90,
-        )
-        if not resp.ok:
-            return None, None
-        raw = resp.json().get("choices", [{}])[0].get("message", {}).get("content", "")
-        m = _re.search(r'\[.*?\]', raw, _re.DOTALL)
-        if not m:
-            return None, None
-        all_labels_raw = _json.loads(m.group())
-        if len(all_labels_raw) != num:
-            return None, None
+    def _load_photo(inp):
+        if isinstance(inp, str):
+            with open(inp, "rb") as _f:
+                data = _f.read()
+            ext = inp.rsplit(".", 1)[-1].lower()
+        else:
+            data = inp[1]
+            ext = "jpg"
+        mime = "image/png" if ext == "png" else "image/jpeg"
+        b64 = _b64.b64encode(data).decode()
+        return {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}}
 
-        # Rebuild full all_labels list (valid_indices may skip failed images)
-        all_labels = [""] * n
-        for pos, idx in enumerate(valid_indices):
-            all_labels[idx] = all_labels_raw[pos]
-        # Fill any gaps (failed image loads) from nearest valid neighbor
-        for i in range(n):
-            if not all_labels[i]:
-                nearest = min(valid_indices, key=lambda j: abs(j - i))
-                all_labels[i] = all_labels[nearest]
+    def _classify_batch(batch_inputs, batch_indices):
+        """Send one batch of photos to Vision API; return list of labels same length."""
+        content = []
+        loaded = []
+        for orig_idx, inp in zip(batch_indices, batch_inputs):
+            try:
+                content.append(_load_photo(inp))
+                loaded.append(orig_idx)
+            except Exception:
+                pass
+        if not content:
+            return {}
+        num = len(loaded)
+        content.append({"type": "text", "text": (
+            f"以上{num}张是一套房源的照片，按顺序排列。\n"
+            f"请为每张选最准确的标签（原文照抄）：{_ROOM_OPTS}\n"
+            f"{_ROOM_HINTS}\n"
+            f"只输出长度严格等于{num}的JSON数组，不要其他文字。"
+        )})
+        try:
+            resp = requests.post(
+                "https://api.deepseek.com/v1/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={"model": "deepseek-vl2",
+                      "messages": [{"role": "user", "content": content}],
+                      "max_tokens": 400},
+                timeout=60,
+            )
+            if not resp.ok:
+                return {}
+            raw = resp.json().get("choices", [{}])[0].get("message", {}).get("content", "")
+            m = _re.search(r'\[.*?\]', raw, _re.DOTALL)
+            if not m:
+                return {}
+            labels = _json.loads(m.group())
+            if len(labels) != num:
+                return {}
+            return {orig_idx: lbl for orig_idx, lbl in zip(loaded, labels)}
+        except Exception as ex:
+            print(f"[XHS] Vision batch error: {ex}")
+            return {}
+
+    # Process in batches of 15 — reliable size for the Vision API
+    BATCH = 15
+    label_map = {}
+    for batch_start in range(0, n, BATCH):
+        batch_end = min(batch_start + BATCH, n)
+        batch_inputs  = [photo_inputs[i] for i in range(batch_start, batch_end)]
+        batch_indices = list(range(batch_start, batch_end))
+        label_map.update(_classify_batch(batch_inputs, batch_indices))
+
+    if not label_map:
+        return None, None
+
+    # Build all_labels — fill any missed photos from nearest classified neighbor
+    classified = sorted(label_map.keys())
+    all_labels = []
+    for i in range(n):
+        if i in label_map:
+            all_labels.append(label_map[i])
+        else:
+            nearest = min(classified, key=lambda j: abs(j - i))
+            all_labels.append(label_map[nearest])
 
         # Compress consecutive identical labels into ranges
         runs = []
