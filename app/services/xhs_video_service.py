@@ -721,6 +721,7 @@ def _generate_narration(listing_data, cover_lines=None, photo_count=30):
 - 句子有节奏：短句和长句交替，可以用反问制造停顿
   「这个储物间，一般住宅有吗？很少见的。」「主浴带浴缸，单这一点就值了。」
 - 允许对listing有据可查的亮点表达克制的真实反应：「说实话，这个主卧比我进来前预期的要大。」
+- 语气积极阳光：直接说好的是什么，禁止否定句式「不是X而是Y」「并非」「不只是」「不要以为」「别小看」等，想表达亮点就直接说亮点
 - 严格只说listing里实际记载的内容
 - 禁止招客套话："欢迎来看房""感兴趣联系我""值不值得来看"等
 - 禁止词："大家好""今天带大家""空间宽敞""采光好""布局合理""性价比高""动线""功能分区""坐北朝南""尊贵""奢华""格局"
@@ -984,9 +985,17 @@ def _build_photo_sequence_hint(photo_inputs, api_key):
 
         lines = []
         for label, start, end in runs:
-            lines.append(f"  第{start}{'–' + str(end) if end != start else ''}张：{label}")
+            count = end - start + 1
+            budget = count * CHARS_PER_PHOTO
+            range_str = f"第{start}–{end}张" if end != start else f"第{start}张"
+            lines.append(f"  {label}（{range_str}，{count}张，必须写约{budget}字）")
 
-        hint = "照片播放顺序（请严格按此顺序描述各区域，先出现的先描述）：\n" + "\n".join(lines)
+        hint = (
+            "【照片顺序与文字预算 — 铁律】每张照片播放3秒，TTS约5字/秒，所以每张照片对应约15字旁白。\n"
+            "下方每个区域都标注了张数和必须分配的字数，严格遵守，否则画面和声音会错位：\n"
+            + "\n".join(lines)
+            + "\n请逐区域写，写完一个区域的预算字数再写下一个，不要跳跃。"
+        )
         return hint, all_labels
 
     except Exception as e:
@@ -1132,6 +1141,7 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
   ✗「步入式衣柜」→ ✓「步入式衣柜，进去你就明白为什么这是刚需」
 - 句子有节奏：短句和长句交替，可用反问制造停顿：「这个储物空间，同价位一般有吗？少见的。」
 - 允许对listing有据可查的亮点表达克制的真实反应：「说实话，这个主卧比进来前预期的要大。」
+- 语气积极阳光：直接说好的是什么，禁止否定句式「不是X而是Y」「并非」「不只是」「不要以为」「别小看」等，想表达亮点就直接说亮点
 - 严格只说listing里实际记载的内容，哪怕字数不够也不能编造
 - 禁止招客套话：不能写"欢迎来看房""感兴趣可以联系我""期待与您相遇""值不值得来看"等
 - 禁止词："大家好""今天带大家""空间宽敞""采光好""布局合理""性价比高""动线""功能分区""坐北朝南""尊贵""奢华""格局"
