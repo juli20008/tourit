@@ -185,6 +185,7 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 	const [coverBgPreview, setCoverBgPreview] = useState(null);
 	const [phase, setPhase] = useState("input"); // input | drafting | draft | generating | done | error
 	const [narrationDraft, setNarrationDraft] = useState("");
+	const [photoMap, setPhotoMap] = useState({});
 	const [step, setStep] = useState("");
 	const [videoUrl, setVideoUrl] = useState(null);
 	const [coverUrl, setCoverUrl] = useState(null);
@@ -247,6 +248,7 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 				return;
 			}
 			setNarrationDraft(d.narration || "");
+			setPhotoMap(d.photo_map || {});
 			setPhase("draft");
 		} catch (e) {
 			setPhase("input");
@@ -545,6 +547,13 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 								const us = upperStart    ? parseInt(upperStart,    10) : null;
 								const bs = basementStart ? parseInt(basementStart, 10) : null;
 
+								const LABEL_TO_KEY = {
+									"主层": "main_floor", "室外及主层": "main_floor", "主层及室外": "main_floor",
+									"上层": "upper_floor",
+									"地下室": "basement",
+									"室外": "exterior",
+								};
+
 								const getFloorInfo = label => {
 									const isMain     = ["主层", "室外及主层", "主层及室外"].includes(label);
 									const isUpper    = label === "上层";
@@ -568,26 +577,35 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 											const tooShort = target != null && chars < target * 0.8;
 											const tooLong  = target != null && chars > target * 1.3;
 											const ok       = !tooShort && !tooLong;
+											const floorKey = LABEL_TO_KEY[label];
+											const pmInfo   = floorKey && photoMap[floorKey];
 											return (
 												<div key={i} style={{
-													display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8,
+													display: "flex", flexDirection: "column", gap: 3,
 													fontSize: "0.78rem",
 													background: tooShort ? "#fff7ed" : tooLong ? "#fef2f2" : "#f0fdf4",
 													border: `1px solid ${tooShort ? "#fed7aa" : tooLong ? "#fecaca" : "#bbf7d0"}`,
-													borderRadius: 8, padding: "5px 12px",
+													borderRadius: 8, padding: "6px 12px",
 												}}>
-													<span style={{ fontWeight: 700, color: "#334155" }}>【{label}】</span>
-													{info && (
-														<span style={{ color: "#64748b", fontSize: "0.73rem" }}>
-															第{info.from}–{info.to}张 · 目标{info.target}字
+													<div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+														<span style={{ fontWeight: 700, color: "#334155" }}>【{label}】</span>
+														{info && (
+															<span style={{ color: "#64748b", fontSize: "0.73rem" }}>
+																第{info.from}–{info.to}张 · 目标{info.target}字
+															</span>
+														)}
+														<span style={{ fontWeight: 600, color: tooShort ? "#c2410c" : tooLong ? "#dc2626" : "#16a34a" }}>
+															已写{chars}字
+															{tooShort && ` ↑ 还差约${info.target - chars}字`}
+															{tooLong  && ` ↓ 超出约${chars - info.target}字`}
+															{ok && target != null && " ✓"}
 														</span>
+													</div>
+													{pmInfo && pmInfo.rooms && pmInfo.rooms.length > 0 && (
+														<div style={{ color: "#475569", fontSize: "0.71rem", paddingLeft: 2 }}>
+															📷 第{pmInfo.from}–{pmInfo.to}张识别：{pmInfo.rooms.join(" → ")}
+														</div>
 													)}
-													<span style={{ fontWeight: 600, color: tooShort ? "#c2410c" : tooLong ? "#dc2626" : "#16a34a" }}>
-														已写{chars}字
-														{tooShort && ` ↑ 还差约${info.target - chars}字`}
-														{tooLong  && ` ↓ 超出约${chars - info.target}字`}
-														{ok && target != null && " ✓"}
-													</span>
 												</div>
 											);
 										})}

@@ -886,7 +886,7 @@ def _build_photo_sequence_hint(photo_inputs, api_key):
     import base64 as _b64, json as _json, re as _re
     n = len(photo_inputs)
     if not api_key or not photo_inputs:
-        return None
+        return None, None
 
     # Sample up to 15 photos evenly
     if n <= 15:
@@ -915,7 +915,7 @@ def _build_photo_sequence_hint(photo_inputs, api_key):
             pass
 
     if not content:
-        return None
+        return None, None
 
     num = len(valid_indices)
     _ROOM_OPTS = (
@@ -965,11 +965,12 @@ def _build_photo_sequence_hint(photo_inputs, api_key):
         for label, start, end in runs:
             lines.append(f"  第{start}{'–' + str(end) if end != start else ''}张：{label}")
 
-        return "照片播放顺序（请严格按此顺序描述各区域，先出现的先描述）：\n" + "\n".join(lines)
+        hint = "照片播放顺序（请严格按此顺序描述各区域，先出现的先描述）：\n" + "\n".join(lines)
+        return hint, all_labels
 
     except Exception as e:
         print(f"[XHS] Photo sequence hint error: {e}")
-        return None
+        return None, None
 
 
 def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, style="concise",
@@ -1564,7 +1565,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
 
                 # ── Step 3: Per-floor narration ────────────────────────────────
                 _job_set(job_id, {"status": "processing", "step": "Writing narration..."})
-                photo_seq = _build_photo_sequence_hint(downloaded, deepseek_key)
+                photo_seq, _ = _build_photo_sequence_hint(downloaded, deepseek_key)
                 floor_texts = _generate_floor_narrations(
                     listing_data,
                     [(fl, len(photos)) for fl, photos in active_groups],

@@ -678,6 +678,7 @@ def draft_narration(mls_number):
 
     # Fetch photos and build sequence hint for narration alignment
     photo_seq = None
+    all_labels = None
     try:
         deepseek_key = os.environ.get("DEEPSEEK_API_KEY", "")
         img_urls = []
@@ -695,9 +696,24 @@ def draft_narration(mls_number):
                 except Exception:
                     pass
             if photo_inputs:
-                photo_seq = _build_photo_sequence_hint(photo_inputs, deepseek_key)
+                photo_seq, all_labels = _build_photo_sequence_hint(photo_inputs, deepseek_key)
     except Exception:
         pass
+
+    # Build per-floor photo map for the frontend to display
+    photo_map = {}
+    if all_labels and active_groups:
+        cursor = 0
+        for floor, count in active_groups:
+            segment_labels = all_labels[cursor:cursor + count]
+            seen = set()
+            rooms = []
+            for lbl in segment_labels:
+                if lbl not in seen:
+                    seen.add(lbl)
+                    rooms.append(lbl)
+            photo_map[floor] = {"from": cursor + 1, "to": cursor + count, "rooms": rooms}
+            cursor += count
 
     floor_texts = _generate_floor_narrations(listing_data, active_groups, cover_lines=cover_lines,
                                              style=narration_style, photo_sequence=photo_seq)
@@ -715,7 +731,7 @@ def draft_narration(mls_number):
     if not narration:
         return jsonify({'error': 'AI narration generation failed — check DEEPSEEK_API_KEY'}), 502
 
-    return jsonify({'narration': narration})
+    return jsonify({'narration': narration, 'photo_map': photo_map})
 
 
 @xhs_routes.route('/agent/video/<mls_number>', methods=['POST'])
