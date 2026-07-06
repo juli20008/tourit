@@ -708,49 +708,30 @@ def draft_narration(mls_number):
         listing_data, effective_labels, active_groups=active_groups, cover_lines=cover_lines
     )
 
-    if per_photo:
-        # Append CTAs to last photo of each floor segment
-        if active_groups:
-            cursor = 0
-            for _floor, _count in active_groups:
-                last_idx = cursor + _count - 1
+    # If AI failed, return empty strings — UI stays in per-photo mode, user can regen
+    if not per_photo:
+        per_photo = [""] * len(effective_labels)
+
+    # Append CTAs to last photo of each floor segment
+    if active_groups:
+        cursor = 0
+        for _floor, _count in active_groups:
+            last_idx = cursor + _count - 1
+            if last_idx < len(per_photo) and per_photo[last_idx]:
                 if _floor == "upper_floor":
-                    per_photo[last_idx] = per_photo[last_idx] + UPPER_CTA
+                    per_photo[last_idx] += UPPER_CTA
                 elif _floor == "basement":
-                    per_photo[last_idx] = per_photo[last_idx] + BASEMENT_CTA
-                cursor += _count
-        else:
-            per_photo[-1] = per_photo[-1] + CLOSING
+                    per_photo[last_idx] += BASEMENT_CTA
+            cursor += _count
+    elif per_photo and per_photo[-1]:
+        per_photo[-1] += CLOSING
 
-        return jsonify({
-            'per_photo': per_photo,
-            'photo_labels': effective_labels,
-            'photo_map': photo_map,
-            'floor_options': floor_options,
-        })
-
-    # Fallback: floor-level narration (AI completely failed)
-    floor_texts = _generate_floor_narrations(listing_data, active_groups, cover_lines=cover_lines,
-                                             style=narration_style, photo_sequence=None)
-    if floor_texts and len(floor_texts) == len(active_groups):
-        for _i, (_floor, _) in enumerate(active_groups):
-            if _floor == "upper_floor":
-                floor_texts[_i] += UPPER_CTA
-            elif _floor == "basement":
-                floor_texts[_i] += BASEMENT_CTA
-        labeled = []
-        for (floor, _), text in zip(active_groups, floor_texts):
-            labeled.append(f"【{_FLOOR_ZH[floor]}】\n{text}")
-        narration = "\n\n---\n\n".join(labeled)
-    else:
-        narration = _generate_narration(listing_data, cover_lines=cover_lines, photo_count=n_photos)
-        if narration:
-            narration = narration + CLOSING
-
-    if not narration:
-        return jsonify({'error': 'AI narration generation failed — check DEEPSEEK_API_KEY'}), 502
-
-    return jsonify({'narration': narration, 'photo_map': photo_map})
+    return jsonify({
+        'per_photo': per_photo,
+        'photo_labels': effective_labels,
+        'photo_map': photo_map,
+        'floor_options': floor_options,
+    })
 
 
 @xhs_routes.route('/agent/regen-per-photo/<mls_number>', methods=['POST'])
