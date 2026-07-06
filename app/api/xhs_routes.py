@@ -717,12 +717,20 @@ def draft_narration(mls_number):
             photo_map[floor] = {"from": cursor + 1, "to": cursor + count, "rooms": rooms}
             cursor += count
 
-    # Try per-photo narration first (requires Vision labels)
-    per_photo = None
-    if all_labels:
-        per_photo = _generate_per_photo_narrations(
-            listing_data, all_labels, active_groups=active_groups, cover_lines=cover_lines
-        )
+    # If Vision failed, build dummy labels from floor grouping so per-photo always works
+    effective_labels = all_labels
+    if not effective_labels:
+        effective_labels = []
+        if active_groups:
+            for _floor, _count in active_groups:
+                effective_labels.extend([_FLOOR_ZH.get(_floor, _floor)] * _count)
+        else:
+            effective_labels = ["主层"] * n_photos
+
+    # Always generate per-photo narration
+    per_photo = _generate_per_photo_narrations(
+        listing_data, effective_labels, active_groups=active_groups, cover_lines=cover_lines
+    )
 
     if per_photo:
         # Append CTAs to last photo of each floor segment
@@ -740,11 +748,11 @@ def draft_narration(mls_number):
 
         return jsonify({
             'per_photo': per_photo,
-            'photo_labels': all_labels,
+            'photo_labels': effective_labels,
             'photo_map': photo_map,
         })
 
-    # Fallback: floor-level narration (no Vision labels)
+    # Fallback: floor-level narration (AI completely failed)
     floor_texts = _generate_floor_narrations(listing_data, active_groups, cover_lines=cover_lines,
                                              style=narration_style, photo_sequence=photo_seq)
     if floor_texts and len(floor_texts) == len(active_groups):
