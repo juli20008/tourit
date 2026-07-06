@@ -812,6 +812,7 @@ def _generate_per_photo_narrations(listing_data, photo_labels, active_groups=Non
 - 第1张必须自然融入基本规格（几室几卫、面积）
 - 语气积极阳光像朋友聊天，禁止「不是X而是Y」「并非」「别小看」等否定句式
 - 只说listing里有的内容，严禁编造
+- 严禁提地址、门牌号、价格、挂牌价，一个字也不能有
 
 {floor_context}照片房间识别（按播放顺序）：
 {label_lines}
