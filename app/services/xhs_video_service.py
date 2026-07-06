@@ -877,7 +877,103 @@ def _classify_photos_by_floor(photo_paths, api_key):
     return _floor_heuristic(n)
 
 
-def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, style="concise"):
+def _build_photo_sequence_hint(photo_inputs, api_key):
+    """
+    Classify photos into specific room types and return an ordered hint string for the narration AI.
+    photo_inputs: list of local file paths OR list of (url_str, bytes) tuples.
+    Returns a formatted string, or None on failure (silent degradation).
+    """
+    import base64 as _b64, json as _json, re as _re
+    n = len(photo_inputs)
+    if not api_key or not photo_inputs:
+        return None
+
+    # Sample up to 15 photos evenly
+    if n <= 15:
+        indices = list(range(n))
+    else:
+        step = n / 15
+        indices = [int(i * step) for i in range(15)]
+
+    content = []
+    valid_indices = []
+    for idx in indices:
+        try:
+            inp = photo_inputs[idx]
+            if isinstance(inp, str):
+                with open(inp, "rb") as _f:
+                    data = _f.read()
+                ext = inp.rsplit(".", 1)[-1].lower()
+            else:
+                data = inp[1]
+                ext = "jpg"
+            mime = "image/png" if ext == "png" else "image/jpeg"
+            b64 = _b64.b64encode(data).decode()
+            content.append({"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}})
+            valid_indices.append(idx)
+        except Exception:
+            pass
+
+    if not content:
+        return None
+
+    num = len(valid_indices)
+    _ROOM_OPTS = (
+        "室外/车道/车库, 客厅, 餐厅, 厨房, 早餐区, 书房/多功能室, "
+        "主卧, 主浴/套浴, 次卧, 浴室/卫生间, 洗衣房, 地下室, 户外后院/泳池"
+    )
+    content.append({"type": "text", "text": (
+        f"以上{num}张是一套房源照片，按播放顺序排列（第1张最先播放）。\n"
+        f"请将每张照片归类（从以下选项中选最接近的）：{_ROOM_OPTS}\n"
+        f"只输出长度为{num}的JSON数组，元素为上方标签原文。"
+    )})
+
+    try:
+        resp = requests.post(
+            "https://api.deepseek.com/v1/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={"model": "deepseek-vl2",
+                  "messages": [{"role": "user", "content": content}],
+                  "max_tokens": 300},
+            timeout=60,
+        )
+        if not resp.ok:
+            return None
+        raw = resp.json().get("choices", [{}])[0].get("message", {}).get("content", "")
+        m = _re.search(r'\[.*?\]', raw, _re.DOTALL)
+        if not m:
+            return None
+        sample_labels = _json.loads(m.group())
+        if len(sample_labels) != num:
+            return None
+
+        # Map sampled labels back to all photos via nearest-neighbor
+        all_labels = []
+        for i in range(n):
+            nearest = min(range(num), key=lambda j: abs(valid_indices[j] - i))
+            all_labels.append(sample_labels[nearest])
+
+        # Compress consecutive identical labels into ranges
+        runs = []
+        for i, label in enumerate(all_labels):
+            if runs and runs[-1][0] == label:
+                runs[-1] = (label, runs[-1][1], i + 1)
+            else:
+                runs.append((label, i + 1, i + 1))
+
+        lines = []
+        for label, start, end in runs:
+            lines.append(f"  第{start}{'–' + str(end) if end != start else ''}张：{label}")
+
+        return "照片播放顺序（请严格按此顺序描述各区域，先出现的先描述）：\n" + "\n".join(lines)
+
+    except Exception as e:
+        print(f"[XHS] Photo sequence hint error: {e}")
+        return None
+
+
+def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, style="concise",
+                               photo_sequence=None):
     """Generate one narration segment per floor group. Returns [str] or None."""
     import json as _json, re as _re
     api_key = os.environ.get("DEEPSEEK_API_KEY", "")
@@ -997,7 +1093,7 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
 {property_info}
 =====
 
-卖点分配参考（严格基于listing已有信息）：
+{photo_sequence + chr(10) if photo_sequence else ''}卖点分配参考（严格基于listing已有信息）：
 - 主层段：室外外观、车库/停车、地块、入口、客厅、餐厅、厨房、主层卫浴
 - 上层段：主卧（面积/walk-in/套浴）、次卧数量和特色、上层卫浴
 - 地下室段：地下室类型、地下室卧室、额外空间、户外（如有）
@@ -1468,10 +1564,12 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
 
                 # ── Step 3: Per-floor narration ────────────────────────────────
                 _job_set(job_id, {"status": "processing", "step": "Writing narration..."})
+                photo_seq = _build_photo_sequence_hint(downloaded, deepseek_key)
                 floor_texts = _generate_floor_narrations(
                     listing_data,
                     [(fl, len(photos)) for fl, photos in active_groups],
                     cover_lines=cover_lines,
+                    photo_sequence=photo_seq,
                 )
 
                 if floor_texts:

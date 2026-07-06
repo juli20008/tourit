@@ -561,7 +561,7 @@ def draft_narration(mls_number):
     from app.models.mls_listing import MlsListing
     from app.services.xhs_video_service import (
         _generate_floor_narrations, _generate_narration,
-        _FLOOR_ORDER, _FLOOR_ZH, MAX_PHOTOS,
+        _FLOOR_ORDER, _FLOOR_ZH, MAX_PHOTOS, _build_photo_sequence_hint,
     )
 
     if not current_user.is_authenticated:
@@ -676,8 +676,31 @@ def draft_narration(mls_number):
 
     CLOSING = "如果你觉得我挑的房子不错，记得点赞订阅，或者找我定制私人找房服务。"
 
+    # Fetch photos and build sequence hint for narration alignment
+    photo_seq = None
+    try:
+        deepseek_key = os.environ.get("DEEPSEEK_API_KEY", "")
+        img_urls = []
+        if external_listing:
+            img_urls = (external_listing.get('images') or [])[:20]
+        else:
+            img_urls = (listing.effective_images or [])[:20]
+        if img_urls and deepseek_key:
+            photo_inputs = []
+            for url in img_urls:
+                try:
+                    r = requests.get(url, timeout=10)
+                    if r.ok:
+                        photo_inputs.append((url, r.content))
+                except Exception:
+                    pass
+            if photo_inputs:
+                photo_seq = _build_photo_sequence_hint(photo_inputs, deepseek_key)
+    except Exception:
+        pass
+
     floor_texts = _generate_floor_narrations(listing_data, active_groups, cover_lines=cover_lines,
-                                             style=narration_style)
+                                             style=narration_style, photo_sequence=photo_seq)
     if floor_texts and len(floor_texts) == len(active_groups):
         floor_texts[-1] = floor_texts[-1] + CLOSING
         labeled = []
