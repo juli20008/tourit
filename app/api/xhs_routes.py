@@ -682,9 +682,9 @@ def draft_narration(mls_number):
         deepseek_key = os.environ.get("DEEPSEEK_API_KEY", "")
         img_urls = []
         if external_listing:
-            img_urls = (external_listing.get('images') or [])[:20]
+            img_urls = (external_listing.get('images') or [])[:MAX_PHOTOS]
         else:
-            img_urls = (listing.effective_images or [])[:20]
+            img_urls = (listing.effective_images or [])[:MAX_PHOTOS]
         if img_urls and deepseek_key:
             photo_inputs = []
             for url in img_urls:
