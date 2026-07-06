@@ -1018,6 +1018,7 @@ def _build_photo_sequence_hint(photo_inputs, api_key):
     Returns a formatted string, or None on failure (silent degradation).
     """
     import base64 as _b64, json as _json, re as _re
+    from concurrent.futures import ThreadPoolExecutor, as_completed as _as_completed
     n = len(photo_inputs)
     if not api_key or not photo_inputs:
         return None, None
@@ -1032,35 +1033,47 @@ def _build_photo_sequence_hint(photo_inputs, api_key):
         "书房=无床有书桌；地下室客厅/卧室=天花板低或小窗"
     )
 
-    def _load_photo(inp):
-        # If it's a URL string, pass it directly — no download needed
-        if isinstance(inp, str) and inp.startswith("http"):
-            return {"type": "image_url", "image_url": {"url": inp}}
-        # (url, bytes) tuple — prefer URL if available
-        if isinstance(inp, tuple) and inp[0].startswith("http"):
-            return {"type": "image_url", "image_url": {"url": inp[0]}}
-        # Local file path fallback (used in _run_pipeline)
-        if isinstance(inp, str):
-            with open(inp, "rb") as _f:
-                data = _f.read()
-            ext = inp.rsplit(".", 1)[-1].lower()
-        else:
-            data = inp[1]
-            ext = "jpg"
-        mime = "image/png" if ext == "png" else "image/jpeg"
-        b64 = _b64.b64encode(data).decode()
-        return {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}}
+    def _to_b64_item(idx_inp):
+        idx, inp = idx_inp
+        try:
+            if isinstance(inp, str) and not inp.startswith("http"):
+                # Local file path (used in _run_pipeline)
+                with open(inp, "rb") as _f:
+                    data = _f.read()
+                mime = "image/png" if inp.endswith(".png") else "image/jpeg"
+            elif isinstance(inp, str):
+                # URL — download it
+                r = requests.get(inp, timeout=10)
+                r.raise_for_status()
+                data = r.content
+                mime = "image/jpeg"
+            else:
+                # (url, bytes) tuple
+                data = inp[1]
+                mime = "image/jpeg"
+            b64 = _b64.b64encode(data).decode()
+            return idx, {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}}
+        except Exception:
+            return idx, None
 
-    def _classify_batch(batch_inputs, batch_indices):
-        """Send one batch of photos to Vision API; return list of labels same length."""
-        content = []
-        loaded = []
-        for orig_idx, inp in zip(batch_indices, batch_inputs):
-            try:
-                content.append(_load_photo(inp))
-                loaded.append(orig_idx)
-            except Exception:
-                pass
+    # Download all photos in parallel (10 workers)
+    print(f"[XHS Vision] Downloading {n} photos in parallel...")
+    idx_to_item = {}
+    with ThreadPoolExecutor(max_workers=10) as pool:
+        futures = {pool.submit(_to_b64_item, (i, photo_inputs[i])): i for i in range(n)}
+        for fut in _as_completed(futures):
+            idx, item = fut.result()
+            if item:
+                idx_to_item[idx] = item
+    print(f"[XHS Vision] Downloaded {len(idx_to_item)}/{n} photos OK")
+
+    if not idx_to_item:
+        return None, None
+
+    def _classify_batch(batch_indices):
+        """Send one batch (by index) to Vision API; return {idx: label} dict."""
+        content = [idx_to_item[i] for i in batch_indices if i in idx_to_item]
+        loaded  = [i for i in batch_indices if i in idx_to_item]
         if not content:
             return {}
         num = len(loaded)
@@ -1080,27 +1093,29 @@ def _build_photo_sequence_hint(photo_inputs, api_key):
                 timeout=60,
             )
             if not resp.ok:
+                print(f"[XHS Vision] batch API error {resp.status_code}: {resp.text[:200]}")
                 return {}
             raw = resp.json().get("choices", [{}])[0].get("message", {}).get("content", "")
             m = _re.search(r'\[.*?\]', raw, _re.DOTALL)
             if not m:
+                print(f"[XHS Vision] batch no JSON array. raw={raw[:200]}")
                 return {}
             labels = _json.loads(m.group())
             if len(labels) != num:
+                print(f"[XHS Vision] batch expected {num}, got {len(labels)}")
                 return {}
-            return {orig_idx: lbl for orig_idx, lbl in zip(loaded, labels)}
+            return {idx: lbl for idx, lbl in zip(loaded, labels)}
         except Exception as ex:
-            print(f"[XHS] Vision batch error: {ex}")
+            print(f"[XHS Vision] batch exception: {ex}")
             return {}
 
-    # Process in batches of 15 — reliable size for the Vision API
+    # Send in batches of 15
     BATCH = 15
     label_map = {}
     for batch_start in range(0, n, BATCH):
-        batch_end = min(batch_start + BATCH, n)
-        batch_inputs  = [photo_inputs[i] for i in range(batch_start, batch_end)]
-        batch_indices = list(range(batch_start, batch_end))
-        label_map.update(_classify_batch(batch_inputs, batch_indices))
+        batch_indices = list(range(batch_start, min(batch_start + BATCH, n)))
+        label_map.update(_classify_batch(batch_indices))
+    print(f"[XHS Vision] Classified {len(label_map)}/{n} photos")
 
     if not label_map:
         return None, None

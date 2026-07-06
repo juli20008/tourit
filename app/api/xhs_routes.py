@@ -678,7 +678,7 @@ def draft_narration(mls_number):
     BASEMENT_CTA = "打算卖房，联系我，用小红书爆款视频，把你的房子送上全网热门。"
     CLOSING = "如果你觉得我挑的房子不错，记得点赞订阅，或者找我定制私人找房服务。"
 
-    # Build sequence hint by passing URLs directly to Vision API (no local download needed)
+    # Classify photos via Vision API (parallel download + base64 inside the service)
     photo_seq = None
     all_labels = None
     try:
@@ -688,9 +688,9 @@ def draft_narration(mls_number):
         else:
             img_urls = (listing.effective_images or [])[:MAX_PHOTOS]
         if img_urls and deepseek_key:
-            print(f"[XHS draft] Classifying {len(img_urls)} photos via Vision API...")
+            # Pass URL strings — _build_photo_sequence_hint downloads them in parallel
             photo_seq, all_labels = _build_photo_sequence_hint(img_urls, deepseek_key)
-            print(f"[XHS draft] Vision result: all_labels={bool(all_labels)}, n={len(all_labels) if all_labels else 0}")
+            print(f"[XHS draft] Vision labels: {bool(all_labels)}, n={len(all_labels) if all_labels else 0}")
     except Exception as _ve:
         print(f"[XHS draft] Vision error: {_ve}")
         pass
