@@ -188,6 +188,7 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 	const [perPhoto, setPerPhoto] = useState(null);   // array mode: one string per photo
 	const [photoLabels, setPhotoLabels] = useState([]);
 	const [photoMap, setPhotoMap] = useState({});
+	const [floorOptions, setFloorOptions] = useState({});
 	const [regenLoading, setRegenLoading] = useState(false);
 	const [step, setStep] = useState("");
 	const [videoUrl, setVideoUrl] = useState(null);
@@ -253,6 +254,7 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 			if (d.per_photo) {
 				setPerPhoto(d.per_photo);
 				setPhotoLabels(d.photo_labels || []);
+				setFloorOptions(d.floor_options || {});
 				setNarrationDraft("");
 			} else {
 				setNarrationDraft(d.narration || "");
@@ -584,10 +586,14 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 							{perPhoto ? (() => {
 								const us = upperStart    ? parseInt(upperStart,    10) : null;
 								const bs = basementStart ? parseInt(basementStart, 10) : null;
+								const MAIN_OPTS     = floorOptions.main_floor  || ["主层","客厅","餐厅","厨房","家庭房","卫生间"];
+								const UPPER_OPTS    = floorOptions.upper_floor  || ["上层","主卧","主卧浴室","次卧","次卧浴室"];
+								const BASEMENT_OPTS = floorOptions.basement     || ["地下室","客厅","房间","洗手间","厨房","户外"];
+								const getOpts = pn => bs && pn >= bs ? BASEMENT_OPTS : us && pn >= us ? UPPER_OPTS : MAIN_OPTS;
 								return (
 									<div style={{ border: "1.5px solid #e2e8f0", borderRadius: 8, overflow: "hidden" }}>
 										<div style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0", padding: "6px 10px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-											<span style={{ fontSize: "0.72rem", color: "#64748b" }}>标签可编辑 · 改完点右边重新生成</span>
+											<span style={{ fontSize: "0.72rem", color: "#64748b" }}>点标签换房间 · 改完点右边重新生成</span>
 											<button
 												type="button"
 												onClick={regenFromLabels}
@@ -595,16 +601,17 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 												style={{ background: "#2563eb", color: "#fff", border: "none", borderRadius: 6, padding: "3px 10px", fontSize: "0.75rem", cursor: "pointer", fontWeight: 600 }}
 											>{regenLoading ? "生成中..." : "↻ 重新生成文案"}</button>
 										</div>
-										<div style={{ maxHeight: 420, overflowY: "auto" }}>
+										<div style={{ maxHeight: 460, overflowY: "auto" }}>
 											{perPhoto.map((text, i) => {
 												const photoNum = i + 1;
-												const isUpperDivider   = us && photoNum === us;
+												const isUpperDivider    = us && photoNum === us;
 												const isBasementDivider = bs && photoNum === bs;
 												const label = photoLabels[i] || "";
+												const opts  = getOpts(photoNum);
 												const tooShort = text.length < 8;
 												const tooLong  = text.length > 25;
 												return (
-													<div key={i}>
+													<div key={i} style={{ borderBottom: "1px solid #f1f5f9" }}>
 														{isUpperDivider && (
 															<div style={{ background: "#f1f5f9", padding: "4px 10px", fontSize: "0.72rem", fontWeight: 700, color: "#475569", borderTop: "1px solid #e2e8f0", borderBottom: "1px solid #e2e8f0" }}>
 																── 上层 Upper Floor ──
@@ -617,20 +624,10 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 														)}
 														<div style={{
 															display: "flex", alignItems: "center", gap: 6,
-															padding: "4px 8px",
-															borderBottom: "1px solid #f1f5f9",
+															padding: "4px 8px 2px",
 															background: tooLong ? "#fff5f5" : tooShort ? "#fffbf0" : "#fff",
 														}}>
 															<span style={{ minWidth: 22, fontSize: "0.68rem", color: "#94a3b8", textAlign: "right", flexShrink: 0 }}>{photoNum}</span>
-															<input
-																value={label}
-																onChange={e => {
-																	const next = [...photoLabels];
-																	next[i] = e.target.value;
-																	setPhotoLabels(next);
-																}}
-																style={{ width: 72, fontSize: "0.68rem", color: "#6d28d9", border: "1px solid #ddd6fe", borderRadius: 4, padding: "1px 4px", background: "#faf5ff", flexShrink: 0, minWidth: 0, fontFamily: "inherit" }}
-															/>
 															<input
 																value={text}
 																onChange={e => {
@@ -638,14 +635,28 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 																	next[i] = e.target.value;
 																	setPerPhoto(next);
 																}}
-																style={{
-																	flex: 1, fontSize: "0.82rem", border: "none", outline: "none",
-																	background: "transparent", fontFamily: "inherit", minWidth: 0,
-																}}
+																style={{ flex: 1, fontSize: "0.82rem", border: "none", outline: "none", background: "transparent", fontFamily: "inherit", minWidth: 0 }}
 															/>
 															<span style={{ minWidth: 28, fontSize: "0.68rem", textAlign: "right", flexShrink: 0, color: tooLong ? "#dc2626" : tooShort ? "#f97316" : "#94a3b8" }}>
 																{text.length}字
 															</span>
+														</div>
+														<div style={{ display: "flex", flexWrap: "wrap", gap: 3, padding: "2px 8px 5px 30px" }}>
+															{opts.map(opt => {
+																const sel = label === opt;
+																return (
+																	<button key={opt} type="button"
+																		onClick={() => { const n2 = [...photoLabels]; n2[i] = opt; setPhotoLabels(n2); }}
+																		style={{
+																			padding: "1px 7px", borderRadius: 10, fontSize: "0.62rem",
+																			border: sel ? "1.5px solid #7c3aed" : "1px solid #e2e8f0",
+																			background: sel ? "#f3e8ff" : "#f8fafc",
+																			color: sel ? "#6d28d9" : "#64748b",
+																			cursor: "pointer", fontFamily: "inherit", lineHeight: 1.6,
+																		}}
+																	>{opt}</button>
+																);
+															})}
 														</div>
 													</div>
 												);

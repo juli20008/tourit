@@ -561,7 +561,7 @@ def draft_narration(mls_number):
     from app.models.mls_listing import MlsListing
     from app.services.xhs_video_service import (
         _generate_floor_narrations, _generate_narration, _generate_per_photo_narrations,
-        _FLOOR_ORDER, _FLOOR_ZH, MAX_PHOTOS, _build_photo_sequence_hint,
+        _FLOOR_ORDER, _FLOOR_ZH, MAX_PHOTOS, _labels_from_room_info, FLOOR_LABEL_OPTIONS,
     )
 
     if not current_user.is_authenticated:
@@ -678,47 +678,30 @@ def draft_narration(mls_number):
     BASEMENT_CTA = "打算卖房，联系我，用小红书爆款视频，把你的房子送上全网热门。"
     CLOSING = "如果你觉得我挑的房子不错，记得点赞订阅，或者找我定制私人找房服务。"
 
-    # Classify photos via Vision API (parallel download + base64 inside the service)
-    photo_seq = None
-    all_labels = None
-    try:
-        deepseek_key = os.environ.get("DEEPSEEK_API_KEY", "")
-        if external_listing:
-            img_urls = (external_listing.get('images') or [])[:MAX_PHOTOS]
-        else:
-            img_urls = (listing.effective_images or [])[:MAX_PHOTOS]
-        if img_urls and deepseek_key:
-            # Pass URL strings — _build_photo_sequence_hint downloads them in parallel
-            photo_seq, all_labels = _build_photo_sequence_hint(img_urls, deepseek_key)
-            print(f"[XHS draft] Vision labels: {bool(all_labels)}, n={len(all_labels) if all_labels else 0}")
-    except Exception as _ve:
-        print(f"[XHS draft] Vision error: {_ve}")
-        pass
+    # Build labels from room_info (instant, no Vision API needed)
+    _room_info_str = ""
+    if external_listing:
+        _room_info_str = str(external_listing.get('room_info') or "")
+    elif listing:
+        _room_info_str = str(getattr(listing, 'room_info', '') or "")
 
-    # Build per-floor photo map for the frontend to display
+    effective_labels = _labels_from_room_info(_room_info_str, active_groups, n_photos)
+
+    # Build photo_map for the frontend floor divider display
     photo_map = {}
-    if all_labels and active_groups:
+    if active_groups:
         cursor = 0
         for floor, count in active_groups:
-            segment_labels = all_labels[cursor:cursor + count]
-            seen = set()
-            rooms = []
+            segment_labels = effective_labels[cursor:cursor + count]
+            seen, rooms = set(), []
             for lbl in segment_labels:
                 if lbl not in seen:
-                    seen.add(lbl)
-                    rooms.append(lbl)
+                    seen.add(lbl); rooms.append(lbl)
             photo_map[floor] = {"from": cursor + 1, "to": cursor + count, "rooms": rooms}
             cursor += count
 
-    # If Vision failed, build dummy labels from floor grouping so per-photo always works
-    effective_labels = all_labels
-    if not effective_labels:
-        effective_labels = []
-        if active_groups:
-            for _floor, _count in active_groups:
-                effective_labels.extend([_FLOOR_ZH.get(_floor, _floor)] * _count)
-        else:
-            effective_labels = ["主层"] * n_photos
+    # Floor radio options sent to frontend so it knows which pills to show per photo
+    floor_options = FLOOR_LABEL_OPTIONS
 
     # Always generate per-photo narration
     per_photo = _generate_per_photo_narrations(
@@ -743,11 +726,12 @@ def draft_narration(mls_number):
             'per_photo': per_photo,
             'photo_labels': effective_labels,
             'photo_map': photo_map,
+            'floor_options': floor_options,
         })
 
     # Fallback: floor-level narration (AI completely failed)
     floor_texts = _generate_floor_narrations(listing_data, active_groups, cover_lines=cover_lines,
-                                             style=narration_style, photo_sequence=photo_seq)
+                                             style=narration_style, photo_sequence=None)
     if floor_texts and len(floor_texts) == len(active_groups):
         for _i, (_floor, _) in enumerate(active_groups):
             if _floor == "upper_floor":

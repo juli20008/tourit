@@ -642,6 +642,90 @@ def _round_dims(text):
     return _re.sub(r'\d+\.\d{2,}', lambda m: f"{float(m.group()):.1f}", text)
 
 
+# Options shown per floor in the frontend radio selector
+FLOOR_LABEL_OPTIONS = {
+    "main_floor": ["主层", "客厅", "餐厅", "厨房", "家庭房", "卫生间"],
+    "exterior":   ["主层", "客厅", "餐厅", "厨房", "家庭房", "卫生间"],
+    "upper_floor": ["上层", "主卧", "主卧浴室", "次卧", "次卧浴室"],
+    "basement":   ["地下室", "客厅", "房间", "洗手间", "厨房", "户外"],
+}
+
+_ROOM_KW = [
+    (r'living|great.?room',                              '客厅'),
+    (r'family.?room|family',                             '家庭房'),
+    (r'dining|breakfast',                                '餐厅'),
+    (r'kitchen',                                         '厨房'),
+    (r'(prim|master|primary).{0,12}(bath|ensuite|en.?suite)', '主卧浴室'),
+    (r'(prim|master|primary).{0,12}(bed|br\b)',          '主卧'),
+    (r'ensuite|en.?suite',                               '主卧浴室'),
+    (r'powder|half.?bath|2.?pc',                         '卫生间'),
+    (r'bath|washroom',                                   '次卧浴室'),
+    (r'bedroom|bed\s*rm|\bbr\b',                         '次卧'),
+    (r'rec\s*room|recreation|games|media|theatre|theater', '客厅'),
+    (r'den|office|study',                                '家庭房'),
+    (r'laundry|utility|mechanical',                      '洗手间'),
+    (r'yard|patio|deck|pool|garden|outdoor|exterior|garage|driveway|backyard', '户外'),
+    (r'foyer|entry|hall|mud\s*room',                     '主层'),
+]
+
+
+def _labels_from_room_info(room_info, active_groups, n_photos):
+    """
+    Parse MLS room_info string and distribute room labels across photos by floor.
+    Returns list[str] of length n_photos.
+    """
+    import re as _re
+
+    def _match(name):
+        nl = name.lower()
+        for pat, lbl in _ROOM_KW:
+            if _re.search(pat, nl):
+                return lbl
+        return None
+
+    # Parse room names from room_info (semicolon-separated "Room Name: dims, floor, ...")
+    parsed_rooms = []
+    if room_info:
+        for part in _re.split(r'[;\n]', room_info):
+            part = part.strip()
+            if not part:
+                continue
+            name = part.split(':')[0].strip()
+            lbl = _match(name)
+            if lbl:
+                parsed_rooms.append(lbl)
+
+    all_labels = []
+    if active_groups:
+        room_cursor = 0
+        total_rooms = len(parsed_rooms) or 1
+        for floor, count in active_groups:
+            opts = FLOOR_LABEL_OPTIONS.get(floor, ["主层"])
+            if parsed_rooms:
+                # Proportional slice of parsed rooms for this floor
+                share = max(1, round(total_rooms * count / n_photos))
+                floor_rooms = parsed_rooms[room_cursor:room_cursor + share] or [opts[0]]
+                room_cursor += share
+            else:
+                floor_rooms = opts[:1]
+            # Spread floor_rooms across 'count' photos
+            for i in range(count):
+                idx = min(i * len(floor_rooms) // max(count, 1), len(floor_rooms) - 1)
+                all_labels.append(floor_rooms[idx])
+    else:
+        if parsed_rooms:
+            for i in range(n_photos):
+                idx = min(i * len(parsed_rooms) // max(n_photos, 1), len(parsed_rooms) - 1)
+                all_labels.append(parsed_rooms[idx])
+        else:
+            all_labels = ["主层"] * n_photos
+
+    # Pad/trim to exactly n_photos
+    while len(all_labels) < n_photos:
+        all_labels.append(all_labels[-1] if all_labels else "主层")
+    return all_labels[:n_photos]
+
+
 def _generate_per_photo_narrations(listing_data, photo_labels, active_groups=None, cover_lines=None):
     """
     Generate one narration sentence per photo (~15 chars each).
