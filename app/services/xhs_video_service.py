@@ -1019,16 +1019,10 @@ def _build_photo_sequence_hint(photo_inputs, api_key):
     if not api_key or not photo_inputs:
         return None, None
 
-    # Sample up to 15 photos evenly
-    if n <= 15:
-        indices = list(range(n))
-    else:
-        step = n / 15
-        indices = [int(i * step) for i in range(15)]
-
+    # Send ALL photos — no sampling, so every photo gets its own label (no interpolation error)
     content = []
     valid_indices = []
-    for idx in indices:
+    for idx in range(n):
         try:
             inp = photo_inputs[idx]
             if isinstance(inp, str):
@@ -1051,12 +1045,22 @@ def _build_photo_sequence_hint(photo_inputs, api_key):
     num = len(valid_indices)
     _ROOM_OPTS = (
         "室外/车道/车库, 客厅, 餐厅, 厨房, 早餐区, 书房/多功能室, "
-        "主卧, 主浴/套浴, 次卧, 浴室/卫生间, 洗衣房, 地下室, 户外后院/泳池"
+        "主卧, 主浴/套浴, 次卧, 浴室/卫生间, 洗衣房, 地下室客厅, 地下室卧室, 户外后院/泳池"
     )
     content.append({"type": "text", "text": (
-        f"以上{num}张是一套房源照片，按播放顺序排列（第1张最先播放）。\n"
-        f"请将每张照片归类（从以下选项中选最接近的）：{_ROOM_OPTS}\n"
-        f"只输出长度为{num}的JSON数组，元素为上方标签原文。"
+        f"以上{num}张是一套房源的照片，按播放顺序排列，第1张最先播放。\n"
+        f"请为每一张照片选择最准确的标签（从下方选项中选一个，原文照抄）：\n{_ROOM_OPTS}\n\n"
+        f"区分提示：\n"
+        f"- 客厅：有沙发/电视/茶几，开放空间\n"
+        f"- 餐厅：有餐桌和椅子，可能有吊灯\n"
+        f"- 厨房：有灶台/橱柜/油烟机/水槽\n"
+        f"- 早餐区：厨房旁边的小桌子或岛台旁的吧台椅\n"
+        f"- 主浴/套浴：通常较大，有双台盆或独立浴缸\n"
+        f"- 浴室/卫生间：较小的公共卫生间\n"
+        f"- 书房/多功能室：无床，有书桌或办公区\n"
+        f"- 地下室客厅：明显在地下层（天花板低或窗户小），有休闲区\n"
+        f"- 地下室卧室：明显在地下层，有床\n\n"
+        f"只输出长度严格等于{num}的JSON数组，每个元素是对应照片的标签原文，不要任何其他文字。"
     )})
 
     try:
@@ -1065,24 +1069,28 @@ def _build_photo_sequence_hint(photo_inputs, api_key):
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
             json={"model": "deepseek-vl2",
                   "messages": [{"role": "user", "content": content}],
-                  "max_tokens": 300},
-            timeout=60,
+                  "max_tokens": 800},
+            timeout=90,
         )
         if not resp.ok:
-            return None
+            return None, None
         raw = resp.json().get("choices", [{}])[0].get("message", {}).get("content", "")
         m = _re.search(r'\[.*?\]', raw, _re.DOTALL)
         if not m:
-            return None
-        sample_labels = _json.loads(m.group())
-        if len(sample_labels) != num:
-            return None
+            return None, None
+        all_labels_raw = _json.loads(m.group())
+        if len(all_labels_raw) != num:
+            return None, None
 
-        # Map sampled labels back to all photos via nearest-neighbor
-        all_labels = []
+        # Rebuild full all_labels list (valid_indices may skip failed images)
+        all_labels = [""] * n
+        for pos, idx in enumerate(valid_indices):
+            all_labels[idx] = all_labels_raw[pos]
+        # Fill any gaps (failed image loads) from nearest valid neighbor
         for i in range(n):
-            nearest = min(range(num), key=lambda j: abs(valid_indices[j] - i))
-            all_labels.append(sample_labels[nearest])
+            if not all_labels[i]:
+                nearest = min(valid_indices, key=lambda j: abs(j - i))
+                all_labels[i] = all_labels[nearest]
 
         # Compress consecutive identical labels into ranges
         runs = []
