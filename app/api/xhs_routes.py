@@ -674,6 +674,8 @@ def draft_narration(mls_number):
         if has_basement and base_n > 0:
             active_groups.append(("basement", base_n))
 
+    UPPER_CTA   = "喜欢这套房，点赞关注我，或私信定制你的专属找房方案。"
+    BASEMENT_CTA = "打算卖房，联系我，用小红书爆款视频，把你的房子送上全网热门。"
     CLOSING = "如果你觉得我挑的房子不错，记得点赞订阅，或者找我定制私人找房服务。"
 
     # Fetch photos and build sequence hint for narration alignment
@@ -718,7 +720,11 @@ def draft_narration(mls_number):
     floor_texts = _generate_floor_narrations(listing_data, active_groups, cover_lines=cover_lines,
                                              style=narration_style, photo_sequence=photo_seq)
     if floor_texts and len(floor_texts) == len(active_groups):
-        floor_texts[-1] = floor_texts[-1] + CLOSING
+        for _i, (_floor, _) in enumerate(active_groups):
+            if _floor == "upper_floor":
+                floor_texts[_i] += UPPER_CTA
+            elif _floor == "basement":
+                floor_texts[_i] += BASEMENT_CTA
         labeled = []
         for (floor, _), text in zip(active_groups, floor_texts):
             labeled.append(f"【{_FLOOR_ZH[floor]}】\n{text}")

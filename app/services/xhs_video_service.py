@@ -1574,8 +1574,13 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                 )
 
                 if floor_texts:
-                    # Append closing line to the last segment
-                    floor_texts[-1] = floor_texts[-1] + "如果你觉得我挑的房子不错，记得点赞订阅，或者找我定制私人找房服务。"
+                    _UPPER_CTA = "喜欢这套房，点赞关注我，或私信定制你的专属找房方案。"
+                    _BASEMENT_CTA = "打算卖房，联系我，用小红书爆款视频，把你的房子送上全网热门。"
+                    for _i, (_fl, _) in enumerate([(fl, p) for fl, p in active_groups]):
+                        if _fl == "upper_floor":
+                            floor_texts[_i] += _UPPER_CTA
+                        elif _fl == "basement":
+                            floor_texts[_i] += _BASEMENT_CTA
                     # ── Step 4: Per-floor TTS ──────────────────────────────────
                     _job_set(job_id, {"status": "processing", "step": "Generating voiceover..."})
                     from app.services.elevenlabs_service import generate_speech
@@ -1687,12 +1692,17 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                            duration=_TEAM_PHOTO_DURATION, zoom_start=1.0, zoom_end=1.0)
                 clip_paths.append(team_clip)
 
-            # Outro clip (static, letterboxed)
+            # Outro clip — extend if narration audio overruns the photo clips
+            # so the CTA lines play out fully over the tail image.
+            _total_photo_dur = sum(PHOTO_DURATION * len(p) for _, _, p in segment_audio_info)
+            _team_dur = _TEAM_PHOTO_DURATION if os.path.exists(_TEAM_PHOTO_PATH) else 0.0
+            _outro_dur = max(OUTRO_DURATION, narr_dur - _total_photo_dur - _team_dur + 1.0)
+
             if os.path.exists(_OUTRO_PATH):
                 outro_clip = os.path.join(clips_dir, "clip_outro.mp4")
                 subprocess.run(
                     [ffmpeg, "-y", "-loop", "1", "-i", _OUTRO_PATH,
-                     "-t", str(OUTRO_DURATION),
+                     "-t", str(_outro_dur),
                      "-vf", (f"scale={OUTPUT_W}:{OUTPUT_H}:force_original_aspect_ratio=decrease,"
                              f"pad={OUTPUT_W}:{OUTPUT_H}:(ow-iw)/2:(oh-ih)/2:black"),
                      "-c:v", "libx264", "-crf", str(CRF), "-preset", PRESET,
