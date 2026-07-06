@@ -678,28 +678,21 @@ def draft_narration(mls_number):
     BASEMENT_CTA = "打算卖房，联系我，用小红书爆款视频，把你的房子送上全网热门。"
     CLOSING = "如果你觉得我挑的房子不错，记得点赞订阅，或者找我定制私人找房服务。"
 
-    # Fetch photos and build sequence hint for narration alignment
+    # Build sequence hint by passing URLs directly to Vision API (no local download needed)
     photo_seq = None
     all_labels = None
     try:
         deepseek_key = os.environ.get("DEEPSEEK_API_KEY", "")
-        img_urls = []
         if external_listing:
             img_urls = (external_listing.get('images') or [])[:MAX_PHOTOS]
         else:
             img_urls = (listing.effective_images or [])[:MAX_PHOTOS]
         if img_urls and deepseek_key:
-            photo_inputs = []
-            for url in img_urls:
-                try:
-                    r = requests.get(url, timeout=10)
-                    if r.ok:
-                        photo_inputs.append((url, r.content))
-                except Exception:
-                    pass
-            if photo_inputs:
-                photo_seq, all_labels = _build_photo_sequence_hint(photo_inputs, deepseek_key)
-    except Exception:
+            print(f"[XHS draft] Classifying {len(img_urls)} photos via Vision API...")
+            photo_seq, all_labels = _build_photo_sequence_hint(img_urls, deepseek_key)
+            print(f"[XHS draft] Vision result: all_labels={bool(all_labels)}, n={len(all_labels) if all_labels else 0}")
+    except Exception as _ve:
+        print(f"[XHS draft] Vision error: {_ve}")
         pass
 
     # Build per-floor photo map for the frontend to display
@@ -774,6 +767,109 @@ def draft_narration(mls_number):
         return jsonify({'error': 'AI narration generation failed — check DEEPSEEK_API_KEY'}), 502
 
     return jsonify({'narration': narration, 'photo_map': photo_map})
+
+
+@xhs_routes.route('/agent/regen-per-photo/<mls_number>', methods=['POST'])
+def regen_per_photo(mls_number):
+    """Re-generate per-photo narration with user-corrected room labels."""
+    from flask_login import current_user
+    from app.models.mls_listing import MlsListing
+    from app.services.xhs_video_service import (
+        _generate_per_photo_narrations, _FLOOR_ZH,
+    )
+
+    if not current_user.is_authenticated:
+        return jsonify({'error': 'Unauthorized'}), 401
+    if not current_user.agent:
+        return jsonify({'error': 'Agent account required'}), 403
+
+    data = request.get_json(silent=True) or {}
+    photo_labels = data.get('photo_labels') or []
+    cover_lines = [
+        str(data.get('cover1', '') or '')[:40],
+        str(data.get('cover2', '') or '')[:40],
+        str(data.get('cover3', '') or '')[:40],
+    ]
+    upper_start    = int(data.get('upper_start'))    if data.get('upper_start')    else None
+    basement_start = int(data.get('basement_start')) if data.get('basement_start') else None
+    external_listing = data.get('external_listing') or None
+
+    if not photo_labels:
+        return jsonify({'error': 'photo_labels required'}), 400
+
+    if external_listing:
+        listing_data = {
+            'list_price': external_listing.get('list_price'),
+            'bed': external_listing.get('bed'), 'bath': external_listing.get('bath'),
+            'beds_above_grade': external_listing.get('beds_above_grade'),
+            'basement_beds': external_listing.get('basement_beds'),
+            'city': external_listing.get('city'),
+            'neighborhood': external_listing.get('neighborhood') or external_listing.get('city'),
+            'description': external_listing.get('description', ''),
+            'style': external_listing.get('style'),
+            'property_type': external_listing.get('style'),
+            'sqft': external_listing.get('sqft'),
+        }
+    else:
+        listing = MlsListing.query.filter_by(mls_number=mls_number).first()
+        if not listing:
+            return jsonify({'error': f'Listing {mls_number} not found'}), 404
+        listing_data = {
+            'list_price': listing.list_price, 'bed': listing.bed, 'bath': listing.bath,
+            'beds_above_grade': getattr(listing, 'beds_above_grade', None),
+            'basement_beds': getattr(listing, 'basement_beds', None),
+            'city': listing.city,
+            'neighborhood': getattr(listing, 'neighborhood', None) or listing.city,
+            'description': listing.description,
+            'style': listing.style, 'property_type': listing.property_type,
+            'sqft': listing.sqft,
+            'room_info': getattr(listing, 'room_info', None),
+            'washroom_info': getattr(listing, 'washroom_info', None),
+            'features': getattr(listing, 'features', None),
+            'interior_features': getattr(listing, 'interior_features', None),
+            'garage_type': getattr(listing, 'garage_type', None),
+            'garage_spaces': getattr(listing, 'garage_spaces', None),
+            'parking_total': getattr(listing, 'parking_total', None),
+            'lot_frontage': getattr(listing, 'lot_frontage', None),
+            'pool': getattr(listing, 'pool', None),
+            'taxes': getattr(listing, 'taxes', None),
+            'tax_year': getattr(listing, 'tax_year', None),
+        }
+
+    n = len(photo_labels)
+    active_groups = None
+    if upper_start and 2 <= upper_start <= n:
+        main_n  = upper_start - 1
+        upper_end = (basement_start - 1) if (basement_start and basement_start > upper_start) else n
+        upper_n = max(1, upper_end - upper_start + 1)
+        base_n  = max(0, n - basement_start + 1) if basement_start else 0
+        active_groups = [("main_floor", max(1, main_n)), ("upper_floor", upper_n)]
+        if base_n > 0:
+            active_groups.append(("basement", base_n))
+
+    UPPER_CTA    = "喜欢这套房，点赞关注我，或私信定制你的专属找房方案。"
+    BASEMENT_CTA = "打算卖房，联系我，用小红书爆款视频，把你的房子送上全网热门。"
+    CLOSING      = "如果你觉得我挑的房子不错，记得点赞订阅，或者找我定制私人找房服务。"
+
+    per_photo = _generate_per_photo_narrations(
+        listing_data, photo_labels, active_groups=active_groups, cover_lines=cover_lines
+    )
+    if not per_photo:
+        return jsonify({'error': 'AI generation failed'}), 502
+
+    if active_groups:
+        cursor = 0
+        for _floor, _count in active_groups:
+            last_idx = cursor + _count - 1
+            if _floor == "upper_floor":
+                per_photo[last_idx] += UPPER_CTA
+            elif _floor == "basement":
+                per_photo[last_idx] += BASEMENT_CTA
+            cursor += _count
+    else:
+        per_photo[-1] += CLOSING
+
+    return jsonify({'per_photo': per_photo})
 
 
 @xhs_routes.route('/agent/video/<mls_number>', methods=['POST'])

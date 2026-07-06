@@ -744,18 +744,21 @@ def _generate_per_photo_narrations(listing_data, photo_labels, active_groups=Non
         resp = requests.post(
             "https://api.deepseek.com/v1/chat/completions",
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={"model": "deepseek-chat", "max_tokens": 4000,
+            json={"model": "deepseek-chat", "max_tokens": 6000,
                   "messages": [{"role": "user", "content": prompt}]},
-            timeout=60,
+            timeout=90,
         )
         if not resp.ok:
+            print(f"[XHS] Per-photo narration API error {resp.status_code}: {resp.text[:300]}")
             return None
         raw = resp.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
         m = _re.search(r'\[[\s\S]*\]', raw)
         if not m:
+            print(f"[XHS] Per-photo narration: no JSON array in response. raw[:200]={raw[:200]}")
             return None
         result = _json.loads(m.group())
         if not isinstance(result, list) or len(result) != n:
+            print(f"[XHS] Per-photo narration: expected {n} items, got {len(result) if isinstance(result, list) else type(result)}")
             return None
         return [_round_dims(str(item)) for item in result]
     except Exception as e:
@@ -1030,6 +1033,13 @@ def _build_photo_sequence_hint(photo_inputs, api_key):
     )
 
     def _load_photo(inp):
+        # If it's a URL string, pass it directly — no download needed
+        if isinstance(inp, str) and inp.startswith("http"):
+            return {"type": "image_url", "image_url": {"url": inp}}
+        # (url, bytes) tuple — prefer URL if available
+        if isinstance(inp, tuple) and inp[0].startswith("http"):
+            return {"type": "image_url", "image_url": {"url": inp[0]}}
+        # Local file path fallback (used in _run_pipeline)
         if isinstance(inp, str):
             with open(inp, "rb") as _f:
                 data = _f.read()
