@@ -253,7 +253,9 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 			}
 			if (d.per_photo) {
 				setPerPhoto(d.per_photo);
-				setPhotoLabels(d.photo_labels || []);
+				// Restore previously saved labels for this listing, fall back to server labels
+				const _saved = (() => { try { const s = localStorage.getItem(`xhs_labels_${mlsNumber}`); return s ? JSON.parse(s) : null; } catch { return null; } })();
+				setPhotoLabels(_saved && _saved.length === (d.photo_labels || []).length ? _saved : (d.photo_labels || []));
 				setFloorOptions(d.floor_options || {});
 				setNarrationDraft("");
 			} else {
@@ -287,6 +289,10 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 		setSuggestingCover(false);
 	};
 
+	const saveLabels = (labels) => {
+		try { localStorage.setItem(`xhs_labels_${mlsNumber}`, JSON.stringify(labels)); } catch {}
+	};
+
 	const regenFromLabels = async () => {
 		setRegenLoading(true);
 		setErrorMsg("");
@@ -305,6 +311,7 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 			const d = await resp.json().catch(() => ({}));
 			if (resp.ok && d.per_photo) {
 				setPerPhoto(d.per_photo);
+				saveLabels(photoLabels);
 			} else {
 				setErrorMsg(d.error || "重新生成失败");
 			}
@@ -315,6 +322,7 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 	};
 
 	const startGeneration = async () => {
+		if (perPhoto && photoLabels.length) saveLabels(photoLabels);
 		setErrorMsg("");
 		setPhase("generating");
 		setStep("正在启动...");
