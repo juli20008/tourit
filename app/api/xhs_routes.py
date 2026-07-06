@@ -562,6 +562,7 @@ def draft_narration(mls_number):
     from app.services.xhs_video_service import (
         _generate_floor_narrations, _generate_narration, _generate_per_photo_narrations,
         _FLOOR_ORDER, _FLOOR_ZH, MAX_PHOTOS, _labels_from_room_info, FLOOR_LABEL_OPTIONS,
+        _build_photo_sequence_hint,
     )
 
     if not current_user.is_authenticated:
@@ -678,14 +679,30 @@ def draft_narration(mls_number):
     BASEMENT_CTA = "打算卖房，联系我，用小红书爆款视频，把你的房子送上全网热门。"
     CLOSING = "如果你觉得我挑的房子不错，记得点赞订阅，或者找我定制私人找房服务。"
 
-    # Build labels from room_info (instant, no Vision API needed)
-    _room_info_str = ""
-    if external_listing:
-        _room_info_str = str(external_listing.get('room_info') or "")
-    elif listing:
-        _room_info_str = str(getattr(listing, 'room_info', '') or "")
+    # Try Vision API first (parallel download + batch classify); fall back to room_info parsing
+    _vision_labels = None
+    try:
+        deepseek_key = os.environ.get("DEEPSEEK_API_KEY", "")
+        if external_listing:
+            _img_urls = (external_listing.get('images') or [])[:MAX_PHOTOS]
+        else:
+            _img_urls = (listing.effective_images or [])[:MAX_PHOTOS]
+        if _img_urls and deepseek_key:
+            _, _vision_labels = _build_photo_sequence_hint(_img_urls, deepseek_key)
+    except Exception as _ve:
+        print(f"[XHS draft] Vision error: {_ve}")
 
-    effective_labels = _labels_from_room_info(_room_info_str, active_groups, n_photos)
+    if _vision_labels and len(_vision_labels) == n_photos:
+        effective_labels = _vision_labels
+        print(f"[XHS draft] Vision labels OK: {len(_vision_labels)} photos")
+    else:
+        _room_info_str = ""
+        if external_listing:
+            _room_info_str = str(external_listing.get('room_info') or "")
+        elif listing:
+            _room_info_str = str(getattr(listing, 'room_info', '') or "")
+        effective_labels = _labels_from_room_info(_room_info_str, active_groups, n_photos)
+        print(f"[XHS draft] Vision failed, using room_info labels")
 
     # Build photo_map for the frontend floor divider display
     photo_map = {}
