@@ -1105,32 +1105,28 @@ def _build_photo_sequence_hint(photo_inputs, api_key):
             nearest = min(classified, key=lambda j: abs(j - i))
             all_labels.append(label_map[nearest])
 
-        # Compress consecutive identical labels into ranges
-        runs = []
-        for i, label in enumerate(all_labels):
-            if runs and runs[-1][0] == label:
-                runs[-1] = (label, runs[-1][1], i + 1)
-            else:
-                runs.append((label, i + 1, i + 1))
+    # Compress consecutive identical labels into ranges
+    runs = []
+    for i, label in enumerate(all_labels):
+        if runs and runs[-1][0] == label:
+            runs[-1] = (label, runs[-1][1], i + 1)
+        else:
+            runs.append((label, i + 1, i + 1))
 
-        lines = []
-        for label, start, end in runs:
-            count = end - start + 1
-            budget = count * CHARS_PER_PHOTO
-            range_str = f"第{start}–{end}张" if end != start else f"第{start}张"
-            lines.append(f"  {label}（{range_str}，{count}张，必须写约{budget}字）")
+    lines = []
+    for label, start, end in runs:
+        count = end - start + 1
+        budget = count * CHARS_PER_PHOTO
+        range_str = f"第{start}–{end}张" if end != start else f"第{start}张"
+        lines.append(f"  {label}（{range_str}，{count}张，必须写约{budget}字）")
 
-        hint = (
-            "【照片顺序与文字预算 — 铁律】每张照片播放3秒，TTS约5字/秒，所以每张照片对应约15字旁白。\n"
-            "下方每个区域都标注了张数和必须分配的字数，严格遵守，否则画面和声音会错位：\n"
-            + "\n".join(lines)
-            + "\n请逐区域写，写完一个区域的预算字数再写下一个，不要跳跃。"
-        )
-        return hint, all_labels
-
-    except Exception as e:
-        print(f"[XHS] Photo sequence hint error: {e}")
-        return None, None
+    hint = (
+        "【照片顺序与文字预算 — 铁律】每张照片播放3秒，TTS约5字/秒，所以每张照片对应约15字旁白。\n"
+        "下方每个区域都标注了张数和必须分配的字数，严格遵守，否则画面和声音会错位：\n"
+        + "\n".join(lines)
+        + "\n请逐区域写，写完一个区域的预算字数再写下一个，不要跳跃。"
+    )
+    return hint, all_labels
 
 
 def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, style="concise",
