@@ -188,6 +188,7 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 	const [perPhoto, setPerPhoto] = useState(null);   // array mode: one string per photo
 	const [photoLabels, setPhotoLabels] = useState([]);
 	const [photoMap, setPhotoMap] = useState({});
+	const [regenLoading, setRegenLoading] = useState(false);
 	const [step, setStep] = useState("");
 	const [videoUrl, setVideoUrl] = useState(null);
 	const [coverUrl, setCoverUrl] = useState(null);
@@ -282,6 +283,33 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 			}
 		} catch {}
 		setSuggestingCover(false);
+	};
+
+	const regenFromLabels = async () => {
+		setRegenLoading(true);
+		setErrorMsg("");
+		try {
+			const resp = await apiFetch(`/api/xhs/agent/regen-per-photo/${mlsNumber}`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					photo_labels: photoLabels,
+					cover1, cover2, cover3,
+					upper_start:    upperStart    ? parseInt(upperStart,    10) : null,
+					basement_start: basementStart ? parseInt(basementStart, 10) : null,
+					external_listing: externalListing || undefined,
+				}),
+			});
+			const d = await resp.json().catch(() => ({}));
+			if (resp.ok && d.per_photo) {
+				setPerPhoto(d.per_photo);
+			} else {
+				setErrorMsg(d.error || "重新生成失败");
+			}
+		} catch (e) {
+			setErrorMsg(String(e));
+		}
+		setRegenLoading(false);
 	};
 
 	const startGeneration = async () => {
@@ -558,6 +586,15 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 								const bs = basementStart ? parseInt(basementStart, 10) : null;
 								return (
 									<div style={{ border: "1.5px solid #e2e8f0", borderRadius: 8, overflow: "hidden" }}>
+										<div style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0", padding: "6px 10px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+											<span style={{ fontSize: "0.72rem", color: "#64748b" }}>标签可编辑 · 改完点右边重新生成</span>
+											<button
+												type="button"
+												onClick={regenFromLabels}
+												disabled={regenLoading}
+												style={{ background: "#2563eb", color: "#fff", border: "none", borderRadius: 6, padding: "3px 10px", fontSize: "0.75rem", cursor: "pointer", fontWeight: 600 }}
+											>{regenLoading ? "生成中..." : "↻ 重新生成文案"}</button>
+										</div>
 										<div style={{ maxHeight: 420, overflowY: "auto" }}>
 											{perPhoto.map((text, i) => {
 												const photoNum = i + 1;
@@ -585,7 +622,15 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 															background: tooLong ? "#fff5f5" : tooShort ? "#fffbf0" : "#fff",
 														}}>
 															<span style={{ minWidth: 22, fontSize: "0.68rem", color: "#94a3b8", textAlign: "right", flexShrink: 0 }}>{photoNum}</span>
-															<span style={{ minWidth: 72, fontSize: "0.68rem", color: "#64748b", flexShrink: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+															<input
+																value={label}
+																onChange={e => {
+																	const next = [...photoLabels];
+																	next[i] = e.target.value;
+																	setPhotoLabels(next);
+																}}
+																style={{ width: 72, fontSize: "0.68rem", color: "#6d28d9", border: "1px solid #ddd6fe", borderRadius: 4, padding: "1px 4px", background: "#faf5ff", flexShrink: 0, minWidth: 0, fontFamily: "inherit" }}
+															/>
 															<input
 																value={text}
 																onChange={e => {
