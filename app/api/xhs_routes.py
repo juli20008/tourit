@@ -885,17 +885,16 @@ def generate_agent_video(mls_number):
             per_photo = _json.loads(_pp)
             n = len(per_photo)
             segs = []
+            # CTAs are already embedded in per_photo by draft/regen endpoints — don't add again
             if upper_start and 2 <= upper_start <= n:
                 us = upper_start - 1  # 0-indexed boundary
                 bs = (basement_start - 1) if (basement_start and basement_start > upper_start) else None
-                main_text  = "".join(per_photo[:us])
-                upper_text = "".join(per_photo[us:bs]) + _UPPER_CTA
-                segs.append(("main_floor",  main_text))
-                segs.append(("upper_floor", upper_text))
+                segs.append(("main_floor",  "".join(per_photo[:us])))
+                segs.append(("upper_floor", "".join(per_photo[us:bs])))
                 if bs is not None:
-                    segs.append(("basement", "".join(per_photo[bs:]) + _BASEMENT_CTA))
+                    segs.append(("basement", "".join(per_photo[bs:])))
             else:
-                segs.append(("main_floor", "".join(per_photo) + _CLOSING))
+                segs.append(("main_floor", "".join(per_photo)))
             narration_override = "\n\n---\n\n".join(
                 f"【{_FLOOR_ZH.get(fl, fl)}】\n{txt}" for fl, txt in segs
             )
