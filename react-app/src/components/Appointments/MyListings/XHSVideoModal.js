@@ -24,7 +24,7 @@ const STEP_LABELS = {
 
 // ~4.5 chars/sec TTS × 3 sec/photo
 const estimatePhotos = (text) => Math.max(1, Math.floor((text.length / 4.5 - 4) / 3));
-const CHARS_PER_PHOTO = 15;
+const CHARS_PER_PHOTO = 12;
 
 // ── Inline intro recorder ─────────────────────────────────────────────────────
 

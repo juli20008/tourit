@@ -806,7 +806,7 @@ def _generate_per_photo_narrations(listing_data, photo_labels, active_groups=Non
 输出格式：JSON数组，长度严格等于{n}，第i个元素是第i张照片的旁白。
 
 每句话规则：
-- 约15字（10-20字之间，绝不超过22字）
+- 约12字（10-14字之间，绝不超过15字）
 - 根据该照片房间类型写对应内容，不要写与画面无关的内容
 - 连续同一房间多张照片：每张必须从不同角度切入，严禁重复或只换说法。可用角度：①整体空间感/大小②采光/窗户朝向③某个具体细节（材质/家具/装修工艺）④实际使用场景（住起来是什么感觉）⑤与其他房间的关系。每张用不同角度，不要连续用同一个角度
 - 第1张必须自然融入基本规格（几室几卫、面积）
@@ -1231,7 +1231,7 @@ def _build_photo_sequence_hint(photo_inputs, api_key):
         lines.append(f"  {label}（{range_str}，{count}张，必须写约{budget}字）")
 
     hint = (
-        "【照片顺序与文字预算 — 铁律】每张照片播放3秒，TTS约5字/秒，所以每张照片对应约15字旁白。\n"
+        "【照片顺序与文字预算 — 铁律】每张照片播放3秒，TTS约4字/秒，所以每张照片对应约12字旁白。\n"
         "下方每个区域都标注了张数和必须分配的字数，严格遵守，否则画面和声音会错位：\n"
         + "\n".join(lines)
         + "\n请逐区域写，写完一个区域的预算字数再写下一个，不要跳跃。"
@@ -1264,7 +1264,7 @@ def _generate_floor_narrations(listing_data, active_groups, cover_lines=None, st
     else:
         beds_detail = f"{listing_data.get('bed', '?')}室{baths}卫"
 
-    CHARS_PER_PHOTO = 15
+    CHARS_PER_PHOTO = 12
 
     seg_targets = {floor: count * CHARS_PER_PHOTO for floor, count in active_groups}
 
