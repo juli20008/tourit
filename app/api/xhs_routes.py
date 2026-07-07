@@ -677,7 +677,6 @@ def draft_narration(mls_number):
 
     UPPER_CTA   = "每天精选更新一套「全网最佳捡漏房源」视频，点赞关注不迷路！"
     BASEMENT_CTA = "打算卖房，联系我，用小红书爆款视频，把你的房子送上全网热门。"
-    CLOSING = "如果你觉得我挑的房子不错，记得点赞订阅，或者找我定制私人找房服务。"
 
     # Try Vision API first (parallel download + batch classify); fall back to room_info parsing
     _vision_labels = None
@@ -740,8 +739,6 @@ def draft_narration(mls_number):
                 elif _floor == "basement":
                     per_photo[last_idx] += BASEMENT_CTA
             cursor += _count
-    elif per_photo and per_photo[-1]:
-        per_photo[-1] += CLOSING
 
     return jsonify({
         'per_photo': per_photo,
@@ -831,7 +828,6 @@ def regen_per_photo(mls_number):
 
     UPPER_CTA    = "每天精选更新一套「全网最佳捡漏房源」视频，点赞关注不迷路！"
     BASEMENT_CTA = "打算卖房，联系我，用小红书爆款视频，把你的房子送上全网热门。"
-    CLOSING      = "如果你觉得我挑的房子不错，记得点赞订阅，或者找我定制私人找房服务。"
 
     per_photo = _generate_per_photo_narrations(
         listing_data, photo_labels, active_groups=active_groups, cover_lines=cover_lines
@@ -848,8 +844,6 @@ def regen_per_photo(mls_number):
             elif _floor == "basement":
                 per_photo[last_idx] += BASEMENT_CTA
             cursor += _count
-    else:
-        per_photo[-1] += CLOSING
 
     return jsonify({'per_photo': per_photo})
 
@@ -898,7 +892,6 @@ def generate_agent_video(mls_number):
             from app.services.xhs_video_service import _FLOOR_ZH
             _UPPER_CTA   = "每天精选更新一套「全网最佳捡漏房源」视频，点赞关注不迷路！"
             _BASEMENT_CTA = "打算卖房，联系我，用小红书爆款视频，把你的房子送上全网热门。"
-            _CLOSING     = "如果你觉得我挑的房子不错，记得点赞订阅，或者找我定制私人找房服务。"
             per_photo = _json.loads(_pp)
             n = len(per_photo)
             segs = []
