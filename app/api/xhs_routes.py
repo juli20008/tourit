@@ -675,7 +675,7 @@ def draft_narration(mls_number):
         if has_basement and base_n > 0:
             active_groups.append(("basement", base_n))
 
-    UPPER_CTA   = "喜欢这套房，点赞关注我，或私信定制你的专属找房方案。"
+    UPPER_CTA   = "每天精选更新一套「全网最佳捡漏房源」视频，点赞关注不迷路！"
     BASEMENT_CTA = "打算卖房，联系我，用小红书爆款视频，把你的房子送上全网热门。"
     CLOSING = "如果你觉得我挑的房子不错，记得点赞订阅，或者找我定制私人找房服务。"
 
@@ -829,7 +829,7 @@ def regen_per_photo(mls_number):
         if base_n > 0:
             active_groups.append(("basement", base_n))
 
-    UPPER_CTA    = "喜欢这套房，点赞关注我，或私信定制你的专属找房方案。"
+    UPPER_CTA    = "每天精选更新一套「全网最佳捡漏房源」视频，点赞关注不迷路！"
     BASEMENT_CTA = "打算卖房，联系我，用小红书爆款视频，把你的房子送上全网热门。"
     CLOSING      = "如果你觉得我挑的房子不错，记得点赞订阅，或者找我定制私人找房服务。"
 
@@ -896,7 +896,7 @@ def generate_agent_video(mls_number):
         _pp = request.form.get('per_photo')
         if _pp and not narration_override:
             from app.services.xhs_video_service import _FLOOR_ZH
-            _UPPER_CTA   = "喜欢这套房，点赞关注我，或私信定制你的专属找房方案。"
+            _UPPER_CTA   = "每天精选更新一套「全网最佳捡漏房源」视频，点赞关注不迷路！"
             _BASEMENT_CTA = "打算卖房，联系我，用小红书爆款视频，把你的房子送上全网热门。"
             _CLOSING     = "如果你觉得我挑的房子不错，记得点赞订阅，或者找我定制私人找房服务。"
             per_photo = _json.loads(_pp)
