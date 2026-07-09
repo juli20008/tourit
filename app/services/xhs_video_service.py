@@ -1954,25 +1954,43 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                     except OSError:
                         pass
 
-            # Build combined narration audio from all segments
-            if use_segments and len(segment_audio_info) > 1:
-                concat_inputs = []
-                for seg_path, _, _ in segment_audio_info:
-                    concat_inputs.extend(["-i", seg_path])
-                narr_concat_path = os.path.join(tmpdir, "narration_all.aac")
-                n_segs = len(segment_audio_info)
-                subprocess.run(
-                    [ffmpeg, "-y"] + concat_inputs + [
-                        "-filter_complex",
-                        "".join(f"[{k}:a]" for k in range(n_segs)) + f"concat=n={n_segs}:v=0:a=1[outa]",
-                        "-map", "[outa]", "-c:a", "aac", "-threads", "1", narr_concat_path,
-                    ],
-                    timeout=120, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                )
-                audio_path = narr_concat_path
+            # Build combined narration audio from all segments.
+            # Each floor's audio is trimmed/padded to exactly its photo-clip duration
+            # so narration never bleeds into the next floor's photos.
+            if use_segments:
+                adjusted = []
+                for idx, (seg_path, seg_dur, seg_photos) in enumerate(segment_audio_info):
+                    target_dur = round(PHOTO_DURATION * len(seg_photos), 3)
+                    adj_path = os.path.join(tmpdir, f"narration_adj{idx}.aac")
+                    subprocess.run(
+                        [ffmpeg, "-y", "-i", seg_path,
+                         "-filter_complex", f"[0:a]apad,atrim=duration={target_dur}[outa]",
+                         "-map", "[outa]", "-c:a", "aac", "-threads", "1", adj_path],
+                        timeout=60, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                    )
+                    adjusted.append((adj_path, target_dur))
+
+                if len(adjusted) > 1:
+                    concat_inputs = []
+                    for adj_path, _ in adjusted:
+                        concat_inputs.extend(["-i", adj_path])
+                    n_segs = len(adjusted)
+                    narr_concat_path = os.path.join(tmpdir, "narration_all.aac")
+                    subprocess.run(
+                        [ffmpeg, "-y"] + concat_inputs + [
+                            "-filter_complex",
+                            "".join(f"[{k}:a]" for k in range(n_segs)) + f"concat=n={n_segs}:v=0:a=1[outa]",
+                            "-map", "[outa]", "-c:a", "aac", "-threads", "1", narr_concat_path,
+                        ],
+                        timeout=120, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                    )
+                    audio_path = narr_concat_path
+                else:
+                    audio_path = adjusted[0][0]
+                narr_dur = sum(d for _, d in adjusted)
             else:
                 audio_path = segment_audio_info[0][0]
-            narr_dur = sum(d for _, d, _ in segment_audio_info)
+                narr_dur = segment_audio_info[0][1]
 
             # Team photo clip (3 s, before outro)
             if os.path.exists(_TEAM_PHOTO_PATH):
