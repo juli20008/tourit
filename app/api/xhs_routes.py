@@ -888,28 +888,29 @@ def generate_agent_video(mls_number):
         upper_start   = int(_us) if _us else None
         _bs = request.form.get('basement_start')
         basement_start = int(_bs) if _bs else None
-        # Per-photo narration: reconstruct floor-level narration_override
+        # Per-photo narration: group consecutive same-label photos into room segments
         _pp = request.form.get('per_photo')
+        _pl = request.form.get('photo_labels')
         if _pp and not narration_override:
-            from app.services.xhs_video_service import _FLOOR_ZH
-            _UPPER_CTA   = "每天精选更新一套「全网最佳捡漏房源」视频，点赞关注不迷路！"
-            _BASEMENT_CTA = "打算卖房，联系我，用小红书爆款视频，把你的房子送上全网热门。"
-            per_photo = _json.loads(_pp)
+            per_photo   = _json.loads(_pp)
+            photo_labels = _json.loads(_pl) if _pl else []
             n = len(per_photo)
-            segs = []
-            # CTAs are already embedded in per_photo by draft/regen endpoints — don't add again
-            if upper_start and 2 <= upper_start <= n:
-                us = upper_start - 1  # 0-indexed boundary
-                bs = (basement_start - 1) if (basement_start and basement_start > upper_start) else None
-                segs.append(("main_floor",  "".join(per_photo[:us])))
-                segs.append(("upper_floor", "".join(per_photo[us:bs])))
-                if bs is not None:
-                    segs.append(("basement", "".join(per_photo[bs:])))
-            else:
-                segs.append(("main_floor", "".join(per_photo)))
-            narration_override = "\n\n---\n\n".join(
-                f"【{_FLOOR_ZH.get(fl, fl)}】\n{txt}" for fl, txt in segs
-            )
+            # Pad labels if missing
+            while len(photo_labels) < n:
+                photo_labels.append("主层")
+
+            # Group consecutive same-label photos
+            room_groups = []  # list of {"label": str, "text": str, "count": int}
+            i = 0
+            while i < n:
+                lbl = photo_labels[i]
+                j = i + 1
+                while j < n and photo_labels[j] == lbl:
+                    j += 1
+                room_groups.append({"label": lbl, "text": "".join(per_photo[i:j]), "count": j - i})
+                i = j
+
+            narration_override = _json.dumps(room_groups, ensure_ascii=False)
     else:
         data = request.get_json(silent=True) or {}
         cover_lines = [

@@ -350,6 +350,7 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 		}
 		if (upperStart)    formData.append("upper_start",    upperStart);
 		if (basementStart) formData.append("basement_start", basementStart);
+		if (photoLabels && photoLabels.length) formData.append("photo_labels", JSON.stringify(photoLabels));
 
 		const resp = await apiFetch(`/api/xhs/agent/video/${mlsNumber}`, {
 			method: "POST",

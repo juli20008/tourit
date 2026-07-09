@@ -1788,49 +1788,50 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
             segment_audio_info = []  # [(audio_path, duration, [img_paths])]
             use_segments = False
 
-            # narration_override from the preview step uses "---" as segment separator
-            _SEG_SEP = "---"
-            override_segments = None
-            if narration_override and _SEG_SEP in narration_override:
-                # Strip 【floor】 labels the preview adds, keep only the narration text
-                import re as _re
-                raw_segs = [s.strip() for s in narration_override.split(_SEG_SEP) if s.strip()]
-                override_segments = [_re.sub(r'^【[^】]*】\s*', '', s).strip() for s in raw_segs]
+            # narration_override: new format is JSON array of room groups
+            # [{"label": "客厅", "text": "...", "count": 2}, ...]
+            import json as _json_mod, re as _re
+            room_groups = None
+            if narration_override:
+                try:
+                    _parsed = _json_mod.loads(narration_override)
+                    if isinstance(_parsed, list) and _parsed and "count" in _parsed[0]:
+                        room_groups = _parsed
+                except Exception:
+                    pass
 
-            if override_segments and downloaded:
-                n_segs = len(override_segments)
-                n_dl   = len(downloaded)
-                # Prefer floor-break boundaries (upper_start / basement_start)
-                boundaries = None
-                if upper_start:
-                    us = upper_start - 1  # 0-indexed start of upper floor
-                    if basement_start and n_segs == 3:
-                        bs = basement_start - 1
-                        boundaries = [(0, us), (us, bs), (bs, n_dl)]
-                    elif not basement_start and n_segs == 2:
-                        boundaries = [(0, us), (us, n_dl)]
+            if room_groups and downloaded:
                 _job_set(job_id, {"status": "processing", "step": "Generating voiceover..."})
                 from app.services.elevenlabs_service import generate_speech
-                for k, seg_text in enumerate(override_segments):
-                    if boundaries:
-                        start, end = boundaries[k]
+                cursor = 0
+                for k, grp in enumerate(room_groups):
+                    cnt   = grp.get("count", 1)
+                    text  = grp.get("text", "")
+                    photos = downloaded[cursor:cursor + cnt] or downloaded[-1:]
+                    cursor += cnt
+                    if not text.strip():
+                        # No narration for this group — silence only (handled by pad step)
+                        seg_path = os.path.join(tmpdir, f"narration_seg{k}.mp3")
+                        # Generate 0.1s silence placeholder via ffmpeg
+                        subprocess.run(
+                            [ffmpeg, "-y", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono",
+                             "-t", "0.1", "-c:a", "libmp3lame", seg_path],
+                            timeout=15, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                        )
+                        seg_dur = 0.1
                     else:
-                        chunk = len(downloaded) / n_segs
-                        start = int(k * chunk)
-                        end   = int((k + 1) * chunk) if k < n_segs - 1 else len(downloaded)
-                    photos = downloaded[start:end] or downloaded[-1:]
-                    audio_bytes = generate_speech(seg_text, fish_voice_id=minimax_voice_id)
-                    seg_path = os.path.join(tmpdir, f"narration_seg{k}.mp3")
-                    with open(seg_path, "wb") as f:
-                        f.write(audio_bytes)
-                    try:
-                        seg_dur = float(subprocess.run(
-                            [ffprobe, "-v", "quiet", "-show_entries", "format=duration",
-                             "-of", "default=noprint_wrappers=1:nokey=1", seg_path],
-                            timeout=60, capture_output=True, text=True,
-                        ).stdout.strip())
-                    except Exception:
-                        seg_dur = 3.0 * len(photos)
+                        audio_bytes = generate_speech(text, fish_voice_id=minimax_voice_id)
+                        seg_path = os.path.join(tmpdir, f"narration_seg{k}.mp3")
+                        with open(seg_path, "wb") as f:
+                            f.write(audio_bytes)
+                        try:
+                            seg_dur = float(subprocess.run(
+                                [ffprobe, "-v", "quiet", "-show_entries", "format=duration",
+                                 "-of", "default=noprint_wrappers=1:nokey=1", seg_path],
+                                timeout=60, capture_output=True, text=True,
+                            ).stdout.strip())
+                        except Exception:
+                            seg_dur = PHOTO_DURATION * len(photos)
                     segment_audio_info.append((seg_path, seg_dur, photos))
                 use_segments = True
 
