@@ -833,7 +833,9 @@ def regen_per_photo(mls_number):
         listing_data, photo_labels, active_groups=active_groups, cover_lines=cover_lines
     )
     if not per_photo:
-        return jsonify({'error': 'AI generation failed'}), 502
+        import os as _os
+        has_key = bool(_os.environ.get("DEEPSEEK_API_KEY", ""))
+        return jsonify({'error': f'AI generation failed (api_key={has_key}, labels={len(photo_labels)})'}), 502
 
     if active_groups:
         cursor = 0

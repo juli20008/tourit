@@ -847,9 +847,14 @@ def _generate_per_photo_narrations(listing_data, photo_labels, active_groups=Non
             print(f"[XHS] Per-photo narration: no JSON array in response. raw[:200]={raw[:200]}")
             return None
         result = _json.loads(m.group())
-        if not isinstance(result, list) or len(result) != n:
-            print(f"[XHS] Per-photo narration: expected {n} items, got {len(result) if isinstance(result, list) else type(result)}")
+        if not isinstance(result, list):
+            print(f"[XHS] Per-photo narration: expected list, got {type(result)}")
             return None
+        if len(result) != n:
+            print(f"[XHS] Per-photo narration: expected {n} items, got {len(result)} — padding/truncating")
+            while len(result) < n:
+                result.append("")
+            result = result[:n]
         def _fix(s):
             s = _round_dims(str(s)).strip()
             if s and s[-1] not in '。！？…,.!?':
