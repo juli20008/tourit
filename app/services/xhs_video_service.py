@@ -21,7 +21,7 @@ FPS = 30
 CRF = 23
 PRESET = "fast"
 ZOOM_START = 1.0
-ZOOM_END = 1.15
+ZOOM_END = 1.06
 MAX_PHOTOS = 50
 
 _ASSETS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets")
@@ -1490,13 +1490,13 @@ def _make_clip(ffmpeg, ffprobe, img_path, out_path, reverse=False,
     if scaled_w_at_1 >= OUTPUT_W:
         sw = f"trunc(iw*{OUTPUT_H}/ih*({z})/2)*2"
         sh = f"trunc({OUTPUT_H}*({z})/2)*2"
-        px = f"(in_w-{OUTPUT_W})*({ease})"
+        px = f"(in_w-{OUTPUT_W})/2"
         py = f"(in_h-{OUTPUT_H})/2"
     else:
         sw = f"trunc({OUTPUT_W}*({z})/2)*2"
         sh = f"trunc(ih*{OUTPUT_W}/iw*({z})/2)*2"
         px = f"(in_w-{OUTPUT_W})/2"
-        py = f"(in_h-{OUTPUT_H})*({ease})"
+        py = f"(in_h-{OUTPUT_H})/2"
     scale = f"scale='{sw}':'{sh}':eval=frame:flags=lanczos"
     crop = f"crop={OUTPUT_W}:{OUTPUT_H}:'{px}':'{py}'"
     subprocess.run(
@@ -1945,7 +1945,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                 for img_path in kept:
                     clip_path = os.path.join(clips_dir, f"clip_{photo_idx:04d}.mp4")
                     _make_clip(ffmpeg, ffprobe, img_path, clip_path,
-                               duration=clip_dur, reverse=(photo_idx % 2 == 1))
+                               duration=clip_dur)
                     clip_paths.append(clip_path)
                     photo_idx += 1
 
