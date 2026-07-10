@@ -1479,32 +1479,36 @@ def _probe_dimensions(ffprobe, path):
 def _make_clip(ffmpeg, ffprobe, img_path, out_path, reverse=False,
                duration=None, zoom_start=None, zoom_end=None):
     dur = duration if duration is not None else PHOTO_DURATION
+    ze  = zoom_end if zoom_end is not None else ZOOM_END
     zs  = zoom_start if zoom_start is not None else ZOOM_START
-    ze  = zoom_end   if zoom_end   is not None else ZOOM_END
-    src_w, src_h = _probe_dimensions(ffprobe, img_path)
+    zoom = ze - zs  # e.g. 0.06
+
     ease = f"(1-cos(PI*t/{dur}))/2"
-    if reverse:
-        ease = f"(1-({ease}))"
-    z = f"({zs}+({ze}-{zs})*({ease}))"
-    scaled_w_at_1 = src_w * OUTPUT_H / src_h
-    if scaled_w_at_1 >= OUTPUT_W:
-        sw = f"trunc(iw*{OUTPUT_H}/ih*({z})/2)*2"
-        sh = f"trunc({OUTPUT_H}*({z})/2)*2"
-        px = f"(in_w-{OUTPUT_W})/2"
-        py = f"(in_h-{OUTPUT_H})/2"
-    else:
-        sw = f"trunc({OUTPUT_W}*({z})/2)*2"
-        sh = f"trunc(ih*{OUTPUT_W}/iw*({z})/2)*2"
-        px = f"(in_w-{OUTPUT_W})/2"
-        py = f"(in_h-{OUTPUT_H})/2"
-    scale = f"scale='{sw}':'{sh}':eval=frame:flags=lanczos"
-    crop = f"crop={OUTPUT_W}:{OUTPUT_H}:'{px}':'{py}'"
+    # fg: scale to CONTAIN within output (full image visible), with gentle zoom
+    fg_w = f"trunc({OUTPUT_W}*(1+{zoom}*({ease}))/2)*2"
+    fg_h = f"trunc({OUTPUT_H}*(1+{zoom}*({ease}))/2)*2"
+    fg_filter = (
+        f"scale='{fg_w}':'{fg_h}':force_original_aspect_ratio=decrease"
+        f":eval=frame:flags=lanczos"
+    )
+    # bg: scale to COVER output, blur heavily — fills letterbox/pillarbox areas
+    bg_filter = (
+        f"scale={OUTPUT_W}:{OUTPUT_H}:force_original_aspect_ratio=increase"
+        f":flags=lanczos,crop={OUTPUT_W}:{OUTPUT_H},boxblur=30:5"
+    )
+    fc = (
+        f"split=2[bg_in][fg_in];"
+        f"[bg_in]{bg_filter}[bg];"
+        f"[fg_in]{fg_filter}[fg];"
+        f"[bg][fg]overlay=(W-w)/2:(H-h)/2[out]"
+    )
     subprocess.run(
         [
             ffmpeg, "-y",
             "-loop", "1", "-t", str(dur),
             "-i", img_path,
-            "-vf", f"{scale},{crop}",
+            "-filter_complex", fc,
+            "-map", "[out]",
             "-r", str(FPS),
             "-c:v", "libx264", "-crf", str(CRF), "-preset", PRESET,
             "-pix_fmt", "yuv420p",
@@ -1512,7 +1516,6 @@ def _make_clip(ffmpeg, ffprobe, img_path, out_path, reverse=False,
             out_path,
         ],
         timeout=120,
-
         check=True,
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
