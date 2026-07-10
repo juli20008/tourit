@@ -295,6 +295,11 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 		try { localStorage.setItem(`xhs_labels_${mlsNumber}`, JSON.stringify(labels)); } catch {}
 	};
 
+	// Auto-save labels to localStorage on every change
+	useEffect(() => {
+		if (mlsNumber && photoLabels.length > 0) saveLabels(photoLabels);
+	}, [photoLabels]); // eslint-disable-line react-hooks/exhaustive-deps
+
 	const regenFromLabels = async () => {
 		setRegenLoading(true);
 		setErrorMsg("");
