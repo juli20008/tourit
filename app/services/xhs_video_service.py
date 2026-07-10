@@ -1477,48 +1477,63 @@ def _probe_dimensions(ffprobe, path):
 
 
 def _make_clip(ffmpeg, ffprobe, img_path, out_path, reverse=False,
-               duration=None, zoom_start=None, zoom_end=None):
+               duration=None, zoom_start=None, zoom_end=None, motion_style="stable"):
     dur = duration if duration is not None else PHOTO_DURATION
-    ze  = zoom_end if zoom_end is not None else ZOOM_END
     zs  = zoom_start if zoom_start is not None else ZOOM_START
-    zoom = ze - zs  # e.g. 0.06
+    ze  = zoom_end   if zoom_end   is not None else ZOOM_END
 
-    ease = f"(1-cos(PI*t/{dur}))/2"
-    # fg: scale to CONTAIN within output (full image visible), with gentle zoom
-    fg_w = f"trunc({OUTPUT_W}*(1+{zoom}*({ease}))/2)*2"
-    fg_h = f"trunc({OUTPUT_H}*(1+{zoom}*({ease}))/2)*2"
-    fg_filter = (
-        f"scale='{fg_w}':'{fg_h}':force_original_aspect_ratio=decrease"
-        f":eval=frame:flags=lanczos"
-    )
-    # bg: scale to COVER output, blur heavily — fills letterbox/pillarbox areas
-    bg_filter = (
-        f"scale={OUTPUT_W}:{OUTPUT_H}:force_original_aspect_ratio=increase"
-        f":flags=lanczos,crop={OUTPUT_W}:{OUTPUT_H},boxblur=30:5"
-    )
-    fc = (
-        f"split=2[bg_in][fg_in];"
-        f"[bg_in]{bg_filter}[bg];"
-        f"[fg_in]{fg_filter}[fg];"
-        f"[bg][fg]overlay=(W-w)/2:(H-h)/2[out]"
-    )
-    subprocess.run(
-        [
-            ffmpeg, "-y",
-            "-loop", "1", "-t", str(dur),
-            "-i", img_path,
-            "-filter_complex", fc,
-            "-map", "[out]",
-            "-r", str(FPS),
-            "-c:v", "libx264", "-crf", str(CRF), "-preset", PRESET,
-            "-pix_fmt", "yuv420p",
-            "-threads", "1",
-            out_path,
-        ],
-        timeout=120,
-        check=True,
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-    )
+    if motion_style == "classic":
+        # Original Ken Burns: zoom + pan + alternating direction
+        src_w, src_h = _probe_dimensions(ffprobe, img_path)
+        ease = f"(1-cos(PI*t/{dur}))/2"
+        if reverse:
+            ease = f"(1-({ease}))"
+        z = f"({zs}+({ze}-{zs})*({ease}))"
+        scaled_w_at_1 = src_w * OUTPUT_H / src_h
+        if scaled_w_at_1 >= OUTPUT_W:
+            sw = f"trunc(iw*{OUTPUT_H}/ih*({z})/2)*2"
+            sh = f"trunc({OUTPUT_H}*({z})/2)*2"
+            px = f"(in_w-{OUTPUT_W})*({ease})"
+            py = f"(in_h-{OUTPUT_H})/2"
+        else:
+            sw = f"trunc({OUTPUT_W}*({z})/2)*2"
+            sh = f"trunc(ih*{OUTPUT_W}/iw*({z})/2)*2"
+            px = f"(in_w-{OUTPUT_W})/2"
+            py = f"(in_h-{OUTPUT_H})*({ease})"
+        vf = f"scale='{sw}':'{sh}':eval=frame:flags=lanczos,crop={OUTPUT_W}:{OUTPUT_H}:'{px}':'{py}'"
+        subprocess.run(
+            [ffmpeg, "-y", "-loop", "1", "-t", str(dur), "-i", img_path,
+             "-vf", vf, "-r", str(FPS), "-c:v", "libx264", "-crf", str(CRF),
+             "-preset", PRESET, "-pix_fmt", "yuv420p", "-threads", "1", out_path],
+            timeout=120, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+    else:
+        # Stable: full photo visible + blurred background fill + gentle zoom
+        zoom = ze - zs
+        ease = f"(1-cos(PI*t/{dur}))/2"
+        fg_w = f"trunc({OUTPUT_W}*(1+{zoom}*({ease}))/2)*2"
+        fg_h = f"trunc({OUTPUT_H}*(1+{zoom}*({ease}))/2)*2"
+        fg_filter = (
+            f"scale='{fg_w}':'{fg_h}':force_original_aspect_ratio=decrease"
+            f":eval=frame:flags=lanczos"
+        )
+        bg_filter = (
+            f"scale={OUTPUT_W}:{OUTPUT_H}:force_original_aspect_ratio=increase"
+            f":flags=lanczos,crop={OUTPUT_W}:{OUTPUT_H},boxblur=30:5"
+        )
+        fc = (
+            f"split=2[bg_in][fg_in];"
+            f"[bg_in]{bg_filter}[bg];"
+            f"[fg_in]{fg_filter}[fg];"
+            f"[bg][fg]overlay=(W-w)/2:(H-h)/2[out]"
+        )
+        subprocess.run(
+            [ffmpeg, "-y", "-loop", "1", "-t", str(dur), "-i", img_path,
+             "-filter_complex", fc, "-map", "[out]",
+             "-r", str(FPS), "-c:v", "libx264", "-crf", str(CRF),
+             "-preset", PRESET, "-pix_fmt", "yuv420p", "-threads", "1", out_path],
+            timeout=120, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
 
 
 def _concat_clips(ffmpeg, clip_paths, out_path):
@@ -1576,7 +1591,7 @@ def get_job(job_id):
 def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_bytes=None,
                   cover_bg_bytes=None, cover_photo_index=0, narration_override=None,
                   external_listing=None, photo_count=30,
-                  upper_start=None, basement_start=None):
+                  upper_start=None, basement_start=None, motion_style="stable"):
     """
     external_listing: pre-scraped dict with keys bed, bath, sqft, city, description,
                       style, list_price, images (list[str]), street, mls_number.
@@ -1960,7 +1975,10 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                 for i, img_path in enumerate(seg_photos):
                     clip_dur = last_dur if i == n_seg - 1 else PHOTO_DURATION
                     clip_path = os.path.join(clips_dir, f"clip_{photo_idx:04d}.mp4")
-                    _make_clip(ffmpeg, ffprobe, img_path, clip_path, duration=clip_dur)
+                    _make_clip(ffmpeg, ffprobe, img_path, clip_path, duration=clip_dur,
+                               motion_style=motion_style,
+                               zoom_end=1.15 if motion_style == "classic" else ZOOM_END,
+                               reverse=(motion_style == "classic" and photo_idx % 2 == 1))
                     clip_paths.append(clip_path)
                     photo_idx += 1
 
@@ -2015,7 +2033,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
 
             # Outro clip — extend if narration audio overruns the photo clips
             # so the CTA lines play out fully over the tail image.
-            _total_photo_dur = sum(PHOTO_DURATION * len(p) for _, _, p in segment_audio_info)
+            _total_photo_dur = sum(PHOTO_DURATION * len(p) for _, _, p, *_ in segment_audio_info)
             _team_dur = _TEAM_PHOTO_DURATION if os.path.exists(_TEAM_PHOTO_PATH) else 0.0
             _outro_dur = max(OUTRO_DURATION, narr_dur - _total_photo_dur - _team_dur + 1.0)
 
@@ -2196,7 +2214,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
 def start_video_job(mls_number, agent_id, cover_lines, flask_app, intro_bytes=None,
                     cover_bg_bytes=None, cover_photo_index=0, narration_override=None,
                     external_listing=None, photo_count=30,
-                    upper_start=None, basement_start=None):
+                    upper_start=None, basement_start=None, motion_style="stable"):
     """Start background video generation. Returns job_id."""
     _job_clean()
     job_id = uuid.uuid4().hex
@@ -2210,7 +2228,8 @@ def start_video_job(mls_number, agent_id, cover_lines, flask_app, intro_bytes=No
                 "external_listing": external_listing,
                 "photo_count": photo_count,
                 "upper_start": upper_start,
-                "basement_start": basement_start},
+                "basement_start": basement_start,
+                "motion_style": motion_style},
         daemon=True,
     )
     t.start()

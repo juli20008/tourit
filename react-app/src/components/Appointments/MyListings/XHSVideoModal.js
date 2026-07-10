@@ -203,6 +203,8 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 	const [upperStart, setUpperStart] = useState("");
 	const [basementStart, setBasementStart] = useState("");
 
+	const [motionStyle, setMotionStyle] = useState("stable");
+
 	const pollRef = useRef(null);
 	const coverBgRef = useRef(null);
 
@@ -321,7 +323,9 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 		setRegenLoading(false);
 	};
 
-	const startGeneration = async () => {
+	const startGeneration = async (style) => {
+		const resolvedStyle = style || motionStyle;
+		setMotionStyle(resolvedStyle);
 		if (perPhoto && photoLabels.length) saveLabels(photoLabels);
 		setErrorMsg("");
 		setPhase("generating");
@@ -351,6 +355,7 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 		if (upperStart)    formData.append("upper_start",    upperStart);
 		if (basementStart) formData.append("basement_start", basementStart);
 		if (photoLabels && photoLabels.length) formData.append("photo_labels", JSON.stringify(photoLabels));
+		formData.append("motion_style", resolvedStyle);
 
 		const resp = await apiFetch(`/api/xhs/agent/video/${mlsNumber}`, {
 			method: "POST",
@@ -699,9 +704,17 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 							<button className="btn btn-bl" type="button" onClick={() => { setPhase("input"); setErrorMsg(""); }}>
 								← 返回
 							</button>
-							<button className="btn" type="button" onClick={startGeneration}
-								disabled={perPhoto ? perPhoto.length === 0 : !narrationDraft.trim()}>
-								确认生成视频 Generate
+							<button className="btn btn-bl" type="button"
+								disabled={perPhoto ? perPhoto.length === 0 : !narrationDraft.trim()}
+								style={{ background: "#7c3aed", borderColor: "#7c3aed" }}
+								onClick={() => startGeneration("classic")}>
+								💫 动感版
+							</button>
+							<button className="btn" type="button"
+								disabled={perPhoto ? perPhoto.length === 0 : !narrationDraft.trim()}
+								style={{ background: "#16a34a", borderColor: "#16a34a" }}
+								onClick={() => startGeneration("stable")}>
+								🎬 稳定版
 							</button>
 						</div>
 					</>
