@@ -888,6 +888,7 @@ def generate_agent_video(mls_number):
         upper_start   = int(_us) if _us else None
         _bs = request.form.get('basement_start')
         basement_start = int(_bs) if _bs else None
+        motion_style = request.form.get('motion_style', 'stable')
         # Per-photo narration: group consecutive same-label photos into room segments
         _pp = request.form.get('per_photo')
         _pl = request.form.get('photo_labels')
@@ -963,7 +964,7 @@ def generate_agent_video(mls_number):
             ensure_jobs_table()
             create_job(job_id, mls_number, current_user.id, cover_lines, intro_r2_key, cover_bg_r2_key,
                        cover_photo_index=cover_photo_index, narration_text=narration_override,
-                       photo_count=photo_count)
+                       photo_count=photo_count, motion_style=motion_style)
         except Exception as e:
             return jsonify({'error': f'DB error: {e}'}), 500
 
@@ -985,6 +986,7 @@ def generate_agent_video(mls_number):
         photo_count=photo_count,
         upper_start=upper_start,
         basement_start=basement_start,
+        motion_style=motion_style,
     )
     return jsonify({'job_id': job_id, 'status': 'processing'})
 

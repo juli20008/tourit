@@ -56,6 +56,7 @@ def main():
     cover_photo_index = int(row.get('cover_photo_index') or 0)
     narration_override = row.get('narration_text') or None
     photo_count = int(row.get('photo_count') or 30)
+    motion_style = row.get('motion_style') or 'stable'
 
     print(f"[run_video_job] MLS={mls_number} agent={agent_id} photo_count={photo_count} intro_key={intro_r2_key} cover_bg_key={cover_bg_r2_key}")
 
@@ -104,7 +105,8 @@ def main():
                   intro_bytes=intro_bytes, cover_bg_bytes=cover_bg_bytes,
                   cover_photo_index=cover_photo_index,
                   narration_override=narration_override,
-                  photo_count=photo_count)
+                  photo_count=photo_count,
+                  motion_style=motion_style)
 
     # Check final job status — exit non-zero so GitHub Actions shows red on failure
     from app.services.xhs_db_jobs import get_job as _get_job
