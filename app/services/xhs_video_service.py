@@ -1490,16 +1490,17 @@ def _make_clip(ffmpeg, ffprobe, img_path, out_path, reverse=False,
             ease = f"(1-({ease}))"
         z = f"({zs}+({ze}-{zs})*({ease}))"
         scaled_w_at_1 = src_w * OUTPUT_H / src_h
+        pan = 0.3  # 30% of max drift — reduces jitter at cuts
         if scaled_w_at_1 >= OUTPUT_W:
             sw = f"trunc(iw*{OUTPUT_H}/ih*({z})/2)*2"
             sh = f"trunc({OUTPUT_H}*({z})/2)*2"
-            px = f"(in_w-{OUTPUT_W})*({ease})"
+            px = f"(in_w-{OUTPUT_W})*({ease})*{pan}"
             py = f"(in_h-{OUTPUT_H})/2"
         else:
             sw = f"trunc({OUTPUT_W}*({z})/2)*2"
             sh = f"trunc(ih*{OUTPUT_W}/iw*({z})/2)*2"
             px = f"(in_w-{OUTPUT_W})/2"
-            py = f"(in_h-{OUTPUT_H})*({ease})"
+            py = f"(in_h-{OUTPUT_H})*({ease})*{pan}"
         vf = f"scale='{sw}':'{sh}':eval=frame:flags=lanczos,crop={OUTPUT_W}:{OUTPUT_H}:'{px}':'{py}'"
         subprocess.run(
             [ffmpeg, "-y", "-loop", "1", "-t", str(dur), "-i", img_path,
@@ -1973,7 +1974,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                     clip_path = os.path.join(clips_dir, f"clip_{photo_idx:04d}.mp4")
                     _make_clip(ffmpeg, ffprobe, img_path, clip_path, duration=clip_dur,
                                motion_style=motion_style,
-                               zoom_end=1.15 if motion_style == "classic" else ZOOM_END,
+                               zoom_end=1.08 if motion_style == "classic" else ZOOM_END,
                                reverse=(motion_style == "classic" and photo_idx % 2 == 1))
                     clip_paths.append(clip_path)
                     photo_idx += 1
