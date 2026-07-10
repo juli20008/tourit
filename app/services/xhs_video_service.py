@@ -1835,7 +1835,8 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                             ).stdout.strip())
                         except Exception:
                             seg_dur = PHOTO_DURATION * len(photos)
-                    segment_audio_info.append((seg_path, seg_dur, photos))
+                    is_cta = grp.get("is_cta", False)
+                    segment_audio_info.append((seg_path, seg_dur, photos, is_cta))
                 use_segments = True
 
             elif not narration_override and downloaded:
@@ -1877,7 +1878,8 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                     # ── Step 4: Per-floor TTS ──────────────────────────────────
                     _job_set(job_id, {"status": "processing", "step": "Generating voiceover..."})
                     from app.services.elevenlabs_service import generate_speech
-                    for (fl, photos), seg_text in zip(active_groups, floor_texts):
+                    for idx_fl, ((fl, photos), seg_text) in enumerate(zip(active_groups, floor_texts)):
+                        is_cta = fl in ("upper_floor", "basement")
                         audio_bytes = generate_speech(seg_text, fish_voice_id=minimax_voice_id)
                         seg_path = os.path.join(tmpdir, f"narration_{fl}.mp3")
                         with open(seg_path, "wb") as f:
@@ -1891,7 +1893,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                             seg_dur = float(dur_r.stdout.strip())
                         except Exception:
                             seg_dur = 3.0 * len(photos)
-                        segment_audio_info.append((seg_path, seg_dur, photos))
+                        segment_audio_info.append((seg_path, seg_dur, photos, is_cta))
                     use_segments = True
 
             # ── Step 3 fallback: single narration ─────────────────────────────
@@ -1927,7 +1929,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                     ).stdout.strip())
                 except Exception:
                     narr_dur = 0.0
-                segment_audio_info = [(audio_path, narr_dur, downloaded)]
+                segment_audio_info = [(audio_path, narr_dur, downloaded, True)]
 
             # ── Step 5: Render video ──────────────────────────────────────────
             _job_set(job_id, {"status": "processing", "step": "Rendering video..."})
@@ -1936,43 +1938,51 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
             if intro_clip_path and os.path.exists(intro_clip_path):
                 clip_paths.append(intro_clip_path)
 
-            photo_idx = 0
-            for (seg_audio_path, seg_dur, seg_photos) in segment_audio_info:
-                # Every photo is exactly PHOTO_DURATION (3 s) — no exceptions.
-                # Audio shorter than n×3 s plays out then the video continues in silence;
-                # audio longer than n×3 s gets cut off at the video end. Never skip photos.
-                kept = seg_photos
-                clip_dur = PHOTO_DURATION
-                discarded = []
+            # Pre-compute audio_target for each segment so clip durations match audio.
+            # CTA segments: play fully (no trim) — last photo holds until speech ends.
+            # Regular segments: allow up to 2.5 s grace so sentences finish naturally.
+            def _audio_target(seg_dur, n_photos, is_cta):
+                base = round(PHOTO_DURATION * n_photos, 3)
+                if is_cta:
+                    t = round(seg_dur, 3)
+                else:
+                    t = round(min(seg_dur, base + 2.5), 3)
+                return max(t, base)
 
-                for img_path in kept:
+            photo_idx = 0
+            for (seg_audio_path, seg_dur, seg_photos, is_cta) in segment_audio_info:
+                n_seg = len(seg_photos)
+                atgt = _audio_target(seg_dur, n_seg, is_cta)
+                # Last photo of segment holds for the overflow (CTA / sentence finish)
+                last_dur = round(atgt - PHOTO_DURATION * (n_seg - 1), 3)
+                last_dur = max(last_dur, PHOTO_DURATION)
+
+                for i, img_path in enumerate(seg_photos):
+                    clip_dur = last_dur if i == n_seg - 1 else PHOTO_DURATION
                     clip_path = os.path.join(clips_dir, f"clip_{photo_idx:04d}.mp4")
-                    _make_clip(ffmpeg, ffprobe, img_path, clip_path,
-                               duration=clip_dur)
+                    _make_clip(ffmpeg, ffprobe, img_path, clip_path, duration=clip_dur)
                     clip_paths.append(clip_path)
                     photo_idx += 1
 
-                for img_path in (kept + discarded):
+                for img_path in seg_photos:
                     try:
                         os.remove(img_path)
                     except OSError:
                         pass
 
-            # Build combined narration audio from all segments.
-            # Each floor's audio is trimmed/padded to exactly its photo-clip duration
-            # so narration never bleeds into the next floor's photos.
+            # Build combined narration audio — each segment trimmed/padded to audio_target.
             if use_segments:
                 adjusted = []
-                for idx, (seg_path, seg_dur, seg_photos) in enumerate(segment_audio_info):
-                    target_dur = round(PHOTO_DURATION * len(seg_photos), 3)
+                for idx, (seg_path, seg_dur, seg_photos, is_cta) in enumerate(segment_audio_info):
+                    atgt = _audio_target(seg_dur, len(seg_photos), is_cta)
                     adj_path = os.path.join(tmpdir, f"narration_adj{idx}.aac")
                     subprocess.run(
                         [ffmpeg, "-y", "-i", seg_path,
-                         "-filter_complex", f"[0:a]apad,atrim=duration={target_dur}[outa]",
+                         "-filter_complex", f"[0:a]apad,atrim=duration={atgt}[outa]",
                          "-map", "[outa]", "-c:a", "aac", "-threads", "1", adj_path],
                         timeout=60, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                     )
-                    adjusted.append((adj_path, target_dur))
+                    adjusted.append((adj_path, atgt))
 
                 if len(adjusted) > 1:
                     concat_inputs = []

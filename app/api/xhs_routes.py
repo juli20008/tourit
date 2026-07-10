@@ -899,15 +899,22 @@ def generate_agent_video(mls_number):
             while len(photo_labels) < n:
                 photo_labels.append("主层")
 
-            # Group consecutive same-label photos
-            room_groups = []  # list of {"label": str, "text": str, "count": int}
+            # Determine last photo index of upper_floor (has CTA) and last photo overall
+            _upper_last_0 = None
+            if upper_start:
+                _upper_last_0 = (basement_start - 2) if basement_start else (n - 1)
+
+            # Group consecutive same-label photos; mark CTA segments
+            room_groups = []
             i = 0
             while i < n:
                 lbl = photo_labels[i]
                 j = i + 1
                 while j < n and photo_labels[j] == lbl:
                     j += 1
-                room_groups.append({"label": lbl, "text": "".join(per_photo[i:j]), "count": j - i})
+                # is_cta: this group ends at upper_floor boundary, or is the very last group
+                is_cta = (j == n) or (_upper_last_0 is not None and j - 1 == _upper_last_0)
+                room_groups.append({"label": lbl, "text": "".join(per_photo[i:j]), "count": j - i, "is_cta": is_cta})
                 i = j
 
             narration_override = _json.dumps(room_groups, ensure_ascii=False)
