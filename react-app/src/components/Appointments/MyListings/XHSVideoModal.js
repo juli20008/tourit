@@ -255,9 +255,21 @@ const XHSVideoModal = ({ listing, onClose, onGenerated, externalListing }) => {
 			}
 			if (d.per_photo) {
 				setPerPhoto(d.per_photo);
-				// Restore previously saved labels for this listing, fall back to server labels
+				// Restore previously saved labels, fall back to server labels
+				const _serverLabels = d.photo_labels || [];
 				const _saved = (() => { try { const s = localStorage.getItem(`xhs_labels_${mlsNumber}`); return s ? JSON.parse(s) : null; } catch { return null; } })();
-				setPhotoLabels(_saved && _saved.length === (d.photo_labels || []).length ? _saved : (d.photo_labels || []));
+				let _labels;
+				if (_saved && _saved.length > 0) {
+					// Pad or truncate to match server count
+					if (_saved.length >= _serverLabels.length) {
+						_labels = _saved.slice(0, _serverLabels.length);
+					} else {
+						_labels = [..._saved, ..._serverLabels.slice(_saved.length)];
+					}
+				} else {
+					_labels = _serverLabels;
+				}
+				setPhotoLabels(_labels);
 				setFloorOptions(d.floor_options || {});
 				setNarrationDraft("");
 			} else {
