@@ -1508,14 +1508,10 @@ def _make_clip(ffmpeg, ffprobe, img_path, out_path, reverse=False,
             timeout=120, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         )
     else:
-        # Stable: full photo visible + blurred background fill + gentle zoom
-        zoom = ze - zs
-        ease = f"(1-cos(PI*t/{dur}))/2"
-        fg_w = f"trunc({OUTPUT_W}*(1+{zoom}*({ease}))/2)*2"
-        fg_h = f"trunc({OUTPUT_H}*(1+{zoom}*({ease}))/2)*2"
+        # Stable: full photo visible + blurred background fill, completely static
         fg_filter = (
-            f"scale='{fg_w}':'{fg_h}':force_original_aspect_ratio=decrease"
-            f":eval=frame:flags=lanczos"
+            f"scale={OUTPUT_W}:{OUTPUT_H}:force_original_aspect_ratio=decrease"
+            f":flags=lanczos"
         )
         bg_filter = (
             f"scale={OUTPUT_W}:{OUTPUT_H}:force_original_aspect_ratio=increase"
