@@ -15,25 +15,22 @@
   }
   body { font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif; background:var(--bg); min-height:100vh; display:flex; flex-direction:column; align-items:center; }
 
-  /* header */
   .header { width:100%; background:var(--green); padding:16px 24px; }
   .header-logo { color:var(--gold); font-weight:700; font-size:1rem; }
   .header-sub  { color:rgba(255,255,255,.6); font-size:.78rem; margin-top:2px; }
 
-  /* progress */
-  .progress-wrap { width:100%; max-width:560px; padding:20px 24px 0; }
+  .progress-wrap { width:100%; max-width:580px; padding:20px 24px 0; }
   .progress-bar-track { height:4px; background:var(--border); border-radius:99px; overflow:hidden; }
   .progress-bar-fill  { height:100%; background:var(--green); border-radius:99px; transition:width .4s ease; }
   .progress-label { font-size:.75rem; color:var(--muted); margin-top:6px; text-align:right; }
 
-  /* card */
-  .card-wrap { width:100%; max-width:560px; padding:16px 24px 40px; flex:1; }
+  .card-wrap { width:100%; max-width:580px; padding:16px 24px 40px; flex:1; }
   .card { background:var(--card); border-radius:var(--radius); padding:28px 24px 24px; box-shadow:0 2px 16px rgba(0,0,0,.07); animation:slideUp .3s ease; }
   @keyframes slideUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
 
   .q-label { font-size:.72rem; font-weight:600; color:var(--green); text-transform:uppercase; letter-spacing:.8px; margin-bottom:10px; }
-  .q-title  { font-size:1.2rem; font-weight:700; color:var(--text); line-height:1.4; margin-bottom:6px; }
-  .q-sub    { font-size:.82rem; color:var(--muted); margin-bottom:22px; }
+  .q-title  { font-size:1.15rem; font-weight:700; color:var(--text); line-height:1.4; margin-bottom:6px; }
+  .q-sub    { font-size:.82rem; color:var(--muted); margin-bottom:20px; }
 
   /* pills */
   .pills { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:24px; }
@@ -44,43 +41,51 @@
   .multi-hint  { font-size:.75rem; color:var(--muted); margin-bottom:16px; }
 
   /* dual range slider */
-  .slider-display {
-    display:flex; justify-content:space-between; align-items:center;
-    margin-bottom:18px;
-  }
-  .slider-val {
-    background:var(--green); color:#fff; font-size:.9rem; font-weight:700;
-    padding:6px 16px; border-radius:8px;
-  }
+  .slider-display { display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; }
+  .slider-val { background:var(--green); color:#fff; font-size:.9rem; font-weight:700; padding:6px 16px; border-radius:8px; }
   .slider-dash { color:var(--muted); font-size:1rem; }
-  .range-wrap {
-    position:relative; height:44px; margin-bottom:8px;
-  }
-  .range-track {
-    position:absolute; top:50%; transform:translateY(-50%);
-    left:0; right:0; height:6px; background:#e5e7eb; border-radius:99px;
-  }
-  .range-fill {
-    position:absolute; height:100%; background:var(--green); border-radius:99px;
-  }
-  .range-wrap input[type="range"] {
-    position:absolute; width:100%; top:50%; transform:translateY(-50%);
-    -webkit-appearance:none; appearance:none;
-    background:transparent; pointer-events:none; margin:0;
-    height:6px;
-  }
-  .range-wrap input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance:none; pointer-events:all;
-    width:24px; height:24px; border-radius:50%;
-    background:var(--green); border:3px solid #fff;
-    box-shadow:0 1px 5px rgba(0,0,0,.25); cursor:pointer;
-  }
-  .range-wrap input[type="range"]::-moz-range-thumb {
-    pointer-events:all; width:22px; height:22px; border-radius:50%;
-    background:var(--green); border:3px solid #fff;
-    box-shadow:0 1px 5px rgba(0,0,0,.25); cursor:pointer; border:none;
-  }
+  .range-wrap { position:relative; height:44px; margin-bottom:8px; }
+  .range-track { position:absolute; top:50%; transform:translateY(-50%); left:0; right:0; height:6px; background:#e5e7eb; border-radius:99px; }
+  .range-fill  { position:absolute; height:100%; background:var(--green); border-radius:99px; }
+  .range-wrap input[type="range"] { position:absolute; width:100%; top:50%; transform:translateY(-50%); -webkit-appearance:none; appearance:none; background:transparent; pointer-events:none; margin:0; height:6px; }
+  .range-wrap input[type="range"]::-webkit-slider-thumb { -webkit-appearance:none; pointer-events:all; width:24px; height:24px; border-radius:50%; background:var(--green); border:3px solid #fff; box-shadow:0 1px 5px rgba(0,0,0,.25); cursor:pointer; }
+  .range-wrap input[type="range"]::-moz-range-thumb { pointer-events:all; width:20px; height:20px; border-radius:50%; background:var(--green); border:3px solid #fff; box-shadow:0 1px 5px rgba(0,0,0,.25); cursor:pointer; }
   .range-labels { display:flex; justify-content:space-between; font-size:.72rem; color:var(--muted); margin-top:2px; }
+
+  /* must/nice combined grid */
+  .mn-header-row {
+    display:flex; align-items:center; justify-content:flex-end;
+    gap:6px; margin-bottom:8px; padding-right:2px;
+  }
+  .mn-col-label {
+    font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.5px;
+    width:58px; text-align:center;
+  }
+  .mn-col-must { color:#2d4a22; }
+  .mn-col-nice { color:#0369a1; }
+  .mn-grid { display:flex; flex-direction:column; gap:7px; margin-bottom:24px; }
+  .mn-row {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 12px; border-radius:10px;
+    border:1.5px solid var(--border); background:#f9fafb;
+    transition:background .15s, border-color .15s;
+  }
+  .mn-row.is-must { background:#f0fdf4; border-color:#86efac; }
+  .mn-row.is-nice { background:#eff6ff; border-color:#93c5fd; }
+  .mn-label-wrap { flex:1; min-width:0; }
+  .mn-label { font-size:.85rem; font-weight:500; color:var(--text); }
+  .mn-en    { font-size:.7rem; color:var(--muted); margin-top:1px; }
+  .mn-btns  { display:flex; gap:6px; flex-shrink:0; margin-left:10px; }
+  .mn-btn {
+    width:54px; padding:6px 0; border-radius:99px; font-size:.72rem; font-weight:700;
+    border:1.5px solid; cursor:pointer; transition:all .15s; background:transparent;
+    font-family:inherit; text-align:center; user-select:none;
+  }
+  .mn-btn.must-btn           { border-color:#2d4a22; color:#2d4a22; }
+  .mn-btn.must-btn.active    { background:#2d4a22; color:#fff; }
+  .mn-btn.nice-btn           { border-color:#0369a1; color:#0369a1; }
+  .mn-btn.nice-btn.active    { background:#0369a1; color:#fff; }
+  .mn-btn:disabled           { opacity:.3; cursor:not-allowed; }
 
   /* text inputs */
   .field-group { display:flex; flex-direction:column; gap:12px; margin-bottom:24px; }
@@ -92,8 +97,7 @@
   }
   input:focus { border-color:var(--green); background:#fff; }
 
-  /* buttons */
-  .btn-row { display:flex; gap:10px; justify-content:flex-end; }
+  .btn-row { display:flex; gap:10px; justify-content:flex-end; margin-top:4px; }
   .btn { padding:12px 24px; border-radius:10px; border:none; font-size:.9rem; font-weight:600; cursor:pointer; transition:all .15s; font-family:inherit; }
   .btn-primary { background:var(--green); color:#fff; min-width:110px; }
   .btn-primary:hover { background:var(--green-light); }
@@ -101,15 +105,14 @@
   .btn-back { background:transparent; color:var(--muted); border:1.5px solid var(--border); }
   .btn-back:hover { border-color:#9ca3af; color:var(--text); }
 
-  /* done */
   .done-screen { text-align:center; padding:40px 20px; }
   .done-icon { width:64px;height:64px;background:#f0fdf4;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2rem;margin:0 auto 20px; }
   .done-title { font-size:1.4rem;font-weight:700;margin-bottom:10px; }
-
   .err { color:#dc2626;font-size:.82rem;margin-top:8px; }
 
   @media(max-width:420px){
-    .card{padding:22px 16px 20px} .q-title{font-size:1.05rem} .pill{padding:9px 14px;font-size:.83rem}
+    .card{padding:20px 14px 18px} .q-title{font-size:1rem}
+    .mn-btn{width:48px;font-size:.68rem} .mn-label{font-size:.8rem}
   }
 </style>
 </head>
@@ -121,8 +124,8 @@
 </div>
 
 <div class="progress-wrap">
-  <div class="progress-bar-track"><div class="progress-bar-fill" id="progressFill" style="width:9%"></div></div>
-  <div class="progress-label" id="progressLabel">第 1 题，共 11 题</div>
+  <div class="progress-bar-track"><div class="progress-bar-fill" id="progressFill" style="width:10%"></div></div>
+  <div class="progress-label" id="progressLabel">第 1 题，共 10 题</div>
 </div>
 
 <div class="card-wrap"><div class="card" id="card"></div></div>
@@ -131,162 +134,86 @@
 const BUDGET_LABELS = ["$300K","$400K","$500K","$600K","$700K","$800K","$900K","$1M","$1.2M","$1.5M","$1.8M","$2M","$2.5M","$3M+"];
 const BUDGET_MAX_IDX = BUDGET_LABELS.length - 1;
 
-const MUST_HAVE_OPTIONS = [
-  { zh: "可出租地下室",      en: "Rental Basement" },
-  { zh: "WalkOut地下室",    en: "Walkout Basement" },
-  { zh: "大车库 / 停车位",   en: "Large Garage/Parking" },
-  { zh: "南向后院",          en: "South-facing Backyard" },
-  { zh: "拎包入住",          en: "Move-in Ready" },
-  { zh: "新楼盘",            en: "New Build / Pre-con" },
-  { zh: "游泳池",            en: "Swimming Pool" },
-  { zh: "0-5年新",           en: "0-5 Years New" },
-  { zh: "6-15年新",          en: "6-15 Years New" },
-  { zh: "精装修",            en: "Luxury Finish" },
-  { zh: "全屋无地毯",        en: "No Carpet Throughout" },
-  { zh: "无特殊要求",        en: "No Must-haves" },
+const MN_OPTIONS = [
+  { zh:"可出租地下室",   en:"Rental Basement" },
+  { zh:"WalkOut地下室",  en:"Walkout Basement" },
+  { zh:"大车库 / 停车位", en:"Large Garage/Parking" },
+  { zh:"南向后院",       en:"South-facing Backyard" },
+  { zh:"拎包入住",       en:"Move-in Ready" },
+  { zh:"新楼盘",         en:"New Build / Pre-con" },
+  { zh:"游泳池",         en:"Swimming Pool" },
+  { zh:"0-5年新",        en:"0–5 Years New" },
+  { zh:"6-15年新",       en:"6–15 Years New" },
+  { zh:"精装修",         en:"Luxury Finish" },
+  { zh:"全屋无地毯",     en:"No Carpet Throughout" },
+  { zh:"无特殊要求",     en:"No Requirements", mustOnly:true },
 ];
-
-const NICE_TO_HAVE_OPTIONS = MUST_HAVE_OPTIONS.filter(o => o.zh !== "无特殊要求");
 
 const STEPS = [
-  {
-    id: "identity",
-    title: "您的购房身份？",
-    sub: "Who are you?",
-    type: "single",
-    options: [
-      { zh: "首次购房", en: "First-time Buyer" },
-      { zh: "换房升级", en: "Upgrading" },
-      { zh: "纯投资",   en: "Investor" },
-      { zh: "其他",     en: "Other" },
-    ]
-  },
-  {
-    id: "budget",
-    title: "您的预算范围？",
-    sub: "Drag to set your min & max budget",
-    type: "slider",
-  },
-  {
-    id: "area",
-    title: "心仪哪些区域？",
-    sub: "Preferred area — pick all that apply",
-    type: "multi",
-    options: [
-      { zh: "万锦",       en: "Markham" },
-      { zh: "列治文山",   en: "Richmond Hill" },
-      { zh: "旺市",       en: "Vaughan" },
-      { zh: "多伦多",     en: "Toronto" },
-      { zh: "士嘉堡",    en: "Scarborough" },
-      { zh: "北约克",    en: "North York" },
-      { zh: "奥克维尔",  en: "Oakville" },
-      { zh: "密西沙加",  en: "Mississauga" },
-      { zh: "其他大多区域", en: "Other GTA" },
-    ]
-  },
-  {
-    id: "location_pref",
-    title: "位置有什么特殊要求？",
-    sub: "Location preferences — pick all that apply",
-    type: "multi",
-    options: [
-      { zh: "靠近地铁 / GO 站", en: "Near Transit" },
-      { zh: "靠近高速公路",     en: "Highway Access" },
-      { zh: "华人超市生活圈",   en: "Chinese Amenities" },
-      { zh: "安静住宅区",       en: "Quiet Neighborhood" },
-      { zh: "步行生活圈",       en: "Walkable Area" },
-      { zh: "无特殊要求",       en: "No Preference" },
-    ]
-  },
-  {
-    id: "school",
-    title: "有学区需求吗？",
-    sub: "School district requirements",
-    type: "single",
-    options: [
-      { zh: "无特殊要求",       en: "No Preference" },
-      { zh: "需要优质小学",     en: "Top Elementary School" },
-      { zh: "需要优质高中",     en: "Top High School" },
-      { zh: "小学 + 高中都要",  en: "Both Elementary & High" },
-    ]
-  },
-  {
-    id: "property_type",
-    title: "想买什么类型的房子？",
-    sub: "Property type — pick all that apply",
-    type: "multi",
-    options: [
-      { zh: "独立屋",    en: "Detached" },
-      { zh: "半独立屋",  en: "Semi-Detached" },
-      { zh: "联排别墅",  en: "Townhouse" },
-      { zh: "公寓 Condo", en: "Condo" },
-      { zh: "都可以",    en: "Open to All" },
-    ]
-  },
-  {
-    id: "bedrooms",
-    title: "需要几个卧室？",
-    sub: "Number of bedrooms",
-    type: "single",
-    options: [
-      { zh: "2 房" }, { zh: "3 房" }, { zh: "4 房" }, { zh: "5 房+" },
-    ]
-  },
-  {
-    id: "must_haves",
-    title: "有哪些 Must Have？",
-    sub: "必要条件，缺了不买 — pick all that apply",
-    type: "multi",
-    options: MUST_HAVE_OPTIONS,
-  },
-  {
-    id: "nice_to_have",
-    title: "有哪些 Nice to Have？",
-    sub: "有更好，没有也可以接受 — pick all that apply",
-    type: "multi",
-    options: NICE_TO_HAVE_OPTIONS,
-  },
-  {
-    id: "timeline",
-    title: "计划什么时候买？",
-    sub: "Purchase timeline",
-    type: "single",
-    options: [
-      { zh: "3 个月内",       en: "Within 3 Months" },
-      { zh: "3 – 6 个月",    en: "3 – 6 Months" },
-      { zh: "6 – 12 个月",   en: "6 – 12 Months" },
-      { zh: "在看看，暂无计划", en: "Just Exploring" },
-    ]
-  },
-  {
-    id: "contact",
-    title: "留下您的联系方式",
-    sub: "我们会尽快与您取得联系 / We'll reach out shortly",
-    type: "contact"
-  }
+  { id:"identity", title:"您的购房身份？", sub:"Who are you?", type:"single",
+    options:[
+      {zh:"首次购房",en:"First-time Buyer"},{zh:"换房升级",en:"Upgrading"},
+      {zh:"纯投资",en:"Investor"},{zh:"其他",en:"Other"},
+    ]},
+  { id:"budget", title:"您的预算范围？", sub:"Drag to set your min & max budget", type:"slider" },
+  { id:"area", title:"心仪哪些区域？", sub:"Preferred area — pick all that apply", type:"multi",
+    options:[
+      {zh:"万锦",en:"Markham"},{zh:"列治文山",en:"Richmond Hill"},
+      {zh:"旺市",en:"Vaughan"},{zh:"多伦多",en:"Toronto"},
+      {zh:"士嘉堡",en:"Scarborough"},{zh:"北约克",en:"North York"},
+      {zh:"奥克维尔",en:"Oakville"},{zh:"密西沙加",en:"Mississauga"},
+      {zh:"其他大多区域",en:"Other GTA"},
+    ]},
+  { id:"location_pref", title:"位置有什么特殊要求？", sub:"Location preferences — pick all that apply", type:"multi",
+    options:[
+      {zh:"靠近地铁 / GO 站",en:"Near Transit"},{zh:"靠近高速公路",en:"Highway Access"},
+      {zh:"华人超市生活圈",en:"Chinese Amenities"},{zh:"安静住宅区",en:"Quiet Neighborhood"},
+      {zh:"步行生活圈",en:"Walkable Area"},{zh:"无特殊要求",en:"No Preference"},
+    ]},
+  { id:"school", title:"有学区需求吗？", sub:"School district requirements", type:"single",
+    options:[
+      {zh:"无特殊要求",en:"No Preference"},{zh:"需要优质小学",en:"Top Elementary School"},
+      {zh:"需要优质高中",en:"Top High School"},{zh:"小学 + 高中都要",en:"Both Elementary & High"},
+    ]},
+  { id:"property_type", title:"想买什么类型的房子？", sub:"Property type — pick all that apply", type:"multi",
+    options:[
+      {zh:"独立屋",en:"Detached"},{zh:"半独立屋",en:"Semi-Detached"},
+      {zh:"联排别墅",en:"Townhouse"},{zh:"公寓 Condo",en:"Condo"},{zh:"都可以",en:"Open to All"},
+    ]},
+  { id:"bedrooms", title:"需要几个卧室？", sub:"Number of bedrooms", type:"single",
+    options:[{zh:"2 房"},{zh:"3 房"},{zh:"4 房"},{zh:"5 房+"}]},
+  { id:"must_nice", title:"您的房屋条件偏好", sub:"每个条件点「必须」或「更好」，选了一个另一个自动锁定", type:"must_nice" },
+  { id:"timeline", title:"计划什么时候买？", sub:"Purchase timeline", type:"single",
+    options:[
+      {zh:"3 个月内",en:"Within 3 Months"},{zh:"3 – 6 个月",en:"3 – 6 Months"},
+      {zh:"6 – 12 个月",en:"6 – 12 Months"},{zh:"在看看，暂无计划",en:"Just Exploring"},
+    ]},
+  { id:"contact", title:"留下您的联系方式", sub:"我们会尽快与您取得联系 / We'll reach out shortly", type:"contact" },
 ];
 
-const API_URL = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+const API_URL = (window.location.hostname==="localhost"||window.location.hostname==="127.0.0.1")
   ? "http://localhost:5000/api/survey/buyer"
   : "https://api.tourit.ca/api/survey/buyer";
 
 let current = 0;
 const answers = {};
+answers.budget = { minIdx:0, maxIdx:BUDGET_MAX_IDX, min:BUDGET_LABELS[0], max:BUDGET_LABELS[BUDGET_MAX_IDX] };
+answers.must_haves = [];
+answers.nice_to_have = [];
 
-// init slider answer
-answers.budget = { minIdx: 0, maxIdx: BUDGET_MAX_IDX, min: BUDGET_LABELS[0], max: BUDGET_LABELS[BUDGET_MAX_IDX] };
+// ── render ────────────────────────────────────────────────────────────────────
 
 function render() {
-  const step = STEPS[current];
+  const step  = STEPS[current];
   const total = STEPS.length;
-  const pct = Math.round(((current + 1) / total) * 100);
+  const pct   = Math.round(((current + 1) / total) * 100);
   document.getElementById("progressFill").style.width = pct + "%";
-  document.getElementById("progressLabel").textContent = `第 ${current + 1} 题，共 ${total} 题`;
+  document.getElementById("progressLabel").textContent = `第 ${current+1} 题，共 ${total} 题`;
 
   const card = document.getElementById("card");
   card.style.animation = "none"; card.offsetHeight; card.style.animation = "";
 
-  let html = `<div class="q-label">问题 ${current + 1} / ${total}</div>
+  let html = `<div class="q-label">问题 ${current+1} / ${total}</div>
     <div class="q-title">${step.title}</div>
     <div class="q-sub">${step.sub}</div>`;
 
@@ -296,7 +223,7 @@ function render() {
     step.options.forEach(opt => {
       const active = cur === opt.zh ? "active" : "";
       const en = opt.en ? `<span class="en">${opt.en}</span>` : "";
-      html += `<div class="pill ${active}" onclick="selectSingle('${step.id}','${opt.zh.replace(/'/g,"\\'")}',this)">${opt.zh}${en}</div>`;
+      html += `<div class="pill ${active}" onclick="selectSingle('${step.id}','${esc(opt.zh)}',this)">${opt.zh}${en}</div>`;
     });
     html += `</div>`;
 
@@ -306,7 +233,7 @@ function render() {
     step.options.forEach(opt => {
       const active = cur.includes(opt.zh) ? "active" : "";
       const en = opt.en ? `<span class="en">${opt.en}</span>` : "";
-      html += `<div class="pill ${active}" onclick="toggleMulti('${step.id}','${opt.zh.replace(/'/g,"\\'")}',this)">${opt.zh}${en}</div>`;
+      html += `<div class="pill ${active}" onclick="toggleMulti('${step.id}','${esc(opt.zh)}',this)">${opt.zh}${en}</div>`;
     });
     html += `</div>`;
 
@@ -323,8 +250,10 @@ function render() {
         <input type="range" id="sliderMin" min="0" max="${BUDGET_MAX_IDX}" value="${b.minIdx}" step="1" oninput="onSlider('min')">
         <input type="range" id="sliderMax" min="0" max="${BUDGET_MAX_IDX}" value="${b.maxIdx}" step="1" oninput="onSlider('max')">
       </div>
-      <div class="range-labels"><span>${BUDGET_LABELS[0]}</span><span>${BUDGET_LABELS[BUDGET_MAX_IDX]}</span></div>
-    `;
+      <div class="range-labels"><span>${BUDGET_LABELS[0]}</span><span>${BUDGET_LABELS[BUDGET_MAX_IDX]}</span></div>`;
+
+  } else if (step.type === "must_nice") {
+    html += buildMNGrid();
 
   } else if (step.type === "contact") {
     const c = answers.contact || {};
@@ -349,20 +278,98 @@ function render() {
   html += `</div>`;
 
   card.innerHTML = html;
-
-  // init slider fill after DOM insert
   if (step.type === "slider") updateSliderFill();
 }
+
+// ── must/nice grid ─────────────────────────────────────────────────────────────
+
+function buildMNGrid() {
+  const mustArr = answers.must_haves || [];
+  const niceArr = answers.nice_to_have || [];
+  const isNoReq = mustArr.includes("无特殊要求");
+
+  let h = `
+    <div class="mn-header-row">
+      <div class="mn-col-label mn-col-must">必须</div>
+      <div class="mn-col-label mn-col-nice">更好</div>
+    </div>
+    <div class="mn-grid">`;
+
+  MN_OPTIONS.forEach(opt => {
+    const isMust = mustArr.includes(opt.zh);
+    const isNice = niceArr.includes(opt.zh);
+    const rowCls = isMust ? "is-must" : isNice ? "is-nice" : "";
+    // disable nice if "无特殊要求" selected, disable must-btn if currently nice & vice versa
+    const mustDisabled = (isNoReq && opt.zh !== "无特殊要求") ? "disabled" : "";
+    const niceDisabled = (opt.mustOnly || isNoReq) ? "disabled" : "";
+    h += `
+      <div class="mn-row ${rowCls}" id="mnrow_${esc(opt.zh)}">
+        <div class="mn-label-wrap">
+          <div class="mn-label">${opt.zh}</div>
+          <div class="mn-en">${opt.en}</div>
+        </div>
+        <div class="mn-btns">
+          <button class="mn-btn must-btn ${isMust?'active':''}" ${mustDisabled} onclick="setMN('${esc(opt.zh)}','must')">必须</button>
+          <button class="mn-btn nice-btn ${isNice?'active':''}" ${niceDisabled} onclick="setMN('${esc(opt.zh)}','nice')">更好</button>
+        </div>
+      </div>`;
+  });
+  h += `</div>`;
+  return h;
+}
+
+function setMN(label, type) {
+  let mustArr = answers.must_haves || [];
+  let niceArr = answers.nice_to_have || [];
+  const isMust = mustArr.includes(label);
+  const isNice = niceArr.includes(label);
+
+  // toggle off if already active
+  if (type === "must" && isMust) {
+    answers.must_haves = mustArr.filter(x => x !== label);
+  } else if (type === "nice" && isNice) {
+    answers.nice_to_have = niceArr.filter(x => x !== label);
+  } else if (type === "must") {
+    // remove from nice, add to must
+    answers.nice_to_have = niceArr.filter(x => x !== label);
+    if (label === "无特殊要求") {
+      // exclusive — clear everything else
+      answers.must_haves = ["无特殊要求"];
+      answers.nice_to_have = [];
+    } else {
+      answers.must_haves = mustArr.filter(x => x !== "无特殊要求").concat(label);
+    }
+  } else if (type === "nice") {
+    // remove from must, add to nice
+    answers.must_haves = mustArr.filter(x => x !== label);
+    answers.nice_to_have = niceArr.filter(x => x !== label).concat(label);
+  }
+
+  // re-render grid in place (no full card re-render to avoid scroll jump)
+  const grid = document.getElementById("card");
+  const gridEl = grid.querySelector(".mn-grid");
+  const headerEl = grid.querySelector(".mn-header-row");
+  if (gridEl && headerEl) {
+    const newHtml = buildMNGrid();
+    const tmp = document.createElement("div");
+    tmp.innerHTML = newHtml;
+    headerEl.replaceWith(tmp.querySelector(".mn-header-row"));
+    gridEl.replaceWith(tmp.querySelector(".mn-grid"));
+  }
+}
+
+// ── slider ─────────────────────────────────────────────────────────────────────
 
 function updateSliderFill() {
   const minEl = document.getElementById("sliderMin");
   const maxEl = document.getElementById("sliderMax");
-  if (!minEl || !maxEl) return;
+  if (!minEl) return;
   const minV = parseInt(minEl.value), maxV = parseInt(maxEl.value);
-  const pMin = (minV / BUDGET_MAX_IDX) * 100;
-  const pMax = (maxV / BUDGET_MAX_IDX) * 100;
   const fill = document.getElementById("rangeFill");
-  if (fill) { fill.style.left = pMin + "%"; fill.style.width = (pMax - pMin) + "%"; }
+  if (fill) {
+    fill.style.left  = (minV / BUDGET_MAX_IDX * 100) + "%";
+    fill.style.width = ((maxV - minV) / BUDGET_MAX_IDX * 100) + "%";
+  }
 }
 
 function onSlider(which) {
@@ -373,15 +380,18 @@ function onSlider(which) {
   if (which === "max" && maxV <= minV) { maxV = minV + 1; maxEl.value = maxV; }
   document.getElementById("sMin").textContent = BUDGET_LABELS[minV];
   document.getElementById("sMax").textContent = BUDGET_LABELS[maxV];
-  answers.budget = { minIdx: minV, maxIdx: maxV, min: BUDGET_LABELS[minV], max: BUDGET_LABELS[maxV] };
+  answers.budget = { minIdx:minV, maxIdx:maxV, min:BUDGET_LABELS[minV], max:BUDGET_LABELS[maxV] };
   updateSliderFill();
 }
 
+// ── navigation ─────────────────────────────────────────────────────────────────
+
 function canProceed() {
   const step = STEPS[current];
-  if (step.type === "single")  return !!answers[step.id];
-  if (step.type === "multi")   return (answers[step.id] || []).length > 0;
-  if (step.type === "slider")  return true;
+  if (step.type === "single")    return !!answers[step.id];
+  if (step.type === "multi")     return (answers[step.id]||[]).length > 0;
+  if (step.type === "slider")    return true;
+  if (step.type === "must_nice") return true;
   if (step.type === "contact") {
     const c = answers.contact || {};
     return !!(c.name?.trim() && c.wechat?.trim());
@@ -416,12 +426,14 @@ function syncContact() {
 }
 
 function goNext() { if (canProceed()) { current++; render(); } }
-function goBack() { if (current > 0) { current--; render(); } }
+function goBack() { if (current > 0)  { current--; render(); } }
+
+// ── submit ─────────────────────────────────────────────────────────────────────
 
 async function submitSurvey() {
   syncContact();
   if (!canProceed()) {
-    document.getElementById("submitErr").textContent = "请填写姓名和微信/手机号 / Please fill in name and contact.";
+    document.getElementById("submitErr").textContent = "请填写姓名和微信/手机号";
     return;
   }
   const btn = document.getElementById("submitBtn");
@@ -445,9 +457,9 @@ async function submitSurvey() {
   try {
     const resp = await fetch(API_URL, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload) });
     if (resp.ok) showDone();
-    else throw new Error("Server error " + resp.status);
+    else throw new Error();
   } catch {
-    document.getElementById("submitErr").textContent = "提交失败，请重试 / Submission failed, please try again.";
+    document.getElementById("submitErr").textContent = "提交失败，请重试 / Submission failed.";
     btn.disabled = false; btn.textContent = "提交 Submit";
   }
 }
@@ -468,6 +480,8 @@ function showDone() {
       </div>
     </div>`;
 }
+
+function esc(s) { return s.replace(/\\/g,"\\\\").replace(/'/g,"\\'"); }
 
 render();
 </script>
