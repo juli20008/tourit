@@ -20,7 +20,9 @@ def _send_survey_email(data):
     def row(label, value):
         if not value or value == '—':
             return ''
-        if isinstance(value, list):
+        if isinstance(value, dict):
+            value = f"{value.get('min','?')} – {value.get('max','?')}"
+        elif isinstance(value, list):
             value = '、'.join(value) if value else '—'
         return f'''
         <tr>
@@ -36,7 +38,8 @@ def _send_survey_email(data):
         row("学区需求", data.get('school')) +
         row("房屋类型", data.get('property_type')) +
         row("卧室数量", data.get('bedrooms')) +
-        row("必要条件", data.get('must_haves')) +
+        row("必要条件 Must Have", data.get('must_haves')) +
+        row("Nice to Have", data.get('nice_to_have')) +
         row("购房时间线", data.get('timeline'))
     )
 
