@@ -11,6 +11,7 @@ import os
 import re
 import subprocess
 import tempfile
+import time
 import uuid
 import requests
 
@@ -212,5 +213,21 @@ def generate_speech(text, voice_sample_path=None, fish_voice_id=None):
     Priority:
     1. MiniMax TTS with agent's cloned voice  (fish_voice_id = MiniMax voice_id)
     2. MiniMax TTS with preset Chinese voice  (no clone available)
+
+    Retries up to 3 times on RPM rate-limit errors with 25 s back-off.
     """
-    return _minimax_tts(_normalize_for_tts(text), voice_id=fish_voice_id or None)
+    normalized = _normalize_for_tts(text)
+    voice_id   = fish_voice_id or None
+    last_err   = None
+    for attempt in range(3):
+        try:
+            return _minimax_tts(normalized, voice_id=voice_id)
+        except RuntimeError as e:
+            last_err = e
+            if "rate limit" in str(e).lower():
+                wait = 25 * (attempt + 1)
+                print(f"[TTS] MiniMax RPM limit hit, retrying in {wait}s (attempt {attempt+1}/3)…")
+                time.sleep(wait)
+            else:
+                raise
+    raise last_err
