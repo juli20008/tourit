@@ -31,6 +31,7 @@ from .api.agent_lead_routes import agent_lead_routes
 from .api.ppt_video_routes import ppt_video_routes
 from .api.new_home_video_routes import new_home_video_routes
 from .api.scraper_routes import scraper_routes
+from .api.survey_routes import survey_routes
 
 from .seeds import seed_commands
 
@@ -87,6 +88,7 @@ app.register_blueprint(agent_lead_routes, url_prefix='/api/agent-leads')
 app.register_blueprint(ppt_video_routes, url_prefix='/api/ppt-videos')
 app.register_blueprint(new_home_video_routes, url_prefix='/api/new-home-videos')
 app.register_blueprint(scraper_routes, url_prefix='/api/scrape')
+app.register_blueprint(survey_routes, url_prefix='/api/survey')
 db.init_app(app)
 Migrate(app, db)
 socketio.init_app(app)

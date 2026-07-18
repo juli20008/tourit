@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>购房需求调查 | Canada Home Team</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --green: #2d4a22;
+    --green-light: #3d6430;
+    --gold: #dfba73;
+    --bg: #f7f6f2;
+    --card: #ffffff;
+    --text: #1a1a1a;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+    --pill-bg: #f3f4f6;
+    --pill-active-bg: #2d4a22;
+    --pill-active-text: #ffffff;
+    --radius: 14px;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0;
+  }
+
+  /* ── Header ── */
+  .header {
+    width: 100%;
+    background: var(--green);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .header-logo {
+    color: var(--gold);
+    font-weight: 700;
+    font-size: 1rem;
+    letter-spacing: 0.3px;
+  }
+  .header-sub { color: rgba(255,255,255,0.6); font-size: 0.78rem; }
+
+  /* ── Progress ── */
+  .progress-wrap {
+    width: 100%;
+    max-width: 560px;
+    padding: 20px 24px 0;
+  }
+  .progress-bar-track {
+    height: 4px;
+    background: var(--border);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--green);
+    border-radius: 99px;
+    transition: width 0.4s ease;
+  }
+  .progress-label {
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-top: 6px;
+    text-align: right;
+  }
+
+  /* ── Card ── */
+  .card-wrap {
+    width: 100%;
+    max-width: 560px;
+    padding: 16px 24px 32px;
+    flex: 1;
+  }
+  .card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 28px 24px 24px;
+    box-shadow: 0 2px 16px rgba(0,0,0,.07);
+    animation: slideUp 0.3s ease;
+  }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .q-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--green);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 10px;
+  }
+  .q-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.4;
+    margin-bottom: 6px;
+  }
+  .q-sub {
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-bottom: 22px;
+  }
+
+  /* ── Pills ── */
+  .pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+  .pill {
+    padding: 10px 18px;
+    border-radius: 99px;
+    background: var(--pill-bg);
+    border: 1.5px solid var(--border);
+    font-size: 0.88rem;
+    font-weight: 500;
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+    line-height: 1.3;
+  }
+  .pill:hover { border-color: var(--green); background: #f0f4ed; }
+  .pill.active {
+    background: var(--pill-active-bg);
+    border-color: var(--pill-active-bg);
+    color: var(--pill-active-text);
+  }
+  .pill .en { font-size: 0.72rem; opacity: 0.75; display: block; margin-top: 1px; }
+
+  /* ── Multi-select hint ── */
+  .multi-hint {
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  /* ── Text inputs ── */
+  .field-group { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
+  .field-label { font-size: 0.82rem; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .field-sub { font-size: 0.74rem; color: var(--muted); margin-bottom: 6px; }
+  input[type="text"], input[type="tel"], input[type="email"] {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    color: var(--text);
+    background: #fafafa;
+    transition: border-color 0.15s;
+    outline: none;
+  }
+  input:focus { border-color: var(--green); background: #fff; }
+
+  /* ── Buttons ── */
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+  }
+  .btn {
+    padding: 12px 24px;
+    border-radius: 10px;
+    border: none;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  .btn-primary {
+    background: var(--green);
+    color: white;
+    min-width: 110px;
+  }
+  .btn-primary:hover { background: var(--green-light); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-back {
+    background: transparent;
+    color: var(--muted);
+    border: 1.5px solid var(--border);
+  }
+  .btn-back:hover { border-color: #9ca3af; color: var(--text); }
+
+  /* ── Done screen ── */
+  .done-screen {
+    text-align: center;
+    padding: 40px 20px;
+  }
+  .done-icon {
+    width: 64px; height: 64px;
+    background: #f0fdf4;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2rem;
+    margin: 0 auto 20px;
+  }
+  .done-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 10px; }
+  .done-sub { color: var(--muted); font-size: 0.9rem; line-height: 1.6; }
+
+  /* ── Error ── */
+  .err { color: #dc2626; font-size: 0.82rem; margin-top: 8px; }
+
+  @media (max-width: 420px) {
+    .card { padding: 22px 16px 20px; }
+    .q-title { font-size: 1.05rem; }
+    .pill { padding: 9px 14px; font-size: 0.83rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="header-logo">加家地产团队</div>
+    <div class="header-sub">Canada Home Team · Bay Street Group Inc.</div>
+  </div>
+</div>
+
+<div class="progress-wrap">
+  <div class="progress-bar-track">
+    <div class="progress-bar-fill" id="progressFill" style="width:10%"></div>
+  </div>
+  <div class="progress-label" id="progressLabel">第 1 题，共 10 题</div>
+</div>
+
+<div class="card-wrap">
+  <div class="card" id="card"></div>
+</div>
+
+<script>
+const STEPS = [
+  {
+    id: "identity",
+    title: "您的购房身份？",
+    sub: "Who are you?",
+    type: "single",
+    options: [
+      { zh: "首次购房", en: "First-time Buyer" },
+      { zh: "换房升级", en: "Upgrading" },
+      { zh: "纯投资", en: "Investor" },
+      { zh: "新移民", en: "New Immigrant" },
+      { zh: "其他", en: "Other" },
+    ]
+  },
+  {
+    id: "budget",
+    title: "您的预算上限？",
+    sub: "Budget ceiling",
+    type: "single",
+    options: [
+      { zh: "≤ $700K" },
+      { zh: "$700K – $1M" },
+      { zh: "$1M – $1.5M" },
+      { zh: "$1.5M – $2M" },
+      { zh: "$2M+" },
+    ]
+  },
+  {
+    id: "area",
+    title: "心仪哪些区域？",
+    sub: "Preferred area — pick all that apply",
+    type: "multi",
+    options: [
+      { zh: "万锦", en: "Markham" },
+      { zh: "列治文山", en: "Richmond Hill" },
+      { zh: "士嘉堡", en: "Scarborough" },
+      { zh: "北约克", en: "North York" },
+      { zh: "奥克维尔", en: "Oakville" },
+      { zh: "密西沙加", en: "Mississauga" },
+      { zh: "其他大多区域", en: "Other GTA" },
+    ]
+  },
+  {
+    id: "location_pref",
+    title: "位置有什么特殊要求？",
+    sub: "Location preferences — pick all that apply",
+    type: "multi",
+    options: [
+      { zh: "靠近地铁 / GO 站", en: "Near Transit" },
+      { zh: "靠近高速公路", en: "Highway Access" },
+      { zh: "华人超市生活圈", en: "Chinese Amenities" },
+      { zh: "安静住宅区", en: "Quiet Neighborhood" },
+      { zh: "步行生活圈", en: "Walkable Area" },
+      { zh: "无特殊要求", en: "No Preference" },
+    ]
+  },
+  {
+    id: "school",
+    title: "有学区需求吗？",
+    sub: "School district requirements",
+    type: "single",
+    options: [
+      { zh: "无特殊要求", en: "No Preference" },
+      { zh: "需要优质小学", en: "Top Elementary School" },
+      { zh: "需要优质高中", en: "Top High School" },
+      { zh: "小学 + 高中都要", en: "Both Elementary & High" },
+      { zh: "国际学校优先", en: "International School" },
+    ]
+  },
+  {
+    id: "property_type",
+    title: "想买什么类型的房子？",
+    sub: "Property type — pick all that apply",
+    type: "multi",
+    options: [
+      { zh: "独立屋", en: "Detached" },
+      { zh: "半独立屋", en: "Semi-Detached" },
+      { zh: "联排别墅", en: "Townhouse" },
+      { zh: "公寓 Condo", en: "Condo" },
+      { zh: "都可以", en: "Open to All" },
+    ]
+  },
+  {
+    id: "bedrooms",
+    title: "需要几个卧室？",
+    sub: "Number of bedrooms",
+    type: "single",
+    options: [
+      { zh: "2 房" },
+      { zh: "3 房" },
+      { zh: "4 房" },
+      { zh: "5 房+" },
+    ]
+  },
+  {
+    id: "must_haves",
+    title: "有哪些必要条件？",
+    sub: "Must-haves — pick all that apply",
+    type: "multi",
+    options: [
+      { zh: "可出租地下室", en: "Rental Basement" },
+      { zh: "大车库 / 停车位", en: "Large Garage/Parking" },
+      { zh: "南向后院", en: "South-facing Backyard" },
+      { zh: "拎包入住", en: "Move-in Ready" },
+      { zh: "新楼盘", en: "New Build / Pre-con" },
+      { zh: "游泳池", en: "Swimming Pool" },
+      { zh: "无特殊要求", en: "No Must-haves" },
+    ]
+  },
+  {
+    id: "timeline",
+    title: "计划什么时候买？",
+    sub: "Purchase timeline",
+    type: "single",
+    options: [
+      { zh: "3 个月内", en: "Within 3 Months" },
+      { zh: "3 – 6 个月", en: "3 – 6 Months" },
+      { zh: "6 – 12 个月", en: "6 – 12 Months" },
+      { zh: "在看看，暂无计划", en: "Just Exploring" },
+    ]
+  },
+  {
+    id: "contact",
+    title: "留下您的联系方式",
+    sub: "我们会尽快与您取得联系 / We'll reach out shortly",
+    type: "contact"
+  }
+];
+
+const API_URL = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+  ? "http://localhost:5000/api/survey/buyer"
+  : "https://api.tourit.ca/api/survey/buyer";
+
+let current = 0;
+const answers = {};
+
+function render() {
+  const step = STEPS[current];
+  const pct = Math.round(((current + 1) / STEPS.length) * 100);
+  document.getElementById("progressFill").style.width = pct + "%";
+  document.getElementById("progressLabel").textContent = `第 ${current + 1} 题，共 ${STEPS.length} 题`;
+
+  const card = document.getElementById("card");
+  card.style.animation = "none";
+  card.offsetHeight; // reflow
+  card.style.animation = "";
+
+  let html = `
+    <div class="q-label">问题 ${current + 1} / ${STEPS.length}</div>
+    <div class="q-title">${step.title}</div>
+    <div class="q-sub">${step.sub}</div>
+  `;
+
+  if (step.type === "single") {
+    const cur = answers[step.id];
+    html += `<div class="pills">`;
+    step.options.forEach((opt, i) => {
+      const label = opt.zh;
+      const active = cur === label ? "active" : "";
+      const en = opt.en ? `<span class="en">${opt.en}</span>` : "";
+      html += `<div class="pill ${active}" onclick="selectSingle('${step.id}','${label.replace(/'/g,"\\'")}',this)">${label}${en}</div>`;
+    });
+    html += `</div>`;
+  } else if (step.type === "multi") {
+    const cur = answers[step.id] || [];
+    html += `<div class="multi-hint">☑ 可多选 / Select all that apply</div>`;
+    html += `<div class="pills" id="multi-pills">`;
+    step.options.forEach((opt) => {
+      const label = opt.zh;
+      const active = cur.includes(label) ? "active" : "";
+      const en = opt.en ? `<span class="en">${opt.en}</span>` : "";
+      html += `<div class="pill ${active}" onclick="toggleMulti('${step.id}','${label.replace(/'/g,"\\'")}',this)">${label}${en}</div>`;
+    });
+    html += `</div>`;
+  } else if (step.type === "contact") {
+    const c = answers.contact || {};
+    html += `
+      <div class="field-group">
+        <div>
+          <div class="field-label">姓名 / Name <span style="color:#dc2626">*</span></div>
+          <input type="text" id="f_name" placeholder="您的姓名" value="${c.name||''}" oninput="syncContact()">
+        </div>
+        <div>
+          <div class="field-label">微信 / 手机 / WeChat or Phone <span style="color:#dc2626">*</span></div>
+          <input type="tel" id="f_wechat" placeholder="微信号或手机号码" value="${c.wechat||''}" oninput="syncContact()">
+        </div>
+        <div>
+          <div class="field-label">邮箱 Email <span style="color:#6b7280;font-weight:400">（选填）</span></div>
+          <input type="email" id="f_email" placeholder="your@email.com" value="${c.email||''}" oninput="syncContact()">
+        </div>
+      </div>
+      <div id="submitErr" class="err"></div>
+    `;
+  }
+
+  const isFirst = current === 0;
+  const isLast = current === STEPS.length - 1;
+
+  html += `<div class="btn-row">`;
+  if (!isFirst) html += `<button class="btn btn-back" onclick="goBack()">← 上一题</button>`;
+  if (!isLast) {
+    html += `<button class="btn btn-primary" id="nextBtn" onclick="goNext()" ${canProceed() ? "" : "disabled"}>下一题 →</button>`;
+  } else {
+    html += `<button class="btn btn-primary" id="submitBtn" onclick="submitSurvey()">提交 Submit</button>`;
+  }
+  html += `</div>`;
+
+  card.innerHTML = html;
+}
+
+function canProceed() {
+  const step = STEPS[current];
+  if (step.type === "single") return !!answers[step.id];
+  if (step.type === "multi") return (answers[step.id] || []).length > 0;
+  if (step.type === "contact") {
+    const c = answers.contact || {};
+    return !!(c.name && c.name.trim() && c.wechat && c.wechat.trim());
+  }
+  return true;
+}
+
+function selectSingle(id, label, el) {
+  answers[id] = label;
+  document.querySelectorAll(".pill").forEach(p => p.classList.remove("active"));
+  el.classList.add("active");
+  document.getElementById("nextBtn") && (document.getElementById("nextBtn").disabled = false);
+  // Auto-advance after short delay
+  setTimeout(() => { if (current < STEPS.length - 1) goNext(); }, 280);
+}
+
+function toggleMulti(id, label, el) {
+  if (!answers[id]) answers[id] = [];
+  const idx = answers[id].indexOf(label);
+  if (idx === -1) answers[id].push(label);
+  else answers[id].splice(idx, 1);
+  el.classList.toggle("active");
+  const btn = document.getElementById("nextBtn");
+  if (btn) btn.disabled = !canProceed();
+}
+
+function syncContact() {
+  answers.contact = {
+    name:   document.getElementById("f_name")?.value || "",
+    wechat: document.getElementById("f_wechat")?.value || "",
+    email:  document.getElementById("f_email")?.value || "",
+  };
+  const btn = document.getElementById("submitBtn");
+  if (btn) btn.disabled = !canProceed();
+}
+
+function goNext() {
+  if (!canProceed()) return;
+  current++;
+  render();
+}
+
+function goBack() {
+  if (current > 0) { current--; render(); }
+}
+
+async function submitSurvey() {
+  syncContact();
+  if (!canProceed()) {
+    document.getElementById("submitErr").textContent = "请填写姓名和微信/手机号 / Please fill in name and contact.";
+    return;
+  }
+
+  const btn = document.getElementById("submitBtn");
+  btn.disabled = true;
+  btn.textContent = "提交中...";
+  document.getElementById("submitErr").textContent = "";
+
+  const payload = {
+    identity:      answers.identity,
+    budget:        answers.budget,
+    area:          answers.area,
+    location_pref: answers.location_pref,
+    school:        answers.school,
+    property_type: answers.property_type,
+    bedrooms:      answers.bedrooms,
+    must_haves:    answers.must_haves,
+    timeline:      answers.timeline,
+    contact:       answers.contact,
+  };
+
+  try {
+    const resp = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (resp.ok) {
+      showDone();
+    } else {
+      throw new Error("Server error " + resp.status);
+    }
+  } catch (e) {
+    document.getElementById("submitErr").textContent = "提交失败，请重试 / Submission failed, please try again.";
+    btn.disabled = false;
+    btn.textContent = "提交 Submit";
+  }
+}
+
+function showDone() {
+  document.getElementById("progressFill").style.width = "100%";
+  document.getElementById("progressLabel").textContent = "已完成 Done ✓";
+  document.getElementById("card").innerHTML = `
+    <div class="done-screen">
+      <div class="done-icon">🎉</div>
+      <div class="done-title">谢谢您！/ Thank you!</div>
+      <div class="done-sub" style="margin-top:12px">
+        我们已收到您的购房需求，<br>
+        我们的经纪人会尽快联系您。<br><br>
+        <span style="color:#9ca3af;font-size:0.8rem">
+          We've received your requirements.<br>
+          Our agent will be in touch shortly.
+        </span>
+      </div>
+      <div style="margin-top:28px;padding:16px;background:#f7f6f2;border-radius:12px;font-size:0.82rem;color:#6b7280">
+        微信 / WeChat：<strong style="color:#1a1a1a">torontojulie</strong><br>
+        Tel: <strong style="color:#1a1a1a">(416) 888-8888</strong>
+      </div>
+    </div>
+  `;
+}
+
+render();
+</script>
+</body>
+</html>
