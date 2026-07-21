@@ -21,15 +21,11 @@ class Config:
     _local_db = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'instance', 'yillow.db'))
     if _db_url and not _force_local_db:
         SQLALCHEMY_DATABASE_URI = _db_url.replace('postgres://', 'postgresql://')
-        # pool_pre_ping: validate connection before use — prevents stale-connection
-        # errors after idle periods (Supabase closes idle connections at ~5 min).
-        # pool_recycle: force-replace connections older than 4 min so they're never
-        # handed back to the app already dead.
+        # NullPool: no persistent connections — lets Neon auto-suspend between
+        # requests, preventing compute-hour exhaustion on the free tier.
+        from sqlalchemy.pool import NullPool
         SQLALCHEMY_ENGINE_OPTIONS = {
-            'pool_pre_ping': True,
-            'pool_recycle': 90,
-            'pool_size': 5,
-            'max_overflow': 10,
+            'poolclass': NullPool,
         }
     else:
         SQLALCHEMY_DATABASE_URI = f"sqlite:///{_local_db}"
