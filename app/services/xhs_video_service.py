@@ -1515,7 +1515,7 @@ def _make_clip(ffmpeg, ffprobe, img_path, out_path, reverse=False,
         )
         bg_filter = (
             f"scale={OUTPUT_W}:{OUTPUT_H}:force_original_aspect_ratio=increase"
-            f":flags=lanczos,crop={OUTPUT_W}:{OUTPUT_H},boxblur=30:5"
+            f":flags=bilinear,crop={OUTPUT_W}:{OUTPUT_H},boxblur=15:1"
         )
         fc = (
             f"split=2[bg_in][fg_in];"
@@ -1639,8 +1639,8 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
             else:
                 image_urls = [all_images_raw[i % len(all_images_raw)] for i in range(n_photos)]
 
-            downloaded = []
-            for i, url in enumerate(image_urls):
+            def _dl_photo(args):
+                i, url = args
                 try:
                     r = requests.get(url, timeout=8, stream=True)
                     if r.ok:
@@ -1651,11 +1651,14 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                         with open(path, "wb") as f:
                             for chunk in r.iter_content(chunk_size=65536):
                                 f.write(chunk)
-                        downloaded.append(path)
-                        if len(downloaded) >= n_photos:
-                            break
+                        return path
                 except Exception:
                     pass
+                return None
+
+            from concurrent.futures import ThreadPoolExecutor as _DLPool
+            with _DLPool(max_workers=10) as _pool:
+                downloaded = [p for p in _pool.map(_dl_photo, enumerate(image_urls)) if p]
 
             if not downloaded:
                 _job_set(job_id, {"status": "error", "message": "No photos available for this listing"})
@@ -1817,37 +1820,44 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
             if room_groups and downloaded:
                 _job_set(job_id, {"status": "processing", "step": "Generating voiceover..."})
                 from app.services.elevenlabs_service import generate_speech
-                cursor = 0
+                from concurrent.futures import ThreadPoolExecutor as _TTSPool
+
+                # Pre-compute photo slices (cursor must be sequential)
+                _grp_tasks = []
+                _cursor = 0
                 for k, grp in enumerate(room_groups):
-                    cnt   = grp.get("count", 1)
-                    text  = grp.get("text", "")
-                    photos = downloaded[cursor:cursor + cnt] or downloaded[-1:]
-                    cursor += cnt
+                    cnt    = grp.get("count", 1)
+                    text   = grp.get("text", "")
+                    photos = downloaded[_cursor:_cursor + cnt] or downloaded[-1:]
+                    _cursor += cnt
+                    _grp_tasks.append((k, text, photos, grp.get("is_cta", False)))
+
+                def _gen_seg(args):
+                    k, text, photos, is_cta = args
+                    seg_path = os.path.join(tmpdir, f"narration_seg{k}.mp3")
                     if not text.strip():
-                        # No narration for this group — silence only (handled by pad step)
-                        seg_path = os.path.join(tmpdir, f"narration_seg{k}.mp3")
-                        # Generate 0.1s silence placeholder via ffmpeg
                         subprocess.run(
                             [ffmpeg, "-y", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono",
                              "-t", "0.1", "-c:a", "libmp3lame", seg_path],
                             timeout=15, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                         )
-                        seg_dur = 0.1
-                    else:
-                        audio_bytes = generate_speech(text, fish_voice_id=minimax_voice_id)
-                        seg_path = os.path.join(tmpdir, f"narration_seg{k}.mp3")
-                        with open(seg_path, "wb") as f:
-                            f.write(audio_bytes)
-                        try:
-                            seg_dur = float(subprocess.run(
-                                [ffprobe, "-v", "quiet", "-show_entries", "format=duration",
-                                 "-of", "default=noprint_wrappers=1:nokey=1", seg_path],
-                                timeout=60, capture_output=True, text=True,
-                            ).stdout.strip())
-                        except Exception:
-                            seg_dur = PHOTO_DURATION * len(photos)
-                    is_cta = grp.get("is_cta", False)
-                    segment_audio_info.append((seg_path, seg_dur, photos, is_cta))
+                        return seg_path, 0.1, photos, is_cta
+                    audio_bytes = generate_speech(text, fish_voice_id=minimax_voice_id)
+                    with open(seg_path, "wb") as f:
+                        f.write(audio_bytes)
+                    try:
+                        seg_dur = float(subprocess.run(
+                            [ffprobe, "-v", "quiet", "-show_entries", "format=duration",
+                             "-of", "default=noprint_wrappers=1:nokey=1", seg_path],
+                            timeout=60, capture_output=True, text=True,
+                        ).stdout.strip())
+                    except Exception:
+                        seg_dur = PHOTO_DURATION * len(photos)
+                    return seg_path, seg_dur, photos, is_cta
+
+                with _TTSPool(max_workers=5) as _pool:
+                    for seg_path, seg_dur, photos, is_cta in _pool.map(_gen_seg, _grp_tasks):
+                        segment_audio_info.append((seg_path, seg_dur, photos, is_cta))
                 use_segments = True
 
             elif not narration_override and downloaded:
@@ -1960,29 +1970,37 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                     t = round(min(seg_dur, base + 2.5), 3)
                 return max(t, base)
 
+            # Build ordered task list so clips can be rendered in parallel
+            _clip_tasks = []
             photo_idx = 0
             for (seg_audio_path, seg_dur, seg_photos, is_cta) in segment_audio_info:
                 n_seg = len(seg_photos)
                 atgt = _audio_target(seg_dur, n_seg, is_cta)
-                # Last photo of segment holds for the overflow (CTA / sentence finish)
                 last_dur = round(atgt - PHOTO_DURATION * (n_seg - 1), 3)
                 last_dur = max(last_dur, PHOTO_DURATION)
-
                 for i, img_path in enumerate(seg_photos):
                     clip_dur = last_dur if i == n_seg - 1 else PHOTO_DURATION
                     clip_path = os.path.join(clips_dir, f"clip_{photo_idx:04d}.mp4")
-                    _make_clip(ffmpeg, ffprobe, img_path, clip_path, duration=clip_dur,
-                               motion_style=motion_style,
-                               zoom_end=1.15 if motion_style == "classic" else ZOOM_END,
-                               reverse=(motion_style == "classic" and photo_idx % 2 == 1))
-                    clip_paths.append(clip_path)
+                    _clip_tasks.append((img_path, clip_path, clip_dur,
+                                        1.15 if motion_style == "classic" else ZOOM_END,
+                                        motion_style == "classic" and photo_idx % 2 == 1))
                     photo_idx += 1
 
-                for img_path in seg_photos:
-                    try:
-                        os.remove(img_path)
-                    except OSError:
-                        pass
+            from concurrent.futures import ThreadPoolExecutor as _ClipPool
+            def _render_one(t):
+                img_path, clip_path, clip_dur, ze, rev = t
+                _make_clip(ffmpeg, ffprobe, img_path, clip_path, duration=clip_dur,
+                           motion_style=motion_style, zoom_end=ze, reverse=rev)
+                return clip_path
+
+            with _ClipPool(max_workers=2) as _pool:
+                clip_paths.extend(_pool.map(_render_one, _clip_tasks))
+
+            for img_path, *_ in _clip_tasks:
+                try:
+                    os.remove(img_path)
+                except OSError:
+                    pass
 
             # Build combined narration audio — each segment trimmed/padded to audio_target.
             if use_segments:
