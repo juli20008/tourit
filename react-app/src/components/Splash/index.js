@@ -259,18 +259,24 @@ const Splash = () => {
 		<>
 			<main className="splash-ctrl">
 				<section className="splash-search-wrap">
-					<div className="splash-hero-head">
-						<p className="splash-kicker">Every Home Tour, Just a Click Away.</p>
+					<img
+						className="splash-team-photo"
+						src="https://pub-d254d778630548a18efd333eda056bcb.r2.dev/assets/team-hero.png"
+						alt="加家团队 Canada Home Team"
+					/>
+					<div className="splash-hero-head" style={{ position: 'relative', zIndex: 2 }}>
+						<p className="splash-kicker">加家团队 · Canada Home Team</p>
 						<h1 className="splash-search-title">
-							Find your next property with calm, data-backed clarity.
+							万锦 · 列治文山<br />
+							<span style={{ fontWeight: 400, fontSize: '0.72em', opacity: 0.9 }}>Markham &amp; Richmond Hill Specialists</span>
 						</h1>
 						<p className="splash-subtitle">
-							Search live inventory, scan map movement in real time, and book
-							showings without friction.
+							深耕大多伦多华人社区，强力社媒曝光，帮您买对房、卖好价。<br />
+							<span style={{ fontSize: '13px', opacity: 0.75 }}>Bilingual team with strong local social media reach — helping you buy smart and sell faster.</span>
 						</p>
 					</div>
 
-					<form className="splash-search-panel" onSubmit={handleSubmit} autoComplete="off">
+					<form className="splash-search-panel" onSubmit={handleSubmit} autoComplete="off" style={{ position: 'relative', zIndex: 2 }}>
 						<label className="search-label" style={{ position: "relative" }}>
 							<Search size={18} strokeWidth={1.5} className="search-icon" />
 							<input
@@ -390,18 +396,18 @@ const Splash = () => {
 						</div>
 					</form>
 
-					<div className="splash-metrics">
+					<div className="splash-metrics" style={{ position: 'relative', zIndex: 2 }}>
 						<div className="splash-metric-card">
-							<TrendingUp size={16} strokeWidth={1.5} />
-							<span>Live pricing movements</span>
+							<MapPin size={15} strokeWidth={1.5} style={{ color: '#dfba73' }} />
+							<span>专注万锦 &amp; 列治文山 · Markham &amp; Richmond Hill</span>
 						</div>
 						<div className="splash-metric-card">
-							<MapPin size={16} strokeWidth={1.5} />
-							<span>Map-linked inventory feed</span>
+							<TrendingUp size={15} strokeWidth={1.5} style={{ color: '#dfba73' }} />
+							<span>实时房源更新 · Live MLS Feed</span>
 						</div>
 						<div className="splash-metric-card">
-							<Bookmark size={16} strokeWidth={1.5} />
-							<span>Save & compare instantly</span>
+							<Bookmark size={15} strokeWidth={1.5} style={{ color: '#dfba73' }} />
+							<span>中英双语服务 · Bilingual</span>
 						</div>
 					</div>
 				</section>

@@ -194,7 +194,7 @@ function App() {
 				</Route>
 			</Switch>
 			<footer className="app-footer">
-				<span>&copy; 2026 Tourit. All rights reserved. &nbsp;&middot;&nbsp; Built by Julie Li, Bay Street Group &nbsp;&middot;&nbsp; 905-909-0101</span>
+				<span>&copy; 2026 加家团队 · Canada Home Team &nbsp;&middot;&nbsp; Bay Street Group Inc. Brokerage</span>
 				<Link to="/agent-login" className="app-footer-agent-link">Agent Login</Link>
 			</footer>
 			<ChatBubble />

@@ -6,6 +6,10 @@
 	cursor: pointer;
 }
 
+.card-ctrl:hover {
+	border-left: 3px solid var(--brand-gold) !important;
+}
+
 .card-top {
 	height: 150px;
 	background-position: center;

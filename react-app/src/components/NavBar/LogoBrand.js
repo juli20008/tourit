@@ -10,7 +10,9 @@ const LogoBrand = ({ agentName, agentPhoto }) => {
 	}, []);
 
 	const brandStyle = { fontFamily: "'Outfit', 'DM Sans', system-ui, sans-serif", letterSpacing: '0.01em' };
-	const spanCls = "text-[24px] md:text-[30px] leading-none text-white";
+	const spanCls = "text-[22px] md:text-[26px] leading-none";
+	const goldStyle = { color: '#dfba73' };
+	const whiteStyle = { color: '#ffffff', opacity: 0.85 };
 
 	if (agentName) {
 		return (
@@ -45,15 +47,15 @@ const LogoBrand = ({ agentName, agentPhoto }) => {
 	}
 
 	return (
-		<div className="flex flex-col items-center md:flex-row md:items-baseline md:gap-3">
-			<div className="flex items-center gap-2 notranslate">
-				<span style={{ ...brandStyle, fontWeight: 400 }} className={spanCls}>
-					{lang === 'zh' ? '加家地产团队' : 'tourit.ca'}
-				</span>
+		<div className="flex flex-col items-center md:flex-row md:items-baseline md:gap-2 notranslate">
+			<div className="flex items-center gap-1">
+				<span style={{ ...brandStyle, ...goldStyle, fontWeight: 700 }} className={spanCls}>加家团队</span>
+				<span style={{ ...brandStyle, ...whiteStyle, fontWeight: 300, fontSize: '14px', margin: '0 2px' }}>·</span>
+				<span style={{ ...brandStyle, ...whiteStyle, fontWeight: 400, fontSize: '14px' }}>Canada Home</span>
 			</div>
 			{lang === 'zh'
-				? <span className="nav-slogan notranslate">万锦列治文山精选房源</span>
-				: <span className="nav-slogan">Home Tour Simplified.</span>
+				? <span className="nav-slogan notranslate" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '11px' }}>万锦 · 列治文山</span>
+				: <span className="nav-slogan" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '11px' }}>Markham · Richmond Hill</span>
 			}
 		</div>
 	);

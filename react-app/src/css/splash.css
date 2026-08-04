@@ -12,14 +12,34 @@
 	align-items: stretch;
 	width: 100%;
 	flex: 0 0 auto;
-	min-height: 460px;
+	min-height: 480px;
 	padding: 64px 72px 54px;
-	background: linear-gradient(180deg, #ffffff 0%, #f9fafb 100%);
+	background: linear-gradient(135deg, #1a2e15 0%, #2d4a22 60%, #3a5c2c 100%);
 	gap: 26px;
 	box-sizing: border-box;
 	position: relative;
 	overflow: hidden;
 	z-index: 2;
+}
+
+.splash-team-photo {
+	position: absolute;
+	right: 0;
+	bottom: 0;
+	height: 110%;
+	width: auto;
+	object-fit: contain;
+	object-position: bottom right;
+	opacity: 0.22;
+	pointer-events: none;
+	user-select: none;
+}
+
+@media screen and (min-width: 900px) {
+	.splash-team-photo {
+		opacity: 0.55;
+		height: 115%;
+	}
 }
 
 .splash-hero-head {
@@ -32,27 +52,27 @@
 .splash-kicker {
 	margin: 0;
 	font-size: 12px;
-	letter-spacing: 0.18em;
+	letter-spacing: 0.2em;
 	text-transform: uppercase;
-	color: #64748b;
-	font-weight: 600;
+	color: var(--brand-gold);
+	font-weight: 700;
 }
 
 .splash-search-title {
 	margin: 0;
-	color: #0f172a;
-	font-size: clamp(34px, 5vw, 54px);
-	line-height: 1.06;
+	color: #ffffff;
+	font-size: clamp(30px, 4.5vw, 52px);
+	line-height: 1.1;
 	font-weight: 700;
-	max-width: 860px;
+	max-width: 680px;
 }
 
 .splash-subtitle {
 	margin: 0;
-	max-width: 720px;
-	font-size: 18px;
-	line-height: 1.6;
-	color: #64748b;
+	max-width: 580px;
+	font-size: 16px;
+	line-height: 1.7;
+	color: rgba(255, 255, 255, 0.72);
 }
 
 .splash-search-panel {
@@ -168,13 +188,15 @@
 }
 
 .splash-btn-primary {
-	background: var(--cta-primary);
-	color: #ffffff;
-	border-color: var(--cta-primary);
+	background: var(--brand-gold);
+	color: var(--brand-green-dark);
+	border-color: var(--brand-gold);
+	font-weight: 700;
 }
 
 .splash-btn-primary:hover {
-	box-shadow: var(--shadow-soft-md);
+	background: #e8c87e;
+	box-shadow: 0 4px 20px rgba(223, 186, 115, 0.4);
 }
 
 .splash-btn-ghost {
@@ -192,13 +214,13 @@
 	display: inline-flex;
 	align-items: center;
 	gap: 8px;
-	padding: 12px 16px;
-	background: #ffffff;
-	border: 1px solid var(--border-subtle);
-	border-radius: 12px;
-	color: #475569;
-	font-size: 14px;
-	box-shadow: var(--shadow-soft-sm);
+	padding: 10px 16px;
+	background: rgba(255, 255, 255, 0.1);
+	border: 1px solid rgba(223, 186, 115, 0.35);
+	border-radius: 10px;
+	color: rgba(255, 255, 255, 0.85);
+	font-size: 13px;
+	backdrop-filter: blur(4px);
 }
 
 .splash-newly-listed {

@@ -36,7 +36,7 @@
 	--text-primary: #0f172a;
 	--text-secondary: #64748b;
 	--border-subtle: #f1f5f9;
-	--cta-primary: #111111;
+	--cta-primary: #2d4a22;
 	--error: #b42318;
 	--blue: #0f172a;
 	--blue2: #0f172a;
@@ -47,6 +47,11 @@
 	--shadow-soft-sm: 0 2px 10px rgb(0 0 0 / 0.03);
 	--shadow-soft-md: 0 8px 30px rgb(0 0 0 / 0.04);
 	--shadow-soft-lg: 0 16px 40px rgb(0 0 0 / 0.06);
+	/* Brand */
+	--brand-green: #2d4a22;
+	--brand-green-dark: #1a2e15;
+	--brand-gold: #dfba73;
+	--brand-gold-light: #f5e6c4;
 }
 
 * {

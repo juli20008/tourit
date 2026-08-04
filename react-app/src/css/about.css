@@ -1,49 +1,435 @@
-.about-ctrl {
-	display: flex;
-	justify-content: center;
-	align-items: center;
-	height: calc(100vh - 83px);
-	background-color: var(--lightblue);
-	background-position: center bottom;
-	background-repeat: no-repeat;
-	background-size: contain;
+.about-page {
+	min-height: calc(100vh - 83px);
+	background: var(--bg-canvas);
 }
 
-.about-ctrl .wrapper {
+/* ── Hero ── */
+.about-hero {
+	position: relative;
+	min-height: 420px;
+	background: linear-gradient(135deg, #1a2e15 0%, #2d4a22 60%, #3a5c2c 100%);
+	display: flex;
+	align-items: flex-end;
+	overflow: hidden;
+	padding: 64px 72px 60px;
+	box-sizing: border-box;
+}
+
+.about-hero-bg {
+	position: absolute;
+	right: 0;
+	bottom: 0;
+	height: 115%;
+	width: auto;
+	object-fit: contain;
+	object-position: bottom right;
+	opacity: 0.28;
+	pointer-events: none;
+	user-select: none;
+}
+
+.about-hero-overlay {
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(to right, rgba(26,46,21,0.92) 40%, transparent 100%);
+	pointer-events: none;
+}
+
+.about-hero-content {
+	position: relative;
+	z-index: 2;
+	max-width: 680px;
+	display: flex;
+	flex-direction: column;
+	gap: 18px;
+}
+
+.about-hero-kicker {
+	margin: 0;
+	font-size: 11px;
+	letter-spacing: 0.2em;
+	text-transform: uppercase;
+	color: var(--brand-gold);
+	font-weight: 700;
+}
+
+.about-hero-title {
+	margin: 0;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 10px;
+	line-height: 1.1;
+}
+
+.about-hero-zh {
+	font-size: clamp(36px, 5vw, 60px);
+	font-weight: 700;
+	color: var(--brand-gold);
+	font-family: 'Outfit', 'DM Sans', system-ui, sans-serif;
+}
+
+.about-hero-divider {
+	font-size: clamp(24px, 3vw, 36px);
+	color: rgba(255, 255, 255, 0.35);
+	font-weight: 300;
+}
+
+.about-hero-en {
+	font-size: clamp(22px, 3vw, 36px);
+	font-weight: 300;
+	color: rgba(255, 255, 255, 0.88);
+	font-family: 'Outfit', 'DM Sans', system-ui, sans-serif;
+}
+
+.about-hero-sub {
+	margin: 0;
+	font-size: 16px;
+	line-height: 1.7;
+	color: rgba(255, 255, 255, 0.82);
+}
+
+/* ── Stats bar ── */
+.about-stats-bar {
+	display: flex;
+	justify-content: center;
+	gap: 0;
+	background: #0f1f0a;
+	border-bottom: 1px solid rgba(223, 186, 115, 0.2);
+}
+
+.about-stat {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	background-color: white;
-	padding: 40px;
-	border-radius: 10px;
-	box-shadow: 0px 0px 3px rgba(0, 0, 0, 0.3);
-	gap: 30px;
+	padding: 24px 32px;
+	border-right: 1px solid rgba(255, 255, 255, 0.07);
+	gap: 4px;
+	flex: 1;
+	max-width: 200px;
 }
 
-.about-ctrl .img {
-	width: 250px;
-	height: 250px;
+.about-stat:last-child {
+	border-right: none;
 }
 
-.about-ctrl .name {
-	font-family: "Open Sans", sans-serif;
-	font-size: 24px;
-	font-weight: bold;
-	text-align: center;
-}
-.about-ctrl .slogan {
-	text-align: center;
-	font-weight: lighter;
-	line-height: 24px;
+.about-stat-num {
+	font-size: 28px;
+	font-weight: 700;
+	color: var(--brand-gold);
+	line-height: 1;
+	font-family: 'Outfit', 'DM Sans', system-ui, sans-serif;
 }
 
-.about-ctrl .icon-group {
+.about-stat-label {
 	display: flex;
-	gap: 20px;
+	flex-direction: column;
+	align-items: center;
+	gap: 2px;
+	font-size: 12px;
+	color: rgba(255, 255, 255, 0.65);
+	text-align: center;
 }
 
-.about-ctrl .icon {
-	width: 30px;
-	height: 30px;
-	font-size: 30px;
+.about-stat-en {
+	font-size: 10px;
+	color: rgba(255, 255, 255, 0.38);
+}
+
+/* ── Shared section ── */
+.about-section {
+	padding: 72px 72px;
+}
+
+.about-section-inner {
+	max-width: 900px;
+	margin: 0 auto;
+}
+
+.about-section-tag {
+	font-size: 11px;
+	letter-spacing: 0.2em;
+	text-transform: uppercase;
+	color: var(--brand-green);
+	font-weight: 700;
+	margin-bottom: 10px;
+}
+
+.about-section-title {
+	margin: 0 0 32px;
+	font-size: clamp(26px, 3vw, 36px);
+	font-weight: 600;
+	color: #0f172a;
+	line-height: 1.2;
+}
+
+/* ── Mission ── */
+.about-mission-section {
+	background: var(--bg-canvas);
+}
+
+.about-mission-body {
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+	max-width: 760px;
+}
+
+.about-mission-body p {
+	margin: 0;
+	font-size: 16px;
+	line-height: 1.8;
+	color: #334155;
+}
+
+/* ── Team ── */
+.about-team-section {
+	background: #f8fafc;
+	border-top: 1px solid var(--border-subtle);
+}
+
+.about-agents-grid {
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: 24px;
+	max-width: 760px;
+}
+
+.about-agent-card {
+	display: flex;
+	align-items: center;
+	gap: 20px;
+	background: #ffffff;
+	border: 1px solid var(--border-subtle);
+	border-radius: 16px;
+	padding: 28px 24px;
+	box-shadow: var(--shadow-soft-md);
+	transition: box-shadow 300ms ease, transform 300ms ease;
+}
+
+.about-agent-card:hover {
+	box-shadow: var(--shadow-soft-lg);
+	transform: translateY(-2px);
+}
+
+.about-agent-avatar {
+	width: 64px;
+	height: 64px;
+	border-radius: 50%;
+	background: linear-gradient(135deg, var(--brand-green) 0%, #3a5c2c 100%);
+	color: var(--brand-gold);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 22px;
+	font-weight: 700;
+	flex-shrink: 0;
+	font-family: 'Outfit', 'DM Sans', system-ui, sans-serif;
+	letter-spacing: 0.02em;
+}
+
+.about-agent-info {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.about-agent-name {
+	font-size: 18px;
+	font-weight: 700;
+	color: #0f172a;
+}
+
+.about-agent-title {
+	font-size: 12px;
+	color: #64748b;
+}
+
+.about-agent-langs {
+	font-size: 11px;
+	color: var(--brand-green);
+	font-weight: 600;
+	letter-spacing: 0.03em;
+	margin-top: 2px;
+}
+
+.about-agent-phone {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	margin-top: 6px;
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--brand-green);
+	text-decoration: none;
+}
+
+.about-agent-phone:hover {
+	color: #3a5c2c;
+}
+
+/* ── WeChat section ── */
+.about-wechat-section {
+	background: linear-gradient(135deg, #1a2e15 0%, #2d4a22 60%, #3a5c2c 100%);
+	padding: 72px;
+}
+
+.about-wechat-inner {
+	max-width: 900px;
+	margin: 0 auto;
+	display: flex;
+	align-items: center;
+	gap: 64px;
+}
+
+.about-wechat-text {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.about-wechat-desc {
+	margin: 0;
+	font-size: 16px;
+	line-height: 1.8;
+	color: rgba(255, 255, 255, 0.82);
+}
+
+.about-wechat-contacts {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	margin-top: 4px;
+}
+
+.about-wechat-contact {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	font-size: 15px;
+	font-weight: 600;
+	color: var(--brand-gold);
+}
+
+.about-wechat-contact i {
+	font-size: 13px;
+	opacity: 0.75;
+}
+
+.about-wechat-qr-wrap {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 12px;
+	flex-shrink: 0;
+}
+
+.about-wechat-qr {
+	width: 180px;
+	height: 180px;
+	object-fit: cover;
+	border-radius: 16px;
+	border: 3px solid var(--brand-gold);
+	background: #fff;
+	padding: 6px;
+}
+
+.about-wechat-qr-label {
+	margin: 0;
+	font-size: 12px;
+	color: rgba(255, 255, 255, 0.55);
+	text-align: center;
+}
+
+/* ── Brokerage bar ── */
+.about-brokerage-bar {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 20px;
+	padding: 28px 48px;
+	background: #0f1f0a;
+	border-top: 1px solid rgba(223, 186, 115, 0.15);
+}
+
+.about-brokerage-icon {
+	font-size: 22px;
+	color: var(--brand-gold);
+	opacity: 0.75;
+	flex-shrink: 0;
+}
+
+.about-brokerage-info {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.about-brokerage-info strong {
+	font-size: 14px;
+	color: #ffffff;
+}
+
+.about-brokerage-info span {
+	font-size: 12px;
+	color: rgba(255, 255, 255, 0.5);
+}
+
+/* ── Responsive ── */
+@media screen and (max-width: 900px) {
+	.about-hero {
+		padding: 48px 32px 48px;
+		min-height: 340px;
+	}
+
+	.about-section {
+		padding: 48px 32px;
+	}
+
+	.about-wechat-section {
+		padding: 48px 32px;
+	}
+
+	.about-wechat-inner {
+		flex-direction: column;
+		gap: 40px;
+		align-items: flex-start;
+	}
+}
+
+@media screen and (max-width: 600px) {
+	.about-hero {
+		padding: 40px 20px 40px;
+	}
+
+	.about-stats-bar {
+		flex-wrap: wrap;
+	}
+
+	.about-stat {
+		flex: 1 1 50%;
+		max-width: none;
+		padding: 16px;
+		border-right: none;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+	}
+
+	.about-section {
+		padding: 40px 20px;
+	}
+
+	.about-wechat-section {
+		padding: 40px 20px;
+	}
+
+	.about-agents-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.about-brokerage-bar {
+		padding: 24px 20px;
+		flex-direction: column;
+		text-align: center;
+	}
 }
