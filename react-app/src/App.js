@@ -20,6 +20,7 @@ import { authenticate } from "./store/session";
 import { initWhitelabel } from "./store/whitelabel";
 
 import About from "./components/About";
+import Home from "./components/Home";
 import AgentLanding from "./components/AgentLanding";
 import PPTVideo from "./components/PPTVideo";
 import NewHomeVideo from "./components/NewHomeVideo";
@@ -130,7 +131,7 @@ function App() {
 			<Notification />
 <Switch>
 				<Route path="/" exact={true}>
-					<Redirect to={DEFAULT_AREA} />
+					<Home />
 				</Route>
 				<Route path="/search/:searchParam" exact={true}>
 					<Search />

@@ -11,6 +11,7 @@ import os
 import re
 import subprocess
 import tempfile
+import threading
 import time
 import uuid
 import requests
@@ -36,6 +37,21 @@ def _normalize_for_tts(text: str) -> str:
     # Any remaining bare $
     text = text.replace('$', '加元')
     return text
+
+# Global rate limiter — MiniMax TTS is capped at ~4 RPM; enforce 16 s between calls.
+# This serialises concurrent TTS calls from ThreadPoolExecutor without crashing them.
+_tts_lock = threading.Lock()
+_tts_last_call_at: float = 0.0
+_TTS_MIN_INTERVAL = float(os.environ.get("MINIMAX_TTS_INTERVAL", "16"))  # seconds
+
+def _tts_rate_wait():
+    global _tts_last_call_at
+    with _tts_lock:
+        gap = time.time() - _tts_last_call_at
+        if gap < _TTS_MIN_INTERVAL:
+            time.sleep(_TTS_MIN_INTERVAL - gap)
+        _tts_last_call_at = time.time()
+
 
 _MINIMAX_BASE = os.environ.get("MINIMAX_BASE_URL", "https://api.minimax.io")
 
@@ -160,6 +176,7 @@ def _minimax_tts(text, voice_id=None):
     voice_id: cloned agent voice; falls back to MINIMAX_VOICE_ID preset if None.
     Returns MP3 bytes.
     """
+    _tts_rate_wait()  # enforce inter-call spacing to stay under RPM limit
     api_key = os.environ.get("MINIMAX_API_KEY", "")
     if not api_key:
         raise RuntimeError("MINIMAX_API_KEY not configured")
@@ -224,8 +241,9 @@ def generate_speech(text, voice_sample_path=None, fish_voice_id=None):
             return _minimax_tts(normalized, voice_id=voice_id)
         except RuntimeError as e:
             last_err = e
-            if "rate limit" in str(e).lower():
-                wait = 25 * (attempt + 1)
+            msg = str(e).lower()
+            if "rate limit" in msg or "rpm" in msg or "429" in msg:
+                wait = 30 * (attempt + 1)
                 print(f"[TTS] MiniMax RPM limit hit, retrying in {wait}s (attempt {attempt+1}/3)…")
                 time.sleep(wait)
             else:
