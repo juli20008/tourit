@@ -4,6 +4,7 @@ Pipeline: listing photos + agent voice clone → portrait MP4 with narration.
 """
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -1584,6 +1585,48 @@ def get_job(job_id):
 
 # ── Main pipeline (runs in background thread) ──────────────────────────────────
 
+def _build_quick_narration(listing_data):
+    """Quick video script: community, size, beds, baths, then client remarks verbatim."""
+    def _num(v):
+        try:
+            f = float(v)
+            return str(int(f)) if f == int(f) else str(f)
+        except (TypeError, ValueError):
+            return None
+
+    parts = []
+    community = (listing_data.get("neighborhood") or listing_data.get("city") or "").strip()
+    if community:
+        parts.append(f"这套房子位于{community}社区。")
+
+    sqft = str(listing_data.get("sqft") or listing_data.get("above_grade_sqft") or "").strip()
+    if sqft:
+        sqft = re.sub(r"\s*-\s*", "到", sqft)
+        parts.append(f"房屋面积{sqft}平方英尺。")
+
+    bed = _num(listing_data.get("bed"))
+    above = _num(listing_data.get("beds_above_grade"))
+    below = _num(listing_data.get("basement_beds"))
+    if above and not below and bed and int(float(bed)) > int(float(above)):
+        below = str(int(float(bed)) - int(float(above)))
+    if above and below and below != "0":
+        parts.append(f"{above}加{below}卧室，")
+    elif bed or above:
+        parts.append(f"{bed or above}个卧室，")
+
+    bath = _num(listing_data.get("bath"))
+    if bath:
+        parts.append(f"{bath}个洗手间。")
+    elif parts and parts[-1].endswith("，"):
+        parts[-1] = parts[-1][:-1] + "。"
+
+    remarks = (listing_data.get("description") or "").strip()
+    if remarks:
+        parts.append(remarks)
+
+    return "".join(parts) or "欢迎观看这套精选房源。"
+
+
 def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_bytes=None,
                   cover_bg_bytes=None, cover_photo_index=0, narration_override=None,
                   external_listing=None, photo_count=30,
@@ -1629,8 +1672,22 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                     return
                 raw_images = listing.effective_images or []
 
-            n_photos = max(1, int(photo_count)) if photo_count else len(all_images_raw) or 30
+            # Quick mode: narration built from listing facts + client remarks,
+            # photos in original order at 3 s each, trimmed to voiceover length.
+            quick_mode = False
+            if narration_override:
+                try:
+                    import json as _qjson
+                    _q = _qjson.loads(narration_override)
+                    quick_mode = isinstance(_q, dict) and bool(_q.get("quick"))
+                except Exception:
+                    pass
+            if quick_mode:
+                narration_override = None
+                photo_count = len(raw_images) or photo_count
+
             all_images_raw = raw_images
+            n_photos = max(1, int(photo_count)) if photo_count else len(all_images_raw) or 30
             if len(all_images_raw) == 0:
                 image_urls = []
             elif len(all_images_raw) >= n_photos:
@@ -1817,7 +1874,35 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                 except Exception:
                     pass
 
-            if room_groups and downloaded:
+            if quick_mode and downloaded:
+                _job_set(job_id, {"status": "processing", "step": "Generating voiceover..."})
+                from app.services.elevenlabs_service import generate_speech
+                narration = _build_quick_narration(listing_data)
+                audio_bytes = generate_speech(narration, fish_voice_id=minimax_voice_id)
+                audio_path = os.path.join(tmpdir, "narration.mp3")
+                with open(audio_path, "wb") as f:
+                    f.write(audio_bytes)
+                try:
+                    narr_dur = float(subprocess.run(
+                        [ffprobe, "-v", "quiet", "-show_entries", "format=duration",
+                         "-of", "default=noprint_wrappers=1:nokey=1", audio_path],
+                        timeout=60, capture_output=True, text=True,
+                    ).stdout.strip())
+                except Exception:
+                    narr_dur = PHOTO_DURATION * len(downloaded)
+                # +0.8 s lead silence added at mix time; drop photos beyond the voiceover
+                import math as _math
+                n_keep = max(1, _math.ceil((narr_dur + 0.8) / PHOTO_DURATION))
+                for _extra in downloaded[n_keep:]:
+                    try:
+                        os.remove(_extra)
+                    except OSError:
+                        pass
+                downloaded = downloaded[:n_keep]
+                segment_audio_info = [(audio_path, narr_dur, downloaded, True)]
+                use_segments = True
+
+            elif room_groups and downloaded:
                 _job_set(job_id, {"status": "processing", "step": "Generating voiceover..."})
                 from app.services.elevenlabs_service import generate_speech
                 from concurrent.futures import ThreadPoolExecutor as _TTSPool
