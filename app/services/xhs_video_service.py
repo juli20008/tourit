@@ -1585,8 +1585,41 @@ def get_job(job_id):
 
 # ── Main pipeline (runs in background thread) ──────────────────────────────────
 
-def _build_quick_narration(listing_data):
-    """Quick video script: community, size, beds, baths, then client remarks verbatim."""
+def _translate_remarks_zh(remarks):
+    """Translate listing client remarks into natural spoken Chinese; returns original on failure."""
+    api_key = os.environ.get("DEEPSEEK_API_KEY", "")
+    if not api_key or not remarks or re.search(r"[一-鿿]", remarks):
+        return remarks
+    try:
+        resp = requests.post(
+            "https://api.deepseek.com/v1/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={
+                "model": "deepseek-chat",
+                "max_tokens": 2000,
+                "messages": [{"role": "user", "content":
+                    "把下面的房源介绍翻译成自然流畅的中文口语，用于看房视频配音。"
+                    "忠实原意，不要添加或删减内容，不要加标题或解释，只输出译文。"
+                    "街道名、社区名、学校名等专有名词保留英文。\n\n" + remarks
+                }],
+            },
+            timeout=60,
+        )
+        if resp.ok:
+            out = resp.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+            if out:
+                return out
+    except Exception:
+        pass
+    return remarks
+
+
+def _build_quick_narration(listing_data, lang="zh"):
+    """Quick video script: community, size, beds, baths, then client remarks.
+    lang="zh": Chinese intro + remarks translated to Chinese.
+    lang="en": English intro + remarks verbatim."""
+    en = lang == "en"
+
     def _num(v):
         try:
             f = float(v)
@@ -1597,34 +1630,44 @@ def _build_quick_narration(listing_data):
     parts = []
     community = (listing_data.get("neighborhood") or listing_data.get("city") or "").strip()
     if community:
-        parts.append(f"这套房子位于{community}社区。")
+        parts.append(f"This home is located in the {community} community." if en
+                     else f"这套房子位于{community}社区。")
 
     sqft = str(listing_data.get("sqft") or listing_data.get("above_grade_sqft") or "").strip()
     if sqft:
-        sqft = re.sub(r"\s*-\s*", "到", sqft)
-        parts.append(f"房屋面积{sqft}平方英尺。")
+        sqft = re.sub(r"\s*-\s*", " to " if en else "到", sqft)
+        parts.append(f"It offers {sqft} square feet." if en else f"房屋面积{sqft}平方英尺。")
 
     bed = _num(listing_data.get("bed"))
     above = _num(listing_data.get("beds_above_grade"))
     below = _num(listing_data.get("basement_beds"))
     if above and not below and bed and int(float(bed)) > int(float(above)):
         below = str(int(float(bed)) - int(float(above)))
+    beds_txt = None
     if above and below and below != "0":
-        parts.append(f"{above}加{below}卧室，")
+        beds_txt = f"{above} plus {below} bedrooms" if en else f"{above}加{below}卧室"
     elif bed or above:
-        parts.append(f"{bed or above}个卧室，")
+        beds_txt = f"{bed or above} bedrooms" if en else f"{bed or above}个卧室"
 
     bath = _num(listing_data.get("bath"))
-    if bath:
-        parts.append(f"{bath}个洗手间。")
-    elif parts and parts[-1].endswith("，"):
-        parts[-1] = parts[-1][:-1] + "。"
+    bath_txt = (f"{bath} bathrooms" if en else f"{bath}个洗手间") if bath else None
+
+    room_bits = [b for b in (beds_txt, bath_txt) if b]
+    if room_bits:
+        if en:
+            parts.append("It has " + " and ".join(room_bits) + ".")
+        else:
+            parts.append("，".join(room_bits) + "。")
 
     remarks = (listing_data.get("description") or "").strip()
     if remarks:
-        parts.append(remarks)
+        if en:
+            parts.append(remarks)
+        else:
+            parts.append(_translate_remarks_zh(remarks))
 
-    return "".join(parts) or "欢迎观看这套精选房源。"
+    text = (" " if en else "").join(parts).strip()
+    return text or ("Welcome to this featured listing." if en else "欢迎观看这套精选房源。")
 
 
 def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_bytes=None,
@@ -1675,11 +1718,14 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
             # Quick mode: narration built from listing facts + client remarks,
             # photos in original order at 3 s each, trimmed to voiceover length.
             quick_mode = False
+            quick_lang = "zh"
             if narration_override:
                 try:
                     import json as _qjson
                     _q = _qjson.loads(narration_override)
                     quick_mode = isinstance(_q, dict) and bool(_q.get("quick"))
+                    if quick_mode and _q.get("lang") == "en":
+                        quick_lang = "en"
                 except Exception:
                     pass
             if quick_mode:
@@ -1877,8 +1923,8 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
             if quick_mode and downloaded:
                 _job_set(job_id, {"status": "processing", "step": "Generating voiceover..."})
                 from app.services.elevenlabs_service import generate_speech
-                narration = _build_quick_narration(listing_data)
-                audio_bytes = generate_speech(narration, fish_voice_id=minimax_voice_id)
+                narration = _build_quick_narration(listing_data, lang=quick_lang)
+                audio_bytes = generate_speech(narration, fish_voice_id=minimax_voice_id, lang=quick_lang)
                 audio_path = os.path.join(tmpdir, "narration.mp3")
                 with open(audio_path, "wb") as f:
                     f.write(audio_bytes)

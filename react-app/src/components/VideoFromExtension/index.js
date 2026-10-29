@@ -69,13 +69,14 @@ const VideoFromExtension = () => {
 		setShowModal(false);
 	};
 
-	const startQuickVideo = async () => {
+	const startQuickVideo = async (lang) => {
 		const mls = selected.mls_number;
 		clearInterval(quickPollRef.current);
-		setQuickJob({ mls, status: "generating", step: "正在启动..." });
+		setQuickJob({ mls, lang, status: "generating", step: "正在启动..." });
 
 		const formData = new FormData();
 		formData.append("quick", "1");
+		formData.append("lang", lang);
 		formData.append("motion_style", "classic");
 		formData.append("photo_count", (selected.images || []).length || 30);
 
@@ -247,15 +248,21 @@ const VideoFromExtension = () => {
 					>
 						{existingVideo ? "重新生成视频" : "生成小红书看房视频"}
 					</button>
-					<button
-						className="btn"
-						style={{ fontSize: "0.88rem", background: "#7c3aed", borderColor: "#7c3aed" }}
-						onClick={startQuickVideo}
-						disabled={!agent?.has_voice || quickGenerating}
-						title="自动生成动感版视频：社区、面积、卧室、洗手间 + Client Remarks，无需编辑"
-					>
-						{quickGenerating ? "快速生成中..." : "⚡ 快速生成视频"}
-					</button>
+					{[
+						["zh", "⚡ 快速生成 · 中文语音", "中文配音：社区、面积、卧室、洗手间 + Client Remarks（自动翻译成中文）"],
+						["en", "⚡ 快速生成 · English", "English voiceover: community, size, beds, baths + Client Remarks"],
+					].map(([lang, label, tip]) => (
+						<button
+							key={lang}
+							className="btn"
+							style={{ fontSize: "0.88rem", background: "#7c3aed", borderColor: "#7c3aed" }}
+							onClick={() => startQuickVideo(lang)}
+							disabled={!agent?.has_voice || quickGenerating}
+							title={tip}
+						>
+							{quickGenerating && quickJob.lang === lang ? "快速生成中..." : label}
+						</button>
+					))}
 					{!agent?.has_voice && (
 						<span style={{ color: "#94a3b8", fontSize: "0.8rem", alignSelf: "center" }}>
 							请先在 My Profile 录制声音样本

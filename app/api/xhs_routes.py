@@ -921,7 +921,8 @@ def generate_agent_video(mls_number):
             narration_override = _json.dumps(room_groups, ensure_ascii=False)
         if request.form.get('quick') == '1':
             # Pipeline builds the script from listing facts + client remarks
-            narration_override = _json.dumps({"quick": True})
+            quick_lang = 'en' if request.form.get('lang') == 'en' else 'zh'
+            narration_override = _json.dumps({"quick": True, "lang": quick_lang})
     else:
         data = request.get_json(silent=True) or {}
         cover_lines = [

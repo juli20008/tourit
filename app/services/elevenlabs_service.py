@@ -170,7 +170,7 @@ def delete_voice(voice_id):
 
 # ── MiniMax TTS ────────────────────────────────────────────────────────────────
 
-def _minimax_tts(text, voice_id=None):
+def _minimax_tts(text, voice_id=None, language_boost="auto"):
     """
     MiniMax T2A v2 sync HTTP.
     voice_id: cloned agent voice; falls back to MINIMAX_VOICE_ID preset if None.
@@ -192,7 +192,7 @@ def _minimax_tts(text, voice_id=None):
             "model": model,
             "text": text,
             "stream": False,
-            "language_boost": "auto",
+            "language_boost": language_boost,
             "voice_setting": {
                 "voice_id": voice_id or preset,
                 "speed": speed,
@@ -223,7 +223,7 @@ def _minimax_tts(text, voice_id=None):
 
 # ── Public entry point ─────────────────────────────────────────────────────────
 
-def generate_speech(text, voice_sample_path=None, fish_voice_id=None):
+def generate_speech(text, voice_sample_path=None, fish_voice_id=None, lang="zh"):
     """
     Generate Chinese speech for XHS video narration.
 
@@ -231,14 +231,17 @@ def generate_speech(text, voice_sample_path=None, fish_voice_id=None):
     1. MiniMax TTS with agent's cloned voice  (fish_voice_id = MiniMax voice_id)
     2. MiniMax TTS with preset Chinese voice  (no clone available)
 
+    lang="en": skip Chinese currency rewriting and boost English pronunciation.
+
     Retries up to 3 times on RPM rate-limit errors with 25 s back-off.
     """
-    normalized = _normalize_for_tts(text)
+    normalized = text if lang == "en" else _normalize_for_tts(text)
+    boost      = "English" if lang == "en" else "auto"
     voice_id   = fish_voice_id or None
     last_err   = None
     for attempt in range(3):
         try:
-            return _minimax_tts(normalized, voice_id=voice_id)
+            return _minimax_tts(normalized, voice_id=voice_id, language_boost=boost)
         except RuntimeError as e:
             last_err = e
             msg = str(e).lower()
