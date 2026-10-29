@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import "../../css/home.css";
 
 import houseBg    from "../../assets/house-bg.jpeg";
-import skyline    from "../../assets/About/skyline.png";
+import skyline    from "../../assets/about/skyline.png";
 import frances    from "../../assets/frances/Frances_500_500.png";
 import wechatQr   from "../../assets/wechat_qr.jpg";
 import logoWhite  from "../../assets/logo-white.svg";
