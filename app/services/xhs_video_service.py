@@ -1615,7 +1615,8 @@ def _translate_remarks_zh(remarks):
 
 
 def _build_quick_narration(listing_data, lang="zh"):
-    """Quick video script: community, size, beds, baths, then client remarks.
+    """Quick video script: community, size, beds, baths, price, then client remarks.
+    Never reads the street address.
     lang="zh": Chinese intro + remarks translated to Chinese.
     lang="en": English intro + remarks verbatim."""
     en = lang == "en"
@@ -1628,8 +1629,9 @@ def _build_quick_narration(listing_data, lang="zh"):
             return None
 
     parts = []
-    community = (listing_data.get("neighborhood") or listing_data.get("city") or "").strip()
-    if community:
+    # Community only — no city fallback (city is sometimes the street address)
+    community = (listing_data.get("neighborhood") or "").strip()
+    if community and not re.match(r"^\d", community):
         parts.append(f"This home is located in the {community} community." if en
                      else f"这套房子位于{community}社区。")
 
@@ -1658,6 +1660,17 @@ def _build_quick_narration(listing_data, lang="zh"):
             parts.append("It has " + " and ".join(room_bits) + ".")
         else:
             parts.append("，".join(room_bits) + "。")
+
+    try:
+        price = int(float(listing_data.get("list_price") or 0))
+    except (TypeError, ValueError):
+        price = 0
+    if price > 0:
+        if en:
+            parts.append(f"Listed at ${price:,}.")
+        else:
+            wan = f"{price / 10000:.2f}".rstrip("0").rstrip(".")
+            parts.append(f"售价{wan}万加元。")
 
     remarks = (listing_data.get("description") or "").strip()
     if remarks:
@@ -1730,6 +1743,10 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                     pass
             if quick_mode:
                 narration_override = None
+                # ~90 s video → at most 30 photos; skip every Nth (50 photos → every other → 25)
+                import math as _qmath
+                _step = max(1, _qmath.ceil(len(raw_images) / 30))
+                raw_images = raw_images[::_step]
                 photo_count = len(raw_images) or photo_count
 
             all_images_raw = raw_images
