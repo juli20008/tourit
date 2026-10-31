@@ -1980,9 +1980,12 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                     ).stdout.strip())
                 except Exception:
                     narr_dur = PHOTO_DURATION * len(downloaded)
-                # +0.8 s lead silence added at mix time; drop photos beyond the voiceover
+                # +0.8 s lead silence added at mix time; drop photos beyond the voiceover.
+                # Fewer than 25 photos: keep them all even if the voiceover ends first.
                 import math as _math
                 n_keep = max(1, _math.ceil((narr_dur + 0.8) / PHOTO_DURATION))
+                if len(downloaded) < 25:
+                    n_keep = len(downloaded)
                 for _extra in downloaded[n_keep:]:
                     try:
                         os.remove(_extra)
