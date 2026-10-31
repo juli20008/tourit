@@ -26,9 +26,8 @@ ZOOM_END = 1.06
 MAX_PHOTOS = 50
 
 _ASSETS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets")
-_OUTRO_PATH = os.path.join(_ASSETS_DIR, "outro.png")
-_TEAM_PHOTO_PATH = os.path.join(_ASSETS_DIR, "team-photo.png")
-_TEAM_PHOTO_DURATION = 3.0
+# Single ending image (team photo); outro.png was a near-duplicate with a cut-off phone number
+_OUTRO_PATH = os.path.join(_ASSETS_DIR, "team-photo.png")
 
 _JOBS: dict = {}
 _JOB_TTL = 600  # 10 minutes
@@ -2216,18 +2215,10 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                 audio_path = segment_audio_info[0][0]
                 narr_dur = segment_audio_info[0][1]
 
-            # Team photo clip (3 s, before outro)
-            if os.path.exists(_TEAM_PHOTO_PATH):
-                team_clip = os.path.join(clips_dir, "clip_team.mp4")
-                _make_clip(ffmpeg, ffprobe, _TEAM_PHOTO_PATH, team_clip,
-                           duration=_TEAM_PHOTO_DURATION, zoom_start=1.0, zoom_end=1.0)
-                clip_paths.append(team_clip)
-
             # Outro clip — extend if narration audio overruns the photo clips
             # so the CTA lines play out fully over the tail image.
             _total_photo_dur = sum(PHOTO_DURATION * len(p) for _, _, p, *_ in segment_audio_info)
-            _team_dur = _TEAM_PHOTO_DURATION if os.path.exists(_TEAM_PHOTO_PATH) else 0.0
-            _outro_dur = max(OUTRO_DURATION, narr_dur - _total_photo_dur - _team_dur + 1.0)
+            _outro_dur = max(OUTRO_DURATION, narr_dur - _total_photo_dur + 1.0)
 
             if os.path.exists(_OUTRO_PATH):
                 outro_clip = os.path.join(clips_dir, "clip_outro.mp4")
