@@ -1629,37 +1629,64 @@ def _build_quick_narration(listing_data, lang="zh"):
             return None
 
     parts = []
-    # Community only — no city fallback (city is sometimes the street address)
+    # First sentence: community, then size. Community only — no city fallback
+    # (city is sometimes the street address).
     community = (listing_data.get("neighborhood") or "").strip()
-    if community and not re.match(r"^\d", community):
-        parts.append(f"This home is located in the {community} community." if en
-                     else f"这套房子位于{community}社区。")
-
+    if re.match(r"^\d", community):
+        community = ""
     sqft = str(listing_data.get("sqft") or listing_data.get("above_grade_sqft") or "").strip()
     if sqft:
         sqft = re.sub(r"\s*-\s*", " to " if en else "到", sqft)
-        parts.append(f"It offers {sqft} square feet." if en else f"房屋面积{sqft}平方英尺。")
+    if en:
+        if community and sqft:
+            parts.append(f"This home is located in the {community} community, with {sqft} square feet.")
+        elif community:
+            parts.append(f"This home is located in the {community} community.")
+        elif sqft:
+            parts.append(f"This home offers {sqft} square feet.")
+    else:
+        if community and sqft:
+            parts.append(f"这套房子位于{community}社区，面积{sqft}平方英尺。")
+        elif community:
+            parts.append(f"这套房子位于{community}社区。")
+        elif sqft:
+            parts.append(f"这套房子面积{sqft}平方英尺。")
 
+    # Bedrooms above grade / basement, then total baths
     bed = _num(listing_data.get("bed"))
     above = _num(listing_data.get("beds_above_grade"))
     below = _num(listing_data.get("basement_beds"))
     if above and not below and bed and int(float(bed)) > int(float(above)):
         below = str(int(float(bed)) - int(float(above)))
-    beds_txt = None
-    if above and below and below != "0":
-        beds_txt = f"{above} plus {below} bedrooms" if en else f"{above}加{below}卧室"
-    elif bed or above:
-        beds_txt = f"{bed or above} bedrooms" if en else f"{bed or above}个卧室"
-
+    if below == "0":
+        below = None
     bath = _num(listing_data.get("bath"))
-    bath_txt = (f"{bath} bathrooms" if en else f"{bath}个洗手间") if bath else None
 
-    room_bits = [b for b in (beds_txt, bath_txt) if b]
-    if room_bits:
-        if en:
-            parts.append("It has " + " and ".join(room_bits) + ".")
-        else:
-            parts.append("，".join(room_bits) + "。")
+    if en:
+        bits = []
+        if above:
+            bits.append(f"{above} bedrooms above grade")
+            if below:
+                bits.append(f"{below} bedrooms in the basement")
+        elif bed:
+            bits.append(f"{bed} bedrooms")
+        if bath:
+            bits.append(f"{bath} bathrooms in total")
+        if bits:
+            body = " and ".join(bits) if len(bits) <= 2 else ", ".join(bits[:-1]) + ", and " + bits[-1]
+            parts.append(f"It has {body}.")
+    else:
+        bits = []
+        if above:
+            bits.append(f"地上{above}卧室")
+            if below:
+                bits.append(f"地下{below}卧室")
+        elif bed:
+            bits.append(f"{bed}卧室")
+        if bath:
+            bits.append(f"一共{bath}卫")
+        if bits:
+            parts.append("，".join(bits) + "。")
 
     try:
         price = int(float(listing_data.get("list_price") or 0))
