@@ -222,9 +222,9 @@ export default function Home() {
               扫描微信二维码，或直接拨打电话，我们将在24小时内与您联系。
             </p>
             <div className="hp-contact-links">
-              <a href="tel:9059090101"               className="hp-contact-link">📞 905-909-0101</a>
+              <a href="tel:6475426760"               className="hp-contact-link" translate="no">📞 647-542-6760</a>
               <a href="tel:9059090202"               className="hp-contact-link">📠 905-909-0202 (Fax)</a>
-              <a href="mailto:julie.li.realtor@gmail.com" className="hp-contact-link">✉️ julie.li.realtor@gmail.com</a>
+              <a href="mailto:CanadaHome.realtor@gmail.com" className="hp-contact-link" translate="no">✉️ CanadaHome.realtor@gmail.com</a>
               <span className="hp-contact-link">📍 8300 Woodbine Ave Ste 500, Markham ON L3R9Y7</span>
             </div>
             <Link to={MAP_URL} className="hp-btn hp-btn-gold" style={{ marginTop: "2rem" }}>
