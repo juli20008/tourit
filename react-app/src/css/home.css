@@ -391,6 +391,9 @@
 .hp-team-lang      { font-size: .8rem; color: #64748b; margin: 0 0 .75rem; padding: .25rem .7rem; background: #f1f5f9; border-radius: 999px; display: inline-block; }
 .hp-team-phone     { display: block; font-size: .95rem; font-weight: 700; color: var(--green2); }
 .hp-team-phone:hover { color: var(--gold); }
+.hp-team-wechat { display: block; margin-top: 1rem; text-decoration: none; }
+.hp-team-wechat img { width: 132px; height: 132px; display: block; margin: 0 auto .4rem; border: 1px solid #e2e8f0; border-radius: 8px; }
+.hp-team-wechat span { font-size: .78rem; color: #64748b; }
 
 /* ── CONTACT ─────────────────────────────────────────────────────────────────── */
 .hp-contact { background: linear-gradient(135deg, var(--dark) 0%, var(--green) 100%); }

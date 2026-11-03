@@ -6,6 +6,8 @@ import houseBg    from "../../assets/house-bg.jpeg";
 import skyline    from "../../assets/about/skyline.png";
 import julie      from "../../assets/team/julie.jpg";
 import sara       from "../../assets/team/sara.jpg";
+import julieWechat from "../../assets/team/julie_wechat.png";
+import saraWechat  from "../../assets/team/sara_wechat.png";
 import wechatQr   from "../../assets/wechat_qr.jpg";
 
 const MAP_URL = "/area/neLat=43.885&neLng=-79.285&swLat=43.850&swLng=-79.335&zoom=14";
@@ -207,6 +209,8 @@ export default function Home() {
               brokerage="Bay Street Group Inc., Brokerage"
               phone="647-542-6760"
               lang="普通话 · English"
+              wechatQr={julieWechat}
+              wechatUrl="https://u.wechat.com/kOjsmfi4TK7gT0ysUXBa_sw?s=2"
             />
             <TeamCard
               photo={sara}
@@ -216,6 +220,8 @@ export default function Home() {
               brokerage="Bay Street Group Inc., Brokerage"
               phone="647-824-4898"
               lang="普通话 · English"
+              wechatQr={saraWechat}
+              wechatUrl="https://u.wechat.com/IPNM0pzVn9DDpmt5tCEBdZw"
             />
           </div>
         </div>
@@ -307,7 +313,7 @@ function WhyCard({ icon, title, desc }) {
   );
 }
 
-function TeamCard({ photo, initials, name, role, brokerage, phone, lang }) {
+function TeamCard({ photo, initials, name, role, brokerage, phone, lang, wechatQr, wechatUrl }) {
   return (
     <div className="hp-team-card">
       {photo
@@ -320,6 +326,12 @@ function TeamCard({ photo, initials, name, role, brokerage, phone, lang }) {
       {lang && <p className="hp-team-lang">{lang}</p>}
       {phone && (
         <a href={`tel:${phone.replace(/\D/g,"")}`} className="hp-team-phone">{phone}</a>
+      )}
+      {wechatQr && (
+        <a href={wechatUrl} target="_blank" rel="noopener noreferrer" className="hp-team-wechat">
+          <img src={wechatQr} alt={`${name} 微信二维码`} />
+          <span>微信扫码添加</span>
+        </a>
       )}
     </div>
   );
