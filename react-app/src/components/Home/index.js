@@ -148,6 +148,29 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── Market Insights ──────────────────────────────────────────── */}
+      <section className="hp-section hp-market" id="market">
+        <div className="hp-inner">
+          <SectionHead title="市场观察" sub="大多伦多最新楼市数据与趋势" />
+          <div className="hp-market-grid">
+            <a href="https://claude.ai/artifact/VZCKf79qzXmm8AZLiWXHJx"
+               target="_blank" rel="noopener noreferrer" className="hp-why-card hp-market-card">
+              <div className="hp-why-icon">🏡</div>
+              <h3 className="hp-why-title">独立屋市场</h3>
+              <p className="hp-why-desc">Detached Houses · 价格走势与成交数据</p>
+              <span className="hp-market-more">查看报告 →</span>
+            </a>
+            <a href="https://claude.ai/artifact/AUTXnogN1bo4jD7u7Gbdpz"
+               target="_blank" rel="noopener noreferrer" className="hp-why-card hp-market-card">
+              <div className="hp-why-icon">🏢</div>
+              <h3 className="hp-why-title">公寓市场</h3>
+              <p className="hp-why-desc">Condos · 价格走势与成交数据</p>
+              <span className="hp-market-more">查看报告 →</span>
+            </a>
+          </div>
+        </div>
+      </section>
+
       {/* ── Areas ────────────────────────────────────────────────────── */}
       <section className="hp-section hp-areas">
         <div className="hp-inner">
