@@ -33,7 +33,7 @@ export default function Home() {
           </h1>
 
           <p className="hp-hero-sub">
-            大多伦多专业华人地产经纪团队&nbsp;&nbsp;·&nbsp;&nbsp;普通话&nbsp;·&nbsp;粤语&nbsp;·&nbsp;English
+            大多伦多专业华人地产经纪团队&nbsp;&nbsp;·&nbsp;&nbsp;普通话&nbsp;·&nbsp;English
           </p>
 
           <div className="hp-hero-actions">
@@ -137,7 +137,7 @@ export default function Home() {
           <SectionHead title="为什么选择加家团队" sub="专业实力 · 华语服务 · 本地经验" />
           <div className="hp-why-grid">
             <WhyCard icon="🗣️" title="华语全程服务"
-              desc="普通话、粤语、英语无缝切换。买房、卖房过程中的每一步，都有团队全程中文陪同。" />
+              desc="普通话、英语无缝切换。买房、卖房过程中的每一步，都有团队全程中文陪同。" />
             <WhyCard icon="🏆" title="资深专业团队"
               desc="隶属 Bay Street Group Inc. Brokerage，多位持牌经纪，覆盖大多伦多全区域。" />
             <WhyCard icon="📍" title="深耕大多伦多"
@@ -178,11 +178,11 @@ export default function Home() {
             <TeamCard
               photo={julie}
               initials="JL"
-              name="Julie Li · 李"
+              name="Julie Li"
               role="Sales Representative"
               brokerage="Bay Street Group Inc., Brokerage"
               phone="647-542-6760"
-              lang="普通话 · 粤语 · English"
+              lang="普通话 · English"
             />
             <TeamCard
               photo={sara}
