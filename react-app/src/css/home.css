@@ -371,7 +371,8 @@
   border-radius: 50%;
   object-fit: cover;
   border: 3px solid var(--gold);
-  margin-bottom: 1.2rem;
+  display: block;
+  margin: 0 auto 1.2rem;
 }
 .hp-team-avatar {
   width: 128px; height: 128px;
