@@ -9,6 +9,7 @@ import sara       from "../../assets/team/sara.jpg";
 import wechatQr   from "../../assets/wechat_qr.jpg";
 
 const MAP_URL = "/area/neLat=43.885&neLng=-79.285&swLat=43.850&swLng=-79.335&zoom=14";
+const CALENDLY_URL = "https://calendly.com/julie-li-realtor/";
 
 export default function Home() {
   const searchRef = useRef(null);
@@ -39,7 +40,7 @@ export default function Home() {
           <div className="hp-hero-actions">
             <Link to={MAP_URL} className="hp-btn hp-btn-gold">开始找房</Link>
             <a href="#search" onClick={scrollToSearch} className="hp-btn hp-btn-outline">搜索房源</a>
-            <a href="tel:9059090101" className="hp-btn hp-btn-ghost">📞 立即咨询</a>
+            <a href={CALENDLY_URL} target="_blank" rel="noopener noreferrer" className="hp-btn hp-btn-ghost">📅 立即咨询</a>
           </div>
 
           <div className="hp-hero-stats">
@@ -69,8 +70,8 @@ export default function Home() {
               title="买房置业"
               en="Buy a Home"
               desc="从选区域、看房到过户，全程中文服务，为您在大多伦多找到理想的家。"
-              cta="开始找房"
-              to={MAP_URL}
+              cta="预约咨询"
+              href={CALENDLY_URL}
             />
             <ServiceCard
               icon="🔑"
@@ -78,7 +79,7 @@ export default function Home() {
               en="Sell Your Home"
               desc="精准市场定价、专业摄影、小红书营销推广，帮您快速高价成交。"
               cta="预约评估"
-              href="tel:9059090101"
+              href={CALENDLY_URL}
             />
             <ServiceCard
               icon="📈"
@@ -86,7 +87,7 @@ export default function Home() {
               en="Investment"
               desc="数据驱动决策，深度分析大多伦多各区涨幅潜力，助您实现资产增值。"
               cta="咨询团队"
-              href="tel:9059090101"
+              href={CALENDLY_URL}
             />
           </div>
         </div>
@@ -283,7 +284,13 @@ function ServiceCard({ icon, title, en, desc, cta, to, href }) {
     </div>
   );
   if (to) return <Link to={to} className="hp-service-link">{inner}</Link>;
-  return <a href={href} className="hp-service-link">{inner}</a>;
+  const external = href && href.startsWith("http");
+  return (
+    <a href={href} className="hp-service-link"
+       {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}>
+      {inner}
+    </a>
+  );
 }
 
 function SearchChip({ to, label }) {
