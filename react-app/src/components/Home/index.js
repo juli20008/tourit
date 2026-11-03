@@ -110,6 +110,20 @@ export default function Home() {
               cta="咨询团队"
               href={CALENDLY_URL}
             />
+            <div className="hp-service-card hp-service-market">
+              <div className="hp-service-icon">📊</div>
+              <h3 className="hp-service-title">
+                市场观察
+                <span className="hp-service-en">Market Insights</span>
+              </h3>
+              <p className="hp-service-desc">大多伦多最新楼市数据与趋势，价格走势、成交数据一目了然。</p>
+              <div className="hp-service-market-links">
+                <a href="https://claude.ai/artifact/VZCKf79qzXmm8AZLiWXHJx"
+                   target="_blank" rel="noopener noreferrer" className="hp-service-cta">🏡 独立屋市场 →</a>
+                <a href="https://claude.ai/artifact/AUTXnogN1bo4jD7u7Gbdpz"
+                   target="_blank" rel="noopener noreferrer" className="hp-service-cta">🏢 公寓市场 →</a>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -166,29 +180,6 @@ export default function Home() {
               desc="万锦、列治文山、多伦多、北约克、旺市深度熟悉，为您提供最精准的本地市场建议。" />
             <WhyCard icon="📊" title="数据驱动决策"
               desc="实时市场分析、成交价对比、涨幅热力图，助您做出最明智的地产决策。" />
-          </div>
-        </div>
-      </section>
-
-      {/* ── Market Insights ──────────────────────────────────────────── */}
-      <section className="hp-section hp-market" id="market">
-        <div className="hp-inner">
-          <SectionHead title="市场观察" sub="大多伦多最新楼市数据与趋势" />
-          <div className="hp-market-grid">
-            <a href="https://claude.ai/artifact/VZCKf79qzXmm8AZLiWXHJx"
-               target="_blank" rel="noopener noreferrer" className="hp-why-card hp-market-card">
-              <div className="hp-why-icon">🏡</div>
-              <h3 className="hp-why-title">独立屋市场</h3>
-              <p className="hp-why-desc">Detached Houses · 价格走势与成交数据</p>
-              <span className="hp-market-more">查看报告 →</span>
-            </a>
-            <a href="https://claude.ai/artifact/AUTXnogN1bo4jD7u7Gbdpz"
-               target="_blank" rel="noopener noreferrer" className="hp-why-card hp-market-card">
-              <div className="hp-why-icon">🏢</div>
-              <h3 className="hp-why-title">公寓市场</h3>
-              <p className="hp-why-desc">Condos · 价格走势与成交数据</p>
-              <span className="hp-market-more">查看报告 →</span>
-            </a>
           </div>
         </div>
       </section>
