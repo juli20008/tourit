@@ -1709,6 +1709,25 @@ def _build_quick_narration(listing_data, lang="zh"):
     return text or ("Welcome to this featured listing." if en else "欢迎观看这套精选房源。")
 
 
+def _estimate_speech_secs(text, lang="zh"):
+    """Rough TTS duration at MiniMax speed 1.2: ~4.5 Chinese chars/s, ~3 English words/s."""
+    cjk = len(re.findall(r"[一-鿿]", text))
+    words = len(re.findall(r"[A-Za-z]+(?:'[A-Za-z]+)?", text))
+    digits = sum(len(d) for d in re.findall(r"\d+", text))
+    if lang == "en":
+        return words / 3.0 + digits / 4.0
+    return cjk / 4.5 + words / 3.0 + digits / 4.0
+
+
+def _pick_evenly(items, n):
+    """n items spread evenly across the list, always keeping the first and last."""
+    if n >= len(items):
+        return list(items)
+    if n <= 1:
+        return list(items[:1])
+    return [items[round(i * (len(items) - 1) / (n - 1))] for i in range(n)]
+
+
 def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_bytes=None,
                   cover_bg_bytes=None, cover_photo_index=0, narration_override=None,
                   external_listing=None, photo_count=30,
@@ -1754,8 +1773,9 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                     return
                 raw_images = listing.effective_images or []
 
-            # Quick mode: narration built from listing facts + client remarks,
-            # photos in original order at 3 s each, trimmed to voiceover length.
+            # Quick mode: narration built from listing facts + client remarks.
+            # Photo count is decided up front from the estimated voiceover length
+            # (3 s per photo, max 30 ≈ 90 s), photos picked evenly across the listing.
             quick_mode = False
             quick_lang = "zh"
             if narration_override:
@@ -1767,12 +1787,26 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                         quick_lang = "en"
                 except Exception:
                     pass
+            quick_narration = None
+            quick_keep_all = False
             if quick_mode:
                 narration_override = None
-                # ~90 s video → at most 30 photos; skip every Nth (50 photos → every other → 25)
+                _src = external_listing if external_listing else listing
+                _g = (lambda k: _src.get(k)) if external_listing else (lambda k: getattr(_src, k, None))
+                quick_narration = _build_quick_narration(
+                    {k: _g(k) for k in ("neighborhood", "sqft", "above_grade_sqft", "bed",
+                                        "beds_above_grade", "basement_beds", "bath",
+                                        "list_price", "description")},
+                    lang=quick_lang,
+                )
                 import math as _qmath
-                _step = max(1, _qmath.ceil(len(raw_images) / 30))
-                raw_images = raw_images[::_step]
+                _est = _estimate_speech_secs(quick_narration, quick_lang)
+                _need = max(1, _qmath.ceil((_est + 0.8) / PHOTO_DURATION))
+                # Fewer than 25 photos: use them all regardless of voiceover length
+                quick_keep_all = len(raw_images) < 25
+                if not quick_keep_all:
+                    raw_images = _pick_evenly(raw_images, min(_need, 30))
+                print(f"[XHS quick] est {_est:.1f}s → need {_need} photos, using {len(raw_images)}")
                 photo_count = len(raw_images) or photo_count
 
             all_images_raw = raw_images
@@ -1966,8 +2000,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
             if quick_mode and downloaded:
                 _job_set(job_id, {"status": "processing", "step": "Generating voiceover..."})
                 from app.services.elevenlabs_service import generate_speech
-                narration = _build_quick_narration(listing_data, lang=quick_lang)
-                audio_bytes = generate_speech(narration, fish_voice_id=minimax_voice_id, lang=quick_lang)
+                audio_bytes = generate_speech(quick_narration, fish_voice_id=minimax_voice_id, lang=quick_lang)
                 audio_path = os.path.join(tmpdir, "narration.mp3")
                 with open(audio_path, "wb") as f:
                     f.write(audio_bytes)
@@ -1979,18 +2012,19 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                     ).stdout.strip())
                 except Exception:
                     narr_dur = PHOTO_DURATION * len(downloaded)
-                # +0.8 s lead silence added at mix time; drop photos beyond the voiceover.
-                # Fewer than 25 photos: keep them all even if the voiceover ends first.
+                # Correct the estimate with the real duration (+0.8 s lead silence at mix time):
+                # if fewer photos are needed, drop extras evenly so the whole house stays covered.
+                # If more are needed, the last photo holds until the voice ends.
                 import math as _math
                 n_keep = max(1, _math.ceil((narr_dur + 0.8) / PHOTO_DURATION))
-                if len(downloaded) < 25:
-                    n_keep = len(downloaded)
-                for _extra in downloaded[n_keep:]:
-                    try:
-                        os.remove(_extra)
-                    except OSError:
-                        pass
-                downloaded = downloaded[:n_keep]
+                if not quick_keep_all and n_keep < len(downloaded):
+                    _kept = _pick_evenly(downloaded, n_keep)
+                    for _extra in set(downloaded) - set(_kept):
+                        try:
+                            os.remove(_extra)
+                        except OSError:
+                            pass
+                    downloaded = _kept
                 segment_audio_info = [(audio_path, narr_dur, downloaded, True)]
                 use_segments = True
 
