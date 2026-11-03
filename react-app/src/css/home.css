@@ -84,6 +84,13 @@
   align-items: center;
 }
 
+/* Brokerage brand row (Bay Street Group logo + TRREB) */
+.hp-hero-brand { display: inline-flex; align-items: center; gap: 1rem; margin-bottom: 1.8rem; }
+.hp-hero-bay   { height: 78px; width: auto; display: block; }
+.hp-hero-brand-div  { width: 1px; height: 52px; background: rgba(223,186,115,.45); }
+.hp-hero-brand-note { font-size: .7rem; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); line-height: 1.5; text-align: left; }
+.hp-contact-bay { height: 72px; width: auto; display: block; margin-bottom: 1.6rem; }
+
 /* Left column: brand + actions, left-aligned on desktop */
 .hp-hero-main { text-align: left; }
 .hp-hero-main .hp-hero-title   { align-items: flex-start; }
@@ -132,7 +139,7 @@
 
 @media (max-width: 960px) {
   .hp-hero-body { grid-template-columns: minmax(0, 1fr); gap: 2.5rem; padding: 5rem 1.25rem 4rem; }
-  .hp-hero-badge { white-space: normal; line-height: 1.5; }
+  .hp-hero-bay   { height: 52px; }
   .hp-hero-main { text-align: center; }
   .hp-hero-main .hp-hero-title   { align-items: center; }
   .hp-hero-main .hp-hero-actions { justify-content: center; }
@@ -510,6 +517,7 @@
   .hp-contact-text .hp-section-title,
   .hp-contact-text .hp-section-sub { text-align: center; }
   .hp-contact-links  { align-items: center; }
+  .hp-contact-bay    { margin-left: auto; margin-right: auto; }
   .hp-contact-qr     { display: flex; flex-direction: column; align-items: center; }
 }
 

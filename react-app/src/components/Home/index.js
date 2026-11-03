@@ -9,6 +9,7 @@ import sara       from "../../assets/team/sara.jpg";
 import julieWechat from "../../assets/team/julie_wechat.png";
 import saraWechat  from "../../assets/team/sara_wechat.png";
 import wechatQr   from "../../assets/wechat_qr.jpg";
+import bayLogo    from "../../assets/bay-logo-gold.png";
 
 const MAP_URL = "/area/neLat=43.885&neLng=-79.285&swLat=43.850&swLng=-79.335&zoom=14";
 const CALENDLY_URL = "https://calendly.com/julie-li-realtor/";
@@ -29,7 +30,11 @@ export default function Home() {
         <div className="hp-hero-overlay" />
         <div className="hp-hero-body">
           <div className="hp-hero-main">
-          <div className="hp-hero-badge">Bay Street Group Inc., Brokerage · TRREB Member</div>
+          <div className="hp-hero-brand" translate="no">
+            <img src={bayLogo} alt="Bay Street Group Inc., Brokerage" className="hp-hero-bay" />
+            <span className="hp-hero-brand-div" />
+            <span className="hp-hero-brand-note">TRREB<br />Member</span>
+          </div>
 
           <h1 className="hp-hero-title">
             <span className="hp-hero-cn">加家团队</span>
@@ -199,7 +204,7 @@ export default function Home() {
             ].map((a) => (
               <Link key={a.name} to={MAP_URL} className="hp-area-card">
                 <span className="hp-area-tag">{a.tag}</span>
-                <span className="hp-area-name">{a.name}</span>
+                <span className="hp-area-name" translate="no">{a.name}</span>
               </Link>
             ))}
           </div>
@@ -210,6 +215,7 @@ export default function Home() {
       <section className="hp-section hp-contact">
         <div className="hp-inner hp-contact-inner">
           <div className="hp-contact-text">
+            <img src={bayLogo} alt="Bay Street Group Inc., Brokerage" className="hp-contact-bay" />
             <div className="hp-label hp-label-gold">微信 · 电话 · 邮件</div>
             <h2 className="hp-section-title hp-white">随时开始您的找房之旅</h2>
             <p className="hp-section-sub hp-white-sub">

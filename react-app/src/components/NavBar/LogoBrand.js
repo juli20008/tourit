@@ -51,7 +51,7 @@ const LogoBrand = ({ agentName, agentPhoto }) => {
 			<div className="flex items-center gap-1">
 				<span style={{ ...brandStyle, ...goldStyle, fontWeight: 700 }} className={spanCls}>加家团队</span>
 				<span style={{ ...brandStyle, ...whiteStyle, fontWeight: 300, fontSize: '14px', margin: '0 2px' }}>·</span>
-				<span style={{ ...brandStyle, ...whiteStyle, fontWeight: 400, fontSize: '14px' }}>Canada Home</span>
+				<span style={{ ...brandStyle, ...whiteStyle, fontWeight: 400, fontSize: '14px' }} translate="no">Canada Home</span>
 			</div>
 			{lang === 'zh'
 				? <span className="nav-slogan notranslate" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '11px' }}>万锦 · 列治文山</span>

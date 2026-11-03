@@ -265,7 +265,7 @@ const Splash = () => {
 						alt="加家团队 Canada Home Team"
 					/>
 					<div className="splash-hero-head" style={{ position: 'relative', zIndex: 2 }}>
-						<p className="splash-kicker">加家团队 · Canada Home Team</p>
+						<p className="splash-kicker" translate="no">加家团队 · Canada Home Team</p>
 						<h1 className="splash-search-title">
 							万锦 · 列治文山<br />
 							<span style={{ fontWeight: 400, fontSize: '0.72em', opacity: 0.9 }}>Markham &amp; Richmond Hill Specialists</span>

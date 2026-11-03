@@ -195,7 +195,7 @@ function App() {
 				</Route>
 			</Switch>
 			<footer className="app-footer">
-				<span>&copy; 2026 加家团队 · Canada Home Team &nbsp;&middot;&nbsp; Bay Street Group Inc. Brokerage</span>
+				<span translate="no">&copy; 2026 加家团队 · Canada Home Team &nbsp;&middot;&nbsp; Bay Street Group Inc. Brokerage</span>
 				<Link to="/agent-login" className="app-footer-agent-link">Agent Login</Link>
 			</footer>
 			<ChatBubble />

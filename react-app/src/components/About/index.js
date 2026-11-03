@@ -42,7 +42,7 @@ const About = () => {
 					<h1 className="about-hero-title">
 						<span className="about-hero-zh">加家团队</span>
 						<span className="about-hero-divider">·</span>
-						<span className="about-hero-en">Canada Home Team</span>
+						<span className="about-hero-en" translate="no">Canada Home Team</span>
 					</h1>
 					<p className="about-hero-sub">
 						专注万锦 &amp; 列治文山的专业华人地产团队<br />
@@ -71,7 +71,7 @@ const About = () => {
 					<h2 className="about-section-title">我们是谁</h2>
 					<div className="about-mission-body">
 						<p>
-							加家团队（Canada Home Team）是一支深耕大多伦多地区的专业华人地产团队，
+							加家团队（<span translate="no">Canada Home Team</span>）是一支深耕大多伦多地区的专业华人地产团队，
 							由 Julie Li 和 Sara Tian 联合创立，隶属于
 							<strong> Bay Street Group Inc. Brokerage</strong>。
 							我们专注万锦市（Markham）与列治文山市（Richmond Hill），
@@ -145,7 +145,7 @@ const About = () => {
 				<div className="about-brokerage-info">
 					<strong>Bay Street Group Inc. Brokerage</strong>
 					<span>8300 Woodbine Ave, Suite 500, Markham ON L3R 9Y7</span>
-					<span>加家团队 · Canada Home Team</span>
+					<span translate="no">加家团队 · Canada Home Team</span>
 				</div>
 			</section>
 

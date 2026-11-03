@@ -8,7 +8,7 @@ const Footer = () => {
 				<div className="footer-brand-name">
 					<span className="footer-brand-zh">加家团队</span>
 					<span className="footer-brand-dot">·</span>
-					<span className="footer-brand-en">Canada Home Team</span>
+					<span className="footer-brand-en" translate="no">Canada Home Team</span>
 				</div>
 				<div className="footer-brand-sub">Markham &amp; Richmond Hill Specialists</div>
 			</NavLink>
