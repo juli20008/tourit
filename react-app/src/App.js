@@ -105,7 +105,7 @@ const AgentWhitelabelRedirect = () => {
 const WhitelabelTitle = () => {
 	const agent = useSelector((state) => state.whitelabel?.agent);
 	useEffect(() => {
-		document.title = "加家团队 | tourit.ca";
+		document.title = "加家团队";
 	}, [agent]);
 	return null;
 };
