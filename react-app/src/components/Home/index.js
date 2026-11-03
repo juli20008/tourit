@@ -6,7 +6,6 @@ import houseBg    from "../../assets/house-bg.jpeg";
 import skyline    from "../../assets/about/skyline.png";
 import frances    from "../../assets/frances/Frances_500_500.png";
 import wechatQr   from "../../assets/wechat_qr.jpg";
-import logoWhite  from "../../assets/logo-white.svg";
 
 const MAP_URL = "/area/neLat=43.885&neLng=-79.285&swLat=43.850&swLng=-79.335&zoom=14";
 
@@ -25,8 +24,6 @@ export default function Home() {
       <section className="hp-hero" style={{ backgroundImage: `url(${houseBg})` }}>
         <div className="hp-hero-overlay" />
         <div className="hp-hero-body">
-          <img src={logoWhite} alt="加家团队" className="hp-hero-logo" />
-
           <div className="hp-hero-badge">Bay Street Group Inc., Brokerage · TRREB Member</div>
 
           <h1 className="hp-hero-title">
