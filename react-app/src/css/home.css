@@ -74,11 +74,77 @@
 .hp-hero-body {
   position: relative;
   z-index: 2;
-  text-align: center;
   color: #fff;
-  padding: 2rem 1.5rem;
-  max-width: 860px;
+  padding: 6rem 2rem 5rem;
+  max-width: 1240px;
   width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 3.5rem;
+  align-items: center;
+}
+
+/* Left column: brand + actions, left-aligned on desktop */
+.hp-hero-main { text-align: left; }
+.hp-hero-main .hp-hero-title   { align-items: flex-start; }
+.hp-hero-main .hp-hero-actions { justify-content: flex-start; }
+.hp-hero-main .hp-hero-stats   { justify-content: flex-start; display: inline-flex; flex-wrap: nowrap; gap: 1.6rem; padding: 1.3rem 2rem; }
+
+/* Right column: the two agents, glass cards matching the stats bar */
+.hp-hero-agents {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1.2rem;
+}
+.hp-agent {
+  text-align: center;
+  background: rgba(255,255,255,.07);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(223,186,115,.28);
+  border-radius: 18px;
+  padding: 1.8rem 1.2rem 1.4rem;
+  transition: transform .2s, border-color .2s;
+}
+.hp-agent:hover { transform: translateY(-4px); border-color: rgba(223,186,115,.6); }
+.hp-agent-photo {
+  width: 120px; height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--gold);
+  display: block;
+  margin: 0 auto 1rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,.35);
+}
+.hp-agent-name  { font-size: 1.25rem; font-weight: 800; color: #fff; margin: 0 0 .2rem; }
+.hp-agent-role  { font-size: .72rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--gold); margin: 0 0 .8rem; }
+.hp-agent-phone { display: block; font-size: .95rem; font-weight: 700; color: rgba(255,255,255,.92); margin-bottom: 1rem; }
+.hp-agent-phone:hover { color: var(--gold); }
+.hp-agent-wechat { display: block; text-decoration: none; }
+.hp-agent-wechat img {
+  width: 104px; height: 104px;
+  display: block;
+  margin: 0 auto .4rem;
+  background: #fff;
+  border-radius: 10px;
+  padding: 4px;
+}
+.hp-agent-wechat span { font-size: .72rem; color: rgba(255,255,255,.6); }
+
+@media (max-width: 960px) {
+  .hp-hero-body { grid-template-columns: minmax(0, 1fr); gap: 2.5rem; padding: 5rem 1.25rem 4rem; }
+  .hp-hero-badge { white-space: normal; line-height: 1.5; }
+  .hp-hero-main { text-align: center; }
+  .hp-hero-main .hp-hero-title   { align-items: center; }
+  .hp-hero-main .hp-hero-actions { justify-content: center; }
+  .hp-hero-main .hp-hero-stats   { justify-content: center; display: flex; flex-wrap: wrap; }
+  .hp-hero-main .hp-stat-div     { display: none; }
+  .hp-hero-agents { max-width: 520px; margin: 0 auto; width: 100%; }
+}
+@media (max-width: 420px) {
+  .hp-hero-agents { gap: .7rem; }
+  .hp-agent { padding: 1.3rem .7rem 1rem; }
+  .hp-agent-photo { width: 92px; height: 92px; }
+  .hp-agent-wechat img { width: 92px; height: 92px; }
 }
 
 .hp-hero-logo {

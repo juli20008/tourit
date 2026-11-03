@@ -28,11 +28,12 @@ export default function Home() {
       <section className="hp-hero" style={{ backgroundImage: `url(${houseBg})` }}>
         <div className="hp-hero-overlay" />
         <div className="hp-hero-body">
+          <div className="hp-hero-main">
           <div className="hp-hero-badge">Bay Street Group Inc., Brokerage · TRREB Member</div>
 
           <h1 className="hp-hero-title">
             <span className="hp-hero-cn">加家团队</span>
-            <span className="hp-hero-en">Canada Home Team</span>
+            <span className="hp-hero-en" translate="no">Canada Home Team</span>
           </h1>
 
           <p className="hp-hero-sub">
@@ -53,6 +54,24 @@ export default function Home() {
             <Stat num="GTA" label="全区域覆盖" />
             <div className="hp-stat-div" />
             <Stat num="24/7" label="华语服务" />
+          </div>
+          </div>
+
+          <div className="hp-hero-agents">
+            <HeroAgent
+              photo={julie}
+              name="Julie Li"
+              phone="647-542-6760"
+              wechatQr={julieWechat}
+              wechatUrl="https://u.wechat.com/kOjsmfi4TK7gT0ysUXBa_sw?s=2"
+            />
+            <HeroAgent
+              photo={sara}
+              name="Sara Tian"
+              phone="647-824-4898"
+              wechatQr={saraWechat}
+              wechatUrl="https://u.wechat.com/IPNM0pzVn9DDpmt5tCEBdZw"
+            />
           </div>
         </div>
 
@@ -196,37 +215,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Team ─────────────────────────────────────────────────────── */}
-      <section className="hp-section hp-team">
-        <div className="hp-inner">
-          <SectionHead title="认识我们的团队" sub="专业、热忱、以客户利益为先" />
-          <div className="hp-team-row">
-            <TeamCard
-              photo={julie}
-              initials="JL"
-              name="Julie Li"
-              role="Sales Representative"
-              brokerage="Bay Street Group Inc., Brokerage"
-              phone="647-542-6760"
-              lang="普通话 · English"
-              wechatQr={julieWechat}
-              wechatUrl="https://u.wechat.com/kOjsmfi4TK7gT0ysUXBa_sw?s=2"
-            />
-            <TeamCard
-              photo={sara}
-              initials="ST"
-              name="Sara Tian"
-              role="Sales Representative"
-              brokerage="Bay Street Group Inc., Brokerage"
-              phone="647-824-4898"
-              lang="普通话 · English"
-              wechatQr={saraWechat}
-              wechatUrl="https://u.wechat.com/IPNM0pzVn9DDpmt5tCEBdZw"
-            />
-          </div>
-        </div>
-      </section>
-
       {/* ── Contact / WeChat ─────────────────────────────────────────── */}
       <section className="hp-section hp-contact">
         <div className="hp-inner hp-contact-inner">
@@ -262,7 +250,7 @@ export default function Home() {
 function Stat({ num, label }) {
   return (
     <div className="hp-stat">
-      <span className="hp-stat-num">{num}</span>
+      <span className="hp-stat-num" translate="no">{num}</span>
       <span className="hp-stat-label">{label}</span>
     </div>
   );
@@ -313,26 +301,17 @@ function WhyCard({ icon, title, desc }) {
   );
 }
 
-function TeamCard({ photo, initials, name, role, brokerage, phone, lang, wechatQr, wechatUrl }) {
+function HeroAgent({ photo, name, phone, wechatQr, wechatUrl }) {
   return (
-    <div className="hp-team-card">
-      {photo
-        ? <img src={photo} alt={name} className="hp-team-photo" />
-        : <div className="hp-team-avatar">{initials}</div>
-      }
-      <h3 className="hp-team-name">{name}</h3>
-      <p className="hp-team-role">{role}</p>
-      <p className="hp-team-brokerage">{brokerage}</p>
-      {lang && <p className="hp-team-lang">{lang}</p>}
-      {phone && (
-        <a href={`tel:${phone.replace(/\D/g,"")}`} className="hp-team-phone">{phone}</a>
-      )}
-      {wechatQr && (
-        <a href={wechatUrl} target="_blank" rel="noopener noreferrer" className="hp-team-wechat">
-          <img src={wechatQr} alt={`${name} 微信二维码`} />
-          <span>微信扫码添加</span>
-        </a>
-      )}
+    <div className="hp-agent">
+      <img src={photo} alt={name} className="hp-agent-photo" />
+      <h3 className="hp-agent-name" translate="no">{name}</h3>
+      <p className="hp-agent-role">Sales Representative</p>
+      <a href={`tel:${phone.replace(/\D/g, "")}`} className="hp-agent-phone" translate="no">📞 {phone}</a>
+      <a href={wechatUrl} target="_blank" rel="noopener noreferrer" className="hp-agent-wechat">
+        <img src={wechatQr} alt={`${name} 微信二维码`} />
+        <span>微信扫码添加</span>
+      </a>
     </div>
   );
 }
