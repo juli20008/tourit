@@ -1775,7 +1775,8 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
 
             # Quick mode: narration built from listing facts + client remarks.
             # Photo count is decided up front from the estimated voiceover length
-            # (3 s per photo, max 30 ≈ 90 s), photos picked evenly across the listing.
+            # (3 s per photo), photos picked evenly across the listing. A 25% margin
+            # is downloaded; the real voiceover length trims it after TTS.
             quick_mode = False
             quick_lang = "zh"
             if narration_override:
@@ -1805,7 +1806,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                 # Fewer than 25 photos: use them all regardless of voiceover length
                 quick_keep_all = len(raw_images) < 25
                 if not quick_keep_all:
-                    raw_images = _pick_evenly(raw_images, min(_need, 30))
+                    raw_images = _pick_evenly(raw_images, _qmath.ceil(_need * 1.25))
                 print(f"[XHS quick] est {_est:.1f}s → need {_need} photos, using {len(raw_images)}")
                 photo_count = len(raw_images) or photo_count
 
@@ -2251,7 +2252,9 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
 
             # Outro clip — extend if narration audio overruns the photo clips
             # so the CTA lines play out fully over the tail image.
-            _total_photo_dur = sum(PHOTO_DURATION * len(p) for _, _, p, *_ in segment_audio_info)
+            # Use actual clip lengths — the last clip of each segment is already
+            # stretched to its audio, so counting 3 s/photo double-extends the outro.
+            _total_photo_dur = sum(t[2] for t in _clip_tasks)
             _outro_dur = max(OUTRO_DURATION, narr_dur - _total_photo_dur + 1.0)
 
             if os.path.exists(_OUTRO_PATH):
