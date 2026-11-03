@@ -24,7 +24,7 @@ const agents = [
 
 const stats = [
 	{ num: '10+', label_zh: '年专业经验', label_en: 'Years Experience' },
-	{ num: '500+', label_zh: '成功成交', label_en: 'Homes Sold' },
+	{ num: '100+', label_zh: '成功成交', label_en: 'Homes Sold' },
 	{ num: '2', label_zh: '专注城市', label_en: 'Core Markets' },
 	{ num: '双语', label_zh: '中英文服务', label_en: 'Bilingual Service' },
 ];

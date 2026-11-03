@@ -47,7 +47,7 @@ export default function Home() {
           </div>
 
           <div className="hp-hero-stats">
-            <Stat num="500+" label="成交记录" />
+            <Stat num="100+" label="成交记录" />
             <div className="hp-stat-div" />
             <Stat num="10+" label="年从业经验" />
             <div className="hp-stat-div" />
