@@ -4,7 +4,8 @@ import "../../css/home.css";
 
 import houseBg    from "../../assets/house-bg.jpeg";
 import skyline    from "../../assets/about/skyline.png";
-import frances    from "../../assets/frances/Frances_500_500.png";
+import julie      from "../../assets/team/julie.jpg";
+import sara       from "../../assets/team/sara.jpg";
 import wechatQr   from "../../assets/wechat_qr.jpg";
 
 const MAP_URL = "/area/neLat=43.885&neLng=-79.285&swLat=43.850&swLng=-79.335&zoom=14";
@@ -175,21 +176,21 @@ export default function Home() {
           <SectionHead title="认识我们的团队" sub="专业、热忱、以客户利益为先" />
           <div className="hp-team-row">
             <TeamCard
-              photo={null}
+              photo={julie}
               initials="JL"
               name="Julie Li · 李"
-              role="Broker of Record"
+              role="Sales Representative"
               brokerage="Bay Street Group Inc., Brokerage"
-              phone="905-909-0101"
+              phone="647-542-6760"
               lang="普通话 · 粤语 · English"
             />
             <TeamCard
-              photo={frances}
-              initials="F"
-              name="Frances"
-              role="Salesperson"
+              photo={sara}
+              initials="ST"
+              name="Sara Tian"
+              role="Sales Representative"
               brokerage="Bay Street Group Inc., Brokerage"
-              phone=""
+              phone="647-824-4898"
               lang="普通话 · English"
             />
           </div>
