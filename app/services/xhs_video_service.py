@@ -1584,6 +1584,30 @@ def get_job(job_id):
 
 # ── Main pipeline (runs in background thread) ──────────────────────────────────
 
+_STREET_SUFFIX = (r"(?:Drive|Dr|Street|St|Road|Rd|Avenue|Ave|Trail|Trl|Tr|Crescent|Cres|Court|Crt|Ct|"
+                  r"Boulevard|Blvd|Lane|Ln|Way|Place|Pl|Circle|Cir|Terrace|Terr|Gate|Grove|Gardens|Gdns|"
+                  r"Heights|Hts|Parkway|Pkwy|Square|Sq|Path|Row|Hollow|Mews|Common|Close|Sideroad)")
+_ADDRESS_RE = re.compile(
+    r"(?:(?:Unit|Suite|Apt|#)\s*\w+\s*[-,]?\s*)?"           # optional unit prefix
+    r"\b\d{1,6}[A-Za-z]?\s*(?:-\s*\d{1,6}\s*)?"              # house number (or unit-number)
+    r"(?:[A-Z][\w'.]*\s+){1,4}" + _STREET_SUFFIX + r"\b\.?"   # street name + suffix
+    r"(?:\s+(?:North|South|East|West|N|S|E|W)\b)?"
+)
+
+
+def _strip_address(remarks, street=None):
+    """Remove the street address from listing remarks so it is never read aloud."""
+    text = re.sub(r"^\s*Client\s+Remarks\s*[:\-]?\s*", "", remarks or "", flags=re.I)
+    if street:
+        street = street.strip()
+        # exact street string (e.g. "236 Austin Dr"), allowing the suffix to be spelled out
+        num_name = re.sub(r"\s+\S+$", "", street) if len(street.split()) > 2 else street
+        text = re.sub(re.escape(num_name) + r"(?:\s+[A-Za-z]+\.?)?", "this home", text, flags=re.I)
+    text = _ADDRESS_RE.sub("this home", text)
+    text = re.sub(r"\bthis home(?:,?\s+this home)+", "this home", text, flags=re.I)
+    return re.sub(r"\s{2,}", " ", text).strip()
+
+
 def _translate_remarks_zh(remarks):
     """Translate listing client remarks into natural spoken Chinese; returns original on failure."""
     api_key = os.environ.get("DEEPSEEK_API_KEY", "")
@@ -1598,8 +1622,9 @@ def _translate_remarks_zh(remarks):
                 "max_tokens": 2000,
                 "messages": [{"role": "user", "content":
                     "把下面的房源介绍翻译成自然流畅的中文口语，用于看房视频配音。"
-                    "忠实原意，不要添加或删减内容，不要加标题或解释，只输出译文。"
-                    "街道名、社区名、学校名等专有名词保留英文。\n\n" + remarks
+                    "忠实原意，不要添加内容，不要加标题或解释，只输出译文。"
+                    "绝对不要出现任何街道地址或门牌号（例如 236 Austin Drive），提到地址的地方改说「这套房子」。"
+                    "社区名、学校名等专有名词保留英文。\n\n" + remarks
                 }],
             },
             timeout=60,
@@ -1698,7 +1723,8 @@ def _build_quick_narration(listing_data, lang="zh"):
             wan = f"{price / 10000:.2f}".rstrip("0").rstrip(".")
             parts.append(f"售价{wan}万加元。")
 
-    remarks = (listing_data.get("description") or "").strip()
+    remarks = _strip_address(listing_data.get("description") or "",
+                             listing_data.get("street") or listing_data.get("street_name"))
     if remarks:
         if en:
             parts.append(remarks)
@@ -1797,7 +1823,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                 quick_narration = _build_quick_narration(
                     {k: _g(k) for k in ("neighborhood", "sqft", "above_grade_sqft", "bed",
                                         "beds_above_grade", "basement_beds", "bath",
-                                        "list_price", "description")},
+                                        "list_price", "description", "street", "street_name")},
                     lang=quick_lang,
                 )
                 import math as _qmath
