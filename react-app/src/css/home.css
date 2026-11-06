@@ -255,13 +255,21 @@
 /* ── SERVICES ────────────────────────────────────────────────────────────────── */
 .hp-services { background: #f7f7f4; }
 
+/* 3 per row, last row centred (5 cards → 3 + 2) */
 .hp-services-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 1.5rem;
 }
+.hp-services-grid > * { flex: 0 1 calc((100% - 3rem) / 3); }
+.hp-services-grid > .hp-service-link { display: flex; }   /* equal-height cards */
+.hp-service-link > .hp-service-card { flex: 1; }
 @media (max-width: 1100px) and (min-width: 901px) {
-  .hp-services-grid { grid-template-columns: repeat(2, 1fr); }
+  .hp-services-grid > * { flex-basis: calc((100% - 1.5rem) / 2); }
+}
+@media (max-width: 900px) {
+  .hp-services-grid > * { flex-basis: 100%; }
 }
 
 .hp-service-link { display: block; text-decoration: none; }

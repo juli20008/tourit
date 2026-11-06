@@ -85,7 +85,7 @@ export default function Home() {
       {/* ── Services ─────────────────────────────────────────────────── */}
       <section className="hp-section hp-services">
         <div className="hp-inner">
-          <SectionHead title="我们的服务" sub="专业、贴心、全程中文陪同" />
+          <SectionHead title="我们的服务" sub="专业、贴心、全程中文服务" />
           <div className="hp-services-grid">
             <ServiceCard
               icon="🏠"
@@ -104,6 +104,14 @@ export default function Home() {
               href={CALENDLY_URL}
             />
             <ServiceCard
+              icon="🏘️"
+              title="出租物业 · 租房管理"
+              en="Leasing & Property Management"
+              desc="帮您出租房产、筛选优质租客，签约、收租、维修一站式管理，省心又安心。"
+              cta="咨询出租"
+              href={CALENDLY_URL}
+            />
+            <ServiceCard
               icon="📈"
               title="投资规划"
               en="Investment"
@@ -115,7 +123,7 @@ export default function Home() {
               <div className="hp-service-icon">📊</div>
               <h3 className="hp-service-title">
                 市场观察
-                <span className="hp-service-en">Market Insights</span>
+                <span className="hp-service-en" translate="no">Market Insights</span>
               </h3>
               <p className="hp-service-desc">大多伦多最新楼市数据与趋势，价格走势、成交数据一目了然。</p>
               <div className="hp-service-market-links">
@@ -264,7 +272,7 @@ function ServiceCard({ icon, title, en, desc, cta, to, href }) {
       <div className="hp-service-icon">{icon}</div>
       <h3 className="hp-service-title">
         {title}
-        <span className="hp-service-en">{en}</span>
+        <span className="hp-service-en" translate="no">{en}</span>
       </h3>
       <p className="hp-service-desc">{desc}</p>
       <span className="hp-service-cta">{cta} →</span>
