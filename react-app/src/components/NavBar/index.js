@@ -97,13 +97,9 @@ const NavBar = () => {
 									{whitelabelAgent.office}
 								</span>
 							</div>
-						) : (
-							<NavLink to="/agents" className="btn-font-lt nav-desktop-only">
-								Agent Finder
-							</NavLink>
-						)}
-						{/* Mobile hamburger */}
-						<button
+						) : null}
+						{/* Mobile hamburger — only the white-label view has menu items */}
+						{whitelabelAgent && <button
 							className="nav-hamburger"
 							onClick={() => setShowMobileMenu((v) => !v)}
 							aria-label="Menu"
@@ -120,7 +116,7 @@ const NavBar = () => {
 									<line x1="2" y1="13" x2="16" y2="13" />
 								</svg>
 							)}
-						</button>
+						</button>}
 					</div>
 					<NavLink to="/" exact={true} onClick={() => setShowMobileMenu(false)}>
 						<LogoBrand agentName={whitelabelAgent?.username || null} agentPhoto={whitelabelAgent?.photo || null} />
@@ -173,16 +169,7 @@ const NavBar = () => {
 								<div className="nav-mobile-item flex items-center">
 									<span className="text-white">{whitelabelAgent.office}</span>
 								</div>
-							) : (
-								<NavLink
-									to="/agents"
-									className="nav-mobile-item"
-									onClick={() => setShowMobileMenu(false)}
-								>
-									<i className="fa-solid fa-magnifying-glass mr-3 text-[#94a3b8]" />
-									Agent Finder
-								</NavLink>
-							)}
+							) : null}
 						</div>
 					</>
 				)}

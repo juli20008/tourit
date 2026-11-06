@@ -63,11 +63,7 @@ const UserBar = () => {
 							{whitelabelAgent.username}{whitelabelAgent.office ? `, ${whitelabelAgent.office}` : ''}
 						</span>
 						</div>
-					) : (
-						<NavLink to="/agents" className="btn-font-lt nav-desktop-only">
-							Agent Finder
-						</NavLink>
-					)}
+					) : null}
 					<button
 						type="button"
 						className="nav-hamburger"
