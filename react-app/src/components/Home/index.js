@@ -13,14 +13,10 @@ import bayLogo    from "../../assets/bay-logo-gold.png";
 
 const MAP_URL = "/area/neLat=43.885&neLng=-79.285&swLat=43.850&swLng=-79.335&zoom=14";
 const CALENDLY_URL = "https://calendly.com/julie-li-realtor/";
+const DETACHED_REPORT_URL = "https://claude.ai/artifact/VZCKf79qzXmm8AZLiWXHJx";
 
 export default function Home() {
   const searchRef = useRef(null);
-
-  const scrollToSearch = (e) => {
-    e.preventDefault();
-    searchRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
 
   return (
     <div className="hp">
@@ -47,7 +43,7 @@ export default function Home() {
 
           <div className="hp-hero-actions">
             <Link to={MAP_URL} className="hp-btn hp-btn-gold">开始找房</Link>
-            <a href="#search" onClick={scrollToSearch} className="hp-btn hp-btn-outline">搜索房源</a>
+            <a href={DETACHED_REPORT_URL} target="_blank" rel="noopener noreferrer" className="hp-btn hp-btn-outline">市场报告</a>
             <a href={CALENDLY_URL} target="_blank" rel="noopener noreferrer" className="hp-btn hp-btn-ghost">📅 立即咨询</a>
           </div>
 
@@ -123,7 +119,7 @@ export default function Home() {
               </h3>
               <p className="hp-service-desc">大多伦多最新楼市数据与趋势，价格走势、成交数据一目了然。</p>
               <div className="hp-service-market-links">
-                <a href="https://claude.ai/artifact/VZCKf79qzXmm8AZLiWXHJx"
+                <a href={DETACHED_REPORT_URL}
                    target="_blank" rel="noopener noreferrer" className="hp-service-cta">🏡 独立屋市场 →</a>
                 <a href="https://claude.ai/artifact/AUTXnogN1bo4jD7u7Gbdpz"
                    target="_blank" rel="noopener noreferrer" className="hp-service-cta">🏢 公寓市场 →</a>
