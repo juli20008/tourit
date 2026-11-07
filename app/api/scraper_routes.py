@@ -385,3 +385,74 @@ def recent_listings():
             "basement_beds":    r.basement_beds,
         })
     return jsonify({"listings": result})
+
+
+# ── Daily status check (driven by the Realm Chrome extension) ─────────────────
+# The extension opens each active listing in the agent's logged-in Realm
+# session, reads the TRREB status code, and reports back here. Only codes that
+# clearly mean "off market" change anything; unknown/unreadable → no change.
+
+_OFF_MARKET_CODES = {
+    "SLD": "Sold", "LSD": "Sold",            # sold / leased
+    "TER": "Cancelled", "CAN": "Cancelled", "CS": "Cancelled",
+    "EXP": "Expired",
+    "SUS": "Withdrawn", "WD": "Withdrawn",
+    # full words, in case Realm shows them instead of TRREB codes
+    "SOLD": "Sold", "LEASED": "Sold", "TERMINATED": "Cancelled", "CANCELLED": "Cancelled",
+    "EXPIRED": "Expired", "SUSPENDED": "Withdrawn", "WITHDRAWN": "Withdrawn",
+}
+
+
+def _require_agent():
+    from flask_login import current_user
+    # /api/scrape/* allows any origin with credentials, so block cross-site
+    # calls riding on the agent's session — only the extension may call these.
+    origin = request.headers.get("Origin", "")
+    if origin and not origin.startswith("chrome-extension://"):
+        return jsonify({"error": "Forbidden origin"}), 403
+    if not current_user.is_authenticated:
+        return jsonify({"error": "请先在 Chrome 登录 tourit.ca 经纪人账号 / Log in to tourit.ca first"}), 401
+    if not current_user.agent:
+        return jsonify({"error": "Agent account required"}), 403
+    return None
+
+
+@scraper_routes.route("/status-check/list", methods=["GET"])
+def status_check_list():
+    """Active listings for the extension to verify against Realm."""
+    denied = _require_agent()
+    if denied:
+        return denied
+    rows = (
+        MlsListing.query
+        .filter(MlsListing.is_active_filter())
+        .with_entities(MlsListing.mls_number)
+        .all()
+    )
+    return jsonify({"mls_numbers": [r.mls_number for r in rows if r.mls_number]})
+
+
+@scraper_routes.route("/status-check/report", methods=["POST"])
+def status_check_report():
+    """Body: {"results": [{"mls_number": "N123", "code": "SLD"}, ...]}"""
+    denied = _require_agent()
+    if denied:
+        return denied
+    results = (request.get_json(silent=True) or {}).get("results") or []
+    deactivated = []
+    for item in results:
+        mls = str(item.get("mls_number") or "").strip()
+        code = str(item.get("code") or "").strip().upper()
+        new_status = _OFF_MARKET_CODES.get(code)
+        if not mls or not new_status:
+            continue
+        listing = MlsListing.query.filter_by(mls_number=mls).first()
+        if not listing:
+            continue
+        listing.status = "Inactive"
+        listing.standard_status = new_status
+        listing.last_status = code
+        deactivated.append({"mls_number": mls, "code": code, "status": new_status})
+    if deactivated:
+        db.session.commit()
+    return jsonify({"checked": len(results), "deactivated": deactivated})
