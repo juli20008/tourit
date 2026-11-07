@@ -98,8 +98,9 @@ const NavBar = () => {
 								</span>
 							</div>
 						) : null}
-						{/* Mobile hamburger — only the white-label view has menu items */}
-						{whitelabelAgent && <button
+						<NavLink to="/pricing" className="btn-font-lt nav-desktop-only">Pricing</NavLink>
+						{/* Mobile hamburger */}
+						<button
 							className="nav-hamburger"
 							onClick={() => setShowMobileMenu((v) => !v)}
 							aria-label="Menu"
@@ -116,7 +117,7 @@ const NavBar = () => {
 									<line x1="2" y1="13" x2="16" y2="13" />
 								</svg>
 							)}
-						</button>}
+						</button>
 					</div>
 					<NavLink to="/" exact={true} onClick={() => setShowMobileMenu(false)}>
 						<LogoBrand agentName={whitelabelAgent?.username || null} agentPhoto={whitelabelAgent?.photo || null} />
@@ -170,6 +171,14 @@ const NavBar = () => {
 									<span className="text-white">{whitelabelAgent.office}</span>
 								</div>
 							) : null}
+							<NavLink
+								to="/pricing"
+								className="nav-mobile-item"
+								onClick={() => setShowMobileMenu(false)}
+							>
+								<i className="fa-solid fa-tags mr-3 text-[#94a3b8]" />
+								Pricing
+							</NavLink>
 						</div>
 					</>
 				)}

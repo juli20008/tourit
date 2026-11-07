@@ -64,6 +64,7 @@ const UserBar = () => {
 						</span>
 						</div>
 					) : null}
+					<NavLink to="/pricing" className="btn-font-lt nav-desktop-only">Pricing</NavLink>
 					<button
 						type="button"
 						className="nav-hamburger"
@@ -145,6 +146,14 @@ const UserBar = () => {
 								</span>
 							</div>
 						)}
+						<NavLink
+							to="/pricing"
+							className="nav-mobile-item"
+							onClick={() => setShowMobileMenu(false)}
+							>
+							<i className="fa-solid fa-tags mr-3 text-[#94a3b8]" />
+							Pricing
+						</NavLink>
 						<NavLink
 							to="/chats"
 							className="nav-mobile-item"

@@ -36,6 +36,9 @@ const AgentBar = () => {
 		<>
 			<nav className="nav nav-agent">
 				<div className="nav-lf">
+					<NavLink to="/pricing" exact={true} className="btn-font-lt nav-desktop-only">
+						Pricing
+					</NavLink>
 					<NavLink to="/reviews" exact={true} className="btn-font-lt nav-desktop-only">
 						My Reviews
 					</NavLink>
@@ -126,6 +129,14 @@ const AgentBar = () => {
 						onClick={() => setShowMobileMenu(false)}
 					/>
 					<div className="nav-mobile-menu">
+						<NavLink
+							to="/pricing"
+							className="nav-mobile-item"
+							onClick={() => setShowMobileMenu(false)}
+							>
+							<i className="fa-solid fa-tags mr-3 text-[#94a3b8]" />
+							Pricing
+						</NavLink>
 						<NavLink
 							to="/reviews"
 							className="nav-mobile-item"

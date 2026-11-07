@@ -19,7 +19,7 @@ export default function Home() {
   const searchRef = useRef(null);
 
   return (
-    <div className="hp">
+    <div className="hp" translate="no">
 
       {/* ── Hero ─────────────────────────────────────────────────────── */}
       <section className="hp-hero" style={{ backgroundImage: `url(${houseBg})` }}>
