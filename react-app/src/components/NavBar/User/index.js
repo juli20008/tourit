@@ -64,7 +64,6 @@ const UserBar = () => {
 						</span>
 						</div>
 					) : null}
-					<NavLink to="/pricing" className="btn-font-lt nav-desktop-only">Pricing</NavLink>
 					<button
 						type="button"
 						className="nav-hamburger"
@@ -96,6 +95,7 @@ const UserBar = () => {
 					<NavLink className="btn-font-lt nav-desktop-only" to="/appointments" exact={true}>
 						Appointments
 					</NavLink>
+					<NavLink to="/pricing" exact={true} className="btn-font-lt nav-desktop-only">Pricing</NavLink>
 					<LangToggle />
 					<div
 						className="photo nav-desktop-only"

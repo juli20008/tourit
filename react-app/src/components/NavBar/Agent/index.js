@@ -36,9 +36,6 @@ const AgentBar = () => {
 		<>
 			<nav className="nav nav-agent">
 				<div className="nav-lf">
-					<NavLink to="/pricing" exact={true} className="btn-font-lt nav-desktop-only">
-						Pricing
-					</NavLink>
 					<NavLink to="/reviews" exact={true} className="btn-font-lt nav-desktop-only">
 						My Reviews
 					</NavLink>
@@ -119,6 +116,7 @@ const AgentBar = () => {
 					<button className="btn-font-lt nav-desktop-only" onClick={onLogout}>
 						Logout
 					</button>
+					<NavLink to="/pricing" exact={true} className="btn-font-lt nav-desktop-only">Pricing</NavLink>
 					<LangToggle />
 				</div>
 			</nav>

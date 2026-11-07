@@ -204,7 +204,7 @@ export default function Home() {
               { name: "多伦多 Toronto",       tag: "市中心核心" },
               { name: "北约克 North York",    tag: "性价比之选" },
               { name: "旺市 Vaughan",         tag: "新盘热区" },
-              { name: "密市 Mississauga",     tag: "西区首选" },
+              { name: "奥克维尔 Oakville",    tag: "西区首选" },
             ].map((a) => (
               <Link key={a.name} to={MAP_URL} className="hp-area-card">
                 <span className="hp-area-tag">{a.tag}</span>

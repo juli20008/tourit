@@ -98,7 +98,6 @@ const NavBar = () => {
 								</span>
 							</div>
 						) : null}
-						<NavLink to="/pricing" className="btn-font-lt nav-desktop-only">Pricing</NavLink>
 						{/* Mobile hamburger */}
 						<button
 							className="nav-hamburger"
@@ -123,6 +122,7 @@ const NavBar = () => {
 						<LogoBrand agentName={whitelabelAgent?.username || null} agentPhoto={whitelabelAgent?.photo || null} />
 					</NavLink>
 					<div className="nav-rt">
+						<NavLink to="/pricing" exact={true} className="btn-font-lt nav-desktop-only">Pricing</NavLink>
 						<LangToggle />
 						{/* Desktop: full text button */}
 						<button
