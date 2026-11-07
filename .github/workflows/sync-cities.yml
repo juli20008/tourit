@@ -1,8 +1,7 @@
 name: Sync Cities
 
 on:
-  schedule:
-    - cron: "0 9 * * *"   # Daily 9am UTC (5am EST) — after ddf-sync finishes
+  # Schedule removed 2026-11 — DDF sync retired; manual runs only.
   workflow_dispatch:
     inputs:
       cities:

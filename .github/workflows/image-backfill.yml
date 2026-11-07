@@ -1,8 +1,7 @@
 name: Image Backfill
 
 on:
-  schedule:
-    - cron: "0 3 * * *"   # Daily 3am UTC (after geocoding at 2am)
+  # Schedule removed 2026-11 — DDF sync retired; manual runs only.
   workflow_dispatch:
     inputs:
       state:

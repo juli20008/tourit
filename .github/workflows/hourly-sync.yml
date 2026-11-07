@@ -1,8 +1,7 @@
 name: Hourly DDF Sync
 
 on:
-  schedule:
-    - cron: "5 */3 * * *"   # every 3 hours
+  # Schedule removed 2026-11 — DDF sync retired; manual runs only.
   workflow_dispatch:
 
 jobs:

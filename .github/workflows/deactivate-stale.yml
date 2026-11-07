@@ -1,8 +1,7 @@
 name: Deactivate Stale Listings
 
 on:
-  schedule:
-    - cron: "0 6 * * 0"   # Weekly, Sunday 6 AM UTC
+  # Schedule removed 2026-11 — DDF sync retired; manual runs only.
   workflow_dispatch:
     inputs:
       days:

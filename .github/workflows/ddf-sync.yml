@@ -1,8 +1,7 @@
 name: DDF Sync
 
 on:
-  schedule:
-    - cron: "0 7 * * *"   # 3am EST / 7am UTC daily
+  # Schedule removed 2026-11 — DDF sync retired; manual runs only.
   workflow_dispatch:        # allow manual trigger from GitHub Actions tab
 
 jobs:
