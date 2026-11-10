@@ -5,15 +5,18 @@ Delete expired XHS video files from Cloudflare R2 (daily GitHub Actions job).
   1. xhs_videos rows past expires_at → delete the R2 object, then the row.
   2. xhs_video_jobs older than 7 days → delete their cover / temp intro /
      temp cover-background objects and clear those columns.
+  3. Highlight clips (historical_live_tours) of listings that have been
+     inactive for 7+ days → delete the clip file and row.
 
-Safety: only keys under the prefixes below are ever deleted (never
-highlights/ — those are the permanent listing-page clips), and nothing
-still referenced by historical_live_tours is touched.
+Safety: steps 1–2 only delete keys under DELETABLE_PREFIXES and never
+anything still referenced by a highlight clip; step 3 only deletes the
+exact file of a clip whose listing is inactive.
 
 Env: DATABASE_URL, R2_ENDPOINT, S3_KEY, S3_SECRET, S3_BUCKET, R2_PUBLIC_URL
      DRY_RUN=1 → only print what would be deleted.
 """
 import os
+import re
 import sys
 
 import boto3
@@ -22,6 +25,8 @@ from botocore.config import Config
 
 DELETABLE_PREFIXES = ("xhs-videos/", "xhs-covers/", "tmp-intros/", "tmp-cover-bg/")
 JOB_RETENTION_DAYS = 7
+INACTIVE_GRACE_DAYS = 7
+HIGHLIGHT_UPLOAD_RE = re.compile(r"^[0-9a-f]{32}\.(mp4|mov|webm|m4v)$")
 DRY_RUN = os.environ.get("DRY_RUN", "").strip() in ("1", "true", "yes")
 
 
@@ -98,6 +103,35 @@ def main():
                 "UPDATE xhs_video_jobs SET cover_url = NULL, intro_r2_key = NULL, cover_bg_r2_key = NULL WHERE job_id = %s",
                 (job_id,),
             )
+
+    # 3. Highlight clips (精彩片段) of listings inactive for 7+ days.
+    #    updated_at is bumped when the status check marks a listing inactive,
+    #    so the grace period protects against a wrong status read.
+    cur.execute(
+        """SELECT t.id, t.video_url, t.mls_number
+             FROM historical_live_tours t
+             JOIN mls_listings l ON l.mls_number = t.mls_number
+            WHERE l.standard_status IN ('Inactive','Sold','Expired','Cancelled','Withdrawn')
+              AND l.updated_at < (now() AT TIME ZONE 'utc') - make_interval(days => %s)""",
+        (INACTIVE_GRACE_DAYS,),
+    )
+    clips = cur.fetchall()
+    print(f"{len(clips)} highlight clip(s) on listings inactive {INACTIVE_GRACE_DAYS}+ days")
+    for tour_id, video_url, mls in clips:
+        key = key_from_url(video_url)
+        # highlights/… (generated) or <32-hex>.<ext> at the root (manual uploads)
+        if not (key.startswith("highlights/") or HIGHLIGHT_UPLOAD_RE.match(key)):
+            print(f"  skip clip {tour_id} ({mls}): unexpected key {key!r}")
+            continue
+        if DRY_RUN:
+            print(f"  [dry-run] would delete clip {tour_id} ({mls}) and {key}")
+            continue
+        try:
+            s3.delete_object(Bucket=bucket, Key=key)
+            cur.execute("DELETE FROM historical_live_tours WHERE id = %s", (tour_id,))
+            print(f"  deleted clip {tour_id} ({mls}) and {key}")
+        except Exception as e:
+            print(f"  clip delete failed {key}: {e}", file=sys.stderr)
 
     if DRY_RUN:
         conn.rollback()
