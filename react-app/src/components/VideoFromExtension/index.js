@@ -111,6 +111,19 @@ const VideoFromExtension = () => {
 		}
 	};
 
+	// ?autoquick=zh|en (set by the Chrome extension after pushing a listing):
+	// start the quick video for that listing once, then drop the param so a
+	// page refresh doesn't generate a second video.
+	const autoQuick = new URLSearchParams(location.search).get("autoquick");
+	const autoStartedRef = useRef(false);
+	useEffect(() => {
+		if (autoStartedRef.current || !autoQuick || !selected || !agent?.has_voice) return;
+		if (selected.mls_number !== preselectedMls) return;
+		autoStartedRef.current = true;
+		window.history.replaceState(null, "", `${location.pathname}?mls=${encodeURIComponent(preselectedMls)}`);
+		startQuickVideo(autoQuick === "en" ? "en" : "zh");
+	}, [selected, agent]); // eslint-disable-line react-hooks/exhaustive-deps
+
 	const quickGenerating = quickJob?.status === "generating";
 	const quickForSelected = quickJob && selected && quickJob.mls === selected.mls_number ? quickJob : null;
 
