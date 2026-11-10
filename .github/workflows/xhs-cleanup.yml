@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: "0 3 * * *"   # Daily at 3 AM UTC
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Only list what would be deleted (1 = yes)"
+        required: false
+        default: "0"
 
 jobs:
   cleanup:
@@ -13,8 +18,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Delete expired XHS videos
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install boto3 psycopg2-binary
+
+      - name: Delete expired XHS videos from R2
         env:
-          SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          DATABASE_URL:  ${{ secrets.DATABASE_URL }}
+          R2_ENDPOINT:   ${{ secrets.R2_ENDPOINT }}
+          S3_KEY:        ${{ secrets.S3_KEY }}
+          S3_SECRET:     ${{ secrets.S3_SECRET }}
+          S3_BUCKET:     ${{ secrets.S3_BUCKET }}
+          R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
+          DRY_RUN:       ${{ github.event.inputs.dry_run || '0' }}
         run: python3 lib/scripts/cleanupXhsVideos.py

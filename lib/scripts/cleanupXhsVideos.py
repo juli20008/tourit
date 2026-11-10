@@ -1,99 +1,112 @@
 #!/usr/bin/env python3
 """
-Delete XHS videos that have passed their 7-day expiry.
-Runs as a daily GitHub Actions job.
-Uses only stdlib (urllib) — no pip install needed.
+Delete expired XHS video files from Cloudflare R2 (daily GitHub Actions job).
+
+  1. xhs_videos rows past expires_at → delete the R2 object, then the row.
+  2. xhs_video_jobs older than 7 days → delete their cover / temp intro /
+     temp cover-background objects and clear those columns.
+
+Safety: only keys under the prefixes below are ever deleted (never
+highlights/ — those are the permanent listing-page clips), and nothing
+still referenced by historical_live_tours is touched.
+
+Env: DATABASE_URL, R2_ENDPOINT, S3_KEY, S3_SECRET, S3_BUCKET, R2_PUBLIC_URL
+     DRY_RUN=1 → only print what would be deleted.
 """
-import json
 import os
 import sys
-import urllib.parse
-import urllib.request
-from datetime import datetime, timezone
+
+import boto3
+import psycopg2
+from botocore.config import Config
+
+DELETABLE_PREFIXES = ("xhs-videos/", "xhs-covers/", "tmp-intros/", "tmp-cover-bg/")
+JOB_RETENTION_DAYS = 7
+DRY_RUN = os.environ.get("DRY_RUN", "").strip() in ("1", "true", "yes")
 
 
-def sb_url(path):
-    return os.environ["SUPABASE_URL"].rstrip("/") + path
-
-
-def sb_headers(extra=None):
-    key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
-    h = {
-        "apikey": key,
-        "Authorization": f"Bearer {key}",
-        "Content-Type": "application/json",
-    }
-    if extra:
-        h.update(extra)
-    return h
-
-
-def fetch(method, url, headers, data=None):
-    body = json.dumps(data).encode() if data else None
-    req = urllib.request.Request(url, data=body, headers=headers, method=method)
-    try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            return resp.status, resp.read().decode()
-    except urllib.error.HTTPError as e:
-        return e.code, e.read().decode()
+def key_from_url(url):
+    """Public R2 URL → object key ('' if it isn't one of ours)."""
+    if not url:
+        return ""
+    base = os.environ.get("R2_PUBLIC_URL", "").rstrip("/")
+    if base and url.startswith(base + "/"):
+        return url[len(base) + 1:].split("?")[0]
+    return ""
 
 
 def main():
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    print(f"Cleanup run at {now}")
+    s3 = boto3.client(
+        "s3",
+        endpoint_url=os.environ["R2_ENDPOINT"],
+        aws_access_key_id=os.environ["S3_KEY"],
+        aws_secret_access_key=os.environ["S3_SECRET"],
+        region_name="auto",
+        config=Config(signature_version="s3v4"),
+    )
+    bucket = os.environ.get("S3_BUCKET", "tourit")
+    conn = psycopg2.connect(os.environ["DATABASE_URL"])
+    cur = conn.cursor()
 
-    # 1. Fetch expired rows
-    params = urllib.parse.urlencode({
-        "expires_at": f"lt.{now}",
-        "select": "id,storage_path,mls_number,agent_id",
-    })
-    status, body = fetch("GET", sb_url(f"/rest/v1/xhs_videos?{params}"), sb_headers())
-    if status != 200:
-        print(f"Failed to fetch expired videos: {status} {body[:200]}", file=sys.stderr)
-        sys.exit(1)
+    # Files still shown on listing pages must never be deleted.
+    cur.execute("SELECT video_url FROM historical_live_tours")
+    protected = {key_from_url(u) for (u,) in cur.fetchall()} - {""}
 
-    rows = json.loads(body)
-    if not rows:
-        print("No expired videos found.")
-        return
+    def delete_key(key):
+        if not key or not key.startswith(DELETABLE_PREFIXES) or key in protected:
+            print(f"  skip (protected/unknown): {key!r}")
+            return False
+        if DRY_RUN:
+            print(f"  [dry-run] would delete {key}")
+            return True
+        try:
+            s3.delete_object(Bucket=bucket, Key=key)   # no error if already gone
+            print(f"  deleted {key}")
+            return True
+        except Exception as e:
+            print(f"  delete failed {key}: {e}", file=sys.stderr)
+            return False
 
-    print(f"Found {len(rows)} expired video(s) to delete.")
+    # 1. Expired videos
+    cur.execute("SELECT id, storage_path, video_url FROM xhs_videos WHERE expires_at < now()")
+    rows = cur.fetchall()
+    print(f"{len(rows)} expired video(s)")
+    removed = 0
+    for vid_id, storage_path, video_url in rows:
+        key = storage_path or key_from_url(video_url)
+        if delete_key(key) and not DRY_RUN:
+            cur.execute("DELETE FROM xhs_videos WHERE id = %s", (vid_id,))
+            removed += 1
 
-    deleted = 0
-    for row in rows:
-        vid_id = row["id"]
-        storage_path = row.get("storage_path", "")
-
-        # 2. Delete file from Supabase Storage
-        if storage_path:
-            s_status, s_body = fetch(
-                "DELETE",
-                sb_url(f"/storage/v1/object/xhs-videos/{storage_path}"),
-                {"Authorization": f"Bearer {os.environ['SUPABASE_SERVICE_ROLE_KEY']}"},
+    # 2. Old job artifacts (covers, temp uploads)
+    cur.execute(
+        """SELECT job_id, cover_url, intro_r2_key, cover_bg_r2_key FROM xhs_video_jobs
+           WHERE created_at < now() - make_interval(days => %s)
+             AND (cover_url IS NOT NULL OR intro_r2_key IS NOT NULL OR cover_bg_r2_key IS NOT NULL)""",
+        (JOB_RETENTION_DAYS,),
+    )
+    jobs = cur.fetchall()
+    print(f"{len(jobs)} old job(s) with leftover files")
+    for job_id, cover_url, intro_key, bg_key in jobs:
+        cover_key = key_from_url(cover_url)
+        if cover_url and not cover_key:
+            print(f"  job {job_id}: cover URL not under R2_PUBLIC_URL, leaving it: {cover_url[:80]}")
+            continue
+        ok = all(delete_key(k) for k in (cover_key, intro_key, bg_key) if k)
+        if ok and not DRY_RUN:
+            cur.execute(
+                "UPDATE xhs_video_jobs SET cover_url = NULL, intro_r2_key = NULL, cover_bg_r2_key = NULL WHERE job_id = %s",
+                (job_id,),
             )
-            if s_status in (200, 204, 404):
-                print(f"  Storage deleted: {storage_path}")
-            else:
-                print(f"  Storage delete failed ({s_status}): {storage_path} — {s_body[:100]}")
 
-        # 3. Delete DB row
-        d_params = urllib.parse.urlencode({"id": f"eq.{vid_id}"})
-        d_status, _ = fetch(
-            "DELETE",
-            sb_url(f"/rest/v1/xhs_videos?{d_params}"),
-            sb_headers({"Prefer": "return=minimal"}),
-        )
-        if d_status in (200, 204):
-            deleted += 1
-        else:
-            print(f"  DB row delete failed for id={vid_id}")
-
-    print(f"Done. Deleted {deleted}/{len(rows)} expired XHS videos.")
+    if DRY_RUN:
+        conn.rollback()
+        print("Dry run — nothing deleted.")
+    else:
+        conn.commit()
+        print(f"Done: {removed} video row(s) removed, {len(jobs)} job(s) cleaned.")
+    conn.close()
 
 
 if __name__ == "__main__":
-    for var in ("SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"):
-        if not os.environ.get(var):
-            print(f"Missing env var: {var}", file=sys.stderr)
-            sys.exit(1)
     main()
