@@ -2433,6 +2433,33 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
             except Exception:
                 db.session.rollback()
 
+            # ── Step 9: Show on the listing page (精彩片段 / Highlight Clips) ──
+            # Permanent copy under highlights/ so the 7-day xhs-videos expiry
+            # never breaks it. One clip per agent per listing → replace.
+            try:
+                from app.models.historical_live_tour import HistoricalLiveTour
+                from app.s3_helpers import _delete_object
+                hl_key = f"highlights/{mls_number}-{agent_id}-{uuid.uuid4().hex[:8]}.mp4"
+                with open(final_path, "rb") as f:
+                    hl_url = _upload_file_obj(f, hl_key, "video/mp4")
+                existing = HistoricalLiveTour.query.filter_by(agent_id=agent_id, mls_number=mls_number).first()
+                if existing:
+                    try:
+                        _delete_object(existing.video_url)
+                    except Exception:
+                        pass
+                    existing.video_url = hl_url
+                    existing.title = "看房视频"
+                else:
+                    db.session.add(HistoricalLiveTour(
+                        agent_id=agent_id, mls_number=mls_number,
+                        video_url=hl_url, title="看房视频",
+                    ))
+                db.session.commit()
+            except Exception as _hl_err:
+                db.session.rollback()
+                print(f"[XHS] Highlight clip save failed (non-fatal): {_hl_err}")
+
             done_payload = {"status": "done", "url": video_url, "expires_at": expires_at}
             if _cover_r2_url:
                 done_payload["cover_url"] = _cover_r2_url
