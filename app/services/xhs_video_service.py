@@ -24,8 +24,8 @@ PRESET = "fast"
 ZOOM_START = 1.0
 ZOOM_END = 1.06
 KB_SUPERSAMPLE = 3     # 动感版: render motion at 3× and scale down (sub-pixel smooth)
-KB_PAN_MAX = 0         # 动感版: no panning (push-in only)
-KB_ZOOM_END = 1.08     # 动感版: gentle zoom-in
+KB_PAN_MAX = 0         # (unused: 动感版 sweeps across a centre square)
+KB_ZOOM_END = 1.05     # 动感版: slight push-in while sweeping
 MAX_PHOTOS = 50
 
 _ASSETS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets")
@@ -1486,26 +1486,50 @@ def _make_clip(ffmpeg, ffprobe, img_path, out_path, reverse=False,
     ze  = zoom_end   if zoom_end   is not None else ZOOM_END
 
     if motion_style == "classic":
-        # 动感版: the photo fills the whole 3:4 frame (centre crop) and slowly
-        # pushes in. No panning — panning across a landscape photo is what made
-        # it sway. The zoom is rendered at KB_SUPERSAMPLE× and scaled down, so
-        # ffmpeg's whole-pixel steps become sub-pixel — no jitter.
+        # 动感版: centre-crop the photo to a 1:1 square, then sweep the full
+        # 3:4 frame across that square (edge to edge, alternating direction per
+        # photo) with a slight push-in. Sweeping only the square — not the whole
+        # landscape photo — keeps the travel short (~240 px vs ~720 px), so the
+        # whole square is shown without the old sway. Rendered at
+        # KB_SUPERSAMPLE× and scaled down so motion is sub-pixel smooth.
         K = KB_SUPERSAMPLE
-        W, H = OUTPUT_W * K, OUTPUT_H * K
+        W, H = OUTPUT_W * K, OUTPUT_H * K      # 3:4 window at render scale
+        SQ = H                                 # square side = frame height
         n_frames = max(2, int(round(dur * FPS)))
-        e_zoom = f"(1-cos(PI*on/{n_frames - 1}))/2"    # eased 0→1 over the clip
+        e_pan = f"(1-cos(PI*n/{n_frames - 1}))/2"      # crop: frame index n
+        e_zoom = f"(1-cos(PI*on/{n_frames - 1}))/2"    # zoompan: output frame index on
+        if reverse:
+            e_pan = f"(1-{e_pan})"
+        # Step 1 (once): upscale + centre-crop to the square. Doing this per
+        # frame inside the loop was 5× slower.
+        sq_path = out_path + ".square.png"
+        subprocess.run(
+            [ffmpeg, "-y", "-i", img_path, "-vf",
+             f"scale={SQ}:{SQ}:force_original_aspect_ratio=increase:flags=lanczos,crop={SQ}:{SQ}",
+             "-frames:v", "1", sq_path],
+            timeout=60, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+        # Step 2 (per frame): sweep + push-in. rgb24 so crop moves in 1-px
+        # steps (yuv rounds x to even), then yuv for the faster zoompan.
         vf = (
-            f"scale={W}:{H}:force_original_aspect_ratio=increase:flags=lanczos,"
-            f"crop={W}:{H},"
+            f"format=rgb24,"
+            f"crop={W}:{H}:'({SQ}-{W})*{e_pan}':0,"
+            f"format=yuv420p,"
             f"zoompan=z='{zs}+({ze}-{zs})*{e_zoom}':x='iw/2-iw/zoom/2':y='ih/2-ih/zoom/2'"
             f":d=1:s={OUTPUT_W}x{OUTPUT_H}:fps={FPS}"
         )
-        subprocess.run(
-            [ffmpeg, "-y", "-loop", "1", "-framerate", str(FPS), "-t", str(dur), "-i", img_path,
-             "-vf", vf, "-c:v", "libx264", "-crf", str(CRF),
-             "-preset", PRESET, "-pix_fmt", "yuv420p", "-threads", "1", out_path],
-            timeout=180, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-        )
+        try:
+            subprocess.run(
+                [ffmpeg, "-y", "-loop", "1", "-framerate", str(FPS), "-t", str(dur), "-i", sq_path,
+                 "-vf", vf, "-c:v", "libx264", "-crf", str(CRF),
+                 "-preset", PRESET, "-pix_fmt", "yuv420p", "-threads", "1", out_path],
+                timeout=180, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+        finally:
+            try:
+                os.remove(sq_path)
+            except OSError:
+                pass
     else:
         # Stable: full photo visible + blurred background fill, completely static
         fg_filter = (
