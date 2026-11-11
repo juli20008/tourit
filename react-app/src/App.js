@@ -22,6 +22,7 @@ import { initWhitelabel } from "./store/whitelabel";
 import About from "./components/About";
 import Home from "./components/Home";
 import Pricing from "./components/Pricing";
+import SaveVideo from "./components/SaveVideo";
 import AgentLanding from "./components/AgentLanding";
 import PPTVideo from "./components/PPTVideo";
 import NewHomeVideo from "./components/NewHomeVideo";
@@ -151,6 +152,9 @@ function App() {
 				</Route>
 				<Route path="/agents/:agentId">
 					<Agent />
+				</Route>
+				<Route path="/save-video" exact={true}>
+					<SaveVideo />
 				</Route>
 				<Route path="/pricing" exact={true}>
 					<Pricing />

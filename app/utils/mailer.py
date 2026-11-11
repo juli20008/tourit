@@ -152,12 +152,19 @@ def send_agent_signup_request(applicant_email):
         return False
 
 
-def send_xhs_video_ready(to_email, agent_name, listing_address, video_url):
+def send_xhs_video_ready(to_email, agent_name, listing_address, video_url, cover_url=None):
     api_key = os.environ.get('RESEND_API_KEY', '').strip()
     if not api_key:
         print(f'[DEV] XHS video ready for {to_email}: {video_url}')
         return
     from_addr = os.environ.get('MAIL_FROM', 'Tourit <NoReply@tourit.ca>').strip()
+    from urllib.parse import urlencode, quote
+    # Phone: save page (share sheet → 存储视频). Desktop: proxied attachment download.
+    save_params = {'v': video_url, 't': listing_address}
+    if cover_url:
+        save_params['c'] = cover_url
+    save_url = f"https://tourit.ca/save-video?{urlencode(save_params)}"
+    download_url = f"https://api.tourit.ca/api/xhs/download?url={quote(video_url, safe='')}&name=tourit-video.mp4"
     html_body = f"""<!DOCTYPE html>
 <html>
 <body style="font-family:sans-serif;background:#f3f3f1;margin:0;padding:40px 0">
@@ -167,11 +174,17 @@ def send_xhs_video_ready(to_email, agent_name, listing_address, video_url):
       Hi {agent_name}，你的看房视频已经生成完成！<br/>
       <strong>{listing_address}</strong>
     </p>
-    <a href="{video_url}"
-       style="display:inline-block;margin:20px 0;padding:13px 28px;background:#0f172a;color:white;
-              text-decoration:none;border-radius:10px;font-weight:600;font-size:15px">
-      下载视频 Download Video
+    <a href="{save_url}"
+       style="display:block;margin:20px 0 10px;padding:15px 20px;background:#16a34a;color:white;text-align:center;
+              text-decoration:none;border-radius:12px;font-weight:700;font-size:16px">
+      📲 保存到手机相册 Save to Phone
     </a>
+    <a href="{download_url}"
+       style="display:block;margin:0 0 16px;padding:12px 20px;background:#0f172a;color:white;text-align:center;
+              text-decoration:none;border-radius:12px;font-weight:600;font-size:14px">
+      ⬇️ 电脑下载 Download
+    </a>
+    <p style="color:#64748b;font-size:13px;line-height:1.6">iPhone：打开后点「保存视频到相册」，在弹出菜单里选「存储视频」。</p>
     <p style="color:#94a3b8;font-size:12px">此链接有效期 7 天。This link expires in 7 days.</p>
   </div>
 </body>
