@@ -152,3 +152,31 @@ def get_job(job_id):
     if d.get('error_msg'):
         result['message'] = d['error_msg']
     return result
+
+
+ACTIVE_JOB_MAX_AGE_MIN = 30   # a job still "queued/processing" after this is treated as dead
+
+
+def get_active_jobs(agent_id, mls_number=None):
+    """Jobs for this agent that are still queued/processing (and not stale)."""
+    sql = """SELECT job_id, mls_number, status, step, created_at
+               FROM xhs_video_jobs
+              WHERE agent_id = %s
+                AND status IN ('queued', 'processing')
+                AND created_at > NOW() - make_interval(mins => %s)"""
+    args = [agent_id, ACTIVE_JOB_MAX_AGE_MIN]
+    if mls_number:
+        sql += " AND mls_number = %s"
+        args.append(mls_number)
+    sql += " ORDER BY created_at DESC"
+    conn = _conn()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(sql, args)
+            rows = cur.fetchall()
+    finally:
+        conn.close()
+    return [{
+        "job_id": r["job_id"], "mls_number": r["mls_number"], "status": r["status"],
+        "step": r.get("step") or "", "created_at": r["created_at"].isoformat(),
+    } for r in rows]

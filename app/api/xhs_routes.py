@@ -941,6 +941,19 @@ def generate_agent_video(mls_number):
     use_actions = bool(os.environ.get('GH_PAT'))
 
     if use_actions:
+        # Don't start a second video for a listing that's already generating
+        # (e.g. the extension auto-started it and the agent clicked again).
+        try:
+            from app.services.xhs_db_jobs import get_active_jobs
+            running = get_active_jobs(current_user.id, mls_number)
+        except Exception:
+            running = []
+        if running:
+            return jsonify({
+                'error': '这套房源的视频正在生成中 / A video for this listing is already generating',
+                'job_id': running[0]['job_id'], 'already_running': True,
+            }), 409
+
         job_id = uuid.uuid4().hex
         intro_r2_key = None
         cover_bg_r2_key = None
@@ -993,6 +1006,22 @@ def generate_agent_video(mls_number):
         motion_style=motion_style,
     )
     return jsonify({'job_id': job_id, 'status': 'processing'})
+
+
+@xhs_routes.route('/agent/video/active', methods=['GET'])
+def get_active_videos():
+    """This agent's videos that are still generating (for progress display)."""
+    from flask_login import current_user
+
+    if not current_user.is_authenticated:
+        return jsonify({'error': 'Unauthorized'}), 401
+    if not os.environ.get('GH_PAT'):
+        return jsonify({'jobs': []})   # in-process mode: page keeps its own state
+    from app.services.xhs_db_jobs import get_active_jobs
+    try:
+        return jsonify({'jobs': get_active_jobs(current_user.id)})
+    except Exception as e:
+        return jsonify({'jobs': [], 'error': str(e)})
 
 
 @xhs_routes.route('/agent/video/status/<job_id>', methods=['GET'])
