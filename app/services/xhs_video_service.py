@@ -24,7 +24,7 @@ PRESET = "fast"
 ZOOM_START = 1.0
 ZOOM_END = 1.06
 KB_SUPERSAMPLE = 3     # 动感版: render motion at 3× and scale down (sub-pixel smooth)
-KB_PAN_MAX = 80        # 动感版: max pan per photo, in output pixels
+KB_PAN_MAX = 80        # (unused since 1:1 square push-in)
 KB_ZOOM_END = 1.08     # 动感版: gentle zoom-in
 MAX_PHOTOS = 50
 
@@ -1486,31 +1486,36 @@ def _make_clip(ffmpeg, ffprobe, img_path, out_path, reverse=False,
     ze  = zoom_end   if zoom_end   is not None else ZOOM_END
 
     if motion_style == "classic":
-        # Smooth Ken Burns: gentle pan + slow zoom, rendered at KB_SUPERSAMPLE×
-        # the output size and scaled down, so ffmpeg's whole-pixel steps become
-        # sub-pixel in the final video (no jitter). Pan is capped at KB_PAN_MAX
-        # output px per photo — panning the full width of a landscape photo
-        # (~560 px in 3 s) is what made the old version sway.
+        # 动感版: centre-crop the photo to a 1:1 square (shows ~2/3 of a 3:2
+        # landscape photo, vs ~1/2 when filling the 3:4 frame), slowly push in,
+        # and fill the strips above/below with a blurred copy of the photo.
+        # The zoom is rendered at KB_SUPERSAMPLE× and scaled down, so ffmpeg's
+        # whole-pixel steps become sub-pixel — no jitter. No panning (panning
+        # across a landscape photo is what made the old version sway).
         K = KB_SUPERSAMPLE
-        W, H = OUTPUT_W * K, OUTPUT_H * K
+        S = OUTPUT_W                     # square side in the output (720)
+        SK = S * K
         n_frames = max(2, int(round(dur * FPS)))
-        e_crop = f"(1-cos(PI*n/{n_frames - 1}))/2"     # crop: frame index n
-        e_zoom = f"(1-cos(PI*on/{n_frames - 1}))/2"    # zoompan: output frame index on
-        if reverse:
-            e_crop, e_zoom = f"(1-{e_crop})", f"(1-{e_zoom})"
-        pan = KB_PAN_MAX * K
-        # x/y: centred window, drifting by at most `pan` across the excess
-        x = f"(in_w-{W})/2+min({pan},in_w-{W})*({e_crop}-0.5)"
-        y = f"(in_h-{H})/2+min({pan},in_h-{H})*({e_crop}-0.5)"
-        vf = (
-            f"scale={W}:{H}:force_original_aspect_ratio=increase:flags=lanczos,"
-            f"crop={W}:{H}:'{x}':'{y}',"
+        e_zoom = f"(1-cos(PI*on/{n_frames - 1}))/2"    # eased 0→1 over the clip
+        fg = (
+            f"scale={SK}:{SK}:force_original_aspect_ratio=increase:flags=lanczos,"
+            f"crop={SK}:{SK},"
             f"zoompan=z='{zs}+({ze}-{zs})*{e_zoom}':x='iw/2-iw/zoom/2':y='ih/2-ih/zoom/2'"
-            f":d=1:s={OUTPUT_W}x{OUTPUT_H}:fps={FPS}"
+            f":d=1:s={S}x{S}:fps={FPS}"
+        )
+        bg = (
+            f"scale={OUTPUT_W}:{OUTPUT_H}:force_original_aspect_ratio=increase:flags=bilinear,"
+            f"crop={OUTPUT_W}:{OUTPUT_H},boxblur=20:2,eq=brightness=-0.06"
+        )
+        fc = (
+            f"split=2[bg_in][fg_in];"
+            f"[bg_in]{bg}[bg];"
+            f"[fg_in]{fg}[fg];"
+            f"[bg][fg]overlay=(W-w)/2:(H-h)/2:shortest=1[out]"
         )
         subprocess.run(
             [ffmpeg, "-y", "-loop", "1", "-framerate", str(FPS), "-t", str(dur), "-i", img_path,
-             "-vf", vf, "-c:v", "libx264", "-crf", str(CRF),
+             "-filter_complex", fc, "-map", "[out]", "-c:v", "libx264", "-crf", str(CRF),
              "-preset", PRESET, "-pix_fmt", "yuv420p", "-threads", "1", out_path],
             timeout=180, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         )
