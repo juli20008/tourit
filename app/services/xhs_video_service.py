@@ -23,6 +23,9 @@ CRF = 23
 PRESET = "fast"
 ZOOM_START = 1.0
 ZOOM_END = 1.06
+KB_SUPERSAMPLE = 3     # 动感版: render motion at 3× and scale down (sub-pixel smooth)
+KB_PAN_MAX = 80        # 动感版: max pan per photo, in output pixels
+KB_ZOOM_END = 1.08     # 动感版: gentle zoom-in
 MAX_PHOTOS = 50
 
 _ASSETS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets")
@@ -1483,29 +1486,33 @@ def _make_clip(ffmpeg, ffprobe, img_path, out_path, reverse=False,
     ze  = zoom_end   if zoom_end   is not None else ZOOM_END
 
     if motion_style == "classic":
-        # Original Ken Burns: zoom + pan + alternating direction
-        src_w, src_h = _probe_dimensions(ffprobe, img_path)
-        ease = f"(1-cos(PI*t/{dur}))/2"
+        # Smooth Ken Burns: gentle pan + slow zoom, rendered at KB_SUPERSAMPLE×
+        # the output size and scaled down, so ffmpeg's whole-pixel steps become
+        # sub-pixel in the final video (no jitter). Pan is capped at KB_PAN_MAX
+        # output px per photo — panning the full width of a landscape photo
+        # (~560 px in 3 s) is what made the old version sway.
+        K = KB_SUPERSAMPLE
+        W, H = OUTPUT_W * K, OUTPUT_H * K
+        n_frames = max(2, int(round(dur * FPS)))
+        e_crop = f"(1-cos(PI*n/{n_frames - 1}))/2"     # crop: frame index n
+        e_zoom = f"(1-cos(PI*on/{n_frames - 1}))/2"    # zoompan: output frame index on
         if reverse:
-            ease = f"(1-({ease}))"
-        z = f"({zs}+({ze}-{zs})*({ease}))"
-        scaled_w_at_1 = src_w * OUTPUT_H / src_h
-        if scaled_w_at_1 >= OUTPUT_W:
-            sw = f"trunc(iw*{OUTPUT_H}/ih*({z})/2)*2"
-            sh = f"trunc({OUTPUT_H}*({z})/2)*2"
-            px = f"(in_w-{OUTPUT_W})*({ease})"
-            py = f"(in_h-{OUTPUT_H})/2"
-        else:
-            sw = f"trunc({OUTPUT_W}*({z})/2)*2"
-            sh = f"trunc(ih*{OUTPUT_W}/iw*({z})/2)*2"
-            px = f"(in_w-{OUTPUT_W})/2"
-            py = f"(in_h-{OUTPUT_H})*({ease})"
-        vf = f"scale='{sw}':'{sh}':eval=frame:flags=lanczos,crop={OUTPUT_W}:{OUTPUT_H}:'{px}':'{py}'"
+            e_crop, e_zoom = f"(1-{e_crop})", f"(1-{e_zoom})"
+        pan = KB_PAN_MAX * K
+        # x/y: centred window, drifting by at most `pan` across the excess
+        x = f"(in_w-{W})/2+min({pan},in_w-{W})*({e_crop}-0.5)"
+        y = f"(in_h-{H})/2+min({pan},in_h-{H})*({e_crop}-0.5)"
+        vf = (
+            f"scale={W}:{H}:force_original_aspect_ratio=increase:flags=lanczos,"
+            f"crop={W}:{H}:'{x}':'{y}',"
+            f"zoompan=z='{zs}+({ze}-{zs})*{e_zoom}':x='iw/2-iw/zoom/2':y='ih/2-ih/zoom/2'"
+            f":d=1:s={OUTPUT_W}x{OUTPUT_H}:fps={FPS}"
+        )
         subprocess.run(
-            [ffmpeg, "-y", "-loop", "1", "-t", str(dur), "-i", img_path,
-             "-vf", vf, "-r", str(FPS), "-c:v", "libx264", "-crf", str(CRF),
+            [ffmpeg, "-y", "-loop", "1", "-framerate", str(FPS), "-t", str(dur), "-i", img_path,
+             "-vf", vf, "-c:v", "libx264", "-crf", str(CRF),
              "-preset", PRESET, "-pix_fmt", "yuv420p", "-threads", "1", out_path],
-            timeout=120, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            timeout=180, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         )
     else:
         # Stable: full photo visible + blurred background fill, completely static
@@ -2220,7 +2227,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                     clip_dur = last_dur if i == n_seg - 1 else PHOTO_DURATION
                     clip_path = os.path.join(clips_dir, f"clip_{photo_idx:04d}.mp4")
                     _clip_tasks.append((img_path, clip_path, clip_dur,
-                                        1.15 if motion_style == "classic" else ZOOM_END,
+                                        KB_ZOOM_END if motion_style == "classic" else ZOOM_END,
                                         motion_style == "classic" and photo_idx % 2 == 1))
                     photo_idx += 1
 
