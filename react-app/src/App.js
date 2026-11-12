@@ -98,7 +98,10 @@ const AgentWhitelabelRedirect = () => {
 		if (/^[a-z0-9-]+\.tourit\.ca$/i.test(hostname) && hostname.toLowerCase() !== 'www.tourit.ca') return;
 		const slug = user.username.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
 		if (!slug) return;
-		window.location.href = `https://${slug}.tourit.ca`;
+		// Keep the path + query (e.g. /make-video?mls=…&autoquick=zh from the
+		// Chrome extension) — redirecting to the bare subdomain dropped them.
+		const { pathname, search, hash } = window.location;
+		window.location.href = `https://${slug}.tourit.ca${pathname}${search}${hash}`;
 	}, [user, authChecked]);
 	return null;
 };
