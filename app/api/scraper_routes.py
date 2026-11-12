@@ -426,10 +426,18 @@ def status_check_list():
     rows = (
         MlsListing.query
         .filter(MlsListing.is_active_filter())
-        .with_entities(MlsListing.mls_number)
+        .with_entities(MlsListing.mls_number, MlsListing.lat, MlsListing.lng)
         .all()
     )
-    return jsonify({"mls_numbers": [r.mls_number for r in rows if r.mls_number]})
+    rows = [r for r in rows if r.mls_number]
+    return jsonify({
+        "mls_numbers": [r.mls_number for r in rows],
+        # coordinates let the extension open each listing inside a map search
+        # around it, so Realm keeps the details panel open
+        "listings": [{"mls_number": r.mls_number,
+                      "lat": float(r.lat) if r.lat is not None else None,
+                      "lng": float(r.lng) if r.lng is not None else None} for r in rows],
+    })
 
 
 @scraper_routes.route("/status-check/report", methods=["POST"])
