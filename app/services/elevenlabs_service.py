@@ -170,7 +170,7 @@ def delete_voice(voice_id):
 
 # ── MiniMax TTS ────────────────────────────────────────────────────────────────
 
-def _minimax_tts(text, voice_id=None, language_boost="auto"):
+def _minimax_tts(text, voice_id=None, language_boost="auto", with_subtitles=False):
     """
     MiniMax T2A v2 sync HTTP.
     voice_id: cloned agent voice; falls back to MINIMAX_VOICE_ID preset if None.
@@ -193,6 +193,7 @@ def _minimax_tts(text, voice_id=None, language_boost="auto"):
             "text": text,
             "stream": False,
             "language_boost": language_boost,
+            "subtitle_enable": bool(with_subtitles),
             "voice_setting": {
                 "voice_id": voice_id or preset,
                 "speed": speed,
@@ -218,7 +219,10 @@ def _minimax_tts(text, voice_id=None, language_boost="auto"):
     audio_hex = data.get("data", {}).get("audio", "")
     if not audio_hex:
         raise RuntimeError("MiniMax TTS returned no audio data")
-    return bytes.fromhex(audio_hex)
+    audio = bytes.fromhex(audio_hex)
+    if with_subtitles:
+        return audio, data.get("data", {}).get("subtitle_file")
+    return audio
 
 
 # ── Public entry point ─────────────────────────────────────────────────────────
@@ -252,3 +256,59 @@ def generate_speech(text, voice_sample_path=None, fish_voice_id=None, lang="zh")
             else:
                 raise
     raise last_err
+
+
+def _parse_minimax_subtitles(payload):
+    """MiniMax subtitle JSON → [(text, start_s, end_s)] or None.
+    Accepts a list (or {"subtitles": [...]}) of sentences with time_begin/time_end
+    in milliseconds (also tolerates start/end keys)."""
+    items = payload.get("subtitles") if isinstance(payload, dict) else payload
+    if not isinstance(items, list):
+        return None
+    out = []
+    for it in items:
+        if not isinstance(it, dict):
+            continue
+        txt = str(it.get("text") or "").strip()
+        b = it.get("time_begin", it.get("start"))
+        e = it.get("time_end", it.get("end"))
+        try:
+            b, e = float(b) / 1000.0, float(e) / 1000.0
+        except (TypeError, ValueError):
+            continue
+        if txt and e > b >= 0:
+            out.append((txt, b, e))
+    return out or None
+
+
+def generate_speech_with_timing(text, fish_voice_id=None, lang="zh"):
+    """Like generate_speech, but also asks MiniMax for per-sentence timestamps.
+    Returns (audio_bytes, [(sentence_text, start_s, end_s)] or None). Timing is
+    best-effort: any problem fetching/parsing it returns None, never an error."""
+    normalized = text if lang == "en" else _normalize_for_tts(text)
+    boost = "English" if lang == "en" else "auto"
+    last_err = None
+    for attempt in range(3):
+        try:
+            audio, sub_url = _minimax_tts(normalized, voice_id=fish_voice_id or None,
+                                          language_boost=boost, with_subtitles=True)
+            break
+        except RuntimeError as e:
+            last_err = e
+            msg = str(e).lower()
+            if "rate limit" in msg or "rpm" in msg or "429" in msg:
+                time.sleep(30 * (attempt + 1))
+            else:
+                raise
+    else:
+        raise last_err
+    segments = None
+    if sub_url:
+        try:
+            r = requests.get(sub_url, timeout=20)
+            if r.ok:
+                segments = _parse_minimax_subtitles(r.json())
+        except Exception as e:
+            print(f"[TTS] subtitle timing unavailable: {e}")
+    print(f"[TTS] subtitle timing: {len(segments) if segments else 0} sentence(s)")
+    return audio, segments

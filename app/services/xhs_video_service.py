@@ -757,6 +757,31 @@ def _build_quick_subtitles(text, lang, audio_duration, offset_secs, out_path):
     return True
 
 
+def _build_quick_subtitles_timed(segments, lang, offset_secs, out_path):
+    """ASS from MiniMax's real per-sentence timestamps [(text, start_s, end_s)].
+    A sentence that needs several caption lines splits its own time span
+    between them by speaking time. Returns True if written."""
+    events = []
+    for text, b, e in segments:
+        lines = _quick_subtitle_lines(text, lang)
+        if not lines:
+            continue
+        weights = [max(_estimate_speech_secs(l, lang), 0.2) for l in lines]
+        span, total = e - b, sum(weights)
+        t = b
+        for line, w in zip(lines, weights):
+            dur = span * w / total
+            safe = line.replace("{", "(").replace("}", ")").replace("\\", "/")
+            events.append(f"Dialogue: 0,{_ass_ts(t + offset_secs)},{_ass_ts(t + dur + offset_secs)},Default,,0,0,0,,{safe}")
+            t += dur
+    if not events:
+        return False
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(_QUICK_ASS_HEADER)
+        f.write("\n".join(events) + "\n")
+    return True
+
+
 def _build_ppt_ass(slide_segments, out_path: str, offset_secs: float = 0.0):
     """
     Build ASS for PPT: slide_segments = [(narration_text, audio_duration_secs), ...].
@@ -2252,8 +2277,9 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
 
             if quick_mode and downloaded:
                 _job_set(job_id, {"status": "processing", "step": "Generating voiceover..."})
-                from app.services.elevenlabs_service import generate_speech
-                audio_bytes = generate_speech(quick_narration, fish_voice_id=minimax_voice_id, lang=quick_lang)
+                from app.services.elevenlabs_service import generate_speech_with_timing
+                audio_bytes, quick_timing = generate_speech_with_timing(
+                    quick_narration, fish_voice_id=minimax_voice_id, lang=quick_lang)
                 audio_path = os.path.join(tmpdir, "narration.mp3")
                 with open(audio_path, "wb") as f:
                     f.write(audio_bytes)
@@ -2283,7 +2309,8 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                 # Subtitles = exactly what's read aloud; voice starts after 0.8 s lead silence
                 try:
                     _subs = os.path.join(tmpdir, "subs.ass")
-                    if _build_quick_subtitles(quick_narration, quick_lang, narr_dur, 0.8, _subs):
+                    # Real sentence timestamps from MiniMax when available; else estimate
+                    if (quick_timing and _build_quick_subtitles_timed(quick_timing, quick_lang, 0.8, _subs))                             or _build_quick_subtitles(quick_narration, quick_lang, narr_dur, 0.8, _subs):
                         quick_subs_path = _subs
                 except Exception as _sub_err:
                     print(f"[XHS] subtitle build failed (non-fatal): {_sub_err}")
