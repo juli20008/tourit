@@ -469,12 +469,14 @@ def status_check_report():
 def _apply_realm_props(listing, props):
     """Copy Realm Property Information fields onto the listing. Returns True if anything changed."""
     changed = False
+    # Names only — Realm's data also has area *codes* like "09.04"; never store those.
+    has_letters = lambda v: bool(re.search(r"[A-Za-z一-鿿]", v))
     community = str(props.get("community") or "").strip()[:100]
-    if community and listing.neighborhood != community:
+    if community and has_letters(community) and listing.neighborhood != community:
         listing.neighborhood = community
         changed = True
     municipality = str(props.get("municipality") or "").strip()[:100]
-    if municipality and getattr(listing, "municipality", None) != municipality:
+    if municipality and has_letters(municipality) and getattr(listing, "municipality", None) != municipality:
         listing.municipality = municipality
         changed = True
     garage = re.sub(r"[^\d.]", "", str(props.get("garage_spaces") or ""))

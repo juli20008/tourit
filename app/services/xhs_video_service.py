@@ -248,8 +248,8 @@ def _cover_lines(d):
             return None
 
     community = (d.get("neighborhood") or d.get("municipality") or "").strip()
-    if re.match(r"^\d", community):            # never show a street address
-        community = ""
+    if re.match(r"^\d", community) or not re.search(r"[A-Za-z一-鿿]", community):
+        community = ""                         # never show a street address or an area code like 09.04
 
     bed, bath, garage = num(d.get("bed")), num(d.get("bath")), num(d.get("garage_spaces"))
     digits = "".join(str(x) for x in (bed, bath) if x) + (str(garage) if garage else "")
