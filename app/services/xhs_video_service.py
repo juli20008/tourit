@@ -564,6 +564,85 @@ def _build_ass(narration: str, audio_duration_secs: float, font_path, out_path: 
         f.write("\n".join(lines))
 
 
+# Quick-video subtitles: one line at a time, raised above Xiaohongshu's bottom
+# overlay (title / like buttons), semi-transparent box for readability.
+_QUICK_ASS_HEADER = """\
+[Script Info]
+ScriptType: v4.00+
+PlayResX: 720
+PlayResY: 960
+WrapStyle: 2
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Noto Sans CJK SC,38,&H00FFFFFF,&H000000FF,&H64000000,&H64000000,1,0,0,0,100,100,1,0,3,10,0,2,40,40,150,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+"""
+
+
+def _quick_subtitle_lines(text, lang="zh"):
+    """Split narration into short single-line captions.
+
+    Splits after Chinese punctuation, or after ,.!?;: followed by a space (so
+    158.8 and $1,588,000 stay whole). English words / numbers are never cut.
+    Long sentences are split into evenly sized lines (no 2-char leftovers).
+    Width units: CJK char = 1, Latin/digit char = 0.55 → max 15 per line
+    (≈ 15 Chinese characters at 38 px fits the 720 px frame)."""
+    max_w = 15.0
+    pieces = re.split(r"(?<=[，。！？；：、])|(?<=[,.!?;:])(?=\s)", text.strip())
+    lines = []
+    for p in pieces:
+        p = p.strip().rstrip("，。、；：,;:").strip()
+        if not p or not re.search(r"[\w一-鿿]", p):
+            continue                                  # skip punctuation-only bits
+        tokens = re.findall(r"[A-Za-z0-9$%'.,+\-/]+|\s+|.", p)
+        latin = 0.5 if lang == "en" else 0.55
+        width = lambda t: 0.3 if t.isspace() else (len(t) * latin if t.isascii() else float(len(t)))
+        total = sum(width(t) for t in tokens)
+        n = max(1, int(-(-total // max_w)))           # fewest lines that fit
+        limit = total / n
+        while True:                                   # widen until it fits in n lines
+            out, cur, cur_w = [], "", 0.0
+            for t in tokens:
+                w = width(t)
+                if cur.strip() and cur_w + w > limit + 1e-9 and not t.isspace():
+                    out.append(cur.strip())
+                    cur, cur_w = "", 0.0
+                cur += t
+                cur_w += w
+            if cur.strip():
+                out.append(cur.strip())
+            if len(out) <= n or limit >= max_w:
+                break
+            limit = min(max_w, limit + 0.5)
+        lines.extend(out)
+    return lines
+
+
+def _build_quick_subtitles(text, lang, audio_duration, offset_secs, out_path):
+    """ASS file timed to the voiceover: each line gets time in proportion to how
+    long it takes to say (same rates as _estimate_speech_secs), scaled to the
+    real audio length. Returns True if written."""
+    lines = _quick_subtitle_lines(text, lang)
+    if not lines or audio_duration <= 0:
+        return False
+    weights = [max(_estimate_speech_secs(l, lang), 0.3) for l in lines]
+    scale = audio_duration / sum(weights)
+    t = offset_secs
+    events = []
+    for line, w in zip(lines, weights):
+        dur = w * scale
+        safe = line.replace("{", "(").replace("}", ")").replace("\\", "/")
+        events.append(f"Dialogue: 0,{_ass_ts(t)},{_ass_ts(t + dur)},Default,,0,0,0,,{safe}")
+        t += dur
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(_QUICK_ASS_HEADER)
+        f.write("\n".join(events) + "\n")
+    return True
+
+
 def _build_ppt_ass(slide_segments, out_path: str, offset_secs: float = 0.0):
     """
     Build ASS for PPT: slide_segments = [(narration_text, audio_duration_secs), ...].
@@ -1838,6 +1917,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                 except Exception:
                     pass
             quick_narration = None
+            quick_subs_path = None
             quick_keep_all = False
             if quick_mode:
                 narration_override = None
@@ -2077,6 +2157,13 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                     downloaded = _kept
                 segment_audio_info = [(audio_path, narr_dur, downloaded, True)]
                 use_segments = True
+                # Subtitles = exactly what's read aloud; voice starts after 0.8 s lead silence
+                try:
+                    _subs = os.path.join(tmpdir, "subs.ass")
+                    if _build_quick_subtitles(quick_narration, quick_lang, narr_dur, 0.8, _subs):
+                        quick_subs_path = _subs
+                except Exception as _sub_err:
+                    print(f"[XHS] subtitle build failed (non-fatal): {_sub_err}")
 
             elif room_groups and downloaded:
                 _job_set(job_id, {"status": "processing", "step": "Generating voiceover..."})
@@ -2418,15 +2505,32 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
             final_path = os.path.join(tmpdir, "final.mp4")
 
             _job_set(job_id, {"status": "processing", "step": "Rendering final video..."})
-            subprocess.run(
-                [ffmpeg, "-y",
-                 "-i", silent_path, "-i", final_audio_path,
-                 "-map", "0:v:0", "-map", "1:a:0",
-                 "-c:v", "copy", "-c:a", "aac", "-shortest", final_path],
-                timeout=120,
+            burned = False
+            if quick_subs_path:
+                # Burn subtitles (needs a re-encode); fall back to no subtitles on failure
+                try:
+                    subprocess.run(
+                        [ffmpeg, "-y",
+                         "-i", silent_path, "-i", final_audio_path,
+                         "-map", "0:v:0", "-map", "1:a:0",
+                         "-vf", f"subtitles={quick_subs_path}",
+                         "-c:v", "libx264", "-crf", str(CRF), "-preset", PRESET, "-pix_fmt", "yuv420p",
+                         "-c:a", "aac", "-shortest", final_path],
+                        timeout=600, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                    )
+                    burned = True
+                except Exception as _burn_err:
+                    print(f"[XHS] subtitle burn failed, continuing without: {getattr(_burn_err, 'stderr', b'')[-300:]!r}")
+            if not burned:
+                subprocess.run(
+                    [ffmpeg, "-y",
+                     "-i", silent_path, "-i", final_audio_path,
+                     "-map", "0:v:0", "-map", "1:a:0",
+                     "-c:v", "copy", "-c:a", "aac", "-shortest", final_path],
+                    timeout=120,
 
-                check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-            )
+                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                )
 
             # ── Step 7: Upload ────────────────────────────────────────────────
             _job_set(job_id, {"status": "processing", "step": "Uploading..."})
