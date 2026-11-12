@@ -439,20 +439,52 @@ def status_check_report():
     if denied:
         return denied
     results = (request.get_json(silent=True) or {}).get("results") or []
-    deactivated = []
+    deactivated, filled = [], 0
     for item in results:
         mls = str(item.get("mls_number") or "").strip()
+        if not mls:
+            continue
         code = str(item.get("code") or "").strip().upper()
         new_status = _OFF_MARKET_CODES.get(code)
-        if not mls or not new_status:
+        props = item.get("props") or {}
+        if not new_status and not props:
             continue
         listing = MlsListing.query.filter_by(mls_number=mls).first()
         if not listing:
             continue
-        listing.status = "Inactive"
-        listing.standard_status = new_status
-        listing.last_status = code
-        deactivated.append({"mls_number": mls, "code": code, "status": new_status})
-    if deactivated:
+        # Fill community / garage / above-grade sqft read from Realm's
+        # "Property Information" (used by the cover and narration).
+        if _apply_realm_props(listing, props):
+            filled += 1
+        if new_status:
+            listing.status = "Inactive"
+            listing.standard_status = new_status
+            listing.last_status = code
+            deactivated.append({"mls_number": mls, "code": code, "status": new_status})
+    if deactivated or filled:
         db.session.commit()
-    return jsonify({"checked": len(results), "deactivated": deactivated})
+    return jsonify({"checked": len(results), "deactivated": deactivated, "filled": filled})
+
+
+def _apply_realm_props(listing, props):
+    """Copy Realm Property Information fields onto the listing. Returns True if anything changed."""
+    changed = False
+    community = str(props.get("community") or "").strip()[:100]
+    if community and listing.neighborhood != community:
+        listing.neighborhood = community
+        changed = True
+    municipality = str(props.get("municipality") or "").strip()[:100]
+    if municipality and getattr(listing, "municipality", None) != municipality:
+        listing.municipality = municipality
+        changed = True
+    garage = re.sub(r"[^\d.]", "", str(props.get("garage_spaces") or ""))
+    if garage:
+        g = int(float(garage))
+        if listing.garage_spaces != g:
+            listing.garage_spaces = g
+            changed = True
+    ag = re.sub(r"[^\d]", "", str(props.get("above_grade_sqft") or ""))
+    if ag and int(ag) > 100 and str(listing.above_grade_sqft or "") != ag:
+        listing.above_grade_sqft = ag
+        changed = True
+    return changed
