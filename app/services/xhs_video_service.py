@@ -203,6 +203,120 @@ def _generate_cover(line1, line2, line3, out_path):
         pass
 
 
+# ── Quick-video cover (Xiaohongshu "sticker" style) ───────────────────────────
+# Big yellow text, thick dark outline, red offset shadow, over the listing's
+# first photo:  社区 / 432独立屋 / 2200尺 / 仅$1.36M
+# Noto Sans SC at Black weight, subset to ASCII + the fixed cover words (21 KB, OFL).
+_COVER_FONT = os.path.join(_ASSETS_DIR, "fonts", "NotoSansSC-Black-CoverSubset.ttf")
+_COVER_FONT_CHARS = set(chr(c) for c in range(0x20, 0x7f)) | set("独立屋半镇公寓尺仅月万室卫车库社区·")
+_COVER_W, _COVER_H = 1080, 1440
+
+
+def _cover_type_zh(style, property_type=""):
+    s = f"{style or ''} {property_type or ''}".lower()
+    if "semi" in s:
+        return "半独立"
+    if "town" in s or "row" in s:
+        return "镇屋"
+    if "condo" in s or "apartment" in s:
+        return "公寓"
+    if "detached" in s:
+        return "独立屋"
+    return ""
+
+
+def _cover_price(price, is_lease=False):
+    try:
+        p = float(price)
+    except (TypeError, ValueError):
+        return ""
+    if p <= 0:
+        return ""
+    if is_lease:
+        return f"仅${int(p):,}/月"
+    if p >= 1_000_000:
+        return f"仅${f'{p / 1_000_000:.2f}'.rstrip('0').rstrip('.')}M"
+    return f"仅${round(p / 1000):,}K"
+
+
+def _cover_lines(d):
+    """[社区, 432独立屋, 2200尺, 仅$1.36M] from listing fields (blank lines dropped)."""
+    def num(v):
+        try:
+            return int(float(v))
+        except (TypeError, ValueError):
+            return None
+
+    community = (d.get("neighborhood") or d.get("municipality") or "").strip()
+    if re.match(r"^\d", community):            # never show a street address
+        community = ""
+
+    bed, bath, garage = num(d.get("bed")), num(d.get("bath")), num(d.get("garage_spaces"))
+    digits = "".join(str(x) for x in (bed, bath) if x) + (str(garage) if garage else "")
+    rooms = f"{digits}{_cover_type_zh(d.get('style'), d.get('property_type'))}"
+
+    area = ""
+    ag = num(str(d.get("above_grade_sqft") or "").replace(",", ""))
+    if ag and ag > 200:
+        area = f"{ag}尺"
+    elif d.get("sqft"):
+        area = f"{str(d['sqft']).strip()}尺"
+
+    is_lease = "lease" in str(d.get("transaction_type") or "").lower()
+    return [x for x in (community, rooms, area, _cover_price(d.get("list_price"), is_lease)) if x]
+
+
+def _generate_quick_cover(photo_path, d, out_path):
+    """Render the sticker-style cover. Returns True on success."""
+    from PIL import Image, ImageDraw, ImageFont, ImageOps
+
+    lines = _cover_lines(d)
+    if not lines or not os.path.exists(_COVER_FONT):
+        return False
+    img = ImageOps.fit(Image.open(photo_path).convert("RGB"), (_COVER_W, _COVER_H), Image.LANCZOS)
+    draw = ImageDraw.Draw(img)
+
+    # Top block: lines 1–2. Bottom block: lines 3–4 (like the reference layout).
+    top, bottom = lines[:2], lines[2:]
+    max_w = int(_COVER_W * 0.9)
+
+    def fit_font(text, size):
+        # Characters outside the subset (e.g. a Chinese community name) → system CJK bold
+        path = _COVER_FONT if set(text) <= _COVER_FONT_CHARS else (_get_chinese_font(bold=True) or _COVER_FONT)
+        while size > 40:
+            f = ImageFont.truetype(path, size)
+            if draw.textlength(text, font=f) <= max_w:
+                return f
+            size -= 6
+        return ImageFont.truetype(path, size)
+
+    def sticker(text, font, cy):
+        size = font.size
+        stroke = max(4, int(size * 0.075))
+        off = max(5, int(size * 0.07))
+        x = _COVER_W / 2
+        # red extruded shadow (bottom-right), then yellow text with dark outline on top
+        draw.text((x + off, cy + off), text, font=font, fill="#E8312A", anchor="mm",
+                  stroke_width=stroke, stroke_fill="#E8312A")
+        draw.text((x, cy), text, font=font, fill="#FFE03C", anchor="mm",
+                  stroke_width=stroke, stroke_fill="#2A1400")
+
+    sizes = [210, 190, 170, 220]
+    y = 210
+    for i, t in enumerate(top):
+        f = fit_font(t, sizes[i])
+        sticker(t, f, y)
+        y += int(f.size * 1.05)
+    y = _COVER_H - 470
+    for j, t in enumerate(bottom):
+        f = fit_font(t, sizes[2 + j])
+        sticker(t, f, y)
+        y += int(f.size * 1.15)
+
+    img.save(out_path, "JPEG", quality=92)
+    return True
+
+
 def _generate_composite_cover(ffmpeg, intro_path, photo_path, line1, line2, line3, out_path):
     """
     Cover frame: first property photo (cropped 3:4) as background,
@@ -1918,17 +2032,18 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                     pass
             quick_narration = None
             quick_subs_path = None
+            quick_fields = None
             quick_keep_all = False
             if quick_mode:
                 narration_override = None
                 _src = external_listing if external_listing else listing
                 _g = (lambda k: _src.get(k)) if external_listing else (lambda k: getattr(_src, k, None))
-                quick_narration = _build_quick_narration(
-                    {k: _g(k) for k in ("neighborhood", "sqft", "above_grade_sqft", "bed",
-                                        "beds_above_grade", "basement_beds", "bath",
-                                        "list_price", "description", "street", "street_name")},
-                    lang=quick_lang,
-                )
+                quick_fields = {k: _g(k) for k in (
+                    "neighborhood", "municipality", "sqft", "above_grade_sqft", "bed",
+                    "beds_above_grade", "basement_beds", "bath", "garage_spaces", "style",
+                    "property_type", "transaction_type", "list_price", "description",
+                    "street", "street_name")}
+                quick_narration = _build_quick_narration(quick_fields, lang=quick_lang)
                 import math as _qmath
                 _est = _estimate_speech_secs(quick_narration, quick_lang)
                 _need = max(1, _qmath.ceil((_est + 0.8) / PHOTO_DURATION))
@@ -2035,11 +2150,19 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                 intro_src = raw_intro if raw_intro and os.path.exists(raw_intro) else None
                 _idx = min(cover_photo_index, len(downloaded) - 1) if downloaded else 0
                 bg_photo = _cover_bg_path if _cover_bg_path else downloaded[_idx]
-                ok = _generate_composite_cover(
-                    ffmpeg, intro_src, bg_photo,
-                    cover_lines[0], cover_lines[1], cover_lines[2],
-                    comp_png,
-                )
+                ok = False
+                if quick_mode and quick_fields:
+                    # Sticker-style cover: 社区 / 432独立屋 / 2200尺 / 仅$1.36M
+                    try:
+                        ok = _generate_quick_cover(bg_photo, quick_fields, comp_png)
+                    except Exception as _qc_err:
+                        print(f"[XHS] quick cover failed, using default cover: {_qc_err}")
+                if not ok:
+                    ok = _generate_composite_cover(
+                        ffmpeg, intro_src, bg_photo,
+                        cover_lines[0], cover_lines[1], cover_lines[2],
+                        comp_png,
+                    )
                 if ok and os.path.exists(comp_png):
                     try:
                         from app.s3_helpers import _upload_file_obj
