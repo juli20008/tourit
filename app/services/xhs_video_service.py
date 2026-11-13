@@ -258,7 +258,7 @@ def _cover_lines(d):
     area = ""
     ag = num(str(d.get("above_grade_sqft") or "").replace(",", ""))
     if ag and ag > 200:
-        area = f"{int(round(ag / 100.0)) * 100}尺"      # nearest hundred: 3152 → 3200
+        area = f"{int(ag / 100.0 + 0.5) * 100}尺"       # nearest hundred, half up: 3152 → 3200, 3050 → 3100
     elif d.get("sqft"):
         area = f"{str(d['sqft']).strip()}尺"
 
