@@ -57,18 +57,18 @@ const PropertyCard = ({ property, setOver, videoUrl }) => {
 					{property?.bath} ba {property?.sqft} sqft
 				</div>
 				<div className="card-address text-[16px] font-medium leading-snug text-[#676a71]" translate="no">
-					{property?.street}, {property?.city}, {property?.state}{" "}
-					{property?.zip}
+					{[property?.street, property?.city, [property?.state, property?.zip].filter(Boolean).join(" ")]
+						.filter(Boolean)
+						.join(", ")}
 				</div>
-				<hr className="border-[#e1e1db]" />
-				<div className="card-office text-[14px] font-normal leading-snug text-[#676a71]">
-					{
-						property?.brokerage ||
-						property?.office ||
-						property?.listing_brokerage ||
-						"N/A"
-					}
-				</div>
+				{(property?.brokerage || property?.office || property?.listing_brokerage) && (
+					<>
+						<hr className="border-[#e1e1db]" />
+						<div className="card-office text-[14px] font-normal leading-snug text-[#676a71]" translate="no">
+							{property.brokerage || property.office || property.listing_brokerage}
+						</div>
+					</>
+				)}
 			</div>
 			{showModal && (
 				<Modal onClose={onClose}>
