@@ -6,7 +6,7 @@ import time
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
-from ..models.mls_listing import MlsListing, _determine_category, _build_cdn_image_url
+from ..models.mls_listing import MlsListing, _determine_category, _build_cdn_image_url, clean_city
 from ..models.db import db
 from ..rate_limit import rate_limit_check
 
@@ -461,6 +461,7 @@ def suggest_listings():
                 MlsListing.street_suffix,
                 MlsListing.unit_number,
                 MlsListing.city,
+                MlsListing.municipality,
                 MlsListing.list_price,
                 MlsListing.bed,
                 MlsListing.bath,
@@ -499,7 +500,7 @@ def suggest_listings():
                 'mls_number':       r.mls_number,
                 'street':           street,
                 'unit':             r.unit_number or '',
-                'city':             r.city or '',
+                'city':             clean_city(r.city, street, r.municipality),
                 'price':            r.list_price or 0,
                 'bed':              r.bed or 0,
                 'bath':             float(r.bath) if r.bath is not None else 0,
@@ -535,6 +536,7 @@ def address_index():
                 MlsListing.street_suffix,
                 MlsListing.unit_number,
                 MlsListing.city,
+                MlsListing.municipality,
                 MlsListing.list_price,
                 MlsListing.bed,
                 MlsListing.bath,
@@ -561,7 +563,7 @@ def address_index():
                 'mls_number':       r.mls_number,
                 'street':           street,
                 'unit':             r.unit_number or '',
-                'city':             r.city or '',
+                'city':             clean_city(r.city, street, r.municipality),
                 'price':            r.list_price or 0,
                 'bed':              r.bed or 0,
                 'bath':             float(r.bath) if r.bath is not None else 0,
@@ -620,6 +622,7 @@ def pin_index():
                 MlsListing.street_name,
                 MlsListing.street_suffix,
                 MlsListing.city,
+                MlsListing.municipality,
                 MlsListing.standard_status,
                 MlsListing.brokerage,
                 MlsListing.external_id,
@@ -659,7 +662,7 @@ def pin_index():
                 'bath':             float(r.bath) if r.bath else 0,
                 'sqft':             sqft,
                 'street':           street,
-                'city':             r.city or '',
+                'city':             clean_city(r.city, street, r.municipality),
                 'front_img':        front,
                 'image_urls':       [front] if front else [],
                 'status':           r.standard_status or 'Active',

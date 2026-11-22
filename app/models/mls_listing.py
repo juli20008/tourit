@@ -65,6 +65,24 @@ def _safe_float(v):
         return None
 
 
+def clean_city(city, street=None, municipality=None):
+    """City for display. Extension-pushed listings sometimes stored the street in
+    `city`; show the municipality (or nothing) instead of repeating the street."""
+    import re as _re
+    c = (city or '').strip()
+    if not c or c.lower() == (street or '').strip().lower() or _re.match(r'^\d', c):
+        m = (municipality or '').strip()
+        return m if _re.search(r'[A-Za-z]', m) else ''
+    return c
+
+
+def clean_zip(zip_code):
+    """Postal code for display — only a real Canadian postal code (A1A 1A1)."""
+    import re as _re
+    z = (zip_code or '').strip()
+    return z if _re.fullmatch(r'[A-Za-z]\d[A-Za-z]\s?\d[A-Za-z]\d', z) else ''
+
+
 class MlsListing(db.Model):
     __tablename__ = 'mls_listings'
 
@@ -263,21 +281,11 @@ class MlsListing(db.Model):
 
     @property
     def display_city(self):
-        """City for display. Extension-pushed listings sometimes stored the street
-        in `city`; show the municipality (or nothing) instead of repeating the street."""
-        import re as _re
-        c = (self.city or '').strip()
-        if not c or c.lower() == (self.street or '').strip().lower() or _re.match(r'^\d', c):
-            m = (self.municipality or '').strip()
-            return m if _re.search(r'[A-Za-z]', m) else ''
-        return c
+        return clean_city(self.city, self.street, self.municipality)
 
     @property
     def display_zip(self):
-        """Postal code for display — only a real Canadian postal code (A1A 1A1)."""
-        import re as _re
-        z = (self.zip or '').strip()
-        return z if _re.fullmatch(r'[A-Za-z]\d[A-Za-z]\s?\d[A-Za-z]\d', z) else ''
+        return clean_zip(self.zip)
 
     @property
     def cdn_image_urls(self):
