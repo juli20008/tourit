@@ -207,6 +207,14 @@ def push_listing():
     mls_number = listing["mls_number"]
     street = listing.get("street_name") or listing.get("street")
     city   = listing.get("city")
+    # The extension's address parsing sometimes puts the street in "city" and the
+    # city in "postal_code" → page showed "45 Anthony Roman Ave, 45 Anthony Roman Ave, Markham".
+    if not city or (street and city.strip().lower() == street.strip().lower()) or re.match(r"^\s*\d", city or ""):
+        muni = (listing.get("municipality") or "").strip()
+        city = muni if re.search(r"[A-Za-z]", muni) else None
+    pc = (listing.get("postal_code") or "").strip()
+    if pc and not re.fullmatch(r"[A-Za-z]\d[A-Za-z]\s?\d[A-Za-z]\d", pc):
+        listing["postal_code"] = None
 
     # Lat/lng sent directly from the extension (parsed from Realm's page)
     pushed_lat = listing.get("lat")

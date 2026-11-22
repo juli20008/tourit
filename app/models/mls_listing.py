@@ -262,6 +262,24 @@ class MlsListing(db.Model):
         return ' '.join(parts)
 
     @property
+    def display_city(self):
+        """City for display. Extension-pushed listings sometimes stored the street
+        in `city`; show the municipality (or nothing) instead of repeating the street."""
+        import re as _re
+        c = (self.city or '').strip()
+        if not c or c.lower() == (self.street or '').strip().lower() or _re.match(r'^\d', c):
+            m = (self.municipality or '').strip()
+            return m if _re.search(r'[A-Za-z]', m) else ''
+        return c
+
+    @property
+    def display_zip(self):
+        """Postal code for display — only a real Canadian postal code (A1A 1A1)."""
+        import re as _re
+        z = (self.zip or '').strip()
+        return z if _re.fullmatch(r'[A-Za-z]\d[A-Za-z]\s?\d[A-Za-z]\d', z) else ''
+
+    @property
     def cdn_image_urls(self):
         """Generate Realtor.ca CDN URLs for all photos using external_id + photos_timestamp.
 
@@ -363,9 +381,9 @@ class MlsListing(db.Model):
             'garage': None,
             'street': self.street,
             'unit': self.unit_number or '',
-            'city': self.city or '',
+            'city': self.display_city,
             'state': self.state or '',
-            'zip': self.zip or '',
+            'zip': self.display_zip,
             'neighborhood': self.neighborhood or '',
             'listing_id': self.mls_number,
             'listing_date': self.list_date.date().isoformat() if self.list_date else None,
@@ -438,9 +456,9 @@ class MlsListing(db.Model):
             'sqft':             self._sqft_int(),
             'street':           self.street,
             'unit':             self.unit_number or '',
-            'city':             self.city or '',
+            'city':             self.display_city,
             'state':            self.state or '',
-            'zip':              self.zip or '',
+            'zip':              self.display_zip,
             'status':           self.standard_status or self.status or 'Active',
             'category':         cat,
             'type':             cat,
@@ -462,7 +480,7 @@ class MlsListing(db.Model):
             'mls_number':       self.mls_number,
             'street':           self.street,
             'unit':             self.unit_number or '',
-            'city':             self.city or '',
+            'city':             self.display_city,
             'price':            self.list_price or 0,
             'bed':              self.bed or 0,
             'bath':             float(self.bath) if self.bath is not None else 0,
@@ -487,9 +505,9 @@ class MlsListing(db.Model):
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'street': self.street,
             'unit': self.unit_number,
-            'city': self.city,
+            'city': self.display_city or None,
             'state': self.state,
-            'zip': self.zip,
+            'zip': self.display_zip or None,
             'country': self.country,
             'neighborhood': self.neighborhood,
             'lat': float(self.lat) if self.lat is not None else None,
