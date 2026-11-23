@@ -158,8 +158,13 @@ const Detail = ({ property }) => {
 			{property?.neighborhood && (
 				<div className="text-sm text-gray-400 mb-1">{property.neighborhood}</div>
 			)}
+			{(property?.brokerage || property?.office) && (
+				<div className="text-sm text-gray-500 mb-1">
+					Listing Brokerage: <span translate="no">{property.brokerage || property.office}</span>
+				</div>
+			)}
 			<div className="text-xs text-gray-400 mb-6">
-				Listed {property?.listing_date}
+				{property?.listing_date && <>Listed {property.listing_date}</>}
 				{dom !== null && <span className="ml-2">· {dom} days on market</span>}
 			</div>
 
@@ -182,6 +187,9 @@ const Detail = ({ property }) => {
 
 			<Section title="Price details">
 				<Row label="List Price" value={fmtPrice(property?.price)} />
+				{(property?.brokerage || property?.office) && (
+					<Row label="Listing Brokerage" value={<span translate="no">{property.brokerage || property.office}</span>} />
+				)}
 				{property?.original_price && property.original_price !== property.price && (
 					<Row label="Original Price" value={fmtPrice(property.original_price)} />
 				)}
