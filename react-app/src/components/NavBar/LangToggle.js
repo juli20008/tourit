@@ -23,7 +23,10 @@ const IS_CRAWLER = typeof navigator !== 'undefined' &&
   /bot|crawl|spider|slurp|baiduspider|yandex|facebookexternalhit|bingpreview|google-inspectiontool|lighthouse/i
     .test(navigator.userAgent || '');
 
-function loadGoogleTranslate(onReady) {
+// target 'zh-CN': English source text → Chinese (中文 mode).
+// target 'en':    Chinese source text → English (EN mode). Pages/elements with
+//                 their own hand-written English are marked translate="no".
+function loadGoogleTranslate(onReady, target = 'zh-CN') {
   if (IS_CRAWLER) return;
   if (window.__gtLoaded) {
     waitForCombo(onReady);
@@ -32,7 +35,7 @@ function loadGoogleTranslate(onReady) {
   window.__gtLoaded = true;
   window.googleTranslateElementInit = function () {
     new window.google.translate.TranslateElement(
-      { pageLanguage: 'en', includedLanguages: 'zh-CN', autoDisplay: false },
+      { pageLanguage: target === 'en' ? 'zh-CN' : 'en', includedLanguages: target, autoDisplay: false },
       'google_translate_element'
     );
     waitForCombo(onReady);
@@ -149,7 +152,7 @@ function stopObserver() {
 // ── Component ──────────────────────────────────────────────────────────────────
 
 const LangToggle = () => {
-  const [lang, setLang] = useState(currentLang);
+  const [lang] = useState(currentLang);
 
   // If the page was loaded while Chinese was active, re-attach the script
   useEffect(() => {
@@ -161,26 +164,32 @@ const LangToggle = () => {
         combo.dispatchEvent(new Event('change'));
         setTimeout(() => { applyFixes(document.body); hideGoogleSpinner(); startObserver(); }, 800);
       });
+    } else {
+      // EN mode: translate the remaining Chinese text on the page into English
+      setCookie('/zh-CN/en');
+      startSpinnerSweep();
+      loadGoogleTranslate((combo) => {
+        combo.value = 'en';
+        combo.dispatchEvent(new Event('change'));
+        setTimeout(() => { hideGoogleSpinner(); stopSpinnerSweep(); }, 1500);
+      }, 'en');
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const activate = useCallback(() => {
+    stopObserver();
+    clearCookies();
     setCookie('/en/zh-CN');
     localStorage.setItem('tourit_lang', 'zh');
-    setLang('zh');
-    window.dispatchEvent(new CustomEvent('tourit:lang', { detail: 'zh' }));
-    startSpinnerSweep();
-    loadGoogleTranslate((combo) => {
-      combo.value = 'zh-CN';
-      combo.dispatchEvent(new Event('change'));
-      setTimeout(() => { applyFixes(document.body); hideGoogleSpinner(); startObserver(); }, 800);
-    });
+    window.__gtLoaded = false;
+    window.location.href = window.location.pathname + window.location.search;
   }, []);
 
   const deactivate = useCallback(() => {
     stopObserver();
     stopSpinnerSweep();
     clearCookies();
+    setCookie('/zh-CN/en');
     localStorage.setItem('tourit_lang', 'en');
     window.__gtLoaded = false;
     window.location.href = window.location.pathname + window.location.search;

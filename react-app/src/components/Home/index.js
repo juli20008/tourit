@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import setSeo from "../../utils/seo";
+import { useT } from "../../utils/lang";
 import { Link } from "react-router-dom";
 import "../../css/home.css";
 
@@ -17,6 +18,7 @@ const CALENDLY_URL = "https://calendly.com/julie-li-realtor/";
 const DETACHED_REPORT_URL = "https://claude.ai/artifact/VZCKf79qzXmm8AZLiWXHJx";
 
 export default function Home() {
+  const t = useT();
   useEffect(() => { setSeo({ path: "/" }); }, []);
   const searchRef = useRef(null);
 
@@ -40,23 +42,23 @@ export default function Home() {
           </h1>
 
           <p className="hp-hero-sub">
-            大多伦多专业华人地产经纪团队&nbsp;&nbsp;·&nbsp;&nbsp;普通话&nbsp;·&nbsp;English
+            {t("大多伦多专业华人地产经纪团队  ·  普通话 · English", "Chinese-speaking real estate team in the Greater Toronto Area  ·  Mandarin · English")}
           </p>
 
           <div className="hp-hero-actions">
-            <Link to={MAP_URL} className="hp-btn hp-btn-gold">开始找房</Link>
-            <a href={DETACHED_REPORT_URL} target="_blank" rel="noopener noreferrer" className="hp-btn hp-btn-outline">市场报告</a>
-            <a href={CALENDLY_URL} target="_blank" rel="noopener noreferrer" className="hp-btn hp-btn-ghost">📅 立即咨询</a>
+            <Link to={MAP_URL} className="hp-btn hp-btn-gold">{t("开始找房", "Find a Home")}</Link>
+            <a href={DETACHED_REPORT_URL} target="_blank" rel="noopener noreferrer" className="hp-btn hp-btn-outline">{t("市场报告", "Market Report")}</a>
+            <a href={CALENDLY_URL} target="_blank" rel="noopener noreferrer" className="hp-btn hp-btn-ghost">📅 {t("立即咨询", "Book a Consultation")}</a>
           </div>
 
           <div className="hp-hero-stats">
-            <Stat num="买·卖·租" label="资深经纪" />
+            <Stat num={t("买·卖·租", "Buy·Sell·Lease")} label={t("资深经纪", "Experienced agents")} />
             <div className="hp-stat-div" />
-            <Stat num="10+" label="年从业经验" />
+            <Stat num="10+" label={t("年从业经验", "Years of experience")} />
             <div className="hp-stat-div" />
-            <Stat num="GTA" label="全区域覆盖" />
+            <Stat num="GTA" label={t("全区域覆盖", "Area-wide coverage")} />
             <div className="hp-stat-div" />
-            <Stat num="24/7" label="华语服务" />
+            <Stat num="24/7" label={t("华语服务", "Here for you")} />
           </div>
           </div>
 
@@ -87,52 +89,52 @@ export default function Home() {
       {/* ── Services ─────────────────────────────────────────────────── */}
       <section className="hp-section hp-services">
         <div className="hp-inner">
-          <SectionHead title="我们的服务" sub="专业、贴心、全程中文服务" />
+          <SectionHead title={t("我们的服务", "Our Services")} sub={t("专业、贴心、全程中文服务", "Professional, attentive, in Mandarin or English")} />
           <div className="hp-services-grid">
             <ServiceCard
               icon="🏠"
-              title="买房置业"
+              title={t("买房置业", "Buy a Home")}
               en="Buy a Home"
-              desc="从选区域、看房到过户，全程中文服务，为您在大多伦多找到理想的家。"
-              cta="预约咨询"
+              desc={t("从选区域、看房到过户，全程中文服务，为您在大多伦多找到理想的家。", "From choosing a neighbourhood to showings and closing, we guide you every step to find the right home in the GTA.")}
+              cta={t("预约咨询", "Book a consultation")}
               href={CALENDLY_URL}
             />
             <ServiceCard
               icon="🔑"
-              title="出售房产"
+              title={t("出售房产", "Sell Your Home")}
               en="Sell Your Home"
-              desc="精准市场定价、专业摄影、小红书营销推广，帮您快速高价成交。"
-              cta="预约评估"
+              desc={t("精准市场定价、专业摄影、小红书营销推广，帮您快速高价成交。", "Accurate pricing, professional photography and social-media marketing to sell fast and for top dollar.")}
+              cta={t("预约评估", "Get a home evaluation")}
               href={CALENDLY_URL}
             />
             <ServiceCard
               icon="🏘️"
-              title="出租物业 · 租房管理"
+              title={t("出租物业 · 租房管理", "Leasing & Property Management")}
               en="Leasing & Property Management"
-              desc="帮您出租房产、筛选优质租客，签约、收租、维修一站式管理，省心又安心。"
-              cta="咨询出租"
+              desc={t("帮您出租房产、筛选优质租客，签约、收租、维修一站式管理，省心又安心。", "We lease your property, screen quality tenants, and handle leases, rent collection and repairs, worry-free.")}
+              cta={t("咨询出租", "Ask about leasing")}
               href={CALENDLY_URL}
             />
             <ServiceCard
               icon="📈"
-              title="投资规划"
+              title={t("投资规划", "Investment Planning")}
               en="Investment"
-              desc="数据驱动决策，深度分析大多伦多各区涨幅潜力，助您实现资产增值。"
-              cta="咨询团队"
+              desc={t("数据驱动决策，深度分析大多伦多各区涨幅潜力，助您实现资产增值。", "Data-driven decisions: we analyse growth potential across GTA neighbourhoods to help your assets appreciate.")}
+              cta={t("咨询团队", "Talk to our team")}
               href={CALENDLY_URL}
             />
             <div className="hp-service-card hp-service-market">
               <div className="hp-service-icon">📊</div>
               <h3 className="hp-service-title">
-                市场观察
+                {t("市场观察", "Market Insights")}
                 <span className="hp-service-en" translate="no">Market Insights</span>
               </h3>
-              <p className="hp-service-desc">大多伦多最新楼市数据与趋势，价格走势、成交数据一目了然。</p>
+              <p className="hp-service-desc">{t("大多伦多最新楼市数据与趋势，价格走势、成交数据一目了然。", "The latest GTA market data and trends: prices and sales at a glance.")}</p>
               <div className="hp-service-market-links">
                 <a href={DETACHED_REPORT_URL}
-                   target="_blank" rel="noopener noreferrer" className="hp-service-cta">🏡 独立屋市场 →</a>
+                   target="_blank" rel="noopener noreferrer" className="hp-service-cta">🏡 {t("独立屋市场", "Detached homes")} →</a>
                 <a href="https://claude.ai/artifact/AUTXnogN1bo4jD7u7Gbdpz"
-                   target="_blank" rel="noopener noreferrer" className="hp-service-cta">🏢 公寓市场 →</a>
+                   target="_blank" rel="noopener noreferrer" className="hp-service-cta">🏢 {t("公寓市场", "Condos")} →</a>
               </div>
             </div>
           </div>
@@ -143,35 +145,35 @@ export default function Home() {
       <section className="hp-section hp-search-band" ref={searchRef} id="search">
         <div className="hp-inner hp-search-inner">
           <div className="hp-search-text">
-            <div className="hp-label">实时 MLS 数据</div>
-            <h2 className="hp-section-title hp-white">搜索大多伦多房源</h2>
+            <div className="hp-label">{t("实时 MLS 数据", "Live MLS data")}</div>
+            <h2 className="hp-section-title hp-white">{t("搜索大多伦多房源", "Search GTA Listings")}</h2>
             <p className="hp-section-sub hp-white-sub">
-              地图找房 · 价格筛选 · 户型选择 · 一站式查看全区挂牌
+              {t("地图找房 · 价格筛选 · 户型选择 · 一站式查看全区挂牌", "Map search · Price filters · Property types · All listings in one place")}
             </p>
             <div className="hp-search-chips">
-              <SearchChip to={MAP_URL + "?type=house"}    label="独立屋 House" />
-              <SearchChip to={MAP_URL + "?type=condo"}    label="公寓 Condo" />
-              <SearchChip to={MAP_URL + "?type=townhouse"} label="联排 Townhouse" />
-              <SearchChip to={MAP_URL + "?tx=rent"}       label="出租 For Rent" />
+              <SearchChip to={MAP_URL + "?type=house"}    label={t("独立屋 House", "Detached")} />
+              <SearchChip to={MAP_URL + "?type=condo"}    label={t("公寓 Condo", "Condo")} />
+              <SearchChip to={MAP_URL + "?type=townhouse"} label={t("联排 Townhouse", "Townhouse")} />
+              <SearchChip to={MAP_URL + "?tx=rent"}       label={t("出租 For Rent", "For Rent")} />
             </div>
             <Link to={MAP_URL} className="hp-btn hp-btn-gold hp-btn-lg">
-              打开地图找房 →
+              {t("打开地图找房 →", "Open map search →")}
             </Link>
           </div>
           <div className="hp-search-preview">
-            <img src={skyline} alt="大多伦多房源" className="hp-skyline" />
+            <img src={skyline} alt={t("大多伦多房源", "GTA listings")} className="hp-skyline" />
             <div className="hp-search-card-float">
               <div className="hp-float-row">
                 <span className="hp-float-dot hp-dot-green" />
-                <span>实时 MLS 数据更新</span>
+                <span>{t("实时 MLS 数据更新", "Live MLS updates")}</span>
               </div>
               <div className="hp-float-row">
                 <span className="hp-float-dot hp-dot-gold" />
-                <span>8,000+ 在售房源</span>
+                <span>{t("8,000+ 在售房源", "8,000+ active listings")}</span>
               </div>
               <div className="hp-float-row">
                 <span className="hp-float-dot hp-dot-green" />
-                <span>全大多伦多地区覆盖</span>
+                <span>{t("全大多伦多地区覆盖", "Covering the entire GTA")}</span>
               </div>
             </div>
           </div>
@@ -181,16 +183,16 @@ export default function Home() {
       {/* ── Why Us ───────────────────────────────────────────────────── */}
       <section className="hp-section hp-why">
         <div className="hp-inner">
-          <SectionHead title="为什么选择加家团队" sub="专业实力 · 华语服务 · 本地经验" />
+          <SectionHead title={t("为什么选择加家团队", "Why Canada Home Team")} sub={t("专业实力 · 华语服务 · 本地经验", "Expertise · Bilingual service · Local knowledge")} />
           <div className="hp-why-grid">
-            <WhyCard icon="🗣️" title="华语全程服务"
-              desc="普通话、英语无缝切换。买房、卖房过程中的每一步，都有团队全程中文陪同。" />
-            <WhyCard icon="🏆" title="资深专业团队"
-              desc="隶属 Bay Street Group Inc. Brokerage，多位持牌经纪，覆盖大多伦多全区域。" />
-            <WhyCard icon="📍" title="深耕大多伦多"
-              desc="万锦、列治文山、多伦多、北约克、旺市深度熟悉，为您提供最精准的本地市场建议。" />
-            <WhyCard icon="📊" title="数据驱动决策"
-              desc="实时市场分析、成交价对比、涨幅热力图，助您做出最明智的地产决策。" />
+            <WhyCard icon="🗣️" title={t("华语全程服务", "Mandarin & English")}
+              desc={t("普通话、英语无缝切换。买房、卖房过程中的每一步，都有团队全程中文陪同。", "We switch seamlessly between Mandarin and English and are with you at every step of buying or selling.")} />
+            <WhyCard icon="🏆" title={t("资深专业团队", "Experienced Team")}
+              desc={t("隶属 Bay Street Group Inc. Brokerage，多位持牌经纪，覆盖大多伦多全区域。", "Licensed sales representatives with Bay Street Group Inc., Brokerage, serving the entire GTA.")} />
+            <WhyCard icon="📍" title={t("深耕大多伦多", "Deep Local Knowledge")}
+              desc={t("万锦、列治文山、多伦多、北约克、旺市深度熟悉，为您提供最精准的本地市场建议。", "We know Markham, Richmond Hill, Toronto, North York and Vaughan inside out, so our advice is precise and local.")} />
+            <WhyCard icon="📊" title={t("数据驱动决策", "Data-Driven Decisions")}
+              desc={t("实时市场分析、成交价对比、涨幅热力图，助您做出最明智的地产决策。", "Live market analysis, sold-price comparisons and growth heat maps help you make the smartest decision.")} />
           </div>
         </div>
       </section>
@@ -198,15 +200,15 @@ export default function Home() {
       {/* ── Areas ────────────────────────────────────────────────────── */}
       <section className="hp-section hp-areas">
         <div className="hp-inner">
-          <SectionHead title="服务区域" sub="大多伦多全覆盖" />
+          <SectionHead title={t("服务区域", "Areas We Serve")} sub={t("大多伦多全覆盖", "Across the Greater Toronto Area")} />
           <div className="hp-areas-grid">
             {[
-              { name: "万锦 Markham",        tag: "华人热门区" },
-              { name: "列治文山 Richmond Hill", tag: "顶级学区" },
-              { name: "多伦多 Toronto",       tag: "市中心核心" },
-              { name: "北约克 North York",    tag: "性价比之选" },
-              { name: "旺市 Vaughan",         tag: "新盘热区" },
-              { name: "奥克维尔 Oakville",    tag: "西区首选" },
+              { name: t("万锦 Markham", "Markham"),        tag: t("华人热门区", "Popular with Chinese families") },
+              { name: t("列治文山 Richmond Hill", "Richmond Hill"), tag: t("顶级学区", "Top-ranked schools") },
+              { name: t("多伦多 Toronto", "Toronto"),       tag: t("市中心核心", "Downtown core") },
+              { name: t("北约克 North York", "North York"),    tag: t("性价比之选", "Great value") },
+              { name: t("旺市 Vaughan", "Vaughan"),         tag: t("新盘热区", "New developments") },
+              { name: t("奥克维尔 Oakville", "Oakville"),    tag: t("西区首选", "Top west-end pick") },
             ].map((a) => (
               <Link key={a.name} to={MAP_URL} className="hp-area-card">
                 <span className="hp-area-tag">{a.tag}</span>
@@ -222,10 +224,10 @@ export default function Home() {
         <div className="hp-inner hp-contact-inner">
           <div className="hp-contact-text">
             <img src={bayLogo} alt="Bay Street Group Inc., Brokerage" className="hp-contact-bay" />
-            <div className="hp-label hp-label-gold">微信 · 电话 · 邮件</div>
-            <h2 className="hp-section-title hp-white">随时开始您的找房之旅</h2>
+            <div className="hp-label hp-label-gold">{t("微信 · 电话 · 邮件", "WeChat · Phone · Email")}</div>
+            <h2 className="hp-section-title hp-white">{t("随时开始您的找房之旅", "Start Your Home Search Today")}</h2>
             <p className="hp-section-sub hp-white-sub">
-              扫描微信二维码，或直接拨打电话，我们将在24小时内与您联系。
+              {t("扫描微信二维码，或直接拨打电话，我们将在24小时内与您联系。", "Scan our WeChat QR code or call us, and we will get back to you within 24 hours.")}
             </p>
             <div className="hp-contact-links">
               <a href="tel:6475426760"               className="hp-contact-link" translate="no">📞 647-542-6760</a>
@@ -234,12 +236,12 @@ export default function Home() {
               <span className="hp-contact-link">📍 8300 Woodbine Ave Ste 500, Markham ON L3R9Y7</span>
             </div>
             <Link to={MAP_URL} className="hp-btn hp-btn-gold" style={{ marginTop: "2rem" }}>
-              开始找房
+              {t("开始找房", "Find a Home")}
             </Link>
           </div>
           <div className="hp-contact-qr">
-            <img src={wechatQr} alt="微信二维码 — 加家地产 Julie" className="hp-qr" />
-            <p className="hp-qr-caption">微信扫码添加好友</p>
+            <img src={wechatQr} alt={t("微信二维码 — 加家地产 Julie", "WeChat QR code — Julie")} className="hp-qr" />
+            <p className="hp-qr-caption">{t("微信扫码添加好友", "Scan to add us on WeChat")}</p>
           </div>
         </div>
       </section>
@@ -305,6 +307,7 @@ function WhyCard({ icon, title, desc }) {
 }
 
 function HeroAgent({ photo, name, phone, wechatQr, wechatUrl }) {
+  const t = useT();
   return (
     <div className="hp-agent">
       <img src={photo} alt={name} className="hp-agent-photo" />
@@ -312,8 +315,8 @@ function HeroAgent({ photo, name, phone, wechatQr, wechatUrl }) {
       <p className="hp-agent-role">Sales Representative</p>
       <a href={`tel:${phone.replace(/\D/g, "")}`} className="hp-agent-phone" translate="no">📞 {phone}</a>
       <a href={wechatUrl} target="_blank" rel="noopener noreferrer" className="hp-agent-wechat">
-        <img src={wechatQr} alt={`${name} 微信二维码`} />
-        <span>微信扫码添加</span>
+        <img src={wechatQr} alt={`${name} ${t("微信二维码", "WeChat QR code")}`} />
+        <span>{t("微信扫码添加", "Scan to add on WeChat")}</span>
       </a>
     </div>
   );
