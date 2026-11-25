@@ -273,10 +273,11 @@ def _run_ppt_pipeline(job_id, agent_id, slide_images_bytes, slide_texts, cover_l
                     pass
 
             # ── Step 3: Per-slide TTS + clips ────────────────────────────────
-            from app.services.elevenlabs_service import generate_speech
+            from app.services.elevenlabs_service import generate_speech_with_timing
 
             slide_clip_paths = []
             slide_audio_paths = []
+            subtitle_parts = []      # (narration, timing, duration) per slide, for burned-in subtitles
 
             for i, (img_path, text) in enumerate(zip(slide_images, slide_texts)):
                 _job_set(job_id, {"status": "processing", "step": f"Generating voiceover {i+1}/{n}..."})
@@ -284,8 +285,9 @@ def _run_ppt_pipeline(job_id, agent_id, slide_images_bytes, slide_texts, cover_l
                     narration = text.strip()
                 else:
                     narration = _generate_slide_narration(img_path) or f"第{i+1}页"
+                timing = None
                 try:
-                    audio_bytes = generate_speech(narration, fish_voice_id=minimax_voice_id)
+                    audio_bytes, timing = generate_speech_with_timing(narration, fish_voice_id=minimax_voice_id)
                     audio_path = os.path.join(tmpdir, f"slide_{i:02d}.mp3")
                     with open(audio_path, "wb") as fh:
                         fh.write(audio_bytes)
@@ -293,6 +295,7 @@ def _run_ppt_pipeline(job_id, agent_id, slide_images_bytes, slide_texts, cover_l
                 except Exception:
                     audio_path = None
                     duration = MIN_SLIDE_DURATION
+                subtitle_parts.append((narration if audio_path else "", timing, duration))
 
                 slide_audio_paths.append(audio_path)
 
@@ -378,13 +381,38 @@ def _run_ppt_pipeline(job_id, agent_id, slide_images_bytes, slide_texts, cover_l
             final_path = os.path.join(tmpdir, "final.mp4")
 
             _job_set(job_id, {"status": "processing", "step": "Rendering final video..."})
-            subprocess.run(
-                [ffmpeg, "-y",
-                 "-i", silent_path, "-i", final_audio_path,
-                 "-map", "0:v:0", "-map", "1:a:0",
-                 "-c:v", "copy", "-c:a", "aac", "-shortest", final_path],
-                check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-            )
+            # Burned-in subtitles: each slide's narration inside that slide's time
+            # window (after the intro video, if any). Falls back to no subtitles.
+            burned = False
+            try:
+                from app.services.xhs_video_service import _build_segmented_subtitles
+                t = _get_audio_duration(ffprobe, intro_audio_path) if intro_audio_path and os.path.exists(intro_audio_path) else 0.0
+                parts = []
+                for narr, timing, dur in subtitle_parts:
+                    parts.append((narr, timing, t, dur))
+                    t += dur
+                subs_path = os.path.join(tmpdir, "subs.ass")
+                if _build_segmented_subtitles(parts, "zh", subs_path):
+                    subprocess.run(
+                        [ffmpeg, "-y",
+                         "-i", silent_path, "-i", final_audio_path,
+                         "-map", "0:v:0", "-map", "1:a:0",
+                         "-vf", f"subtitles={subs_path}",
+                         "-c:v", "libx264", "-crf", str(CRF), "-preset", PRESET, "-pix_fmt", "yuv420p",
+                         "-c:a", "aac", "-shortest", final_path],
+                        timeout=600, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                    )
+                    burned = True
+            except Exception as _sub_err:
+                print(f"[PPT] subtitles failed, continuing without: {_sub_err}")
+            if not burned:
+                subprocess.run(
+                    [ffmpeg, "-y",
+                     "-i", silent_path, "-i", final_audio_path,
+                     "-map", "0:v:0", "-map", "1:a:0",
+                     "-c:v", "copy", "-c:a", "aac", "-shortest", final_path],
+                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                )
 
             # ── Step 6: Upload ────────────────────────────────────────────────
             _job_set(job_id, {"status": "processing", "step": "Uploading..."})

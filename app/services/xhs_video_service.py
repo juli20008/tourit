@@ -782,6 +782,44 @@ def _build_quick_subtitles_timed(segments, lang, offset_secs, out_path):
     return True
 
 
+def _build_segmented_subtitles(parts, lang, out_path):
+    """Subtitles for a video made of separately-voiced parts (e.g. PPT slides).
+
+    parts: [(text, timing, start_s, duration_s)] — `timing` is MiniMax's
+    [(sentence, begin_s, end_s)] for that part (relative to the part) or None.
+    Each part's captions stay inside its own [start, start+duration] window.
+    Returns True if written."""
+    events = []
+
+    def add(line, t0, t1):
+        safe = line.replace("{", "(").replace("}", ")").replace("\\", "/")
+        events.append(f"Dialogue: 0,{_ass_ts(t0)},{_ass_ts(t1)},Default,,0,0,0,,{safe}")
+
+    for text, timing, start, dur in parts:
+        if not text or not text.strip() or dur <= 0:
+            continue
+        spans = timing or [(text, 0.0, dur)]          # no timestamps → spread over the part
+        for sent, b, e in spans:
+            lines = _quick_subtitle_lines(sent, lang)
+            if not lines:
+                continue
+            b, e = max(0.0, b), min(dur, e)
+            if e <= b:
+                continue
+            weights = [max(_estimate_speech_secs(l, lang), 0.2) for l in lines]
+            t, total = b, sum(weights)
+            for line, w in zip(lines, weights):
+                d = (e - b) * w / total
+                add(line, start + t, start + t + d)
+                t += d
+    if not events:
+        return False
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(_QUICK_ASS_HEADER)
+        f.write("\n".join(events) + "\n")
+    return True
+
+
 def _build_ppt_ass(slide_segments, out_path: str, offset_secs: float = 0.0):
     """
     Build ASS for PPT: slide_segments = [(narration_text, audio_duration_secs), ...].
