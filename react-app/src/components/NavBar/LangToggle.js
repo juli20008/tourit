@@ -17,7 +17,14 @@ function setCookie(val) {
 function clearCookies() { setCookie(''); setCookie('/en/en'); }
 
 // Load Google's script exactly once, then wait for the combo to appear
+// Search-engine crawlers must index the original text — Google Translate's
+// "Chinese" mode re-translates our Chinese content and garbles names/titles.
+const IS_CRAWLER = typeof navigator !== 'undefined' &&
+  /bot|crawl|spider|slurp|baiduspider|yandex|facebookexternalhit|bingpreview|google-inspectiontool|lighthouse/i
+    .test(navigator.userAgent || '');
+
 function loadGoogleTranslate(onReady) {
+  if (IS_CRAWLER) return;
   if (window.__gtLoaded) {
     waitForCombo(onReady);
     return;

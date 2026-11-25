@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useEffect } from "react";
+import setSeo from "../../utils/seo";
 import "../../css/home.css";
 import "../../css/pricing.css";
 
@@ -36,6 +37,13 @@ const LEASE_PERKS = [
 ];
 
 export default function Pricing() {
+  useEffect(() => {
+    setSeo({
+      title: "服务定价 · 卖房佣金、买房现金回赠、出租管理",
+      description: "加家团队服务定价：卖房上市 $699 起、全服务 1%；买房签约后成交最高回赠 1%；房东出租送 1 年免费租客管理。万锦、列治文山、大多伦多。",
+      path: "/pricing",
+    });
+  }, []);
   return (
     <div className="hp pr" translate="no">
       {/* ── Header ─────────────────────────────────────────────────── */}

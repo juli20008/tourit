@@ -1,4 +1,5 @@
-import React, { useRef } from "react";
+import React, { useEffect, useRef } from "react";
+import setSeo from "../../utils/seo";
 import { Link } from "react-router-dom";
 import "../../css/home.css";
 
@@ -16,6 +17,7 @@ const CALENDLY_URL = "https://calendly.com/julie-li-realtor/";
 const DETACHED_REPORT_URL = "https://claude.ai/artifact/VZCKf79qzXmm8AZLiWXHJx";
 
 export default function Home() {
+  useEffect(() => { setSeo({ path: "/" }); }, []);
   const searchRef = useRef(null);
 
   return (

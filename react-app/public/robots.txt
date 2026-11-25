@@ -1,0 +1,17 @@
+User-agent: *
+Allow: /
+
+# Logged-in / private tools — nothing useful for search
+Disallow: /appointments
+Disallow: /profile
+Disallow: /chats
+Disallow: /reviews
+Disallow: /make-video
+Disallow: /ppt-video
+Disallow: /new-home-video
+Disallow: /save-video
+Disallow: /agent-login
+Disallow: /login
+Disallow: /sign-up
+
+Sitemap: https://www.tourit.ca/sitemap.xml

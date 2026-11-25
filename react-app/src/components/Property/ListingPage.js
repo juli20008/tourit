@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useHistory } from "react-router-dom";
 import apiFetch from "../../utils/apiFetch";
+import setSeo from "../../utils/seo";
 import Property from "./index";
 
 
@@ -20,6 +21,27 @@ const ListingPage = () => {
 			})
 			.catch(() => setNotFound(true));
 	}, [mlsNumber]);
+
+	// Listing-specific title/description; canonical is always /listing/<mls>
+	// (also for /a/:agentId/listing/… referral links, which are the same page).
+	useEffect(() => {
+		if (notFound) { setSeo({ title: "房源未找到", path: `/listing/${mlsNumber}`, noindex: true }); return; }
+		if (!property) return;
+		const place = [property.street, property.city].filter(Boolean).join(", ");
+		const rooms = `${property.bed || "?"}卧${property.bath || "?"}卫`;
+		const price = property.price ? `$${Number(property.price).toLocaleString("en-CA")}` : "";
+		const lease = String(property.transaction_type || "").toLowerCase().includes("lease");
+		setSeo({
+			title: [place, rooms, price && (lease ? `${price}/月` : price)].filter(Boolean).join(" · "),
+			description: [
+				`${lease ? "出租" : "出售"}：${place}，${rooms}${property.sqft ? `，约${property.sqft}平方英尺` : ""}${price ? `，${price}` : ""}。`,
+				property.neighborhood ? `社区：${property.neighborhood}。` : "",
+				(property.description || "").replace(/\s+/g, " ").slice(0, 160),
+			].join(""),
+			path: `/listing/${mlsNumber}`,
+			image: (property.image_urls && property.image_urls[0]) || (property.images && property.images[0]) || property.front_img,
+		});
+	}, [property, notFound, mlsNumber]);
 
 	useEffect(() => {
 		if (!agentId) return;

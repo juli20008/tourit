@@ -110,7 +110,7 @@ const AgentWhitelabelRedirect = () => {
 const WhitelabelTitle = () => {
 	const agent = useSelector((state) => state.whitelabel?.agent);
 	useEffect(() => {
-		document.title = "加家团队";
+		// Page titles are set per page via utils/seo.js
 	}, [agent]);
 	return null;
 };

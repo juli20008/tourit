@@ -263,3 +263,42 @@ def share_listing(mls_number):
 </html>"""
 
     return page, 200, {"Content-Type": "text/html; charset=utf-8"}
+
+
+@share_routes.route("/sitemap.xml")
+def sitemap():
+    """XML sitemap for search engines (served at www.tourit.ca/sitemap.xml via a
+    Vercel rewrite): static pages + every active listing page."""
+    from xml.sax.saxutils import escape as xml_escape
+    from app.models.mls_listing import MlsListing
+    base = "https://www.tourit.ca"
+    urls = [
+        (f"{base}/", None, "daily", "1.0"),
+        (f"{base}/pricing", None, "weekly", "0.8"),
+        (f"{base}/about", None, "monthly", "0.6"),
+    ]
+    try:
+        rows = (MlsListing.query
+                .filter(MlsListing.is_active_filter())
+                .with_entities(MlsListing.mls_number, MlsListing.updated_at)
+                .all())
+        for r in rows:
+            if r.mls_number and re.fullmatch(r"[A-Z]\d{6,9}", r.mls_number):
+                lastmod = r.updated_at.strftime("%Y-%m-%d") if r.updated_at else None
+                urls.append((f"{base}/listing/{r.mls_number}", lastmod, "daily", "0.7"))
+    except Exception:
+        pass
+    parts = ['<?xml version="1.0" encoding="UTF-8"?>',
+             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
+    for loc, lastmod, freq, prio in urls:
+        parts.append("  <url>")
+        parts.append(f"    <loc>{xml_escape(loc)}</loc>")
+        if lastmod:
+            parts.append(f"    <lastmod>{lastmod}</lastmod>")
+        parts.append(f"    <changefreq>{freq}</changefreq>")
+        parts.append(f"    <priority>{prio}</priority>")
+        parts.append("  </url>")
+    parts.append("</urlset>")
+    resp = Response("\n".join(parts), mimetype="application/xml")
+    resp.headers["Cache-Control"] = "public, max-age=3600"
+    return resp

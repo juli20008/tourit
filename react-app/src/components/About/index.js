@@ -1,3 +1,6 @@
+import { useEffect } from 'react';
+import setSeo from '../../utils/seo';
+
 const TEAM_PHOTO = 'https://pub-d254d778630548a18efd333eda056bcb.r2.dev/assets/team-hero.png';
 const WECHAT_QR  = 'https://pub-d254d778630548a18efd333eda056bcb.r2.dev/assets/wechat-qr.jpg';
 
@@ -30,6 +33,9 @@ const stats = [
 ];
 
 const About = () => {
+	useEffect(() => {
+		setSeo({ title: "关于我们 · Julie Li & Sara Tian", path: "/about" });
+	}, []);
 	return (
 		<div className="about-page">
 

@@ -1,6 +1,16 @@
 {
   "rewrites": [
-    { "source": "/share/:path*", "destination": "https://api.tourit.ca/share/:path*" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/sitemap.xml",
+      "destination": "https://api.tourit.ca/share/sitemap.xml"
+    },
+    {
+      "source": "/share/:path*",
+      "destination": "https://api.tourit.ca/share/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ]
 }
