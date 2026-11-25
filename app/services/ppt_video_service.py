@@ -244,13 +244,10 @@ def _run_ppt_pipeline(job_id, agent_id, slide_images_bytes, slide_texts, cover_l
                 except Exception:
                     intro_clip_path = None
 
-            if not intro_clip_path:
-                cover_path = os.path.join(tmpdir, "cover.png")
-                _generate_cover(cover_lines[0], cover_lines[1], cover_lines[2], cover_path)
-                if os.path.exists(cover_path):
-                    cover_clip = os.path.join(clips_dir, "clip_cover.mp4")
-                    _make_slide_clip(ffmpeg, cover_path, 3.0, cover_clip)
-                    intro_clip_path = cover_clip
+            # No intro video → start straight on slide 1. (A 3 s dark title card
+            # used to go here: it looked like a black screen, and since the
+            # narration starts at 0 s it also put the voice 3 s ahead of the
+            # slides.) The downloadable cover image is generated separately below.
 
             # Composite cover image (slide 1 or custom bg as background + agent cutout)
             _cover_r2_url = None
