@@ -37,7 +37,7 @@
 	--text-primary: #0f172a;
 	--text-secondary: #64748b;
 	--border-subtle: #f1f5f9;
-	--cta-primary: #2d4a22;
+	--cta-primary: #161616;
 	--error: #b42318;
 	--blue: #0f172a;
 	--blue2: #0f172a;
@@ -49,10 +49,11 @@
 	--shadow-soft-md: 0 8px 30px rgb(0 0 0 / 0.04);
 	--shadow-soft-lg: 0 16px 40px rgb(0 0 0 / 0.06);
 	/* Brand */
-	--brand-green: #2d4a22;
-	--brand-green-dark: #1a2e15;
-	--brand-gold: #dfba73;
-	--brand-gold-light: #f5e6c4;
+	/* charcoal + champagne (was forest green + bright gold) */
+	--brand-green: #2b2b29;
+	--brand-green-dark: #141414;
+	--brand-gold: #b8955a;
+	--brand-gold-light: #e7d6b4;
 }
 
 * {

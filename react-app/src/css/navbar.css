@@ -4,7 +4,7 @@
 	display: grid;
 	grid-template-columns: 1fr auto 1fr;
 	padding: 12px 28px;
-	border-bottom: 3px solid var(--brand-gold);
+	border-bottom: 1px solid rgba(184, 149, 90, 0.55);
 	align-items: center;
 	position: sticky;
 	top: 0px;
@@ -265,7 +265,7 @@
 	background-color: var(--brand-green-dark);
 	color: white;
 	padding: 20px 28px;
-	border-bottom: 3px solid var(--brand-gold);
+	border-bottom: 1px solid rgba(184, 149, 90, 0.55);
 }
 
 .nav-agent .btn-font-lt {
