@@ -225,22 +225,38 @@ def _cover_type_zh(style, property_type=""):
     return ""
 
 
-def _cover_price(price, is_lease=False):
+def _cover_type_en(style, property_type=""):
+    s = f"{style or ''} {property_type or ''}".lower()
+    if "semi" in s:
+        return "Semi-Detached"
+    if "town" in s or "row" in s:
+        return "Townhouse"
+    if "condo" in s or "apartment" in s:
+        return "Condo"
+    if "detached" in s:
+        return "Detached"
+    return ""
+
+
+def _cover_price(price, is_lease=False, lang="zh"):
     try:
         p = float(price)
     except (TypeError, ValueError):
         return ""
     if p <= 0:
         return ""
+    only = "Only " if lang == "en" else "仅"
     if is_lease:
-        return f"仅${int(p):,}/月"
+        return f"{only}${int(p):,}/{'mo' if lang == 'en' else '月'}"
     if p >= 1_000_000:
-        return f"仅${f'{p / 1_000_000:.2f}'.rstrip('0').rstrip('.')}M"
-    return f"仅${round(p / 1000):,}K"
+        return f"{only}${f'{p / 1_000_000:.2f}'.rstrip('0').rstrip('.')}M"
+    return f"{only}${round(p / 1000):,}K"
 
 
-def _cover_lines(d):
-    """[社区, 432独立屋, 2200尺, 仅$1.36M] from listing fields (blank lines dropped)."""
+def _cover_lines(d, lang="zh"):
+    """zh: [社区, 432独立屋, 2200尺, 仅$1.36M]
+    en: [Community, 4BR · 3BA · 2 Garage, Detached · 2,200 sqft, Only $1.36M]
+    (blank lines dropped)."""
     def num(v):
         try:
             return int(float(v))
@@ -252,25 +268,33 @@ def _cover_lines(d):
         community = ""                         # never show a street address or an area code like 09.04
 
     bed, bath, garage = num(d.get("bed")), num(d.get("bath")), num(d.get("garage_spaces"))
+    is_lease = "lease" in str(d.get("transaction_type") or "").lower()
+    price = _cover_price(d.get("list_price"), is_lease, lang)
+
+    ag = num(str(d.get("above_grade_sqft") or "").replace(",", ""))
+    area_num = int(ag / 100.0 + 0.5) * 100 if ag and ag > 200 else None   # nearest hundred, half up
+    area_range = str(d.get("sqft") or "").strip()
+
+    if lang == "en":
+        rooms = " · ".join(x for x in (
+            f"{bed}BR" if bed else "", f"{bath}BA" if bath else "",
+            f"{garage} Garage" if garage else "") if x)
+        area = f"{area_num:,} sqft" if area_num else (f"{area_range} sqft" if area_range else "")
+        kind = _cover_type_en(d.get("style"), d.get("property_type"))
+        line3 = " · ".join(x for x in (kind, area) if x)
+        return [x for x in (community, rooms, line3, price) if x]
+
     digits = "".join(str(x) for x in (bed, bath) if x) + (str(garage) if garage else "")
     rooms = f"{digits}{_cover_type_zh(d.get('style'), d.get('property_type'))}"
-
-    area = ""
-    ag = num(str(d.get("above_grade_sqft") or "").replace(",", ""))
-    if ag and ag > 200:
-        area = f"{int(ag / 100.0 + 0.5) * 100}尺"       # nearest hundred, half up: 3152 → 3200, 3050 → 3100
-    elif d.get("sqft"):
-        area = f"{str(d['sqft']).strip()}尺"
-
-    is_lease = "lease" in str(d.get("transaction_type") or "").lower()
-    return [x for x in (community, rooms, area, _cover_price(d.get("list_price"), is_lease)) if x]
+    area = f"{area_num}尺" if area_num else (f"{area_range}尺" if area_range else "")
+    return [x for x in (community, rooms, area, price) if x]
 
 
-def _generate_quick_cover(photo_path, d, out_path):
+def _generate_quick_cover(photo_path, d, out_path, lang="zh"):
     """Render the sticker-style cover. Returns True on success."""
     from PIL import Image, ImageDraw, ImageFont, ImageOps
 
-    lines = _cover_lines(d)
+    lines = _cover_lines(d, lang)
     if not lines or not os.path.exists(_COVER_FONT):
         return False
     img = ImageOps.fit(Image.open(photo_path).convert("RGB"), (_COVER_W, _COVER_H), Image.LANCZOS)
@@ -302,16 +326,20 @@ def _generate_quick_cover(photo_path, d, out_path):
                   stroke_width=stroke, stroke_fill="#2A1400")
 
     sizes = [210, 190, 170, 220]
-    y = 210
-    for i, t in enumerate(top):
-        f = fit_font(t, sizes[i])
-        sticker(t, f, y)
-        y += int(f.size * 1.05)
-    y = _COVER_H - 470
-    for j, t in enumerate(bottom):
-        f = fit_font(t, sizes[2 + j])
-        sticker(t, f, y)
-        y += int(f.size * 1.15)
+
+    def place(lines_, base_sizes, first_center):
+        # Gap between line centres uses BOTH lines' sizes, so a long line that got
+        # shrunk to fit never overlaps a big line next to it.
+        y, prev = first_center, None
+        for text, size in zip(lines_, base_sizes):
+            f = fit_font(text, size)
+            if prev is not None:
+                y += int(prev.size * 0.58 + f.size * 0.58)
+            sticker(text, f, y)
+            prev = f
+
+    place(top, sizes[:2], 210)
+    place(bottom, sizes[2:], _COVER_H - 470)
 
     img.save(out_path, "JPEG", quality=92)
     return True
@@ -2217,7 +2245,7 @@ def _run_pipeline(job_id, mls_number, agent_id, cover_lines, flask_app, intro_by
                 if quick_mode and quick_fields:
                     # Sticker-style cover: 社区 / 432独立屋 / 2200尺 / 仅$1.36M
                     try:
-                        ok = _generate_quick_cover(bg_photo, quick_fields, comp_png)
+                        ok = _generate_quick_cover(bg_photo, quick_fields, comp_png, lang=quick_lang)
                     except Exception as _qc_err:
                         print(f"[XHS] quick cover failed, using default cover: {_qc_err}")
                 if not ok:
